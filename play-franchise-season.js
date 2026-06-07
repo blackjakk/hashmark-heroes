@@ -67,6 +67,21 @@ function frnTransition(to) {
   return to;
 }
 
+// ── Shared view primitives ───────────────────────────────────────────────────
+// Small composable building blocks so screens stop hand-rolling inline-styled
+// markup. First up: the empty/error-state card — the read-only "nothing to show
+// here, head Home" panel several phases fall back to. (Migrating the established
+// milestone screens' bespoke cards onto a shared vocabulary is deliberate
+// per-screen visual work; this is the seed of that layer, adopted where it
+// replaces duplicated markup with no appearance change.)
+function frnHomeFallback({ icon = "", title = "", message = "", ctaLabel = "← Home (saved)", ctaAction = "_frnGoHome && _frnGoHome()" } = {}) {
+  return `<div style="max-width:520px;margin:2rem auto;text-align:center">
+      <div style="font-size:.95rem;font-weight:900;color:var(--gold);margin-bottom:.4rem">${icon ? icon + " " : ""}${title}</div>
+      <div style="font-size:.72rem;line-height:1.5;color:var(--gray)">${message}</div>
+      ${ctaLabel ? `<div style="margin-top:1rem"><button class="btn" onclick="${ctaAction}">${ctaLabel}</button></div>` : ""}
+    </div>`;
+}
+
 function _frnUpdateNavBar() {
   const navEl = $("frnNavBar");
   if (!navEl) return;

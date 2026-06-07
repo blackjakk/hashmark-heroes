@@ -4965,11 +4965,10 @@ function renderFrnPlayoffs() {
   const _bracketReady = playoffBracket && Array.isArray(playoffBracket.rounds) && playoffBracket.rounds.length > 0;
   if (!_bracketReady) {
     const _host = $("frnHomeContent");
-    if (_host) _host.innerHTML = `<div style="max-width:520px;margin:2rem auto;text-align:center">
-      <div style="font-size:.95rem;font-weight:900;color:var(--gold);margin-bottom:.4rem">🏆 Playoffs</div>
-      <div style="font-size:.72rem;line-height:1.5;color:var(--gray)">The bracket isn't seeded yet — finish the regular season to set the field.</div>
-      <div style="margin-top:1rem"><button class="btn" onclick="_frnGoHome && _frnGoHome()">← Home (saved)</button></div>
-    </div>`;
+    if (_host) _host.innerHTML = frnHomeFallback({
+      icon: "🏆", title: "Playoffs",
+      message: "The bracket isn't seeded yet — finish the regular season to set the field.",
+    });
     return;
   }
   const { rounds, roundIdx, champion } = playoffBracket;
