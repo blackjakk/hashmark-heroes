@@ -4771,6 +4771,53 @@ function _buildAccoladesBanner(p) {
   </div>`;
 }
 
+// Morale block for the player card (OWNED players only) — surfaces the live
+// locker-room read inline and makes the agency levers actionable straight from
+// a player's card: a one-on-one, a role promise, naming him captain, or
+// clearing the air with a cancer. GATE-SAFE (morale/personality only).
+function _moralePanelHtml(p) {
+  if (typeof _initMorale === "function") _initMorale(p);
+  const myId   = (typeof franchise === "object" && franchise) ? franchise.chosenTeamId : null;
+  const m      = p.morale ?? 62;
+  const t      = (typeof _moraleTier === "function") ? _moraleTier(m) : { icon: "😐", label: "—", color: "var(--gray)" };
+  const rank   = (typeof _starterRankByPos === "function") ? _starterRankByPos(myId) : null;
+  const reason = (typeof _moraleReason === "function") ? _moraleReason(p, myId, rank) : "";
+  const pct    = Math.round(Math.max(0, Math.min(100, m)));
+  const w      = (franchise && franchise.week) || 1;
+  const jsName = (p.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const jsPid  = (p.pid  || "").replace(/'/g, "\\'");
+  const dis    = `disabled style="opacity:.4;cursor:not-allowed"`;
+
+  const chips = [];
+  if (p._wantsOut)      chips.push(`<span style="color:#ff8a8a;font-weight:800;border:1px solid #ff8a8a;padding:.02rem .3rem;font-size:.56rem">📢 WANTS OUT</span>`);
+  if (p._promise)       chips.push(`<span style="color:var(--gold-lt);font-size:.58rem">🎯 promised a role · ${Math.max(0, (p._promise.deadline - w))}wk to deliver</span>`);
+  if (p._brokenPromises)chips.push(`<span style="color:#ff8a8a;font-size:.56rem" title="${p._brokenPromises} broken promise(s) — talks land softer">trust ✗${p._brokenPromises}</span>`);
+  if (p._cancerCalmUntil > w) chips.push(`<span style="color:#86e0a3;font-size:.56rem">🕊 calm · ${p._cancerCalmUntil - w}wk</span>`);
+
+  const acts = [];
+  const talked = p._talkedSeason === franchise.season;
+  acts.push(`<button class="frn-lr-act" ${talked ? dis : `onclick="frnPCardMoraleAction('talk','${jsName}','${jsPid}')"`} title="${talked ? "Talked this season" : "One-on-one — once a season"}">🗣 Talk</button>`);
+  if (!p._promise) acts.push(`<button class="frn-lr-act" onclick="frnPCardMoraleAction('promise','${jsName}','${jsPid}')" title="Promise a starting role — +morale now, but a 4-week commitment that backfires if you don't deliver">🎯 Promise role</button>`);
+  if (typeof _isCaptainCandidate === "function" && _isCaptainCandidate(p)) {
+    const capUsed = franchise._namedCaptainSeason === franchise.season;
+    acts.push(`<button class="frn-lr-act" ${capUsed ? dis : `onclick="frnPCardMoraleAction('captain','${jsName}','${jsPid}')"`} title="${capUsed ? "Already named a captain this season" : "Name him a team captain — steadier morale, mentors the young guys, lifts the room"}">⭐ Name captain</button>`);
+  }
+  if (p.personality === "cancer") {
+    const blocked = p._clearedAirSeason === franchise.season || p._cancerCalmUntil > w;
+    acts.push(`<button class="frn-lr-act" ${blocked ? dis : `onclick="frnPCardMoraleAction('clearair','${jsName}','${jsPid}')"`} title="Confront the cancer — culture-dependent: calms him + halts contagion if it lands, backfires if it doesn't">💥 Clear the air</button>`);
+  }
+
+  return `<div class="frn-pcard-section" style="margin-top:.55rem">
+    <div class="frn-card-title">MORALE</div>
+    <div style="display:flex;align-items:center;gap:.5rem;margin:.2rem 0 .3rem">
+      <span style="color:${t.color};font-weight:800;font-size:.78rem;white-space:nowrap">${t.icon} ${t.label} · ${Math.round(m)}</span>
+      <div class="frn-lr-meter" style="flex:1"><div class="frn-lr-meter-fill" style="width:${pct}%;background:${t.color}"></div></div>
+    </div>
+    ${reason ? `<div style="font-size:.62rem;color:var(--gray)">${reason}</div>` : ""}
+    ${chips.length ? `<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.3rem;align-items:center">${chips.join("")}</div>` : ""}
+    <div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.4rem">${acts.join("")}</div>
+  </div>`;
+}
 function _buildPlayerDetailPanel(p) {
   const g    = scoutGrade(p);
   const gL   = gradeLabel(g);
@@ -4970,6 +5017,7 @@ function _buildPlayerDetailPanel(p) {
         💢 <b style="letter-spacing:.5px">LOCKER ROOM</b> · ${parts.join(" · ")}
       </div>`;
     })()}
+    ${owned && typeof _moralePanelHtml === "function" ? _moralePanelHtml(p) : ""}
     <div class="frn-pcard-split" style="margin-top:.5rem">
       ${combinePanel}
       ${rightPanel}

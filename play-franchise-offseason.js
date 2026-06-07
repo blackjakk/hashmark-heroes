@@ -2921,6 +2921,100 @@ function _moraleReason(p, teamId, rank) {
   if (m <= 35) return "losing and frustrated";
   return r < starters ? "starting, doing his job" : "depth role";
 }
+// One-line locker-room read for a team — used by the roster-screen mood strip
+// (and anywhere a quick team-mood summary is wanted). GATE-SAFE.
+function _moraleSummary(teamId) {
+  const roster = franchise.rosters?.[teamId] || [];
+  if (!roster.length) return null;
+  roster.forEach(_initMorale);
+  const avg = roster.reduce((s, p) => s + (p.morale ?? MORALE_BASE), 0) / roster.length;
+  const attention = roster.filter(p => (p.morale ?? MORALE_BASE) < 50 && (p.overall || 0) >= 78).length;
+  const wantsOut  = roster.filter(p => p._wantsOut).length;
+  const promised  = roster.filter(p => p._promise).length;
+  const cancers   = roster.filter(p => p.personality === "cancer").length;
+  return { avg, tier: _moraleTier(avg), attention, wantsOut, promised, cancers };
+}
+// ── Agency levers (gate-safe state mutators) ────────────────────────────────
+// The mutation logic lives here next to the morale model; the UI handlers
+// (frnLockerTalk / frnPCardMoraleAction / …) are thin wrappers that find the
+// player, call one of these, then save + re-render in their own context.
+// Each returns true iff it actually applied (so the caller knows to re-render).
+function _applyLockerTalk(p, teamId) {
+  if (!p || p._talkedSeason === franchise.season) return false;
+  p._talkedSeason = franchise.season;
+  _initMorale(p);
+  const culture = franchise.coaches?.[teamId]?.hc?.cultureTrait;
+  let base = culture === "Players' Coach" ? 12 : culture === "Disciplinarian" ? 7 : 9;
+  base = Math.max(3, base - (p._brokenPromises || 0) * 3); // trust erosion from broken promises
+  p.morale = Math.min(99, +((p.morale + base)).toFixed(1));
+  if (p.morale >= 50 && p._wantsOut) { delete p._wantsOut; p._moraleLowWeeks = 0; }
+  return true;
+}
+function _applyLockerPromise(p) {
+  if (!p || p._promise) return false;
+  _initMorale(p);
+  const w = franchise.week || 1;
+  p._promise = { week: w, deadline: w + 4 };
+  p.morale = Math.min(99, +((p.morale + 15)).toFixed(1));
+  if (p._wantsOut) { delete p._wantsOut; p._moraleLowWeeks = 0; }
+  return true;
+}
+// A respected veteran the user can elevate to captain — steadier morale, a
+// mentorship anchor (see _lockerRoom), and a lift to the room. Lasting: it
+// flips personality, so the dev loop / morale model treat him as a captain
+// from here on. NOTE: personality is read only by the franchise/offseason
+// layer — never by the audited play engine — so this stays gate-safe.
+function _isCaptainCandidate(p) {
+  return !!p && (p.age || 0) >= 28 && (p.overall || 0) >= 80 && (p.morale ?? MORALE_BASE) >= 60
+      && p.personality !== "captain" && p.personality !== "cancer";
+}
+function _captainCandidates(teamId) {
+  return (franchise.rosters?.[teamId] || []).filter(_isCaptainCandidate)
+    .sort((a, b) => (b.overall || 0) - (a.overall || 0));
+}
+function _applyNameCaptain(p, teamId) {
+  if (!_isCaptainCandidate(p)) return false;
+  if (franchise._namedCaptainSeason === franchise.season) return false; // once a season
+  franchise._namedCaptainSeason = franchise.season;
+  p.personality = "captain";
+  p._namedCaptain = franchise.season;
+  _initMorale(p);
+  p.morale = Math.min(99, +(p.morale + 6).toFixed(1));
+  for (const q of (franchise.rosters?.[teamId] || [])) {
+    if (q === p) continue;
+    _initMorale(q); q.morale = Math.min(99, +(q.morale + 2).toFixed(1)); // the room responds to leadership
+  }
+  if (typeof _pushNews === "function") _pushNews({ type: "morale", label: `⭐ ${p.position} ${p.name} named a team captain — the locker room rallies behind him` });
+  return true;
+}
+// Confront a cancer — a one-shot, culture-dependent gamble. Land it and he
+// buys in (morale lift) AND his contagion is suppressed for a 4-week window
+// (see _updateMoraleForWeek); whiff it and he sours further and the room feels
+// the blow-up. Once per cancer per season.
+function _applyClearTheAir(p, teamId) {
+  if (!p || p.personality !== "cancer") return false;
+  if (p._clearedAirSeason === franchise.season) return false;
+  p._clearedAirSeason = franchise.season;
+  _initMorale(p);
+  const culture = franchise.coaches?.[teamId]?.hc?.cultureTrait;
+  let chance = culture === "Disciplinarian" ? 0.70 : culture === "Players' Coach" ? 0.60 : 0.50;
+  chance = Math.max(0.20, chance - (p._brokenPromises || 0) * 0.10); // a coach he doesn't trust can't reach him
+  const w = franchise.week || 1;
+  if (Math.random() < chance) {
+    p.morale = Math.min(99, +(p.morale + 10).toFixed(1));
+    p._cancerCalmUntil = w + 4;
+    if (p.morale >= 50 && p._wantsOut) { delete p._wantsOut; p._moraleLowWeeks = 0; }
+    if (typeof _pushNews === "function") _pushNews({ type: "morale", label: `🕊 ${p.position} ${p.name} — you cleared the air; he's bought in for now` });
+  } else {
+    p.morale = Math.max(5, +(p.morale - 8).toFixed(1));
+    for (const q of (franchise.rosters?.[teamId] || [])) {
+      if (q.personality === "captain") continue;
+      _initMorale(q); q.morale = Math.max(5, +(q.morale - 1.5).toFixed(1));
+    }
+    if (typeof _pushNews === "function") _pushNews({ type: "morale", label: `💥 ${p.position} ${p.name} — the talk blew up; the whole room feels it` });
+  }
+  return true;
+}
 function _updateMoraleForWeek(w) {
   for (const t of TEAMS) {
     const roster = franchise.rosters?.[t.id] || [];
@@ -2980,8 +3074,10 @@ function _updateMoraleForWeek(w) {
         }
       }
     }
-    // Cancer contagion — a genuinely unhappy cancer drags the room (except captains).
-    if (roster.some(p => p.personality === "cancer" && p.morale < 35)) {
+    // Cancer contagion — a genuinely unhappy cancer drags the room (except
+    // captains). A cancer you've recently "cleared the air" with is calmed and
+    // doesn't spread during his window (see _applyClearTheAir).
+    if (roster.some(p => p.personality === "cancer" && p.morale < 35 && !(p._cancerCalmUntil > w))) {
       for (const p of roster) if (p.personality !== "captain") p.morale = Math.max(5, +(p.morale - 0.8).toFixed(1));
     }
   }

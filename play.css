@@ -5503,6 +5503,26 @@
     color: #4caf82; border-color: rgba(76,175,130,.45);
     background: rgba(76,175,130,.10); font-style: normal; font-weight: 700;
   }
+  .frn-dc-badge.mood { color: #e8a000; border: 1px solid rgba(232,160,0,.4); }
+  .frn-dc-badge.mood.out { color: #fff; background: #b23a3a; border-color: #b23a3a; font-weight: 800; }
+
+  /* Locker-room mood strip (depth chart → opens the Locker Room) */
+  .frn-dc-mood-strip {
+    display: flex; flex-wrap: wrap; gap: .55rem; align-items: center;
+    margin-bottom: .42rem; padding: .3rem .5rem; cursor: pointer;
+    background: var(--bg2); border: 1px solid var(--border); border-left: 2px solid var(--gold);
+    font-size: .62rem;
+  }
+  .frn-dc-mood-strip:hover { background: rgba(245,197,66,.06); }
+  .frn-dc-mood-meter {
+    flex: 1 1 70px; min-width: 70px; height: 7px;
+    background: rgba(0,0,0,.4); border: 1px solid var(--border); overflow: hidden;
+  }
+  .frn-dc-mood-flags { display: flex; gap: .6rem; flex-wrap: wrap; font-size: .56rem; }
+  .frn-dc-mood-open {
+    margin-left: auto; font-size: .56rem; font-weight: 700; color: var(--gold);
+    letter-spacing: .3px; white-space: nowrap;
+  }
 
   /* Snap bar (center column) */
   .frn-dc-snap-col {
@@ -8822,6 +8842,11 @@
   .frn-lr-promise {
     font-size: .54rem; font-weight: 700; color: var(--gold-lt);
     border: 1px solid var(--gold-lt); padding: .14rem .4rem; background: rgba(245,197,66,.06);
+  }
+  .frn-lr-select {
+    font-size: .58rem; font-family: inherit; color: var(--white);
+    background: var(--bg3); border: 1px solid var(--border);
+    padding: .14rem .3rem; max-width: 14rem;
   }
 
   /* Draft report card (Front Office → Draft Log) */
