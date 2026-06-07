@@ -12375,3 +12375,34 @@
     box-shadow: var(--hh-shadow);
   }
   #franchiseHome .frn-coach-pos-slot { border-radius: 10px; }
+
+  /* ── HH MODERN · confirm / "are you sure" modals ─────────────────────────
+     These mount on <body> (outside #franchiseHome), so they're styled
+     globally here. Team color comes from --team* set on the backdrop in
+     _frnConfirmModal (neutral indigo fallback when no franchise, e.g. the
+     delete-slot dialog on the start screen). */
+  .frn-modal-backdrop { background: rgba(5,7,13,.72); }
+  .frn-modal {
+    background: #141a24; border: 1px solid rgba(255,255,255,.10);
+    border-top: 3px solid var(--team-accent, #6d8bff);
+    border-radius: 16px;
+    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+    box-shadow: 0 24px 70px -20px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  .frn-modal.danger { border-top-color: #f0746d; }
+  .frn-modal-title {
+    font-family: 'Bricolage Grotesque', sans-serif; color: var(--team-accent, #8aa2ff);
+  }
+  .frn-modal.danger .frn-modal-title { color: #f0746d; }
+  .frn-modal-body { color: #eaeef4; }
+  .frn-modal-footer { border-top-color: rgba(255,255,255,.08); }
+  .frn-modal .btn {
+    border-radius: 10px !important; font-family: 'Bricolage Grotesque', sans-serif;
+  }
+  .frn-modal .btn-gold {
+    background: linear-gradient(180deg, var(--team, #6d8bff), color-mix(in srgb, var(--team, #6d8bff) 68%, #05070d));
+    color: var(--team-ink, #fff); border-color: transparent;
+  }
+  .frn-modal-type-input { border-radius: 8px !important; background: #0a0d13; border-color: rgba(255,255,255,.12); }
+  .frn-modal-type-input:focus { border-color: var(--team-accent, #6d8bff); }
+  .frn-delete-summary, .frn-delete-warn { border-radius: 10px; }
