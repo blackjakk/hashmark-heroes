@@ -12257,3 +12257,41 @@
   /* Snap bar (center divider column) */
   #franchiseHome .frn-dc-snap-bar,
   #franchiseHome .frn-dc-snap-fill { border-radius: 999px; }
+
+  /* ── HH MODERN · shared tables (Practice Squad, rosters, analytics…) ─── */
+  #franchiseHome .frn-pre-roster-table th,
+  #franchiseHome .frn-ana-table th {
+    font-family: 'Bricolage Grotesque', sans-serif; color: var(--gray);
+    text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border);
+  }
+  #franchiseHome .frn-pre-roster-table td,
+  #franchiseHome .frn-ana-table td { border-bottom: 1px solid var(--border); }
+  #franchiseHome .frn-pre-roster-table tr:hover td,
+  #franchiseHome .frn-ana-table tr:hover td {
+    background: color-mix(in srgb, var(--team) 7%, transparent);
+  }
+
+  /* ── HH MODERN · Locker Room ─────────────────────────────────────────── */
+  #franchiseHome .frn-lr-mood-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-left: 3px solid var(--team-accent, var(--team));
+    border-radius: 14px; box-shadow: var(--hh-shadow); padding: .8rem .9rem;
+  }
+  #franchiseHome .frn-lr-meter { border-radius: 999px; height: 9px; }
+  #franchiseHome .frn-lr-meter-fill { border-radius: 999px; }
+  #franchiseHome .frn-lr-alert { border-radius: 12px; }
+  #franchiseHome .frn-lr-list-head {
+    font-family: 'Bricolage Grotesque', sans-serif; color: var(--gray);
+  }
+  #franchiseHome .frn-lr-row { border-bottom: 1px solid var(--border); }
+  #franchiseHome .frn-lr-row:hover { background: color-mix(in srgb, var(--team) 6%, transparent); }
+  #franchiseHome .frn-lr-name { font-family: 'Bricolage Grotesque', sans-serif; }
+  #franchiseHome .frn-lr-pos { color: var(--team-accent, var(--team)); }
+  #franchiseHome .frn-lr-act,
+  #franchiseHome .frn-lr-promise {
+    border-radius: 999px; color: var(--team-accent, var(--team));
+    border-color: color-mix(in srgb, var(--team) 45%, var(--border));
+    background: color-mix(in srgb, var(--team) 12%, transparent);
+  }
+  #franchiseHome .frn-lr-act:hover:not(:disabled) { background: color-mix(in srgb, var(--team) 22%, transparent); }
+  #franchiseHome .frn-lr-select { border-radius: 8px; }
