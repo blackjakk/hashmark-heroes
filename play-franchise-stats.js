@@ -6287,6 +6287,13 @@ function _frnRenderAppShell() {
   const el = $("frnAppShell");
   if (!el) return;
   const myTeam = getTeam(franchise.chosenTeamId);
+  // HH modern re-skin: expose the chosen team's color as a CSS custom property
+  // on the dashboard root so the scoped #franchiseHome theme uses team color
+  // as its primary accent (replaces the legacy gold).
+  try {
+    const _fh = document.getElementById("franchiseHome");
+    if (_fh && myTeam && myTeam.primary) _fh.style.setProperty("--team", myTeam.primary);
+  } catch (_e) {}
   const stand = franchise.standings?.[franchise.chosenTeamId] || { w: 0, l: 0, t: 0, pf: 0, pa: 0 };
   const rec = `${stand.w}-${stand.l}${stand.t?`-${stand.t}`:""}`;
   // Per-tab badges
