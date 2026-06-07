@@ -28,6 +28,7 @@ const sig = () => {
   const b = await chromium.launch({ headless: true });
   const p = await b.newContext({ viewport: { width: 1280, height: 1000 } }).then(c => c.newPage());
   const errs = []; p.on("pageerror", e => errs.push(e.message.slice(0, 160)));
+  const warns = []; p.on("console", m => { if (/undeclared edge/.test(m.text())) warns.push(m.text().slice(0, 160)); });
   await p.goto(URL, { waitUntil: "networkidle", timeout: 15000 });
   await p.waitForTimeout(700);
   await p.click("button.frn-start-new", { timeout: 6000 });
@@ -114,6 +115,19 @@ const sig = () => {
   console.log("\n[exit]");
   const nxt = await p.evaluate(() => { if (typeof frnNewSeason === "function") frnNewSeason(); return franchise.phase; });
   check(nxt === "free_agency", `'Begin new season' (frnNewSeason) advances to free_agency (got '${nxt}')`);
+
+  // ── 6. Transition machinery (#1): single choke point + declared table ─────
+  console.log("\n[transition machinery]");
+  const tm = await p.evaluate(() => ({
+    hasFn: typeof frnTransition === "function",
+    hasTable: typeof FRN_PHASE_EDGES === "object" && FRN_PHASE_EDGES != null,
+    history: (franchise._phaseHistory || []).map(h => `${h.from}→${h.to}`),
+  }));
+  check(tm.hasFn, "frnTransition() is the single phase-write choke point");
+  check(tm.hasTable, "FRN_PHASE_EDGES transition table is declared");
+  check(tm.history.includes("regular→season_recap"), `history recorded regular→season_recap (${tm.history.join(", ") || "empty"})`);
+  check(tm.history.includes("season_recap→playoffs"), "history recorded season_recap→playoffs");
+  check(warns.length === 0, `no undeclared-edge warnings during the full real cycle (${warns.length ? warns.join(" | ") : "clean"})`);
 
   console.log(`\npageerrors: ${errs.length ? JSON.stringify(errs) : "none"}`);
   if (errs.length) fail += errs.length;

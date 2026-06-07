@@ -4516,7 +4516,7 @@ function frnQuickStart() {
     if (!startFranchise(choice.id)) return;
     // Skip preseason + free agency entirely — drop straight into Week 1, so the
     // new user's first action is a real game.
-    franchise.phase = "regular";
+    frnTransition("regular");
     franchise.freeAgents = [];
     franchise._faOffers = {};
     franchise._faResults = null;

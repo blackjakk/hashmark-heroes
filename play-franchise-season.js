@@ -24,6 +24,49 @@ const _FRN_PHASE_NAV = {
   // Regular gets nothing — the app shell tab bar IS the nav. Start gets
   // nothing — the welcome card is the nav.
 };
+
+// ── Phase state machine ──────────────────────────────────────────────────────
+// The declared legal transitions of the season loop, in one place. This is the
+// map the router (showFranchiseDashboard) reads phases out of; this table is
+// what's allowed to move between them. Edges are validated in WARN-ONLY mode —
+// an undeclared transition logs but still proceeds, so a missing edge surfaces
+// in the console / headless harness without ever soft-locking a real save.
+const FRN_PHASE_EDGES = {
+  preseason:           ["free_agency", "regular"],
+  free_agency:         ["free_agency_results", "regular", "fa_cuts"],
+  free_agency_results: ["fa_cuts", "regular"],
+  fa_cuts:             ["regular", "free_agency_results"],
+  regular:             ["fa_cuts", "season_recap"],
+  season_recap:        ["playoffs"],
+  playoffs_pending:    ["playoffs", "season_recap"],   // legacy phase; migrated on load
+  playoffs:            ["awards"],
+  awards:              ["offseason"],
+  offseason:           ["draft"],
+  draft:               ["draft_grade"],
+  draft_grade:         ["free_agency"],                // "begin new season" → FA (via frnStartSeason)
+};
+
+// The single choke point for every gameplay write to franchise.phase. Sets the
+// phase, records a bounded transition history (debugging / save forensics), and
+// validates the edge against FRN_PHASE_EDGES (warn-only). Intentionally pure —
+// it does NOT save or render; callers keep their existing save + (specific)
+// render so transition timing is unchanged. Returns the new phase.
+function frnTransition(to) {
+  if (!franchise) return to;
+  const from = franchise.phase;
+  if (from !== to) {
+    const legal = FRN_PHASE_EDGES[from];
+    if (from != null && legal && !legal.includes(to)) {
+      console.warn(`[frnTransition] undeclared edge "${from}" → "${to}" — allowing (add it to FRN_PHASE_EDGES if intended)`);
+    }
+    const hist = (franchise._phaseHistory = franchise._phaseHistory || []);
+    hist.push({ from: from ?? null, to, season: franchise.season ?? null, week: franchise.week ?? null, t: Date.now() });
+    if (hist.length > 24) hist.shift();
+  }
+  franchise.phase = to;
+  return to;
+}
+
 function _frnUpdateNavBar() {
   const navEl = $("frnNavBar");
   if (!navEl) return;
@@ -186,8 +229,8 @@ function showFranchiseDashboard() {
   // saves captured mid-recap / mid-draft-grade resume on the right screen.
   {
     const _fw = (typeof FRANCHISE_WEEKS !== "undefined") ? FRANCHISE_WEEKS : 17;
-    if (franchise.phase === "draft" && franchise.draft == null) franchise.phase = "draft_grade";
-    else if (franchise.phase === "regular" && (franchise.week || 1) > _fw && !franchise.playoffBracket) franchise.phase = "season_recap";
+    if (franchise.phase === "draft" && franchise.draft == null) frnTransition("draft_grade");
+    else if (franchise.phase === "regular" && (franchise.week || 1) > _fw && !franchise.playoffBracket) frnTransition("season_recap");
   }
   if (!franchise.seasonStats)      franchise.seasonStats = {};
   // One-time repair for saves predating idempotent stat-merge. If the
@@ -5067,7 +5110,7 @@ function frnStartSeason() {
     return;
   }
   // First action of every season: free agency. Generate a fresh pool.
-  franchise.phase = "free_agency";
+  frnTransition("free_agency");
   franchise.freeAgents = _generateFAPool();
   franchise._faOffers = {};
   franchise._faResults = null;
@@ -6573,9 +6616,9 @@ function frnFAProcessOffers() {
   const used = capUsedByTeam(myId);
   if (used > cap) {
     franchise._faResults = { signed: [], lost: [] };
-    franchise.phase = "free_agency_results";
+    frnTransition("free_agency_results");
   } else {
-    franchise.phase = "regular";
+    frnTransition("regular");
   }
   saveFranchise();
   showFranchiseDashboard();
@@ -7627,7 +7670,7 @@ function renderFrnFAResults() {
 }
 
 function frnFAGoToCuts() {
-  franchise.phase = "fa_cuts";
+  frnTransition("fa_cuts");
   saveFranchise();
   renderFrnFACuts();
 }
@@ -8692,7 +8735,7 @@ async function frnFACutPlayer(name, pos) {
 }
 
 function frnFAFinish() {
-  franchise.phase = "regular";
+  frnTransition("regular");
   franchise._faResults = null;
   saveFranchise();
   showFranchiseDashboard();

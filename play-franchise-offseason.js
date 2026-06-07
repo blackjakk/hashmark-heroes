@@ -3166,7 +3166,7 @@ function _bumpWeek() {
     const used = capUsedByTeam(franchise.chosenTeamId);
     franchise.capGraceDeadline = null;
     if (used > cap) {
-      franchise.phase = "fa_cuts";
+      frnTransition("fa_cuts");
       return;
     }
   }
@@ -3175,7 +3175,7 @@ function _bumpWeek() {
   // "Start the playoffs" CTA seeds the bracket via startFrnPlayoffs. Auto-sim
   // shortcuts (frnSimToEndOfSeason / frnSimSeason) treat season_recap like the
   // old playoffs_pending and blow through it.
-  if (franchise.week > FRANCHISE_WEEKS) franchise.phase = "season_recap";
+  if (franchise.week > FRANCHISE_WEEKS) frnTransition("season_recap");
 }
 
 // User-clicked "Advance to next week" from the review interstitial.
@@ -3898,7 +3898,7 @@ function startFrnPlayoffs() {
     roundIdx:  0,
     champion:  null,
   };
-  franchise.phase = "playoffs";
+  frnTransition("playoffs");
   saveFranchise();
   renderFrnPlayoffs();
 }
@@ -5312,7 +5312,7 @@ function advancePlayoffRound() {
   const nextRdIdx = pb.roundIdx + 1;
   if (nextRdIdx >= pb.rounds.length) {
     pb.champion   = winners[0];
-    franchise.phase = "awards";
+    frnTransition("awards");
   } else {
     const nextRd = pb.rounds[nextRdIdx];
     for (let i = 0; i < nextRd.length; i++) {
@@ -5408,7 +5408,7 @@ function _processCoachEscalators() {
 
 // ── Awards ceremony ───────────────────────────────────────────────────────────
 function showFrnAwards() {
-  franchise.phase = "awards";
+  frnTransition("awards");
   // Record season in history (guard against double-entry on re-open).
   // Computes League MVP (best season stats × team-success multiplier), Super
   // Bowl MVP (top scorer from championship-winning side), and your team's MVP.
@@ -9414,7 +9414,7 @@ function startFrnOffseason() {
   // Resolve contract options: auto-decide player options vs market; flag
   // user-team team-options for manual pick-up/decline in the resign UI.
   _processContractOptions();
-  franchise.phase = "offseason";
+  frnTransition("offseason");
   franchise._resignPending = null;
   saveFranchise();
   renderFrnResignings();
@@ -18729,7 +18729,7 @@ function frnGoToDraft() {
   if (typeof _mergeSeasonScoutToDraft === "function") _mergeSeasonScoutToDraft();
   // Auto-target any pinned prospects who made this year's class.
   if (typeof _migratePinsToDraftTargets === "function") _migratePinsToDraftTargets();
-  franchise.phase = "draft";
+  frnTransition("draft");
   franchise._faLossesPending = {};
   franchise._faSignsPending  = {};
   saveFranchise();
@@ -23827,7 +23827,7 @@ function _draftFinalize() {
   // the router (not a "phase===draft && draft==null" boolean) drives it and a
   // refresh re-renders the grade instead of bouncing through renderFrnDraft's
   // null guard. The grade's "Begin new season" CTA advances via frnNewSeason.
-  franchise.phase = "draft_grade";
+  frnTransition("draft_grade");
   // Live-flow final shape: cut AI rosters to 53 + re-run cap enforce on the
   // post-draft shape, mirroring what the audit harness does manually. Without
   // this, AI rosters bloated past 53 after _draftFinalize's UDFA fill and the
