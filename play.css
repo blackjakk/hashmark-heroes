@@ -12295,3 +12295,49 @@
   }
   #franchiseHome .frn-lr-act:hover:not(:disabled) { background: color-mix(in srgb, var(--team) 22%, transparent); }
   #franchiseHome .frn-lr-select { border-radius: 8px; }
+
+  /* ── HH MODERN · Free Agency ─────────────────────────────────────────── */
+  /* The summary line + the three columns become elevated cards */
+  #franchiseHome .frn-fa-summary,
+  #franchiseHome .frn-fa-pool-col,
+  #franchiseHome .frn-fa-mid-col,
+  #franchiseHome .frn-fa-roster-col {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: var(--hh-shadow);
+  }
+  /* FA pool rows */
+  #franchiseHome .frn-fa-row {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+    transition: background .12s, border-color .12s;
+  }
+  #franchiseHome .frn-fa-row:hover {
+    background: color-mix(in srgb, var(--team) 10%, var(--bg3));
+    border-color: color-mix(in srgb, var(--team) 40%, var(--border)); transform: none;
+  }
+  #franchiseHome .frn-fa-row.selected {
+    border-color: color-mix(in srgb, var(--team) 55%, var(--border));
+    background: color-mix(in srgb, var(--team) 14%, transparent);
+    box-shadow: inset 2px 0 0 var(--team-accent, var(--team));
+  }
+  #franchiseHome .frn-fa-name,
+  #franchiseHome .frn-fa-ask { font-family: 'Bricolage Grotesque', sans-serif; }
+  /* Detail panel: demand + acceptance preview */
+  #franchiseHome .frn-fa-demand { background: rgba(255,255,255,.03); border-radius: 10px; }
+  #franchiseHome .frn-fa-preview {
+    background: rgba(255,255,255,.03); border-radius: 10px;
+    border-left: 3px solid var(--team-accent, var(--team));
+  }
+  #franchiseHome .frn-fa-offer-form input {
+    border-radius: 8px; font-family: 'Bricolage Grotesque', sans-serif;
+  }
+  #franchiseHome .frn-fa-offer-form input:focus { border-color: var(--team-accent, var(--team)); }
+  /* Result rows + cut-list rows */
+  #franchiseHome .frn-fa-result-row,
+  #franchiseHome .frn-cut-option {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  }
+  #franchiseHome .frn-cut-option:hover {
+    background: color-mix(in srgb, var(--team) 10%, var(--bg3));
+    border-color: color-mix(in srgb, var(--team) 40%, var(--border));
+  }
+  #franchiseHome .frn-cut-option input[type="checkbox"] { accent-color: var(--team); }
