@@ -11973,9 +11973,11 @@
   ══════════════════════════════════════════════════════════════════════ */
   #franchiseHome {
     --team: #6d8bff;
-    /* legacy accent → team color */
-    --gold:     var(--team);
-    --gold-lt:  color-mix(in srgb, var(--team) 72%, #ffffff);
+    --team-ink: #ffffff;        /* text ON the solid team color (set per-team in JS) */
+    --team-accent: var(--team); /* team color lifted for legibility on dark (set in JS) */
+    /* legacy accent → legible team accent (foreground); fills use --team */
+    --gold:     var(--team-accent);
+    --gold-lt:  color-mix(in srgb, var(--team-accent) 75%, #ffffff);
     --gold-dim: color-mix(in srgb, var(--team) 68%, #05070d);
     /* neutral-dark elevated surfaces */
     --bg: #0a0d13; --bg2: #10151d; --bg3: #1a212d; --card: #141a24;
@@ -12019,7 +12021,7 @@
       radial-gradient(120% 130% at 100% -10%, color-mix(in srgb, var(--accent, var(--team)) 18%, transparent), transparent 55%),
       linear-gradient(180deg, var(--bg3), var(--card));
     border: 1px solid var(--border);
-    border-top: 3px solid var(--accent, var(--team));
+    border-top: 3px solid var(--team-accent, var(--accent, var(--team)));
     border-radius: 18px;
     box-shadow: var(--hh-shadow), var(--hh-inset);
     padding: 1.3rem 1.4rem;
@@ -12027,7 +12029,7 @@
   #franchiseHome .frn-hero-card::before { opacity: .10; }
   #franchiseHome .frn-hero-eyebrow {
     font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700;
-    font-size: .64rem; letter-spacing: 1.3px; color: var(--accent, var(--team));
+    font-size: .64rem; letter-spacing: 1.3px; color: var(--team-accent, var(--team));
     border-bottom: 1px solid var(--border);
   }
   #franchiseHome .frn-hero-eyebrow-rec { color: var(--gray); }
@@ -12042,11 +12044,11 @@
     border: 1px solid var(--border); border-radius: 12px;
   }
   #franchiseHome .frn-hero-team-name { font-family: 'Bricolage Grotesque', sans-serif; }
-  #franchiseHome .frn-hero-team-rtgs b { color: var(--accent, var(--team)); }
+  #franchiseHome .frn-hero-team-rtgs b { color: var(--team-accent, var(--team)); }
   #franchiseHome .frn-hero-vs { color: var(--gray); }
   #franchiseHome .frn-hero-play-btn {
     background: linear-gradient(180deg, var(--team), color-mix(in srgb, var(--team) 68%, #05070d));
-    color: #fff; border-radius: 12px; font-weight: 800;
+    color: var(--team-ink, #fff); border-radius: 12px; font-weight: 800;
     letter-spacing: .6px; text-transform: none; font-size: 1.05rem;
     box-shadow: var(--hh-inset), 0 8px 20px -10px var(--team);
   }
@@ -12082,7 +12084,10 @@
   #franchiseHome .frn-bb-id-mark {
     border-radius: 11px; width: 40px; height: 40px; font-size: 15px;
     font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700;
-    letter-spacing: .3px; box-shadow: var(--hh-inset);
+    letter-spacing: .3px; color: var(--team-ink, #fff);
+    /* Outer hairline ring so very dark team colors (e.g. navy) stay
+       delineated against the near-black app background. */
+    box-shadow: var(--hh-inset), 0 0 0 1px rgba(255,255,255,.16);
   }
   #franchiseHome .frn-bb-id-name {
     font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700;
@@ -12148,7 +12153,7 @@
   }
   #franchiseHome .frn-inbox-section-title { background: transparent; color: var(--blgray); }
   #franchiseHome .frn-inbox-cta {
-    border-radius: 999px; color: var(--team);
+    border-radius: 999px; color: var(--team-accent, var(--team));
     border-color: color-mix(in srgb, var(--team) 45%, var(--border));
     background: color-mix(in srgb, var(--team) 14%, transparent);
   }
