@@ -2832,6 +2832,7 @@ function _cutWorstToOpenSpot(teamId) {
   roster.splice(idx, 1);
   worst._cutSeason = franchise.season;
   if (!franchise.freeAgents) franchise.freeAgents = [];
+  if (typeof _ensureFADemand === "function") _ensureFADemand(worst);
   franchise.freeAgents.push(worst);
   return true;
 }
@@ -14883,6 +14884,7 @@ function frnNewSeason() {
   const surviving = carryFAs.filter(p => (p._unsignedSeasons || 0) < 2);
   for (const p of surviving) {
     p._unsignedSeasons = (p._unsignedSeasons || 0) + 1;
+    if (typeof _ensureFADemand === "function") _ensureFADemand(p);
     franchise.freeAgents.push(p);
   }
   franchise._faOffers = {};
@@ -24088,6 +24090,7 @@ function _trimAiRostersToCap(targetSize = 55, opts = {}) {
       p._cutFromTeamId = t.id;
       p._unsignedSeasons = p._unsignedSeasons || 0;
       delete p.contract;
+      if (typeof _ensureFADemand === "function") _ensureFADemand(p);
       franchise.freeAgents.push(p);
     }
     totalCut += cutSet.size;

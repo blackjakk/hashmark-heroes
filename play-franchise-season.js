@@ -5662,6 +5662,27 @@ function _generateFAPool() {
   return pool;
 }
 
+// Backfill contract demands on a free agent that entered the pool WITHOUT
+// them. Synthetic FAs from _generateFAPool always get demandedAAV/Years, but
+// CUT players (the push sites stamp _cutSeason and delete the contract, then
+// skip the demand math) arrive with none — and reading p.demandedAAV.toFixed()
+// on the FA screen would crash the whole render. Idempotent: only fills when
+// missing, so it's safe to call at the cut sites AND defensively at render
+// time to heal saves that already persisted demand-less cut FAs. Cut vets ask
+// a touch below market (they were just released, so they're motivated).
+function _ensureFADemand(p) {
+  if (!p || p.demandedAAV != null) return p;
+  const cap = franchise.salaryCap || SALARY_CAP_BASE;
+  const mv = (typeof computeMarketValue === "function") ? computeMarketValue(p, cap) : 1;
+  p.marketValue = p.marketValue ?? Math.round(mv * 10) / 10;
+  p.demandedAAV = Math.max(0.5, Math.round(mv * 0.92 * 10) / 10);
+  if (p.demandedYears == null) {
+    const age = p.age || 27;
+    p.demandedYears = age <= 26 ? 3 : age <= 30 ? 2 : 1;
+  }
+  return p;
+}
+
 // Download the current FA pool as a CSV (opens cleanly in Excel/Sheets).
 // Includes combine measurables, scout grade, contract demands, and story.
 function frnFAExportCSV() {
@@ -5760,6 +5781,10 @@ function frnFASetFilter(field, value) {
 
 function renderFrnFA(selectedKey) {
   _faContentionMemo = null; // rebuild league-contention once per render
+  // Heal any cut FAs that reached the pool without contract demands (older
+  // saves, or a cut path that skipped the demand math). Idempotent — only
+  // touches entries missing demandedAAV. Prevents the toFixed() crash below.
+  (franchise.freeAgents || []).forEach(_ensureFADemand);
   const { chosenTeamId, freeAgents = [], _faOffers = {}, salaryCap, season } = franchise;
   const cap = effectiveSalaryCap(chosenTeamId);
   const myRoster = franchise.rosters[chosenTeamId] || [];
@@ -5864,7 +5889,7 @@ function renderFrnFA(selectedKey) {
         ${needBadge}
       </div>
       <div style="display:flex;align-items:center;gap:.3rem;margin-top:.06rem;padding-left:1rem">
-        <span class="frn-fa-ask" style="font-size:.62rem">$${p.demandedAAV.toFixed(1)}M</span>
+        <span class="frn-fa-ask" style="font-size:.62rem">$${(p.demandedAAV ?? 0).toFixed(1)}M</span>
         <span style="color:var(--gray);font-size:.55rem">· ${p.age}yr</span>
         ${suitorBit}
         ${offered ? `<span style="font-size:.55rem;color:var(--green-lt);font-weight:700;margin-left:auto">✓ $${myOffer.aav.toFixed(1)}M offered</span>` : ""}
