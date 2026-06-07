@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Font specimen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Archivo+Black&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a0d13;--surface:#141a24;--hair:rgba(255,255,255,.07);--t1:#f1f4f9;--t2:#9aa7b8;--t3:#6b7688;--team:#6d8bff;--good:#3ecf8e}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--t1);font-family:system-ui;padding:28px}
+  h1{font-size:15px;font-weight:600;color:var(--t2);letter-spacing:.5px;margin-bottom:20px;text-align:center}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1500px;margin:0 auto}
+  .col{background:var(--surface);border:1px solid var(--hair);border-radius:16px;padding:24px;box-shadow:0 8px 24px -12px rgba(0,0,0,.7)}
+  .tag{font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--team)}
+  .fam{font-size:13px;color:var(--t3);margin:3px 0 22px}
+  .rowlbl{font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--t3);margin:22px 0 8px}
+  .num{font-size:30px;line-height:1.1;letter-spacing:.3px;font-feature-settings:"tnum" 1}
+  .stats{font-size:54px;line-height:1;letter-spacing:-.5px;font-feature-settings:"tnum" 1}
+  .stats .g{color:var(--good)}
+  .tname{font-size:24px;font-weight:800;letter-spacing:-.4px}
+  .eyebrow{font-size:12px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--team)}
+  .sect{font-size:14px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--t2)}
+  .body{font-size:14px;line-height:1.55;color:var(--t1);margin-top:6px}
+  .small{font-size:12px;color:var(--t2);margin-top:6px}
+
+  /* A */ .A .num,.A .stats,.A .eyebrow,.A .sect{font-family:'Archivo Black',sans-serif;font-weight:400}
+          .A .eyebrow,.A .sect{font-family:'Archivo',sans-serif;font-weight:700}
+          .A .tname,.A .body,.A .small{font-family:'Archivo',sans-serif}
+  /* B */ .B .num,.B .stats{font-family:'Space Grotesk',sans-serif;font-weight:700}
+          .B .eyebrow,.B .sect{font-family:'Space Grotesk',sans-serif;font-weight:600}
+          .B .tname,.B .body,.B .small{font-family:'Hanken Grotesk',sans-serif}
+  /* C */ .C .num,.C .stats{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800}
+          .C .eyebrow,.C .sect{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700}
+          .C .tname,.C .body,.C .small{font-family:'Plus Jakarta Sans',sans-serif}
+</style></head>
+<body>
+<h1>Same content, three font systems — character lives in the numerals &amp; headings</h1>
+<div class="grid">
+  <div class="col A">
+    <div class="tag">Option A</div><div class="fam">Archivo + Archivo Black</div>
+    <div class="rowlbl">Numerals</div><div class="num">0 1 2 3 4 5 6 7 8 9</div>
+    <div class="rowlbl">Marquee stats</div><div class="stats">84 88 <span class="g">68%</span></div>
+    <div class="rowlbl">Team name</div><div class="tname">Prairie Wolves</div>
+    <div class="rowlbl">Eyebrow / section</div><div class="eyebrow">Week 12 · Sunday 1:00</div><div class="sect" style="margin-top:6px">Team Leaders</div>
+    <div class="rowlbl">Body</div><div class="body">J. Castillo threw for 2,841 yards and 22 touchdowns, lifting the Wolves to a 7–4 record and the #2 seed.</div><div class="small">71 rec · 1,043 yds · 14.7 avg</div>
+  </div>
+  <div class="col B">
+    <div class="tag">Option B</div><div class="fam">Space Grotesk + Hanken Grotesk</div>
+    <div class="rowlbl">Numerals</div><div class="num">0 1 2 3 4 5 6 7 8 9</div>
+    <div class="rowlbl">Marquee stats</div><div class="stats">84 88 <span class="g">68%</span></div>
+    <div class="rowlbl">Team name</div><div class="tname">Prairie Wolves</div>
+    <div class="rowlbl">Eyebrow / section</div><div class="eyebrow">Week 12 · Sunday 1:00</div><div class="sect" style="margin-top:6px">Team Leaders</div>
+    <div class="rowlbl">Body</div><div class="body">J. Castillo threw for 2,841 yards and 22 touchdowns, lifting the Wolves to a 7–4 record and the #2 seed.</div><div class="small">71 rec · 1,043 yds · 14.7 avg</div>
+  </div>
+  <div class="col C">
+    <div class="tag">Option C</div><div class="fam">Plus Jakarta Sans</div>
+    <div class="rowlbl">Numerals</div><div class="num">0 1 2 3 4 5 6 7 8 9</div>
+    <div class="rowlbl">Marquee stats</div><div class="stats">84 88 <span class="g">68%</span></div>
+    <div class="rowlbl">Team name</div><div class="tname">Prairie Wolves</div>
+    <div class="rowlbl">Eyebrow / section</div><div class="eyebrow">Week 12 · Sunday 1:00</div><div class="sect" style="margin-top:6px">Team Leaders</div>
+    <div class="rowlbl">Body</div><div class="body">J. Castillo threw for 2,841 yards and 22 touchdowns, lifting the Wolves to a 7–4 record and the #2 seed.</div><div class="small">71 rec · 1,043 yds · 14.7 avg</div>
+  </div>
+</div>
+</body></html>

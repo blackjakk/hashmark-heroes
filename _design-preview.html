@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hashmark Heroes — font direction preview</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script>
+/* Switch font system with ?v=A|B|C — loads ONLY the weights each system uses. */
+(function(){
+  var v=(new URLSearchParams(location.search).get('v')||'D').toUpperCase();
+  if(['A','B','C','D','E'].indexOf(v)<0) v='D';
+  document.documentElement.dataset.v=v;
+  var hrefs={
+    A:"https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Archivo+Black&display=swap",
+    B:"https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap",
+    C:"https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
+    D:"https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap",
+    E:"https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap"
+  };
+  var l=document.createElement('link'); l.rel='stylesheet'; l.href=hrefs[v]; document.head.appendChild(l);
+  var lbl={A:'Archivo + Archivo Black',B:'Space Grotesk + Hanken Grotesk',C:'Plus Jakarta Sans',D:'Bricolage Grotesque',E:'Fraunces + Hanken Grotesk'};
+  document.addEventListener('DOMContentLoaded',function(){
+    var b=document.getElementById('fontbadge'); if(b) b.innerHTML='Option '+v+' · <b>'+lbl[v]+'</b>';
+  });
+})();
+</script>
+
+<style>
+  :root{
+    --bg:#0a0d13; --surface:#141a24; --surface-2:#1a212d; --surface-3:#232c3a;
+    --hair:rgba(255,255,255,.06); --hair-2:rgba(255,255,255,.09);
+    --shadow:0 8px 24px -12px rgba(0,0,0,.7);
+    --inset:inset 0 1px 0 rgba(255,255,255,.05);
+    --t1:#f1f4f9; --t2:#9aa7b8; --t3:#66728499;
+    --team:#6d8bff; --team-2:#3f57cc; --team-soft:rgba(109,139,255,.13);
+    --good:#3ecf8e; --bad:#f87171; --warn:#f5b544;
+    --r-sm:9px; --r:12px; --r-lg:16px; --pill:999px;
+    /* defaults; overridden per data-v */
+    --ui:'Hanken Grotesk',system-ui,sans-serif; --disp:'Space Grotesk',sans-serif; --disp2:'Space Grotesk',sans-serif;
+    --disp-w:700; --disp-w2:600; --mq-track:0px;
+  }
+  /* ── FONT SYSTEMS ──────────────────────────────────────────────────────
+     --ui = body/UI · --disp = marquee numbers · --disp2 = eyebrows/labels  */
+  html[data-v="A"]{ --ui:'Archivo',system-ui,sans-serif; --disp:'Archivo Black',sans-serif; --disp2:'Archivo',sans-serif; --disp-w:400; --disp-w2:700; --mq-track:-.5px; }
+  html[data-v="B"]{ --ui:'Hanken Grotesk',system-ui,sans-serif; --disp:'Space Grotesk',sans-serif; --disp2:'Space Grotesk',sans-serif; --disp-w:700; --disp-w2:600; --mq-track:0px; }
+  html[data-v="C"]{ --ui:'Plus Jakarta Sans',system-ui,sans-serif; --disp:'Plus Jakarta Sans',sans-serif; --disp2:'Plus Jakarta Sans',sans-serif; --disp-w:800; --disp-w2:700; --mq-track:-.7px; }
+  html[data-v="D"]{ --ui:'Bricolage Grotesque',system-ui,sans-serif; --disp:'Bricolage Grotesque',sans-serif; --disp2:'Bricolage Grotesque',sans-serif; --disp-w:800; --disp-w2:700; --mq-track:-.5px; }
+  html[data-v="E"]{ --ui:'Hanken Grotesk',system-ui,sans-serif; --disp:'Fraunces',Georgia,serif; --disp2:'Hanken Grotesk',sans-serif; --disp-w:600; --disp-w2:700; --mq-track:0px; }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--t1);font-family:var(--ui);font-size:14px;line-height:1.5;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .tnum{font-feature-settings:"tnum" 1;font-variant-numeric:tabular-nums}
+  .disp{font-family:var(--disp);font-weight:var(--disp-w);letter-spacing:var(--mq-track);font-feature-settings:"tnum" 1}
+  .eyebrow{font-family:var(--disp2);font-weight:var(--disp-w2);font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--team)}
+  svg.ic{width:18px;height:18px;display:block}
+
+  .appbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:20px;padding:14px 24px;
+    background:rgba(10,13,19,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--hair)}
+  .brand{display:flex;align-items:center;gap:12px;flex:0 0 auto;min-width:0}
+  .logo{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto;
+    font-family:var(--disp);font-weight:var(--disp-w);font-size:16px;letter-spacing:.5px;color:#fff;
+    background:linear-gradient(150deg,var(--team),var(--team-2));box-shadow:var(--inset)}
+  .brand .nm{font-weight:700;font-size:16px;line-height:1.15;white-space:nowrap}
+  .brand .sub{font-size:12px;color:var(--t2);white-space:nowrap}
+  .nav{display:flex;gap:2px;margin-left:12px;flex-wrap:wrap}
+  .navpill{padding:8px 15px;border-radius:var(--pill);font-size:13px;font-weight:600;color:var(--t2);cursor:pointer}
+  .navpill.on{background:var(--surface-2);color:var(--t1);box-shadow:inset 0 0 0 1px var(--hair-2)}
+  .barright{margin-left:auto;display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  .chip{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:var(--pill);
+    background:var(--surface);font-size:12px;font-weight:600;color:var(--t2);box-shadow:inset 0 0 0 1px var(--hair)}
+  .chip b{color:var(--t1);font-weight:700}
+  .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px rgba(62,207,142,.18)}
+
+  .wrap{max-width:1160px;margin:0 auto;padding:24px;display:grid;grid-template-columns:1fr 336px;gap:18px;align-items:start}
+  @media(max-width:820px){.wrap{grid-template-columns:1fr;padding:16px;gap:14px}.nav{display:none}.barright .cap{display:none}}
+  .col{display:flex;flex-direction:column;gap:18px;min-width:0}
+  @media(max-width:820px){.col{gap:14px}}
+
+  .card{background:var(--surface);border-radius:var(--r-lg);border:1px solid var(--hair);box-shadow:var(--shadow),var(--inset);overflow:hidden}
+  .pad{padding:22px}
+  .sect{display:flex;align-items:center;justify-content:space-between;padding:15px 22px;border-bottom:1px solid var(--hair)}
+  .sect h3{font-family:var(--disp2);font-weight:var(--disp-w2);font-size:14px;letter-spacing:.8px;text-transform:uppercase;color:var(--t2)}
+  .sect a{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;color:var(--team);text-decoration:none}
+  .sect a svg{width:14px;height:14px}
+
+  .hero{position:relative;background:linear-gradient(180deg,var(--surface-2),var(--surface))}
+  .hero::before{content:"";position:absolute;inset:0;background:radial-gradient(90% 120% at 92% -10%,var(--team-soft),transparent 60%);pointer-events:none}
+  .hero>*{position:relative}
+  .matchup{display:flex;align-items:center;gap:18px;margin:14px 0 20px}
+  .team{display:flex;align-items:center;gap:11px}
+  .tlogo{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#fff;font-family:var(--disp);font-weight:var(--disp-w);font-size:13px;box-shadow:var(--inset)}
+  .team .name{font-weight:800;font-size:21px;letter-spacing:-.5px;line-height:1.1}
+  .team .meta{font-size:12.5px;color:var(--t3);font-weight:600;margin-top:1px}
+  .vs{font-family:var(--disp2);font-weight:var(--disp-w2);font-size:13px;color:var(--t3);letter-spacing:1px}
+  .winprob{margin-left:auto;text-align:right;flex:0 0 auto}
+  .winprob .pct{font-family:var(--disp);font-weight:var(--disp-w);font-size:40px;line-height:1;color:var(--good);letter-spacing:var(--mq-track)}
+  .winprob .lbl{font-size:11px;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;margin-top:5px}
+  .cta{display:flex;gap:10px;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;gap:8px;border:0;cursor:pointer;font-family:var(--ui);font-weight:700;font-size:14px;border-radius:var(--r);padding:12px 20px}
+  .btn svg{width:16px;height:16px}
+  .btn-primary{background:linear-gradient(180deg,var(--team),var(--team-2));color:#fff;box-shadow:var(--inset),0 6px 16px -8px var(--team)}
+  .btn-ghost{background:var(--surface-3);color:var(--t1);box-shadow:inset 0 0 0 1px var(--hair-2)}
+
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:520px){.tiles{grid-template-columns:repeat(2,1fr)}}
+  .tile{background:var(--surface);border-radius:var(--r);border:1px solid var(--hair);box-shadow:var(--shadow),var(--inset);padding:16px}
+  .tile .k{font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.6px}
+  .tile .v{font-family:var(--disp);font-weight:var(--disp-w);font-size:34px;line-height:1;margin:6px 0 8px;letter-spacing:var(--mq-track)}
+  .delta{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;font-weight:700}
+  .delta svg{width:9px;height:9px} .up{color:var(--good)} .dn{color:var(--bad)}
+  .track{height:4px;border-radius:3px;background:rgba(255,255,255,.07);margin-top:11px;overflow:hidden}
+  .track i{display:block;height:100%;border-radius:3px;background:var(--team)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--t3);font-weight:700;text-align:right;padding:9px 22px}
+  thead th:first-child{text-align:left}
+  tbody td{padding:12px 22px;border-top:1px solid var(--hair);text-align:right;color:var(--t2)}
+  tbody td:first-child{text-align:left;color:var(--t1)}
+  tbody tr:nth-child(even){background:rgba(255,255,255,.012)}
+  tbody tr.me{background:var(--team-soft);box-shadow:inset 3px 0 0 var(--team)}
+  tbody tr.me td:first-child{color:#fff;font-weight:700}
+  .team-cell{display:flex;align-items:center;gap:11px}
+  .seed{width:16px;color:var(--t3);font-weight:700;text-align:center;font-size:12px}
+  .tdot{width:8px;height:8px;border-radius:3px;flex:0 0 auto}
+  td.rec{color:var(--t1);font-weight:700}
+
+  .task{display:flex;align-items:center;gap:13px;padding:14px 22px;border-top:1px solid var(--hair)}
+  .task:first-of-type{border-top:0}
+  .ico{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto;background:var(--surface-3);color:var(--t2)}
+  .ico.warn{background:rgba(245,181,68,.14);color:var(--warn)} .ico.go{background:rgba(62,207,142,.14);color:var(--good)} .ico.tm{background:var(--team-soft);color:var(--team)}
+  .task .tt{font-weight:600;font-size:13.5px}
+  .task .ts{font-size:12px;color:var(--t2);margin-top:1px}
+  .task .act{margin-left:auto;font-size:12px;font-weight:700;color:var(--team);padding:7px 13px;border-radius:var(--pill);background:var(--team-soft);white-space:nowrap}
+  .task .act.done{color:var(--good);background:rgba(62,207,142,.13)}
+
+  .lr{display:flex;align-items:center;gap:13px;padding:13px 22px;border-top:1px solid var(--hair)}
+  .lr .pos{font-family:var(--disp2);font-weight:var(--disp-w2);font-size:12px;color:var(--team);width:30px;letter-spacing:.5px}
+  .lr .pn{font-weight:600;font-size:13.5px} .lr .ps{font-size:12px;color:var(--t2);margin-top:1px}
+  .lr .pv{margin-left:auto;font-family:var(--disp);font-weight:var(--disp-w);font-size:18px;letter-spacing:var(--mq-track)}
+
+  #fontbadge{position:fixed;right:16px;bottom:16px;z-index:20;background:var(--surface-3);color:var(--t2);
+    font-family:var(--ui);font-size:12px;font-weight:600;padding:8px 14px;border-radius:var(--pill);box-shadow:var(--shadow),inset 0 0 0 1px var(--hair-2)}
+  #fontbadge b{color:var(--t1);font-weight:700}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="ic-play" viewBox="0 0 24 24"><path d="M7 5.5v13a1 1 0 0 0 1.5.87l11-6.5a1 1 0 0 0 0-1.74l-11-6.5A1 1 0 0 0 7 5.5z" fill="currentColor"/></symbol>
+  <symbol id="ic-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="ic-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m3 6 9 6 9-6"/></symbol>
+  <symbol id="ic-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="ic-up" viewBox="0 0 24 24"><path d="M12 5 4 16h16z" fill="currentColor"/></symbol>
+  <symbol id="ic-down" viewBox="0 0 24 24"><path d="M12 19 4 8h16z" fill="currentColor"/></symbol>
+</defs></svg>
+
+<div class="appbar">
+  <div class="brand">
+    <div class="logo">PW</div>
+    <div><div class="nm">Prairie Wolves</div><div class="sub">NFC South · 7–4</div></div>
+  </div>
+  <div class="nav">
+    <div class="navpill on">Overview</div><div class="navpill">Roster</div><div class="navpill">Front Office</div><div class="navpill">League</div><div class="navpill">Replays</div>
+  </div>
+  <div class="barright">
+    <span class="chip cap"><b class="tnum">$24.6M</b> cap</span>
+    <span class="chip"><span class="dot"></span>Season 1 · <b>Wk 12</b></span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="col">
+    <div class="card hero pad">
+      <div class="eyebrow">Week 12 · Home · Sunday 1:00</div>
+      <div class="matchup">
+        <div class="team"><div class="tlogo" style="background:linear-gradient(150deg,#6d8bff,#3f57cc)">PW</div>
+          <div><div class="name">Prairie Wolves</div><div class="meta tnum">7–4 · #2 seed</div></div></div>
+        <div class="vs">VS</div>
+        <div class="team"><div class="tlogo" style="background:linear-gradient(150deg,#f0746d,#a8332e)">CR</div>
+          <div><div class="name">Carolina Reapers</div><div class="meta tnum">5–6 · 9th</div></div></div>
+        <div class="winprob"><div class="pct">68%</div><div class="lbl">Win Prob</div></div>
+      </div>
+      <div class="cta">
+        <button class="btn btn-primary"><svg class="ic"><use href="#ic-play"/></svg>Play Game</button>
+        <button class="btn btn-ghost">Sim Week</button>
+        <button class="btn btn-ghost">Game Plan</button>
+      </div>
+    </div>
+
+    <div class="tiles">
+      <div class="tile"><div class="k">Team OVR</div><div class="v">84</div><span class="delta up"><svg class="ic"><use href="#ic-up"/></svg>2 this week</span><div class="track"><i style="width:84%"></i></div></div>
+      <div class="tile"><div class="k">Offense</div><div class="v">88</div><span class="delta up"><svg class="ic"><use href="#ic-up"/></svg>3rd in league</span><div class="track"><i style="width:88%"></i></div></div>
+      <div class="tile"><div class="k">Defense</div><div class="v">80</div><span class="delta dn"><svg class="ic"><use href="#ic-down"/></svg>11th in league</span><div class="track"><i style="width:80%"></i></div></div>
+      <div class="tile"><div class="k">Cap Space</div><div class="v tnum">$24.6M</div><span class="delta up"><svg class="ic"><use href="#ic-up"/></svg>72% available</span><div class="track"><i style="width:72%"></i></div></div>
+    </div>
+
+    <div class="card">
+      <div class="sect"><h3>NFC South</h3><a href="#">Full standings<svg><use href="#ic-chev"/></svg></a></div>
+      <table class="tnum">
+        <thead><tr><th>Team</th><th>W</th><th>L</th><th>PCT</th><th>PF</th><th>PA</th><th>Strk</th></tr></thead>
+        <tbody>
+          <tr><td><div class="team-cell"><span class="seed">1</span><span class="tdot" style="background:#23c27a"></span>Gulf Coast Hammers</div></td><td class="rec">9</td><td>2</td><td>.818</td><td>312</td><td>208</td><td class="up">W4</td></tr>
+          <tr class="me"><td><div class="team-cell"><span class="seed">2</span><span class="tdot" style="background:#6d8bff"></span>Prairie Wolves</div></td><td class="rec">7</td><td>4</td><td>.636</td><td>289</td><td>241</td><td class="up">W2</td></tr>
+          <tr><td><div class="team-cell"><span class="seed">3</span><span class="tdot" style="background:#f5b544"></span>Delta Mariners</div></td><td class="rec">6</td><td>5</td><td>.545</td><td>255</td><td>262</td><td class="dn">L1</td></tr>
+          <tr><td><div class="team-cell"><span class="seed">4</span><span class="tdot" style="background:#f0746d"></span>Carolina Reapers</div></td><td class="rec">5</td><td>6</td><td>.455</td><td>238</td><td>271</td><td class="dn">L2</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card">
+      <div class="sect"><h3>This Week</h3><a href="#">Clear all</a></div>
+      <div class="task"><div class="ico warn"><svg class="ic"><use href="#ic-alert"/></svg></div><div><div class="tt">2 injured starters</div><div class="ts">Set replacements on the depth chart</div></div><span class="act">Fix</span></div>
+      <div class="task"><div class="ico go"><svg class="ic"><use href="#ic-check"/></svg></div><div><div class="tt">Game plan locked</div><div class="ts">Aggressive · vs Reapers</div></div><span class="act done">Auto</span></div>
+      <div class="task"><div class="ico tm"><svg class="ic"><use href="#ic-mail"/></svg></div><div><div class="tt">Trade offer — DE M. Boone</div><div class="ts">Hammers offer a 3rd-round pick</div></div><span class="act">Review</span></div>
+    </div>
+
+    <div class="card">
+      <div class="sect"><h3>Team Leaders</h3><a href="#">Stats<svg><use href="#ic-chev"/></svg></a></div>
+      <div class="lr"><span class="pos">QB</span><div><div class="pn">J. Castillo</div><div class="ps">2,841 yds · 22 TD</div></div><span class="pv tnum">96.4</span></div>
+      <div class="lr"><span class="pos">RB</span><div><div class="pn">D. Pierce</div><div class="ps">912 yds · 8 TD</div></div><span class="pv tnum">4.9</span></div>
+      <div class="lr"><span class="pos">WR</span><div><div class="pn">T. Okafor</div><div class="ps">71 rec · 1,043 yds</div></div><span class="pv tnum">14.7</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="fontbadge"></div>
+</body>
+</html>

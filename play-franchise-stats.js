@@ -6283,10 +6283,44 @@ function frnSetTab(tabId) {
   }
 }
 
+// HH modern: derive readable theme vars from a team's primary color so the
+// team-color accent works for ALL 32 teams, not just dark ones.
+//   --team        raw team color (fills, gradients, the logo mark)
+//   --team-ink    black/white text that sits ON the solid team color
+//   --team-accent the team color lifted toward white when it's too dark to
+//                 read as a foreground accent on the dark app background
+function _hhTeamThemeVars(hex) {
+  const m = String(hex || "").replace("#", "");
+  if (m.length < 6) return { team: hex || "#6d8bff", ink: "#ffffff", accent: hex || "#6d8bff" };
+  const r = parseInt(m.slice(0, 2), 16), g = parseInt(m.slice(2, 4), 16), b = parseInt(m.slice(4, 6), 16);
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b); // WCAG relative luminance
+  const ink = L > 0.5 ? "#0a0d13" : "#ffffff";
+  let accent = hex;
+  if (L < 0.30) {
+    const t = Math.min(0.6, (0.30 - L) / 0.30 * 0.6 + 0.18);
+    const mix = (ch) => Math.round(ch + (255 - ch) * t);
+    accent = "#" + [mix(r), mix(g), mix(b)].map((v) => v.toString(16).padStart(2, "0")).join("");
+  }
+  return { team: hex, ink, accent };
+}
+
 function _frnRenderAppShell() {
   const el = $("frnAppShell");
   if (!el) return;
   const myTeam = getTeam(franchise.chosenTeamId);
+  // HH modern re-skin: expose the chosen team's color (plus derived readable
+  // ink/accent) as CSS custom properties on the dashboard root so the scoped
+  // #franchiseHome theme uses team color as its primary accent legibly.
+  try {
+    const _fh = document.getElementById("franchiseHome");
+    if (_fh && myTeam && myTeam.primary) {
+      const tv = _hhTeamThemeVars(myTeam.primary);
+      _fh.style.setProperty("--team", tv.team);
+      _fh.style.setProperty("--team-ink", tv.ink);
+      _fh.style.setProperty("--team-accent", tv.accent);
+    }
+  } catch (_e) {}
   const stand = franchise.standings?.[franchise.chosenTeamId] || { w: 0, l: 0, t: 0, pf: 0, pa: 0 };
   const rec = `${stand.w}-${stand.l}${stand.t?`-${stand.t}`:""}`;
   // Per-tab badges

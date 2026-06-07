@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Font specimen 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0a0d13;--surface:#141a24;--hair:rgba(255,255,255,.07);--t1:#f1f4f9;--t2:#9aa7b8;--t3:#6b7688;--team:#6d8bff;--good:#3ecf8e}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--t1);font-family:system-ui;padding:28px}
+  h1{font-size:15px;font-weight:600;color:var(--t2);letter-spacing:.4px;margin-bottom:20px;text-align:center}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:1100px;margin:0 auto}
+  .col{background:var(--surface);border:1px solid var(--hair);border-radius:16px;padding:26px;box-shadow:0 8px 24px -12px rgba(0,0,0,.7)}
+  .tag{font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--team)}
+  .fam{font-size:13px;color:var(--t3);margin:3px 0 22px}
+  .rowlbl{font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--t3);margin:22px 0 8px}
+  .num{font-size:34px;line-height:1.1;letter-spacing:.3px;font-feature-settings:"tnum" 1}
+  .stats{font-size:60px;line-height:1;letter-spacing:-.5px;font-feature-settings:"tnum" 1}
+  .stats .g{color:var(--good)}
+  .tname{font-size:26px;letter-spacing:-.4px}
+  .eyebrow{font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:var(--team)}
+  .body{font-size:14px;line-height:1.55;color:var(--t1);margin-top:6px}
+  .small{font-size:12px;color:var(--t2);margin-top:6px}
+
+  /* D — Bricolage everywhere */
+  .D{font-family:'Bricolage Grotesque',sans-serif}
+  .D .num,.D .stats{font-weight:800} .D .tname{font-weight:800} .D .eyebrow{font-weight:700} .D .body{font-weight:400} .D .small{font-weight:500}
+  /* E — Fraunces serif display + Hanken body */
+  .E{font-family:'Hanken Grotesk',sans-serif}
+  .E .num,.E .stats{font-family:'Fraunces',serif;font-weight:600}
+  .E .tname{font-family:'Fraunces',serif;font-weight:600} .E .eyebrow{font-weight:700} .E .body{font-weight:400} .E .small{font-weight:500}
+</style></head>
+<body>
+<h1>Option D vs E — character lives in the numerals, stats &amp; names</h1>
+<div class="grid">
+  <div class="col D">
+    <div class="tag">Option D</div><div class="fam">Bricolage Grotesque — warm contemporary grotesque</div>
+    <div class="rowlbl">Numerals</div><div class="num">0 1 2 3 4 5 6 7 8 9</div>
+    <div class="rowlbl">Marquee stats</div><div class="stats">84 88 <span class="g">68%</span></div>
+    <div class="rowlbl">Team name</div><div class="tname">Prairie Wolves</div>
+    <div class="rowlbl">Eyebrow</div><div class="eyebrow">Week 12 · Sunday 1:00</div>
+    <div class="rowlbl">Body</div><div class="body">J. Castillo threw for 2,841 yards and 22 touchdowns, lifting the Wolves to a 7–4 record and the #2 seed.</div><div class="small">71 rec · 1,043 yds · 14.7 avg</div>
+  </div>
+  <div class="col E">
+    <div class="tag">Option E</div><div class="fam">Fraunces (serif) + Hanken Grotesk (body)</div>
+    <div class="rowlbl">Numerals</div><div class="num">0 1 2 3 4 5 6 7 8 9</div>
+    <div class="rowlbl">Marquee stats</div><div class="stats">84 88 <span class="g">68%</span></div>
+    <div class="rowlbl">Team name</div><div class="tname">Prairie Wolves</div>
+    <div class="rowlbl">Eyebrow</div><div class="eyebrow">Week 12 · Sunday 1:00</div>
+    <div class="rowlbl">Body</div><div class="body">J. Castillo threw for 2,841 yards and 22 touchdowns, lifting the Wolves to a 7–4 record and the #2 seed.</div><div class="small">71 rec · 1,043 yds · 14.7 avg</div>
+  </div>
+</div>
+</body></html>
