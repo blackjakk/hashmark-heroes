@@ -12161,3 +12161,99 @@
   #franchiseHome .frn-pregame-toggle { border-radius: 8px; }
   #franchiseHome .frn-unit-bar-track { border-radius: 999px; overflow: hidden; }
   #franchiseHome .frn-unit-bar-fill { border-radius: 999px; }
+
+  /* ── HH MODERN · Roster / Depth Chart body ───────────────────────────── */
+  /* Sub-nav (Depth Chart / Snap Shares / Injury / Practice Squad…) → pills */
+  #franchiseHome .frn-subnav {
+    display: flex; flex-wrap: wrap; gap: .3rem; align-items: center;
+    margin-bottom: .7rem; padding-bottom: .55rem;
+    border-bottom: 1px solid var(--border);
+  }
+  #franchiseHome .frn-subnav-btn {
+    border-radius: 999px; border: 1px solid var(--border); background: var(--bg3);
+    color: var(--gray); font-family: 'Bricolage Grotesque', sans-serif; font-weight: 600;
+    font-size: .7rem; letter-spacing: .2px; padding: .34rem .8rem; cursor: pointer;
+  }
+  #franchiseHome .frn-subnav-btn:hover { color: var(--white); background: rgba(255,255,255,.05); }
+  #franchiseHome .frn-subnav-btn.active {
+    color: #fff; background: color-mix(in srgb, var(--team) 16%, transparent);
+    border-color: color-mix(in srgb, var(--team) 42%, var(--border));
+  }
+
+  /* Page header + unit strength strip */
+  #franchiseHome .frn-dc-team-name { font-family: 'Bricolage Grotesque', sans-serif; }
+  #franchiseHome .frn-dc-strength-strip {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: .45rem .55rem;
+  }
+  #franchiseHome .frn-dc-strip-unit {
+    background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 8px;
+  }
+  #franchiseHome .frn-dc-strip-val { font-family: 'Bricolage Grotesque', sans-serif; }
+
+  /* Unit tabs (Offense / Defense / Special Teams) */
+  #franchiseHome .frn-dc-tab {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-bottom: 1px solid var(--border); border-radius: 12px;
+  }
+  #franchiseHome .frn-dc-tab.active {
+    background: color-mix(in srgb, var(--unit-color, var(--team)) 14%, var(--card));
+    border-color: color-mix(in srgb, var(--unit-color, var(--team)) 40%, var(--border));
+    box-shadow: none;
+  }
+  #franchiseHome .frn-dc-tab-title {
+    font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; letter-spacing: .4px;
+  }
+  #franchiseHome .frn-dc-tab-ovr { border-radius: 8px; font-family: 'Bricolage Grotesque', sans-serif; }
+
+  /* AUTO-SET button → team color when hot */
+  #franchiseHome .frn-dc-auto-btn {
+    border-radius: 10px; border: 1px solid var(--border);
+    font-family: 'Bricolage Grotesque', sans-serif; letter-spacing: .6px;
+  }
+  #franchiseHome .frn-dc-auto-btn.hot {
+    background: linear-gradient(180deg, var(--team), color-mix(in srgb, var(--team) 68%, #05070d));
+    color: var(--team-ink, #fff); border-color: transparent;
+    box-shadow: var(--hh-inset), 0 8px 20px -10px var(--team);
+  }
+  #franchiseHome .frn-dc-auto-btn.hot:hover {
+    box-shadow: var(--hh-inset), 0 10px 26px -10px var(--team);
+  }
+  #franchiseHome .frn-dc-auto-count { color: inherit; opacity: .8; }
+
+  /* Position group → elevated card */
+  #franchiseHome .frn-dc-group {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    overflow: hidden; margin-bottom: .7rem; box-shadow: var(--hh-shadow);
+  }
+  #franchiseHome .frn-dc-group-hdr {
+    background: rgba(255,255,255,.02); border-bottom: 1px solid var(--border); padding: .45rem .7rem;
+  }
+  #franchiseHome .frn-dc-group-pos {
+    font-family: 'Bricolage Grotesque', sans-serif; color: var(--team-accent, var(--team));
+  }
+  #franchiseHome .frn-dc-col-header {
+    background: transparent; border: 0; border-bottom: 1px solid var(--border);
+    border-radius: 0; margin-bottom: 0;
+  }
+  #franchiseHome .frn-dc-col-hdr-label { font-family: 'Bricolage Grotesque', sans-serif; }
+
+  /* Depth rows — the card is the surface; rows go transparent with hairlines */
+  #franchiseHome .frn-dc-row { background: transparent; border-bottom: 1px solid var(--border); }
+  #franchiseHome .frn-dc-row.alt { background: rgba(255,255,255,.015); }
+  #franchiseHome .frn-dc-row:last-child { border-bottom: 0; }
+  #franchiseHome .frn-dc-row:hover { background: color-mix(in srgb, var(--team) 7%, transparent); }
+  #franchiseHome .frn-dc-player.s1 {
+    border-left: 2px solid color-mix(in srgb, var(--team-accent, var(--team)) 70%, transparent);
+  }
+  #franchiseHome .frn-dc-rank.r1 { color: var(--team-accent, var(--team)); }
+  #franchiseHome .frn-dc-slot-name { color: var(--team-accent, var(--team)); }
+  #franchiseHome .frn-dc-name { font-family: 'Bricolage Grotesque', sans-serif; }
+
+  /* Badges → pills; OVR badges softened */
+  #franchiseHome .frn-dc-badge { border-radius: 999px; padding: .05rem .32rem; }
+  #franchiseHome .tt-ovr { border-radius: 6px; font-family: 'Bricolage Grotesque', sans-serif; }
+
+  /* Snap bar (center divider column) */
+  #franchiseHome .frn-dc-snap-bar,
+  #franchiseHome .frn-dc-snap-fill { border-radius: 999px; }
