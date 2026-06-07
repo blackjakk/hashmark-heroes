@@ -6425,7 +6425,7 @@ function renderFrnFA(selectedKey) {
               : `<span style="color:var(--green-lt);font-size:.5rem">clean</span>`;
             return `<div style="display:grid;grid-template-columns:1.5rem 1fr 2.3rem 1.3rem;gap:.3rem;padding:.22rem .3rem;background:rgba(255,255,255,.02);font-size:.6rem;align-items:baseline;margin-bottom:.12rem;border-radius:3px">
               <span style="color:var(--blgray);font-weight:700;font-size:.55rem">${s.player.position}</span>
-              <span style="color:var(--blwhite);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.player.name}</span>
+              <span onclick="frnOpenPlayerCard('${escName}')" title="View player card" style="font-size:.66rem;color:var(--blwhite);cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.player.name}</span>
               <span style="color:var(--green-lt);font-weight:700;text-align:right;font-size:.6rem">+$${s.netSavings.toFixed(1)}M</span>
               <button onclick="frnFAToggleCut('${sel.replace(/'/g,"\\'")}','${escName}',true)" style="background:rgba(255,70,70,.18);border:1px solid #ff6b6b;color:#ffaaaa;font-size:.52rem;padding:.1rem .25rem;border-radius:3px;cursor:pointer;font-family:inherit;font-weight:700">CUT</button>
               <span style="grid-column:2/4;color:var(--gray);font-size:.5rem;padding-left:0">${dead} · ${s.player.age}yr · OVR ${s.player.overall} · <i style="color:#e8a000">${s.reason}</i></span>

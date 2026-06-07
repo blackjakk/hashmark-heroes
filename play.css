@@ -12341,3 +12341,13 @@
     border-color: color-mix(in srgb, var(--team) 40%, var(--border));
   }
   #franchiseHome .frn-cut-option input[type="checkbox"] { accent-color: var(--team); }
+
+  /* ── HH MODERN · form controls — round them (overrides the global retro
+     `.btn/select/input { border-radius:0 !important }`), for consistency
+     with the card system. Scoped to the franchise dashboard only. */
+  #franchiseHome .btn { border-radius: 10px !important; }
+  #franchiseHome .btn-gold-big { border-radius: 12px !important; }
+  #franchiseHome select,
+  #franchiseHome input[type="number"],
+  #franchiseHome input[type="text"],
+  #franchiseHome input[type="search"] { border-radius: 8px !important; }
