@@ -1,0 +1,42 @@
+name: Deploy to GitHub Pages
+
+# Publishes the static game (play.html + play-*.js / play.css, served from the
+# repo root exactly like `npx http-server -s .`) to GitHub Pages on every push
+# to main. There is no build step — the Actions deploy method serves files
+# as-is (no Jekyll), and configure-pages auto-enables Pages on the first run.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One live deploy at a time; cancel an in-flight run when a newer push lands.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure Pages (auto-enable if needed)
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Upload site artifact (repo root)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
