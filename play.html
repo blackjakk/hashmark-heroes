@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hashmark Heroes — American Football Manager</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏈</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Bebas+Neue&family=Anton&family=Teko:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="play.css">
+</head>
+<body>
+
+<!-- CRT aesthetic overlays — fixed, full-screen, pointer-events:none.
+     Sits on top of all game UI for the broadcast/arcade vibe. -->
+<div class="crt-scanlines"></div>
+<div class="crt-vignette"></div>
+
+<div class="container">
+
+  <!-- Franchise home (default visible) — rendered inline, no modal.
+       Bloomberg-style multi-row shell: frnAppShell renders the ticker
+       + function strip + identity row. frnAppFooter renders the
+       persistent status bar at the bottom. frnHomeContent holds the
+       per-tab body. All shell pieces are populated by
+       _frnRenderAppShell() in play-franchise-stats.js. -->
+  <div id="franchiseHome">
+    <div id="frnAppShell" style="display:none"></div>
+    <!-- In-loop nav rail. Single point of injection populated by
+         _frnUpdateNavBar() from the dashboard router. Hidden on the start
+         screen and during regular-season (the tab bar in frnAppShell is the
+         nav there). Shown on every other full-screen phase with a Home button
+         + title + step, so the user always has an escape hatch and clear
+         orientation. -->
+    <div id="frnNavBar" style="display:none"></div>
+    <div id="frnHomeContent"></div>
+    <div id="frnAppFooter" style="display:none"></div>
+  </div>
+
+  <!-- Testing Tools panel — wraps the legacy team-selector and sim/debug buttons -->
+  <div id="testingPanel" style="display:none">
+    <!-- Top bar inside testing — gives dev-tools users a clear way home now
+         that the mode tabs are gone from the front page. -->
+    <div style="margin:0 0 .75rem 0;display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--gray)">
+      <button type="button" class="btn btn-outline" id="testingBackBtn" style="font-size:.66rem;padding:.25rem .55rem">← Back to Franchise</button>
+      <span style="opacity:.7">🛠 Dev Tools</span>
+    </div>
+    <!-- Team selector + depth chart -->
+    <div class="selector">
+      <div class="team-col">
+        <label>Home Team</label>
+        <select id="homeTeam"></select>
+        <div class="depth-chart" id="homeDepth"></div>
+      </div>
+      <div class="vs-label">VS</div>
+      <div class="team-col">
+        <label>Away Team</label>
+        <select id="awayTeam"></select>
+        <div class="depth-chart" id="awayDepth"></div>
+      </div>
+    </div>
+
+    <div class="controls" id="testingControls">
+      <button class="btn btn-gold" id="simBtn">⚡ Simulate Game</button>
+      <select id="simManyCount" class="sim-many-select" title="Number of games to simulate">
+        <option value="10">10×</option>
+        <option value="100" selected>100×</option>
+        <option value="500">500×</option>
+        <option value="1000">1000×</option>
+      </select>
+      <button class="btn btn-outline" id="simManyBtn">🎲 Sim Many</button>
+      <input id="qbOvrInput" class="qb-ovr-input" type="number" value="90" min="60" max="99" title="Target overall rating for the test QBs" />
+      <button class="btn btn-outline" id="simByQBBtn" title="Run N games for each QB archetype on the home team at the chosen OVR">🧪 Sim by QB</button>
+      <button class="btn btn-outline" id="simByPBBtn" title="Run N games for each playbook on the home team">📘 Sim by PB</button>
+      <button class="btn btn-outline" id="powerRankBtn" title="Round-robin all 32 teams to compute a power ranking">📊 Power Rankings</button>
+      <button class="btn btn-outline" id="tournamentBtn" title="Single-elimination playoff bracket of the top 8 (or 16) teams">🏆 Tournament</button>
+    </div>
+  </div>
+
+  <!-- Playback controls — shown when any game is being played (franchise or testing) -->
+  <div class="controls" id="playbackControls" style="display:none">
+    <button class="btn btn-primary" id="playBtn" disabled>▶ Play</button>
+    <button class="btn btn-outline" id="pauseBtn" disabled>⏸ Pause</button>
+    <button class="btn btn-outline" id="nextPlayBtn" disabled title="Skip to next play">⏭ Play</button>
+    <button class="btn btn-outline" id="endQtrBtn" disabled title="Sim to end of current quarter">⏭ Qtr</button>
+    <button class="btn btn-outline" id="endHalfBtn" disabled title="Sim to halftime">⏭ Half</button>
+    <button class="btn btn-outline" id="endBtn" disabled>⏭ End</button>
+    <div class="speed-control">
+      <span>Speed</span>
+      <input type="range" id="speedSlider" min="1" max="10" step="1" value="5" style="width: 130px;" />
+      <span id="speedLabel">1.0×</span>
+    </div>
+    <div class="view-toggle" style="display:none">
+      <button id="viewTacticalBtn" class="active">📋 Tactical</button>
+      <button id="viewCinemaBtn">🎬 Cinema</button>
+    </div>
+  </div>
+
+  <!-- Sim-many results modal -->
+  <div id="simManyModal" class="sim-many-modal" style="display:none">
+    <div class="sim-many-card">
+      <button class="sim-many-close" id="simManyClose">×</button>
+      <div id="simManyBody"></div>
+    </div>
+  </div>
+
+  <!-- Floating return-to-franchise button (shown during live franchise game) -->
+  <button class="frn-return-btn" id="frnReturnBtn" onclick="frnFinishGame()">◀ Return to Franchise</button>
+
+  <!-- Game area -->
+  <div id="gameArea" class="empty">
+    <div class="empty-icon">🏈</div>
+    <div style="font-size: 1.2rem; font-weight: 700; margin-bottom: .25rem;">Simulate a game to begin</div>
+    <div style="color: var(--gray);">Animated 2D field with live play-by-play action</div>
+  </div>
+
+  <!-- Discreet dev-tools entry. Click to toggle into testing mode (the legacy
+       team selector / sim debug panel). Also reachable via ?dev=1 URL param.
+       Intentionally unobtrusive — the front page is for players. -->
+  <div id="devToolsFooter" style="margin-top:1.25rem;text-align:center;font-size:.62rem;color:var(--gray);opacity:.4">
+    <a href="#" id="devToolsLink" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--gray)">🛠 dev tools</a>
+  </div>
+
+</div>
+<script src="vendor/pixi.min.js"></script>
+<script src="play-data.js"></script>
+<script src="play-player.js"></script>
+<script src="play-audio.js"></script>
+<script src="play-fx.js"></script>
+<!-- Physics sim primitives: SimPlayer, simIntercept, etc.
+     Used by play-animation.js to drive defender pursuit with real
+     velocity/acceleration/intercept-angles instead of straight-line
+     tween. Engine still owns outcomes; this is the visual layer. -->
+<script src="play-sim.js"></script>
+<!-- Path B Phase 2 — engine-owned motion schema + playback utility.
+     Engine emits play.motion (per-player waypoint tracks, ball track,
+     discrete events). Animation reads via MotionPlayback.sampleTrack
+     and renders. Pure playback layer; no per-frame inference. -->
+<script src="play-motion.js"></script>
+<!-- PIXI.js WebGL renderer — backs play-field-pixi.js + play-player-pixi.js.
+     Both files were written but were silently no-op'ing because the library
+     wasn't loaded (`typeof PIXI === "undefined"`). Now wired in. -->
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.3/dist/pixi.min.js"></script>
+<script src="play-field-pixi.js"></script>
+<script src="play-engine.js"></script>
+<script src="play-render.js"></script>
+<script src="play-sprites.js"></script>
+<script src="play-player-pixi.js"></script>
+<script src="play-simtools.js"></script>
+<script src="play-broadcast.js"></script>
+<script src="play-animation.js"></script>
+<script src="play-franchise-core.js"></script>
+<script src="play-franchise-season.js"></script>
+<script src="play-franchise-stats.js"></script>
+<script src="play-franchise-offseason.js"></script>
+</body>
+</html>

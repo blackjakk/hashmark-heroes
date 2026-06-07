@@ -1,0 +1,4 @@
+# Build artifacts from the PixelLab generation pipeline — never ship these.
+*.zip
+*.py
+_*

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hashmark Heroes — Player Lab (Phase 1A)</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏈</text></svg>">
+<style>
+  :root {
+    --green: #1a5c2e; --green-lt: #2e8b57; --green-dk: #0d3318;
+    --gold: #c8a900;  --gold-lt:  #f0cc30;
+    --bg: #0a0f0a;    --bg2: #111811; --bg3: #1a221a;
+    --card: #182018; --border: #2e3d2e;
+    --white: #f0f0f0; --gray: #999; --red: #c0392b;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--white);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh; line-height: 1.45;
+  }
+  .header {
+    background: linear-gradient(180deg, var(--green-dk), #050a05);
+    border-bottom: 2px solid var(--green);
+    padding: 1.25rem 2rem; text-align: center;
+  }
+  .header h1 {
+    font-size: 1.7rem; letter-spacing: -1px;
+    color: var(--gold); font-weight: 900;
+  }
+  .header h1 span { color: var(--white); }
+  .header p { color: var(--gray); font-size: .82rem; margin-top: .25rem; }
+  .container { max-width: 1500px; margin: 0 auto; padding: 1.25rem; }
+
+  /* Controls */
+  .controls {
+    display: flex; gap: .55rem; align-items: center; flex-wrap: wrap;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: .85rem 1rem; margin-bottom: 1rem;
+  }
+  .controls label { font-size: .76rem; color: var(--gray); margin-right: .25rem; }
+  .controls select, .controls input {
+    background: var(--bg2); border: 1px solid var(--border); color: var(--white);
+    padding: .4rem .6rem; border-radius: 5px;
+    font-size: .85rem; font-family: inherit;
+  }
+  .btn {
+    padding: .55rem 1rem; border-radius: 5px; cursor: pointer;
+    border: none; font-weight: 700; font-size: .82rem;
+    transition: all .12s;
+  }
+  .btn-gold { background: var(--gold); color: #000; }
+  .btn-gold:hover { background: var(--gold-lt); }
+  .btn-primary { background: var(--green); color: #fff; }
+  .btn-primary:hover { background: var(--green-lt); }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--white); }
+  .btn-outline:hover { border-color: var(--green-lt); color: var(--green-lt); }
+  .btn-sm { padding: .3rem .6rem; font-size: .75rem; }
+
+  /* Layout */
+  .grid {
+    display: grid; grid-template-columns: 1fr 1.4fr; gap: 1rem;
+  }
+  @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
+
+  /* Class table */
+  .class-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: .75rem;
+    max-height: 78vh; overflow-y: auto;
+  }
+  .class-card h2 { font-size: 1rem; color: var(--gold); margin-bottom: .5rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+  th { text-align: left; color: var(--gray); padding: .35rem .4rem; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); font-weight: 600; font-size: .72rem; letter-spacing: .3px; text-transform: uppercase; }
+  td { padding: .35rem .4rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  tr.row { cursor: pointer; }
+  tr.row:hover { background: rgba(46,139,87,0.10); }
+  tr.selected { background: rgba(200,169,0,0.16) !important; }
+
+  .tier-pill {
+    display: inline-block; padding: .05rem .4rem; border-radius: 99px;
+    font-size: .65rem; font-weight: 700; letter-spacing: .3px;
+  }
+  .tier-ELITE { background: #2a2200; color: var(--gold); }
+  .tier-MID   { background: #102810; color: #6dc78c; }
+  .tier-SUB   { background: #1a1a1a; color: #aaa; }
+
+  .tier-GENERATIONAL { background: #2a1c00; color: var(--gold); border: 1px solid var(--gold); }
+  .tier-STAR         { background: #102810; color: var(--green-lt); }
+  .tier-SOLID        { background: #102030; color: #6699cc; }
+  .tier-BUST         { background: #2a0808; color: #c87070; }
+
+  /* Player profile */
+  .profile {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem;
+  }
+  .profile-empty {
+    text-align: center; color: var(--gray); padding: 4rem 1rem;
+  }
+  .profile-empty .ico { font-size: 3rem; margin-bottom: .5rem; }
+
+  .pf-header {
+    display: flex; gap: 1rem; align-items: center; margin-bottom: .9rem;
+    border-bottom: 1px solid var(--border); padding-bottom: .8rem;
+  }
+  .pf-name { font-size: 1.4rem; font-weight: 800; }
+  .pf-meta { color: var(--gray); font-size: .82rem; margin-top: .15rem; }
+  .pf-college-line { font-size: .82rem; margin-top: .25rem; }
+
+  .pf-section { margin-bottom: 1rem; }
+  .pf-section-title {
+    font-size: .8rem; font-weight: 700; color: var(--gold);
+    margin-bottom: .4rem; letter-spacing: .5px; text-transform: uppercase;
+  }
+
+  .meas-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem;
+  }
+  .meas-cell {
+    background: var(--bg2); border-radius: 6px; padding: .45rem .55rem;
+    border: 1px solid var(--border);
+  }
+  .meas-label { font-size: .68rem; color: var(--gray); text-transform: uppercase; letter-spacing: .3px; }
+  .meas-value { font-size: 1rem; font-weight: 700; margin-top: .1rem; }
+  .meas-elite { color: var(--gold); }
+
+  .stat-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem;
+  }
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--bg2); border-radius: 4px; padding: .25rem .5rem;
+    font-size: .78rem;
+  }
+  .stat-row .lbl { color: var(--gray); font-size: .72rem; }
+  .stat-row .val { font-weight: 700; }
+  .stat-row .val.high { color: var(--gold); }
+  .stat-row .val.elite { color: #ffe55c; }
+  .stat-row .val.low { color: #c87070; }
+
+  .traits-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: .35rem;
+    background: var(--bg3); border: 1px dashed var(--gold); border-radius: 6px;
+    padding: .55rem .65rem;
+  }
+  .trait-row { display: flex; justify-content: space-between; font-size: .8rem; }
+  .trait-row .lbl { color: #ad9c50; font-size: .72rem; text-transform: uppercase; letter-spacing: .3px; }
+  .trait-row .val { font-weight: 700; color: var(--gold-lt); }
+  .traits-warning {
+    grid-column: 1 / -1; font-size: .72rem; color: #ad9c50; text-align: center;
+    margin-bottom: .25rem; font-style: italic;
+  }
+
+  .scout-card {
+    background: var(--bg2); border-left: 3px solid var(--gold);
+    border-radius: 6px; padding: .65rem .8rem;
+  }
+  .scout-row { display: flex; justify-content: space-between; align-items: center; }
+  .scout-tier { font-size: 1rem; font-weight: 800; }
+  .scout-numeric { color: var(--gold); font-weight: 800; }
+
+  .scheme-fit-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: .35rem;
+  }
+  .scheme-fit-row {
+    background: var(--bg2); border-radius: 6px; padding: .35rem .55rem;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: .78rem;
+  }
+  .scheme-fit-bar {
+    width: 70px; height: 5px; background: var(--bg3); border-radius: 3px;
+    overflow: hidden; margin: 0 .4rem;
+  }
+  .scheme-fit-bar > div { height: 100%; }
+
+  .vis-tabs {
+    display: flex; gap: .25rem; margin-bottom: .6rem;
+  }
+  .vis-tab {
+    padding: .3rem .65rem; font-size: .72rem; cursor: pointer;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 4px;
+    color: var(--gray);
+  }
+  .vis-tab.active { background: var(--green); color: white; border-color: var(--green); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏈 Gridiron<span>Chain</span> — Player Lab</h1>
+  <p>Phase 1A · Player generator + measurables + scheme fit · Dev tool for verifying the model</p>
+</div>
+
+<div class="container">
+  <div class="controls">
+    <label>Class size</label>
+    <input type="number" id="classSize" value="60" min="1" max="500" style="width: 70px;" />
+    <label>Seed</label>
+    <input type="number" id="seed" value="" placeholder="random" style="width: 110px;" />
+    <button class="btn btn-gold" id="genBtn">⚡ Generate Draft Class</button>
+    <button class="btn btn-outline" id="csvBtn">📥 Download CSV</button>
+    <span style="margin-left: auto; color: var(--gray); font-size: .78rem;" id="seedDisplay"></span>
+  </div>
+
+  <div class="grid">
+    <div class="class-card">
+      <h2 id="classTitle">Generate a class to start</h2>
+      <table id="classTable">
+        <thead>
+          <tr>
+            <th>#</th><th>Name</th><th>Pos</th><th>Tier</th><th>Conf</th><th>HT/WT</th><th>40</th><th>Scout</th>
+          </tr>
+        </thead>
+        <tbody id="classBody"></tbody>
+      </table>
+    </div>
+
+    <div class="profile" id="profile">
+      <div class="profile-empty">
+        <div class="ico">📋</div>
+        Click any prospect to inspect
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { makeRng } from "./career/random.js";
+  import { generateDraftClass, scoutGrade, computeOverall, resetIdCounter } from "./career/playerModel.js";
+  import { allFits, OFFENSIVE_SCHEMES, DEFENSIVE_SCHEMES, schemeFit } from "./career/schemes.js";
+  import { formatHeight, formatHandSize } from "./career/measurables.js";
+  import { CONFERENCE_TIER_LABELS } from "./career/constants.js";
+
+  let currentClass = [];
+  let currentRng = null;
+  let visMode = "TRUTH"; // TRUTH | COMBINE | FILM
+
+  const $ = id => document.getElementById(id);
+
+  function genClass() {
+    const size = parseInt($("classSize").value, 10) || 60;
+    let seed = parseInt($("seed").value, 10);
+    if (isNaN(seed)) {
+      seed = Math.floor(Math.random() * 2147483647);
+      $("seed").value = seed;
+    }
+    $("seedDisplay").textContent = `Seed: ${seed} · ${size} prospects`;
+    currentRng = makeRng(seed);
+    resetIdCounter();
+    currentClass = generateDraftClass(currentRng, size);
+    // Attach scout grade (uses same rng so reproducible)
+    for (const p of currentClass) {
+      p.scout = scoutGrade(currentRng, p);
+    }
+    renderClassTable();
+    selectPlayer(null);
+  }
+
+  function renderClassTable() {
+    $("classTitle").textContent = `Draft Class (${currentClass.length})`;
+    const body = $("classBody");
+    body.innerHTML = "";
+    // Sort by overall (true) descending — purely for dev viewing
+    const sorted = [...currentClass].sort((a, b) => b.currentOverall - a.currentOverall);
+    for (const p of sorted) {
+      const tr = document.createElement("tr");
+      tr.className = "row";
+      tr.dataset.id = p.id;
+      tr.innerHTML = `
+        <td style="color: var(--gray); font-size: .72rem;">${p.currentOverall}</td>
+        <td><strong>${p.name}</strong></td>
+        <td>${p.position}</td>
+        <td><span class="tier-pill tier-${p.traits.rookieTier}">${p.traits.rookieTier}</span></td>
+        <td><span class="tier-pill tier-${p.conferenceTier}">${p.conferenceTier}</span></td>
+        <td style="font-size: .76rem; color: var(--gray);">${formatHeight(p.measurables.height)} / ${p.measurables.weight}</td>
+        <td style="font-weight: 700;">${p.measurables.forty.toFixed(2)}</td>
+        <td>
+          <span class="tier-pill tier-${p.scout.tier}">${p.scout.tier.charAt(0)}</span>
+          <strong style="color: var(--gold); margin-left: .3rem;">${p.scout.numeric}</strong>
+        </td>
+      `;
+      tr.addEventListener("click", () => selectPlayer(p.id));
+      body.appendChild(tr);
+    }
+  }
+
+  function selectPlayer(id) {
+    document.querySelectorAll("tr.row").forEach(r => r.classList.toggle("selected", +r.dataset.id === id));
+    if (id == null) {
+      $("profile").innerHTML = `<div class="profile-empty"><div class="ico">📋</div>Click any prospect to inspect</div>`;
+      return;
+    }
+    const p = currentClass.find(x => x.id === id);
+    if (!p) return;
+    $("profile").innerHTML = renderProfile(p);
+    bindVisTabs(p);
+  }
+
+  function renderProfile(p) {
+    const m = p.measurables;
+    const t = p.traits;
+    const isDef = ["DL","LB","CB","S"].includes(p.position);
+
+    const measCells = [
+      { lbl: "Height",    val: formatHeight(m.height), elite: m.height >= 76 },
+      { lbl: "Weight",    val: `${m.weight} lb`,       elite: false },
+      { lbl: "40-yd",     val: m.forty.toFixed(2),     elite: m.forty <= 4.45 },
+      { lbl: "10-yd",     val: m.splitTen.toFixed(2),  elite: m.splitTen <= 1.55 },
+      { lbl: "100-yd",    val: m.hundred.toFixed(2),   elite: m.hundred <= 10.5 },
+      { lbl: "Shuttle",   val: m.shuttle.toFixed(2),   elite: m.shuttle <= 4.10 },
+      { lbl: "3-Cone",    val: m.threeCone.toFixed(2), elite: m.threeCone <= 6.85 },
+      { lbl: "Vertical",  val: `${m.vertical}"`,       elite: m.vertical >= 38 },
+      { lbl: "Broad",     val: `${m.broadJump}"`,      elite: m.broadJump >= 125 },
+      { lbl: "Bench",     val: `${m.benchReps}`,       elite: m.benchReps >= 28 },
+      { lbl: "Hand",      val: formatHandSize(m.handSize), elite: m.handSize >= 10 },
+      { lbl: "Arm",       val: `${m.armLength}"`,      elite: m.armLength >= 34 },
+    ];
+
+    const measHtml = `
+      <div class="meas-grid">
+        ${measCells.map(c => `
+          <div class="meas-cell">
+            <div class="meas-label">${c.lbl}</div>
+            <div class="meas-value ${c.elite ? "meas-elite" : ""}">${c.val}</div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+
+    const fits = allFits(p);
+    const fitHtml = `
+      <div class="scheme-fit-grid">
+        ${Object.entries(fits).map(([id, f]) => {
+          const scheme = OFFENSIVE_SCHEMES[id] || DEFENSIVE_SCHEMES[id];
+          const color = f.fit >= 90 ? "var(--gold)" : f.fit >= 75 ? "var(--green-lt)" : f.fit >= 60 ? "#888" : f.fit >= 45 ? "#c89060" : "#c87070";
+          return `
+            <div class="scheme-fit-row">
+              <span style="font-size: .72rem;">${scheme.name}</span>
+              <div class="scheme-fit-bar"><div style="width: ${f.fit}%; background: ${color};"></div></div>
+              <strong style="color: ${color}; min-width: 32px; text-align: right;">${f.fit}%</strong>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+
+    return `
+      <div class="pf-header">
+        <div style="flex: 1;">
+          <div class="pf-name">${p.name}</div>
+          <div class="pf-meta">${p.position} · Age ${p.age} · ${formatHeight(m.height)} ${m.weight} lb</div>
+          <div class="pf-college-line">
+            ${p.college} · <span class="tier-pill tier-${p.conferenceTier}" style="font-size: .65rem;">${CONFERENCE_TIER_LABELS[p.conferenceTier]}</span>
+            <span style="color: var(--gray); margin-left: .3rem;">${p.conferenceName}</span>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: .65rem; color: var(--gray); text-transform: uppercase; letter-spacing: .3px;">True OVR</div>
+          <div style="font-size: 2rem; font-weight: 900; color: var(--gold);">${p.currentOverall}</div>
+        </div>
+      </div>
+
+      <div class="pf-section">
+        <div class="pf-section-title">📊 Scout Report (visible at draft)</div>
+        <div class="scout-card">
+          <div class="scout-row">
+            <span>Grade: <span class="tier-pill tier-${p.scout.tier}" style="font-size: .8rem; padding: .2rem .65rem;">${p.scout.tier}</span></span>
+            <span class="scout-numeric">${p.scout.numeric} / 10</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pf-section">
+        <div class="pf-section-title">📏 Combine Measurables (visible)</div>
+        ${measHtml}
+      </div>
+
+      <div class="pf-section">
+        <div class="pf-section-title">🎯 Scheme Fit (${isDef ? "defensive" : "offensive"} schemes)</div>
+        ${fitHtml}
+      </div>
+
+      <div class="pf-section">
+        <div class="pf-section-title">🔒 True Hidden Stats (DEV ONLY — never shown to GM)</div>
+        ${renderHiddenStats(p)}
+      </div>
+
+      <div class="pf-section">
+        <div class="pf-section-title">🕵 Hidden Traits (DEV ONLY — never shown to GM)</div>
+        <div class="traits-grid">
+          <div class="traits-warning">⚠ These traits never appear in the actual game UI</div>
+          <div class="trait-row"><span class="lbl">Rookie tier</span><span class="val">${t.rookieTier}</span></div>
+          <div class="trait-row"><span class="lbl">Longevity</span><span class="val">${t.longevityTier}</span></div>
+          <div class="trait-row"><span class="lbl">Clutch</span><span class="val">${t.clutchTier}</span></div>
+          <div class="trait-row"><span class="lbl">Will to Be Great</span><span class="val">${t.willToBeGreat}</span></div>
+          <div class="trait-row"><span class="lbl">Prime start</span><span class="val">age ${t.primeStartAge}</span></div>
+          <div class="trait-row"><span class="lbl">Prime end</span><span class="val">age ${t.primeEndAge}</span></div>
+          <div class="trait-row"><span class="lbl">Ceiling OVR</span><span class="val">${t.ceilingOverall}</span></div>
+          <div class="trait-row"><span class="lbl">Retirement style</span><span class="val">${t.retirementStyle}</span></div>
+          ${t.pocketScore != null ? `<div class="trait-row"><span class="lbl">Pocket score</span><span class="val">${t.pocketScore} ${t.pocketScore > 70 ? "(pocket)" : t.pocketScore < 40 ? "(scrambler)" : ""}</span></div>` : ""}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderHiddenStats(p) {
+    const groups = [
+      { title: "Athletic", keys: ["burst","top_speed","cod","balance","explosive_power","functional_strength","stamina_pool","durability"] },
+      { title: "Skill", keys: ["hand_skill","route_running","arm_strength","accuracy_short","accuracy_deep","block_skill","pass_rush","run_defense","coverage_zone","coverage_man","tackle_skill","kick_power","kick_accuracy"] },
+      { title: "Mental", keys: ["football_iq","discipline","work_ethic","leadership"] },
+      { title: "Personality", keys: ["greed","temper","loyalty"] },
+    ];
+    return groups.map(g => `
+      <div style="margin-bottom: .5rem;">
+        <div style="font-size: .68rem; color: var(--gray); margin-bottom: .25rem; letter-spacing: .3px;">${g.title}</div>
+        <div class="stat-grid">
+          ${g.keys.map(k => {
+            const v = p.hidden[k];
+            const cls = v >= 88 ? "elite" : v >= 75 ? "high" : v < 50 ? "low" : "";
+            return `<div class="stat-row"><span class="lbl">${k}</span><span class="val ${cls}">${v}</span></div>`;
+          }).join("")}
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function bindVisTabs() { /* placeholder for next phase */ }
+
+  function downloadCsv() {
+    if (currentClass.length === 0) return;
+    const headers = ["id","name","position","age","college","conference","conferenceTier","scoutTier","scoutGrade","height","weight","forty","splitTen","hundred","shuttle","threeCone","vertical","broadJump","benchReps","handSize","armLength"];
+    const rows = currentClass.map(p => {
+      const m = p.measurables;
+      return [
+        p.id, p.name, p.position, p.age, p.college, p.conferenceName, p.conferenceTier,
+        p.scout.tier, p.scout.numeric,
+        m.height, m.weight,
+        m.forty, m.splitTen, m.hundred, m.shuttle, m.threeCone,
+        m.vertical, m.broadJump, m.benchReps, m.handSize, m.armLength,
+      ];
+    });
+    const csv = [headers.join(",")].concat(rows.map(r => r.map(v => `"${v}"`).join(","))).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `draft-class-${$("seed").value}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  $("genBtn").addEventListener("click", genClass);
+  $("csvBtn").addEventListener("click", downloadCsv);
+
+  // Generate one initial class so the page isn't empty
+  genClass();
+</script>
+</body>
+</html>

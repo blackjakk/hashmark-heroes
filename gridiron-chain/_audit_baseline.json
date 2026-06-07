@@ -1,0 +1,216 @@
+{
+  "_comment": "Realism regression baseline for _audit_gate.js. Reproducible because the audits are SEEDED. The gate fails if a metric drifts from 'value' by more than 'tol'; 'nfl' is the audit's acceptable band (informational only). Each metric has a TIER: 'fast' (mff, ~1min — pre-commit hook + per-PR CI), 'full' (sim, ~3min — per-PR CI), 'slow' (clutch DiD + brady aggregates — nightly workflow). Gate flags: --fast (fast), default (fast+full), --slow (slow), --all. Gate is REGRESSION-focused, not a realism-validity claim — run larger N manually for that (AUDIT.md). Re-baseline an intentional change by updating 'value' in the same commit. NOTE: rare-event tails (sim INT-rate/turnovers, clutch FG-DiD) are deliberately NOT gated — small-sample noisy even seeded.",
+  "seed": 1337,
+  "metrics": [
+    {
+      "audit": "_mff_audit.js",
+      "args": [
+        "1"
+      ],
+      "tier": "fast",
+      "label": "mff_league_pressure_rate",
+      "pattern": "League pressure rate:\\s+([0-9.]+)%",
+      "value": 40,
+      "tol": 2.5,
+      "nfl": [
+        30,
+        40
+      ]
+    },
+    {
+      "audit": "_mff_audit.js",
+      "args": [
+        "1"
+      ],
+      "tier": "fast",
+      "label": "mff_run_block_win_rate",
+      "pattern": "League run-block-win rate:\\s+([0-9.]+)%",
+      "value": 45.7,
+      "tol": 3,
+      "nfl": [
+        30,
+        60
+      ]
+    },
+    {
+      "audit": "_mff_audit.js",
+      "args": [
+        "1"
+      ],
+      "tier": "fast",
+      "label": "mff_completion_allowed",
+      "pattern": "League completion-allowed:\\s+([0-9.]+)%",
+      "value": 65.5,
+      "tol": 2.5,
+      "nfl": [
+        58,
+        69
+      ]
+    },
+    {
+      "audit": "_sim_audit.js",
+      "args": [
+        "2"
+      ],
+      "tier": "full",
+      "label": "sim_points_per_game",
+      "pattern": "Points / game\\s+([0-9.]+)",
+      "value": 21.3,
+      "tol": 1.5,
+      "nfl": [
+        17,
+        27
+      ]
+    },
+    {
+      "audit": "_sim_audit.js",
+      "args": [
+        "2"
+      ],
+      "tier": "full",
+      "label": "sim_total_yds_per_game",
+      "pattern": "Total yds / game\\s+([0-9.]+)",
+      "value": 347,
+      "tol": 18,
+      "nfl": [
+        290,
+        380
+      ]
+    },
+    {
+      "audit": "_sim_audit.js",
+      "args": [
+        "2"
+      ],
+      "tier": "full",
+      "label": "sim_completion_pct",
+      "pattern": "Completion %\\s+([0-9.]+)%",
+      "value": 64,
+      "tol": 1.5,
+      "nfl": [
+        58,
+        69
+      ]
+    },
+    {
+      "audit": "_sim_audit.js",
+      "args": [
+        "2"
+      ],
+      "tier": "full",
+      "label": "sim_yards_per_carry",
+      "pattern": "Yards / carry\\s+([0-9.]+)",
+      "value": 4.39,
+      "tol": 0.25,
+      "nfl": [
+        3.9,
+        4.9
+      ]
+    },
+    {
+      "audit": "_sim_audit.js",
+      "args": [
+        "2"
+      ],
+      "tier": "full",
+      "label": "sim_sacks_per_game",
+      "pattern": "Sacks / game\\s+([0-9.]+)",
+      "value": 2.44,
+      "tol": 0.4,
+      "nfl": [
+        1.6,
+        3.3
+      ]
+    },
+    {
+      "audit": "_sim_audit.js",
+      "args": [
+        "2"
+      ],
+      "tier": "full",
+      "label": "sim_yards_per_play",
+      "pattern": "Yards / play\\s+([0-9.]+)",
+      "value": 5.71,
+      "tol": 0.25,
+      "nfl": [
+        5,
+        6
+      ]
+    },
+    {
+      "audit": "_clutch_audit.js",
+      "args": [
+        "2000"
+      ],
+      "tier": "slow",
+      "label": "clutch_completion_did",
+      "pattern": "QB COMPLETION%[\\s\\S]*?DiD[^:]*:\\s*([+-]?[0-9.]+)pp",
+      "value": 3,
+      "tol": 1.5,
+      "nfl": [
+        1,
+        6
+      ]
+    },
+    {
+      "audit": "_clutch_audit.js",
+      "args": [
+        "2000"
+      ],
+      "tier": "slow",
+      "label": "clutch_int_did",
+      "pattern": "QB INT%[\\s\\S]*?DiD[^:]*:\\s*([+-]?[0-9.]+)pp",
+      "value": -0.9,
+      "tol": 1.2,
+      "nfl": [
+        -3,
+        0.2
+      ]
+    },
+    {
+      "audit": "_brady_audit.js",
+      "args": [
+        "12"
+      ],
+      "tier": "slow",
+      "label": "brady_league_ovr_mean",
+      "pattern": "LEAGUE OVR DISTRIBUTION[\\s\\S]*?\\bmean=([0-9.]+)",
+      "value": 77.4,
+      "tol": 1.5,
+      "nfl": [
+        70,
+        82
+      ]
+    },
+    {
+      "audit": "_brady_audit.js",
+      "args": [
+        "12"
+      ],
+      "tier": "slow",
+      "label": "brady_mean_roster_size",
+      "pattern": "mean roster size ([0-9]+)",
+      "value": 53,
+      "tol": 2,
+      "nfl": [
+        48,
+        56
+      ]
+    },
+    {
+      "audit": "_brady_audit.js",
+      "args": [
+        "12"
+      ],
+      "tier": "slow",
+      "label": "brady_elite_share_90plus",
+      "pattern": "elite share: 90\\+=([0-9.]+)",
+      "value": 6.5,
+      "tol": 1.5,
+      "nfl": [
+        3,
+        10
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "_comment": "Run 'npm run deploy' to populate these with real addresses after deploying to MegaETH",
+  "gridironToken": "0x0000000000000000000000000000000000000000",
+  "teamNFT":       "0x0000000000000000000000000000000000000000",
+  "playerNFT":     "0x0000000000000000000000000000000000000000",
+  "draftSystem":   "0x0000000000000000000000000000000000000000",
+  "freeAgency":    "0x0000000000000000000000000000000000000000",
+  "leagueManager": "0x0000000000000000000000000000000000000000",
+  "network": "megaeth",
+  "chainId": 6342
+}
