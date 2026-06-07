@@ -3958,6 +3958,20 @@ function _frnConfirmModal(opts) {
     const wrap = document.createElement("div");
     wrap.className = "frn-modal-backdrop";
     wrap.id = id;
+    // HH modern: feed the modal the chosen team's color so its confirm button
+    // + accents match the dashboard. The modal mounts on <body> (outside
+    // #franchiseHome), so it can't inherit those vars — set them locally.
+    try {
+      if (typeof franchise !== "undefined" && franchise && typeof getTeam === "function" && typeof _hhTeamThemeVars === "function") {
+        const _t = getTeam(franchise.chosenTeamId);
+        if (_t && _t.primary) {
+          const tv = _hhTeamThemeVars(_t.primary);
+          wrap.style.setProperty("--team", tv.team);
+          wrap.style.setProperty("--team-ink", tv.ink);
+          wrap.style.setProperty("--team-accent", tv.accent);
+        }
+      }
+    } catch (_e) {}
     const safeTitle = o.title || "Confirm";
     const safeBody  = o.body  || "";
     const okLabel   = o.confirmLabel || "Confirm";
