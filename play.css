@@ -12429,3 +12429,7 @@
   /* Panels inside the (now dark) standings read as cards */
   #franchiseHome .bspnlive-root .bspn-panel,
   #franchiseHome .bspnlive-root .bspnlive-panel { border-radius: 12px; }
+
+  /* QA: round the persistent footer's inline-styled EXPORT/IMPORT buttons
+     (they aren't .btn, so the global button rounding misses them). */
+  #franchiseHome .frn-bb-footer button { border-radius: 6px !important; }
