@@ -12406,3 +12406,26 @@
   .frn-modal-type-input { border-radius: 8px !important; background: #0a0d13; border-color: rgba(255,255,255,.12); }
   .frn-modal-type-input:focus { border-color: var(--team-accent, #6d8bff); }
   .frn-delete-summary, .frn-delete-warn { border-radius: 10px; }
+
+  /* ── HH MODERN · League "BSPN" broadcast screens → dark, keep identity ───
+     The standings/leaders screens use the light "broadcast paper"
+     .bspnlive-root theme, driven by --bl* tokens. Flip those tokens to the
+     dark modern palette so the ESPN-style layout + BSPN branding stay but
+     the surface matches the dashboard. Scoped to #franchiseHome so the
+     in-game live broadcast (rendered in #gameArea) keeps its light look. */
+  #franchiseHome .bspnlive-root {
+    --blbg:      #0a0d13;
+    --blbg2:     #141a24;
+    --blbg3:     #1a212d;
+    --blborder:  rgba(255,255,255,.08);
+    --blbordr2:  rgba(255,255,255,.16);
+    --blgreen:   #3ecf8e;
+    --blgreen-d: #1f9d63;
+    --blgold:    var(--team-accent, #f5c542);
+    --blwhite:   #f1f4f9;   /* primary text (token is mis-named; it's "fg") */
+    --blgray:    #9aa7b8;
+    --blred:     #ff5b5b;
+  }
+  /* Panels inside the (now dark) standings read as cards */
+  #franchiseHome .bspnlive-root .bspn-panel,
+  #franchiseHome .bspnlive-root .bspnlive-panel { border-radius: 12px; }
