@@ -12351,3 +12351,27 @@
   #franchiseHome input[type="number"],
   #franchiseHome input[type="text"],
   #franchiseHome input[type="search"] { border-radius: 8px !important; }
+
+  /* ── HH MODERN · shared mode tabs (Trade modes, Cap Sheet, Analytics,
+     Preseason…) → pills, matching the sub-nav / unit-tab active style. */
+  #franchiseHome .frn-ana-tab {
+    border-radius: 999px; font-family: 'Bricolage Grotesque', sans-serif;
+    padding: .32rem .8rem; background: var(--bg3);
+    border: 1px solid var(--border); color: var(--gray); letter-spacing: .2px;
+  }
+  #franchiseHome .frn-ana-tab:hover {
+    background: rgba(255,255,255,.05); color: var(--white);
+    border-color: color-mix(in srgb, var(--team) 40%, var(--border));
+  }
+  #franchiseHome .frn-ana-tab.active {
+    background: color-mix(in srgb, var(--team) 16%, transparent); color: #fff;
+    border-color: color-mix(in srgb, var(--team) 45%, var(--border));
+  }
+
+  /* ── HH MODERN · Coaching staff cards (status color stays via inline
+     border-color; this supplies the card width/radius/shadow). */
+  #franchiseHome .frn-coach-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: var(--hh-shadow);
+  }
+  #franchiseHome .frn-coach-pos-slot { border-radius: 10px; }
