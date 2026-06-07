@@ -7030,6 +7030,17 @@ function _frnRenderTabTools() {
 function renderFrnSeasonRecap() {
   const myId    = franchise.chosenTeamId;
   const myTeam  = getTeam(myId);
+  // Defensive: this is now a real router phase (season_recap), so guard the
+  // hard dependency (myTeam.* is dereferenced throughout) instead of throwing.
+  if (!myTeam) {
+    const _host = $("frnHomeContent");
+    if (_host) _host.innerHTML = `<div style="max-width:520px;margin:2rem auto;text-align:center">
+      <div style="font-size:.95rem;font-weight:900;color:var(--gold);margin-bottom:.4rem">Season Recap</div>
+      <div style="font-size:.72rem;color:var(--gray)">Recap unavailable for this save.</div>
+      <div style="margin-top:1rem"><button class="btn" onclick="_frnGoHome && _frnGoHome()">← Home (saved)</button></div>
+    </div>`;
+    return;
+  }
   const myStand = franchise.standings?.[myId] || { w:0, l:0, t:0, pf:0, pa:0 };
   const sorted  = standingsSorted();
   const myIdx   = sorted.findIndex(s => s.id === myId);

@@ -3170,7 +3170,12 @@ function _bumpWeek() {
       return;
     }
   }
-  if (franchise.week > FRANCHISE_WEEKS) franchise.phase = "playoffs_pending";
+  // Season's over: land on the SEASON RECAP milestone (a real phase the router
+  // drives + the nav bar reflects), not straight into the bracket. The recap's
+  // "Start the playoffs" CTA seeds the bracket via startFrnPlayoffs. Auto-sim
+  // shortcuts (frnSimToEndOfSeason / frnSimSeason) treat season_recap like the
+  // old playoffs_pending and blow through it.
+  if (franchise.week > FRANCHISE_WEEKS) franchise.phase = "season_recap";
 }
 
 // User-clicked "Advance to next week" from the review interstitial.
@@ -3528,7 +3533,7 @@ function frnSimToWeek(targetWeek) {
     try { _runWeekEndResolution(); } catch(e) { console.error("[frnSimToWeek] resolution error (non-fatal):", e); }
     _bumpWeek();
     franchise.weekPending = false;
-    if (franchise.phase === "fa_cuts" || franchise.phase === "playoffs_pending") break;
+    if (franchise.phase === "fa_cuts" || franchise.phase === "season_recap" || franchise.phase === "playoffs_pending") break;
   }
   _flushSaveFranchise();
   showFranchiseDashboard();
@@ -3562,8 +3567,10 @@ function frnSimToEndOfSeason() {
       return; // user has to handle the cap-overage cuts before continuing
     }
   }
-  // Bracket setup (transitions phase to "playoffs")
-  if (franchise.phase === "playoffs_pending") startFrnPlayoffs();
+  // Bracket setup (transitions phase to "playoffs"). Auto-sim bypasses the
+  // season-recap milestone — season_recap is the interactive landing, but
+  // "sim to end" means seed straight into the bracket.
+  if (franchise.phase === "season_recap" || franchise.phase === "playoffs_pending") startFrnPlayoffs();
   // Loop every playoff round to championship
   let safety = 12;
   while (franchise.playoffBracket && safety-- > 0) {
@@ -3702,7 +3709,7 @@ function frnSimSeason() {
     try { _runWeekEndResolution(); } catch(e) { console.error("[frnSimSeason] resolution error (non-fatal):", e); }
     _bumpWeek();
     franchise.weekPending = false;
-    if (franchise.phase === "fa_cuts" || franchise.phase === "playoffs_pending") break;
+    if (franchise.phase === "fa_cuts" || franchise.phase === "season_recap" || franchise.phase === "playoffs_pending") break;
   }
   _flushSaveFranchise();
   showFranchiseDashboard();
@@ -4949,7 +4956,23 @@ function _userPlayoffStatus() {
 
 function renderFrnPlayoffs() {
   const { playoffBracket, chosenTeamId } = franchise;
-  if (!playoffBracket) { startFrnPlayoffs(); return; }
+  // Defensive: a missing OR malformed/empty bracket (no rounds) must not crash
+  // the render (the rounds[roundIdx] / seeds access below assumes a real
+  // bracket). Re-seed from standings when the field is actually set; otherwise
+  // soft-fail to a Home card instead of throwing into the error fallback.
+  const _bracketReady = playoffBracket && Array.isArray(playoffBracket.rounds) && playoffBracket.rounds.length > 0;
+  if (!_bracketReady) {
+    const _minTeams = (typeof PLAYOFF_TEAMS === "number") ? PLAYOFF_TEAMS : 8;
+    const _standingsReady = franchise.standings && Object.keys(franchise.standings).length >= _minTeams;
+    if (_standingsReady && typeof startFrnPlayoffs === "function") { startFrnPlayoffs(); return; }
+    const _host = $("frnHomeContent");
+    if (_host) _host.innerHTML = `<div style="max-width:520px;margin:2rem auto;text-align:center">
+      <div style="font-size:.95rem;font-weight:900;color:var(--gold);margin-bottom:.4rem">🏆 Playoffs</div>
+      <div style="font-size:.72rem;line-height:1.5;color:var(--gray)">The bracket isn't seeded yet — finish the regular season to set the field.</div>
+      <div style="margin-top:1rem"><button class="btn" onclick="_frnGoHome && _frnGoHome()">← Home (saved)</button></div>
+    </div>`;
+    return;
+  }
   const { rounds, roundIdx, champion } = playoffBracket;
   const userStatus = _userPlayoffStatus();
   const currentRound = !champion && roundIdx < rounds.length ? rounds[roundIdx] : null;
@@ -23800,6 +23823,11 @@ function _draftFinalize() {
   const lastYear = (franchise.picks || []).reduce((m,p) => Math.max(m, p.year), draftYear);
   _ensurePicksForYear(lastYear + 1);
   franchise.draft = null;
+  // The draft is done — land on the DRAFT GRADE milestone as a real phase so
+  // the router (not a "phase===draft && draft==null" boolean) drives it and a
+  // refresh re-renders the grade instead of bouncing through renderFrnDraft's
+  // null guard. The grade's "Begin new season" CTA advances via frnNewSeason.
+  franchise.phase = "draft_grade";
   // Live-flow final shape: cut AI rosters to 53 + re-run cap enforce on the
   // post-draft shape, mirroring what the audit harness does manually. Without
   // this, AI rosters bloated past 53 after _draftFinalize's UDFA fill and the

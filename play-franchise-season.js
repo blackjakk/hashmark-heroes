@@ -14,11 +14,13 @@ const _FRN_PHASE_NAV = {
   free_agency:          { title: "Free Agency",      kind: "locked",   step: "Bidding window" },
   free_agency_results:  { title: "FA Results",       kind: "milestone" },
   fa_cuts:              { title: "Salary-Cap Cuts",  kind: "locked",   step: "Get cap-legal to advance" },
+  season_recap:         { title: "Season Recap",     kind: "milestone" },
   playoffs_pending:     { title: "Playoffs",         kind: "locked" },
   playoffs:             { title: "Playoffs",         kind: "locked",   step: "Bracket saved between visits" },
   awards:               { title: "Season Awards",    kind: "milestone" },
   offseason:            { title: "Offseason",        kind: "locked",   step: "Re-signings + roster moves" },
   draft:                { title: "Draft",            kind: "locked",   step: "Picks saved between visits" },
+  draft_grade:          { title: "Draft Grade",      kind: "milestone" },
   // Regular gets nothing — the app shell tab bar IS the nav. Start gets
   // nothing — the welcome card is the nav.
 };
@@ -27,15 +29,10 @@ function _frnUpdateNavBar() {
   if (!navEl) return;
   if (!franchise) { navEl.style.display = "none"; return; }
   const phase = franchise.phase;
-  // Milestone overlays (season recap, post-draft grade) render off booleans
-  // even though phase says regular/draft. Detect them so the bar reflects the
-  // overlay, not the underlying phase.
-  const seasonOver = (franchise.week || 1) > (typeof FRANCHISE_WEEKS !== "undefined" ? FRANCHISE_WEEKS : 14);
-  const onRecap = phase === "regular" && seasonOver && !franchise.playoffBracket;
-  const onDraftGrade = phase === "draft" && franchise.draft == null;
-  let cfg = _FRN_PHASE_NAV[phase];
-  if (onRecap)      cfg = { title: "Season " + (franchise.season || 1) + " Recap", kind: "milestone" };
-  if (onDraftGrade) cfg = { title: "Draft Grade",       kind: "milestone" };
+  // season_recap + draft_grade are now real phases in _FRN_PHASE_NAV (they used
+  // to be boolean overlays detected here) — the router drives them, so the bar
+  // just reads the phase config like any other.
+  const cfg = _FRN_PHASE_NAV[phase];
   if (!cfg || phase === "regular") { navEl.style.display = "none"; return; }
   const seasonTag = franchise.season ? `Season ${franchise.season}` : "";
   const stepTxt   = cfg.step ? `<span class="frn-nav-step">${cfg.step}</span>` : "";
@@ -144,6 +141,25 @@ function _frnInstallRenderGuards() {
    ["_frnRenderActiveTab", "regular season"]].forEach(([n, l]) => wrap(n, l));
 }
 
+// Reconstruct the user's most-recent draft class (the shape _renderPostDraftGrade
+// expects) from franchise.draftLog. The inline post-draft render passes picks
+// directly; this lets the draft_grade PHASE re-render the same grade after a
+// reload, so the milestone is refresh-safe instead of bouncing on a null draft.
+function _myDraftPicksForGrade() {
+  const log = (franchise && franchise.draftLog) || {};
+  const years = Object.keys(log).map(Number).filter(n => !Number.isNaN(n));
+  if (!years.length) return [];
+  // Prefer the class stamped with the current season; else the newest year.
+  let key = years.find(y => log[y] && log[y].season === franchise.season);
+  if (key == null) key = Math.max(...years);
+  const cls = log[key];
+  if (!cls || !Array.isArray(cls.picks)) return [];
+  return cls.picks.map(p => ({
+    prospectName: p.name, pos: p.pos, round: p.round,
+    pickInRound: p.pick, isComp: !!p.isComp,
+  }));
+}
+
 function showFranchiseDashboard() {
   _frnInstallRenderGuards();
   // Dismiss any lingering hover tooltips when changing screens
@@ -166,6 +182,13 @@ function showFranchiseDashboard() {
   try {
   // Defensive defaults for older saves missing newer fields
   if (!franchise.phase)            franchise.phase = "regular";
+  // Migrate the old boolean-overlay milestones onto their new real phases so
+  // saves captured mid-recap / mid-draft-grade resume on the right screen.
+  {
+    const _fw = (typeof FRANCHISE_WEEKS !== "undefined") ? FRANCHISE_WEEKS : 17;
+    if (franchise.phase === "draft" && franchise.draft == null) franchise.phase = "draft_grade";
+    else if (franchise.phase === "regular" && (franchise.week || 1) > _fw && !franchise.playoffBracket) franchise.phase = "season_recap";
+  }
   if (!franchise.seasonStats)      franchise.seasonStats = {};
   // One-time repair for saves predating idempotent stat-merge. If the
   // merged-game tracker is missing, the save may have double-counted
@@ -332,21 +355,17 @@ function showFranchiseDashboard() {
   // which render fn runs; the nav bar reflects the resulting phase + state.
   try { _frnUpdateNavBar(); } catch (_e) {}
   const { phase } = franchise;
-  // Regular-season → playoffs transition screen. Detected by: phase
-  // still "regular", every week of the season played, no bracket built
-  // yet. Replaces the dashboard entirely so the moment feels like an
-  // actual milestone instead of another button to click.
-  const seasonOver = (franchise.week || 1) > FRANCHISE_WEEKS;
-  const showRecap = phase === "regular" && seasonOver && !franchise.playoffBracket
-    && typeof renderFrnSeasonRecap === "function";
+  // The season-end recap and post-draft grade are now real phases
+  // (season_recap / draft_grade) set by _bumpWeek / _draftFinalize and routed
+  // below — no more boolean-overlay detection here.
 
-  // App shell shows only during the regular season — playoffs / offseason /
-  // free agency / draft each have their own self-contained UIs. Also
-  // hidden during the season recap (full-screen takeover).
+  // App shell shows only during the regular season — every other phase
+  // (recap, playoffs, offseason, FA, draft, draft grade) has its own
+  // self-contained full-screen UI.
   const shellEl = $("frnAppShell");
   const footEl  = $("frnAppFooter");
   if (shellEl) {
-    if (phase === "regular" && !showRecap) {
+    if (phase === "regular") {
       shellEl.style.display = "block";
       // App-shell render is outside the dispatch try below, so guard it here —
       // a shell crash should degrade to the error fallback, not white-screen.
@@ -362,12 +381,13 @@ function showFranchiseDashboard() {
     }
   }
   try {
-    if      (showRecap)                        renderFrnSeasonRecap();
-    else if (phase === "preseason")            renderFrnPreseason();
+    if      (phase === "preseason")            renderFrnPreseason();
     else if (phase === "free_agency")          renderFrnFA();
     else if (phase === "free_agency_results")  renderFrnFAResults();
     else if (phase === "fa_cuts")              renderFrnFACuts();
+    else if (phase === "season_recap")         renderFrnSeasonRecap();
     else if (phase === "draft")                renderFrnDraft();
+    else if (phase === "draft_grade")          _renderPostDraftGrade(_myDraftPicksForGrade());
     else if (phase === "regular")              _frnRenderActiveTab();
     else if (phase === "playoffs_pending")     startFrnPlayoffs();
     else if (phase === "playoffs")         renderFrnPlayoffs();
