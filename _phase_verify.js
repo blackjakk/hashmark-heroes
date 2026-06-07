@@ -129,6 +129,29 @@ const sig = () => {
   check(tm.history.includes("season_recap→playoffs"), "history recorded season_recap→playoffs");
   check(warns.length === 0, `no undeclared-edge warnings during the full real cycle (${warns.length ? warns.join(" | ") : "clean"})`);
 
+  // ── 7. Render purity (#2): renders never seed; heal lives in the repair pass ─
+  console.log("\n[render purity + heal]");
+  const rp = await p.evaluate(() => {
+    // (a) Direct render with no bracket: pure soft-fail card, NEVER seeds.
+    franchise.playoffBracket = null;
+    franchise.phase = "playoffs";
+    renderFrnPlayoffs();
+    const hA = (document.getElementById("frnHomeContent") || {}).innerHTML || "";
+    const a = { phase: franchise.phase, seeded: !!franchise.playoffBracket, softFail: /isn't seeded yet/i.test(hA) };
+    // (b) Dispatch: the repair pass heals a bracket-less playoffs_pending save
+    //     back to season_recap (self-heal relocated out of the render).
+    franchise.playoffBracket = null;
+    franchise.phase = "playoffs_pending";
+    showFranchiseDashboard();
+    const b = { phase: franchise.phase, seeded: !!franchise.playoffBracket };
+    return { a, b };
+  });
+  check(rp.a.seeded === false && rp.a.phase === "playoffs",
+    "renderFrnPlayoffs() is pure — bracket-less render never seeds (was a render-side transition)");
+  check(rp.a.softFail, "bracket-less direct render shows the read-only soft-fail card");
+  check(rp.b.phase === "season_recap" && rp.b.seeded === false,
+    "bracket-less playoffs_pending self-heals to season_recap on dispatch (heal relocated to the repair pass)");
+
   console.log(`\npageerrors: ${errs.length ? JSON.stringify(errs) : "none"}`);
   if (errs.length) fail += errs.length;
   console.log(`──────────────────────────────────────\n  ${pass} passed, ${fail} failed`);

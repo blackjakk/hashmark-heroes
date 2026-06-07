@@ -229,8 +229,15 @@ function showFranchiseDashboard() {
   // saves captured mid-recap / mid-draft-grade resume on the right screen.
   {
     const _fw = (typeof FRANCHISE_WEEKS !== "undefined") ? FRANCHISE_WEEKS : 17;
+    const _brk = franchise.playoffBracket;
+    const _validBracket = _brk && Array.isArray(_brk.rounds) && _brk.rounds.length > 0;
     if (franchise.phase === "draft" && franchise.draft == null) frnTransition("draft_grade");
     else if (franchise.phase === "regular" && (franchise.week || 1) > _fw && !franchise.playoffBracket) frnTransition("season_recap");
+    // Legacy playoffs_pending (the retired auto-seed waypoint) and any "playoffs
+    // phase but no real bracket" save heal back to season_recap — its CTA
+    // re-seeds via startFrnPlayoffs. This keeps seeding a TRANSITION concern so
+    // renderFrnPlayoffs stays a pure read-only render.
+    else if ((franchise.phase === "playoffs_pending" || franchise.phase === "playoffs") && !_validBracket) frnTransition("season_recap");
   }
   if (!franchise.seasonStats)      franchise.seasonStats = {};
   // One-time repair for saves predating idempotent stat-merge. If the
@@ -432,7 +439,7 @@ function showFranchiseDashboard() {
     else if (phase === "draft")                renderFrnDraft();
     else if (phase === "draft_grade")          _renderPostDraftGrade(_myDraftPicksForGrade());
     else if (phase === "regular")              _frnRenderActiveTab();
-    else if (phase === "playoffs_pending")     startFrnPlayoffs();
+    else if (phase === "playoffs_pending")     renderFrnPlayoffs();
     else if (phase === "playoffs")         renderFrnPlayoffs();
     else if (phase === "awards")           showFrnAwards();
     else if (phase === "offseason") {

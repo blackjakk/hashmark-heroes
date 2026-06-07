@@ -4956,15 +4956,14 @@ function _userPlayoffStatus() {
 
 function renderFrnPlayoffs() {
   const { playoffBracket, chosenTeamId } = franchise;
-  // Defensive: a missing OR malformed/empty bracket (no rounds) must not crash
-  // the render (the rounds[roundIdx] / seeds access below assumes a real
-  // bracket). Re-seed from standings when the field is actually set; otherwise
-  // soft-fail to a Home card instead of throwing into the error fallback.
+  // Defensive + PURE: a missing/malformed bracket (no rounds) must not crash
+  // the render (the rounds[roundIdx] access below assumes a real bracket). This
+  // render never seeds — seeding is a transition concern (startFrnPlayoffs), and
+  // load-time migration heals a bracket-less playoffs save back to season_recap
+  // so the recap CTA re-seeds. This read-only card is the belt-and-suspenders
+  // fallback if one ever slips through.
   const _bracketReady = playoffBracket && Array.isArray(playoffBracket.rounds) && playoffBracket.rounds.length > 0;
   if (!_bracketReady) {
-    const _minTeams = (typeof PLAYOFF_TEAMS === "number") ? PLAYOFF_TEAMS : 8;
-    const _standingsReady = franchise.standings && Object.keys(franchise.standings).length >= _minTeams;
-    if (_standingsReady && typeof startFrnPlayoffs === "function") { startFrnPlayoffs(); return; }
     const _host = $("frnHomeContent");
     if (_host) _host.innerHTML = `<div style="max-width:520px;margin:2rem auto;text-align:center">
       <div style="font-size:.95rem;font-weight:900;color:var(--gold);margin-bottom:.4rem">🏆 Playoffs</div>
