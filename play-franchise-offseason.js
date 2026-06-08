@@ -3617,7 +3617,7 @@ async function frnConfirmSimWeek() {
   const games = franchise.schedule.filter(g => g.week === w && !g.played).length;
   if (!await _frnConfirm(`Sim through Week ${w}? ${games} game${games===1?"":"s"} will play and the week will close.`)) return;
   _frnSimPanelOpen = false;
-  frnSimWeek();
+  await _frnSimSpinner(`Simulating Week ${w}…`, frnSimWeek);
 }
 async function frnConfirmSimToWeek(target) {
   const t = Math.max(franchise.week, Math.min(FRANCHISE_WEEKS, Number(target) || franchise.week));
@@ -3625,7 +3625,7 @@ async function frnConfirmSimToWeek(target) {
   const weeks = t - franchise.week + 1;
   if (!await _frnConfirm(`Sim through Week ${t}? That's ${weeks} weeks — you won't be able to make roster moves in the interim.`)) return;
   _frnSimPanelOpen = false;
-  frnSimToWeek(t);
+  await _frnSimSpinner(`Simulating through Week ${t}…`, () => frnSimToWeek(t));
 }
 async function frnConfirmSimToPlayoffs() {
   const t = FRANCHISE_WEEKS;
@@ -3633,7 +3633,7 @@ async function frnConfirmSimToPlayoffs() {
   if (weeks <= 0) return;
   if (!await _frnConfirm(`Sim to end of regular season (Week ${t})? That's ${weeks} weeks. You'll land on the season recap, where you can review the field and start the playoffs.`)) return;
   _frnSimPanelOpen = false;
-  frnSimToWeek(t);
+  await _frnSimSpinner("Simulating to the playoffs…", () => frnSimToWeek(t));
 }
 async function frnConfirmSimToEndOfSeason() {
   const msg = "⚠ SIM TO END OF SEASON\n\n" +
@@ -3645,7 +3645,7 @@ async function frnConfirmSimToEndOfSeason() {
               "Continue?";
   if (!await _frnConfirm(msg)) return;
   _frnSimPanelOpen = false;
-  frnSimToEndOfSeason();
+  await _frnSimSpinner("Simulating to end of season…", frnSimToEndOfSeason);
 }
 
 // ── Two-click guards on phase-advance buttons ────────────────────────────
@@ -16571,6 +16571,19 @@ function frnSuggestShopPackage() {
   renderFrnTrade();
 }
 
+// Total trade value the user is SENDING in a proposal — players + picks +
+// cap absorbed (cap converts at ~1.5 $M per value unit). Used by the
+// suggest-package summary so the offer-vs-bar readout isn't an inline
+// nested reduce.
+function _tradeSendValue(tp) {
+  const myId   = franchise.chosenTeamId;
+  const roster = franchise.rosters[myId] || [];
+  const playerV = (tp.youSend  || []).reduce((s, n) => { const p = roster.find(q => q.name === n); return s + (p ? _playerTradeValue(p) : 0); }, 0);
+  const pickV   = (tp.picksSend || []).reduce((s, k) => { const pk = _tradePickFromKey(k, myId); return s + (pk ? _pickValue(pk) : 0); }, 0);
+  const absorbV = (tp.yourAbsorb || 0) / 1.5;
+  return Math.round((playerV + pickV + absorbV) * 10) / 10;
+}
+
 function frnSubmitTrade() {
   const tp = franchise._tradeProp;
   if (!tp) return;
@@ -17023,9 +17036,19 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
         📨 SUBMIT PROPOSAL
       </button>
     </div>
-    ${tp._suggestedTarget && partnerId && tp.youReceive?.length ? `<div style="text-align:center;font-size:.62rem;color:var(--gray);margin-top:.3rem">
-      💡 Suggested target value: <b style="color:var(--gold)">${tp._suggestedTarget}</b> units — your offer hits ${Math.round((((tp.youSend||[]).reduce((s,n)=>{const p=(franchise.rosters[franchise.chosenTeamId]||[]).find(q=>q.name===n);return s+(p?_playerTradeValue(p):0);},0)+((tp.picksSend||[]).reduce((s,k)=>{const pk=_tradePickFromKey(k,franchise.chosenTeamId);return s+(pk?_pickValue(pk):0);},0))+(tp.yourAbsorb||0)/1.5)*10))/10} (lower-bound match)
-    </div>` : ""}`;
+    ${tp._suggestedTarget && partnerId && tp.youReceive?.length ? (() => {
+      const _offer  = _tradeSendValue(tp);
+      const _bar    = tp._suggestedTarget;
+      const _st = _offer >= _bar        ? { t: "✓ Clears their bar", c: "var(--green-lt)" }
+                : _offer >= _bar * 0.93 ? { t: "≈ Right at the line", c: "var(--gold-lt)" }
+                :                         { t: "Still a bit short",   c: "#ff9090" };
+      return `<div class="frn-suggest-summary">
+        <span class="frn-suggest-lbl">💡 PACKAGE BUILT</span>
+        <span class="frn-suggest-stat" title="Value needed to clear their acceptance threshold">their bar <b>${_bar}</b></span>
+        <span class="frn-suggest-stat" title="Total value you're sending (players + picks + cap absorbed)">your offer <b style="color:${_st.c}">${_offer}</b></span>
+        <span class="frn-suggest-pill" style="color:${_st.c};border-color:${_st.c}">${_st.t}</span>
+      </div>`;
+    })() : ""}`;
 }
 
 // A trade must move SOMETHING in each direction (players, picks, or cash)

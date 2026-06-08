@@ -989,6 +989,28 @@
     animation: frnModalFade .15s ease-out;
   }
   @keyframes frnModalFade { from { opacity: 0; } to { opacity: 1; } }
+
+  /* Loading overlay for slow sims (Sim Week / to-Week / to-End) */
+  .frn-sim-spinner-overlay {
+    position: fixed; inset: 0; z-index: 4200;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.72); backdrop-filter: blur(3px);
+  }
+  .frn-sim-spinner-box {
+    display: flex; flex-direction: column; align-items: center; gap: .9rem;
+    padding: 1.6rem 2rem;
+  }
+  .frn-sim-spinner-ring {
+    width: 46px; height: 46px; border-radius: 50%;
+    border: 4px solid rgba(255,255,255,.15);
+    border-top-color: var(--gold, #f5c542);
+    animation: frnSimSpin .8s linear infinite;
+  }
+  @keyframes frnSimSpin { to { transform: rotate(360deg); } }
+  .frn-sim-spinner-label {
+    font-size: .82rem; font-weight: 700; letter-spacing: .4px;
+    color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.6);
+  }
   .frn-modal {
     background: var(--bg2); border: 1px solid var(--gold); border-radius: 8px;
     padding: 1.25rem 1.4rem; max-width: 520px; width: 90%;
@@ -8396,6 +8418,20 @@
     padding: .14rem .5rem; border: 1px solid; border-radius: 999px;
   }
   .frn-offer-sum-bit { white-space: nowrap; }
+
+  /* Suggest-package summary — value-vs-bar readout after "Suggest package" */
+  .frn-suggest-summary {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+    gap: .4rem .8rem; margin-top: .45rem; padding: .4rem .6rem;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 7px;
+    font-size: .66rem; color: var(--gray);
+  }
+  .frn-suggest-lbl  { font-weight: 800; letter-spacing: .5px; color: var(--gold-lt); }
+  .frn-suggest-stat b { font-variant-numeric: tabular-nums; color: var(--gold); }
+  .frn-suggest-pill {
+    font-weight: 800; font-size: .62rem; letter-spacing: .3px;
+    padding: .12rem .5rem; border: 1px solid; border-radius: 999px;
+  }
 
   /* Trade screen */
   .frn-trade-layout {

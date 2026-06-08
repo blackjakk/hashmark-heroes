@@ -3976,6 +3976,31 @@ document.addEventListener("click", (e) => {
 // cap impact, etc.). The `danger:true` variant tints the confirm button red.
 // `requireTypeName` adds a "type the name to confirm" gate — set to the exact
 // string the user must type. Used for high-value destructive ops.
+// Loading overlay for slow SYNCHRONOUS work. Multi-week / full-season sims
+// block the UI thread, so a spinner set right before the call never paints
+// (the thread is busy until the sim returns + re-renders). This shows the
+// overlay, yields two animation frames so the browser actually paints it,
+// runs the blocking work, then clears. Mounts on <body> so the page
+// re-render underneath doesn't wipe it.
+async function _frnSimSpinner(label, fn) {
+  let ov = document.getElementById("frnSimSpinner");
+  if (!ov) {
+    ov = document.createElement("div");
+    ov.id = "frnSimSpinner";
+    ov.className = "frn-sim-spinner-overlay";
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `<div class="frn-sim-spinner-box">
+    <div class="frn-sim-spinner-ring"></div>
+    <div class="frn-sim-spinner-label">${label || "Simulating…"}</div>
+  </div>`;
+  ov.style.display = "flex";
+  // Two rAFs guarantee a paint lands before the blocking sync work starts.
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  try { await fn(); }
+  finally { const o = document.getElementById("frnSimSpinner"); if (o) o.style.display = "none"; }
+}
+
 function _frnConfirmModal(opts) {
   return new Promise((resolve) => {
     const o = opts || {};
