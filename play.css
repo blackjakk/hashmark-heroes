@@ -5,6 +5,9 @@
     --card: #182018; --border: #2e3d2e;
     --white: #f0f0f0; --gray: #999; --red: #c0392b;
     --field: #1f6b34; --field-dk: #185b2c; --field-lt: #2a7d40;
+    /* Modern proportional face for narrative/prose copy (loaded in play.html).
+       Data tables + numbers stay on IBM Plex Mono so columns keep aligning. */
+    --font-prose: 'Bricolage Grotesque', 'Inter', system-ui, -apple-system, sans-serif;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -17,6 +20,29 @@
     font-family: 'IBM Plex Mono', 'JetBrains Mono', 'Cascadia Code', ui-monospace, 'Courier New', monospace;
     min-height: 100vh; line-height: 1.5;
     position: relative;
+  }
+
+  /* ── Prose / narrative copy → modern proportional face ────────────────────
+     Descriptive sentences (player blurbs, flavor, news/wire headlines, story
+     pitches, play-by-play recaps) read better proportional. Everything else —
+     stat tables, numbers, labels — stays on the inherited IBM Plex Mono so
+     columns stay aligned. Apply .frn-prose to opt any other element in. */
+  .frn-prose,
+  .frn-player-flavor,
+  .frn-pcard-archetype-blurb,
+  .player-tooltip .tt-flavor,
+  .player-tooltip .tt-arch-blurb,
+  .sm-qb-blurb,
+  .frn-story-pitch,
+  .frn-story-diff,
+  .frn-postgame-blurb,
+  .frn-fa-news,
+  .frn-wire-thisweek-headline,
+  .frn-wire-lead-headline,
+  .recap-desc,
+  .frn-replay-desc,
+  .frn-rpl-desc {
+    font-family: var(--font-prose);
   }
 
   /* ── ASCII frame helper ──────────────────────────────────────────────
