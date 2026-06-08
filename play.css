@@ -12431,6 +12431,23 @@
   #franchiseHome .bspnlive-root .bspn-panel,
   #franchiseHome .bspnlive-root .bspnlive-panel { border-radius: 12px; }
 
+  /* ── HH MODERN · Playoff Overview command center ─────────────────────────
+     The playoff Overview mirrors the regular one (hero + prep tasks in the
+     dashboard idiom), with the bracket/matchups embedded as bspnlive modules
+     inside dashboard cards. */
+  #franchiseHome .frn-playoff-cc { display: flex; flex-direction: column; gap: 1rem; }
+  #franchiseHome .frn-playoff-cc-eyebrow {
+    font-size: .7rem; font-weight: 800; letter-spacing: 1.6px;
+    color: var(--team-accent, var(--gold)); text-transform: uppercase;
+  }
+  /* Embed a bspnlive module inside a dashboard card: keep its internal
+     styling + tokens, but drop the full-screen breakout / overlays. */
+  #franchiseHome .bspnlive-root.embed {
+    margin: 0; padding: 0; min-height: 0; background: transparent;
+  }
+  #franchiseHome .bspnlive-root.embed::before,
+  #franchiseHome .bspnlive-root.embed::after { content: none; display: none; }
+
   /* QA: round the persistent footer's inline-styled EXPORT/IMPORT buttons
      (they aren't .btn, so the global button rounding misses them). */
   #franchiseHome .frn-bb-footer button { border-radius: 6px !important; }
