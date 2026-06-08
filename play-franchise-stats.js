@@ -536,6 +536,7 @@ function renderFrnPracticeSquad(tab) {
   let body = "";
   if (tabId === "mine") body = _renderPSMyTab(myId, ps, alerts);
   else if (tabId === "league") body = _renderPSLeagueTab(myId, visitsLeft);
+  else if (tabId === "sign") body = _renderPSSignTab(myId, ps);
   else body = _renderPSScoutedTab(myId);
 
   const banner = `
@@ -566,8 +567,12 @@ function _renderPSMyTab(myId, ps, alerts) {
         </div>`).join("")}
     </div>` : "";
 
+  const _openSlots = PS_SLOTS - ps.length;
+  const _signBtn = _openSlots > 0
+    ? `<div style="text-align:center;margin-top:.7rem"><button class="btn btn-outline" style="color:var(--gold);border-color:var(--gold)" onclick="renderFrnPracticeSquad('sign')">＋ Sign a young free agent to the PS <span style="opacity:.7">· ${_openSlots} slot${_openSlots===1?"":"s"} open</span></button></div>`
+    : `<div style="text-align:center;margin-top:.6rem;color:var(--gray);font-size:.64rem">Practice squad full (${PS_SLOTS}/${PS_SLOTS}) — promote or release someone to open a slot.</div>`;
   if (!ps.length) {
-    return alertHtml + `<div style="color:var(--gray);font-style:italic;padding:1.5rem;text-align:center">Your practice squad is empty. Sign players from cuts or draft them onto the PS.</div>`;
+    return alertHtml + `<div style="color:var(--gray);font-style:italic;padding:1.2rem;text-align:center">Your practice squad is empty — stash young players (≤2 yrs exp, ≤24 yo) here to develop them, then promote when they're ready.</div>` + _signBtn;
   }
   const rows = ps.map(p => {
     const flashes = (p._psFlashLog || []).filter(f => f.season === franchise.season);
@@ -591,7 +596,7 @@ function _renderPSMyTab(myId, ps, alerts) {
   return alertHtml + `<table class="frn-pre-roster-table">
     <thead><tr><th>POS</th><th>Player</th><th>Grade</th><th>Age</th><th>Draft</th><th>Practice</th><th></th></tr></thead>
     <tbody>${rows}</tbody>
-  </table>`;
+  </table>` + _signBtn;
 }
 
 function _renderPSLeagueTab(myId, visitsLeft) {
@@ -622,6 +627,7 @@ function _renderPSLeagueTab(myId, visitsLeft) {
       const scoutBtn = scoutedByMe
         ? `<span style="color:var(--gold);font-size:.62rem">✓ scouted</span>`
         : `<button class="frn-pcard-yrbtn" ${visitsLeft<=0?`style="opacity:.4"`:""} onclick="frnPSScout('${escName}')" title="${visitsLeft<=0?`Out of scout tokens — you bank +${SCOUT_VISITS_PER_WEEK}/week (cap ${SCOUT_TOKEN_CAP}); advance a week to earn more`:`Scout this player · ${visitsLeft} token${visitsLeft===1?"":"s"} banked`}">🔍 Scout</button>`;
+      const poachBtn = `<button class="frn-pcard-yrbtn" style="border-color:var(--gold);color:var(--gold)" onclick="frnPSPoach('${escName}')" title="Sign ${p.name} off ${t.name}'s practice squad onto YOUR active roster (2yr / $1.0M minimum)">📲 Sign</button>`;
       return `<tr>
         <td style="color:var(--gold);font-size:.62rem">${p.position}</td>
         <td style="font-weight:600">${p.name}</td>
@@ -630,7 +636,7 @@ function _renderPSLeagueTab(myId, visitsLeft) {
         <td style="color:var(--gray);font-size:.62rem">${draftStr(p)}</td>
         ${potentialCell}
         ${flashCell}
-        <td>${scoutBtn}</td>
+        <td style="white-space:nowrap">${scoutBtn} ${poachBtn}</td>
       </tr>`;
     }).join("");
     return `<div class="frn-card-title" style="margin-top:.5rem;color:${t.primary}">${t.city.toUpperCase()} ${t.name.toUpperCase()} · ${ps.length}/${PS_SLOTS}</div>
@@ -676,6 +682,96 @@ function _renderPSScoutedTab(myId) {
     <thead><tr><th>POS</th><th>Player</th><th>Team</th><th>Grade</th><th>Ceiling</th><th>Flashes</th><th>Scouted</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
+}
+
+// REPLENISH picker — two sources: demote young players from your active
+// roster (reliable), or stash a PS-eligible free agent (rare). Both require
+// an open PS slot.
+function _renderPSSignTab(myId, ps) {
+  const openSlots = PS_SLOTS - ps.length;
+  const disabled  = openSlots <= 0;
+  const eligP = p => (typeof _psEligible === "function") ? _psEligible(p) : ((p.age || 22) <= PS_MAX_AGE);
+  const escn  = n => (n || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const back  = `<button class="btn btn-outline" onclick="renderFrnPracticeSquad('mine')" style="margin-bottom:.6rem">← Back to My PS</button>`;
+  const head  = `<div style="color:var(--gray);font-size:.7rem;margin-bottom:.6rem">
+    Stash young players (≤${PS_MAX_YEARS_EXP} yrs exp · ≤${PS_MAX_AGE} yo) to develop them off your 53.
+    ${openSlots > 0 ? `<b style="color:var(--gold-lt)">${openSlots} slot${openSlots===1?"":"s"} open.</b>` : `<b style="color:#ff9090">No slots open — release or promote first.</b>`}
+  </div>`;
+
+  const rosterElig = (franchise.rosters?.[myId] || []).filter(eligP)
+    .sort((a, b) => (a.overall || 0) - (b.overall || 0));   // lowest first — the natural stash candidates
+  const faElig = (franchise.freeAgents || []).filter(eligP)
+    .sort((a, b) => (b.overall || 0) - (a.overall || 0)).slice(0, 40);
+
+  const tableFor = (list, action, label) => {
+    if (!list.length) return `<div style="color:var(--gray);font-style:italic;padding:.6rem;font-size:.68rem">None eligible.</div>`;
+    const rows = list.map(p => `<tr>
+      <td style="color:var(--gold);font-size:.62rem">${p.position}</td>
+      <td style="font-weight:700">${p.name}</td>
+      <td>${gradeBadge(p)}</td>
+      <td style="color:var(--gray)">${p.age||"?"}</td>
+      <td style="color:var(--gray);font-size:.62rem">${draftStr(p)}</td>
+      <td><button class="frn-pcard-yrbtn" ${disabled ? 'style="opacity:.4" disabled' : 'style="border-color:var(--gold);color:var(--gold)"'} onclick="${action}('${escn(p.name)}')">${label}</button></td>
+    </tr>`).join("");
+    return `<table class="frn-pre-roster-table">
+      <thead><tr><th>POS</th><th>Player</th><th>Grade</th><th>Age</th><th>Draft</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  };
+
+  return back + head
+    + `<div class="frn-card-title" style="margin-top:.3rem">⬇ DEMOTE FROM YOUR ROSTER <span class="frn-card-title-sub">frees a 53-man spot</span></div>`
+    + tableFor(rosterElig, "frnPSDemote", "⬇ Demote")
+    + `<div class="frn-card-title" style="margin-top:.9rem">＋ SIGN A FREE AGENT <span class="frn-card-title-sub">young FAs only</span></div>`
+    + tableFor(faElig, "frnPSSignFA", "＋ Stash");
+}
+function frnPSDemote(name) {
+  const myId = franchise.chosenTeamId;
+  const ps = franchise.practiceSquads?.[myId] || [];
+  if (ps.length >= PS_SLOTS) {
+    (typeof _frnAlert === "function" ? _frnAlert : alert)(`Practice squad is full (${PS_SLOTS} slots) — release or promote someone first.`);
+    return;
+  }
+  const p = (franchise.rosters?.[myId] || []).find(x => x.name === name);
+  if (!p || !_psDemote(myId, p)) {
+    (typeof _frnAlert === "function" ? _frnAlert : alert)("Couldn't demote — the slot's full or that player isn't practice-squad eligible.");
+  }
+  saveFranchise();
+  renderFrnPracticeSquad("sign");
+}
+function frnPSSignFA(name) {
+  const myId = franchise.chosenTeamId;
+  const ps = franchise.practiceSquads?.[myId] || [];
+  if (ps.length >= PS_SLOTS) {
+    (typeof _frnAlert === "function" ? _frnAlert : alert)(`Practice squad is full (${PS_SLOTS} slots) — release or promote someone first.`);
+    return;
+  }
+  const fa = (franchise.freeAgents || []).find(p => p.name === name);
+  if (!fa || !_psSignFromFA(myId, fa)) {
+    (typeof _frnAlert === "function" ? _frnAlert : alert)("Couldn't sign — the slot's full or that player is no longer available.");
+  }
+  saveFranchise();
+  renderFrnPracticeSquad("sign");
+}
+async function frnPSPoach(name) {
+  const myId = franchise.chosenTeamId;
+  const roster = franchise.rosters?.[myId] || [];
+  if (roster.length >= ACTIVE_ROSTER_LIMIT) {
+    (typeof _frnAlert === "function" ? _frnAlert : alert)(`Your active roster is full (${ACTIVE_ROSTER_LIMIT}). Poached players sign straight to your active roster — cut someone first.`);
+    return;
+  }
+  const cap = effectiveSalaryCap(myId);
+  if (capUsedByTeam(myId) + 1.0 > cap) {
+    if (!await _frnConfirm(`Signing ${name} pushes you over the cap. Continue?`)) return;
+  }
+  if (!await _frnConfirm(`Sign ${name} off their practice squad onto your active roster? (2-year / $1.0M minimum)`)) return;
+  const res = _psPoach(myId, name);
+  if (!res || !res.ok) {
+    (typeof _frnAlert === "function" ? _frnAlert : alert)(res && res.reason === "full"
+      ? `Active roster is full (${ACTIVE_ROSTER_LIMIT}).`
+      : `${name} is no longer available — promoted or signed by someone else.`);
+  }
+  saveFranchise();
+  renderFrnPracticeSquad("league");
 }
 
 async function frnPSPromote(name) {
