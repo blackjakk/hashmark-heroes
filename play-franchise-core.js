@@ -2986,6 +2986,74 @@ function _psPromote(teamId, player, opts = {}) {
   }
   return true;
 }
+// REPLENISH — stash an eligible (young, ≤2yr exp, ≤24yo) free agent onto a
+// team's practice squad. Removes him from the FA pool. PS cap cost is
+// slot-based (psCostForTeam), so no per-player contract is needed while he
+// develops; a real deal is written when he's promoted/poached.
+function _psSignFromFA(teamId, player) {
+  if (!player) return false;
+  const ps = (franchise.practiceSquads[teamId] = franchise.practiceSquads[teamId] || []);
+  if (ps.length >= PS_SLOTS) return false;
+  if (!_psEligible(player)) return false;
+  const fa = franchise.freeAgents || [];
+  const idx = fa.findIndex(p => (player.pid && p.pid === player.pid) || p.name === player.name);
+  if (idx === -1) return false;
+  const [signed] = fa.splice(idx, 1);
+  signed._psStashedSeason = franchise.season || 1;
+  signed._psFlashLog = [];
+  ps.push(signed);
+  return true;
+}
+// REPLENISH (the reliable source) — demote an eligible young player from a
+// team's active roster down to its practice squad. Frees a 53-man spot but
+// exposes him to poaching. The FA pool rarely has PS-eligible youngsters, so
+// this is the everyday way to stock the squad.
+function _psDemote(teamId, player) {
+  if (!player) return false;
+  const ps = (franchise.practiceSquads[teamId] = franchise.practiceSquads[teamId] || []);
+  if (ps.length >= PS_SLOTS) return false;
+  if (!_psEligible(player)) return false;
+  const roster = franchise.rosters[teamId] || [];
+  const idx = roster.findIndex(p => p === player || (player.pid && p.pid === player.pid) || p.name === player.name);
+  if (idx === -1) return false;
+  const [moved] = roster.splice(idx, 1);
+  moved._psStashedSeason = franchise.season || 1;
+  moved._psFlashLog = moved._psFlashLog || [];
+  ps.push(moved);
+  return true;
+}
+// POACH — sign a RIVAL's practice-squad player onto YOUR active roster (the
+// NFL rule: poaching puts him on your 53, not your PS). Removes him from the
+// rival's PS, signs a 2yr/$1M minimum deal (same terms as a promote), and
+// notifies the team that lost him. Returns {ok, reason, fromTeamId}.
+function _psPoach(poachTeamId, playerName) {
+  let fromTeamId = null, player = null, ps = null;
+  for (const [tIdStr, arr] of Object.entries(franchise.practiceSquads || {})) {
+    const tId = Number(tIdStr);
+    if (tId === poachTeamId) continue;
+    const found = arr.find(x => x.name === playerName);
+    if (found) { fromTeamId = tId; player = found; ps = arr; break; }
+  }
+  if (!player) return { ok: false, reason: "gone" };   // already promoted/poached
+  const roster = (franchise.rosters[poachTeamId] = franchise.rosters[poachTeamId] || []);
+  if (roster.length >= ACTIVE_ROSTER_LIMIT) return { ok: false, reason: "full" };
+  ps.splice(ps.indexOf(player), 1);
+  player.contract = {
+    years: 2, remaining: 2, aav: 1.0,
+    guaranteedYears: 1, guaranteedAAV: 1.0,
+    signedAav: 1.0,
+    startSeason: (franchise.season || 1),
+    signedOvr: player.overall || 65,
+  };
+  delete player._psFlashLog; delete player._psStashedSeason;
+  roster.push(player);
+  const from = getTeam(fromTeamId), to = getTeam(poachTeamId);
+  _pushNews({ type: "ps_poached",
+    label: `📲 ${to?.name || "A team"} signed ${player.position} ${player.name} off ${from?.name || "a rival"}'s practice squad` });
+  if (franchise.scoutedPS) delete franchise.scoutedPS[playerName];
+  if (franchise.psPoachAlerts) franchise.psPoachAlerts = franchise.psPoachAlerts.filter(a => a.playerName !== playerName);
+  return { ok: true, fromTeamId };
+}
 // Scout a rival PS player — reveals potential and tightens grade noise.
 function _psScout(scoutingTeamId, playerName) {
   if (_scoutVisitsRemaining(scoutingTeamId) <= 0) return false;
