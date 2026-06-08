@@ -156,7 +156,7 @@ function _frnRenderError(err, phase) {
       </div>
       <details style="margin-top:1.1rem;text-align:left;font-size:.65rem;color:var(--gray)">
         <summary style="cursor:pointer;color:var(--gold)">Technical details</summary>
-        <div style="margin-top:.4rem;font-family:monospace;white-space:pre-wrap;word-break:break-word">phase: ${phase || "?"}
+        <div style="margin-top:.4rem;font-family:'IBM Plex Mono',ui-monospace,monospace;white-space:pre-wrap;word-break:break-word">phase: ${phase || "?"}
 ${safeMsg}</div>
       </details>
       <div style="margin-top:1rem;font-size:.6rem;color:var(--gray)">
@@ -3721,11 +3721,11 @@ function _buildVitalsBodyDiagram(p) {
   // Position + H/W chips
   const positionChip = `<g>
     <rect x="8" y="8" rx="3" ry="3" width="40" height="16" fill="rgba(255,255,255,.10)" stroke="rgba(255,255,255,.15)" stroke-width=".5"/>
-    <text x="28" y="20" fill="rgba(255,255,255,.85)" font-size="9.5" font-family="-apple-system,Inter,monospace" text-anchor="middle" letter-spacing="1" font-weight="700">${p.position || "?"}</text>
+    <text x="28" y="20" fill="rgba(255,255,255,.85)" font-size="9.5" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle" letter-spacing="1" font-weight="700">${p.position || "?"}</text>
   </g>`;
   const hwText = (p.height && p.weight) ?
     `${Math.floor(p.height/12)}'${p.height%12}" · ${p.weight} lb` : "";
-  const hwChip = hwText ? `<text x="232" y="20" fill="rgba(255,255,255,.55)" font-size="9" font-family="-apple-system,Inter,monospace" text-anchor="end" letter-spacing="1">${hwText}</text>` : "";
+  const hwChip = hwText ? `<text x="232" y="20" fill="rgba(255,255,255,.55)" font-size="9" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="end" letter-spacing="1">${hwText}</text>` : "";
   const bgDefs = `
     <defs>
       <linearGradient id="vit-bg" x1="0" y1="0" x2="0" y2="1">
@@ -3787,14 +3787,14 @@ function _buildVitalsBodyDiagram(p) {
       const fill = n >= 4 ? "#e6373a" : n >= 3 ? "#ed6a3a" : "#f0a93a";
       return `<g>
         <circle cx="${x}" cy="${y}" r="6" fill="${fill}" stroke="rgba(0,0,0,.6)" stroke-width="0.8"/>
-        <text x="${x}" y="${y + 2.5}" fill="#fff" font-size="8" font-weight="800" font-family="-apple-system,monospace" text-anchor="middle">${n}</text>
+        <text x="${x}" y="${y + 2.5}" fill="#fff" font-size="8" font-weight="800" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle">${n}</text>
       </g>`;
     }).join("");
   // Career-summary line (under footer)
   const totalCareerInjuries = Object.values(careerCounts).reduce((s, n) => s + n, 0);
   const mostInjured = Object.entries(careerCounts).sort((a, b) => b[1] - a[1])[0];
   const careerSummary = totalCareerInjuries > 0
-    ? `<text x="120" y="496" fill="rgba(218,196,162,.5)" font-size="8" font-family="-apple-system,Inter,monospace" text-anchor="middle" letter-spacing="1">${totalCareerInjuries} career injur${totalCareerInjuries===1?"y":"ies"}${mostInjured ? ` · most-hit: ${_VITALS_PART_NAMES?.[mostInjured[0]] || mostInjured[0]} (${mostInjured[1]})` : ""}</text>`
+    ? `<text x="120" y="496" fill="rgba(218,196,162,.5)" font-size="8" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle" letter-spacing="1">${totalCareerInjuries} career injur${totalCareerInjuries===1?"y":"ies"}${mostInjured ? ` · most-hit: ${_VITALS_PART_NAMES?.[mostInjured[0]] || mostInjured[0]} (${mostInjured[1]})` : ""}</text>`
     : "";
   return `<svg viewBox="0 0 240 520" width="240" height="460" xmlns="http://www.w3.org/2000/svg"
     style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.45), inset 0 0 0 1px rgba(218,196,162,.10)">
@@ -3807,7 +3807,7 @@ function _buildVitalsBodyDiagram(p) {
     ${innerLines}
     ${scarMarkers}
     ${careerSummary}
-    <text x="120" y="510" fill="rgba(218,196,162,.65)" font-size="9.5" font-family="-apple-system,Inter,Georgia,serif" text-anchor="middle" letter-spacing="2" font-weight="600">
+    <text x="120" y="510" fill="rgba(218,196,162,.65)" font-size="9.5" font-family="'Bebas Neue','Anton',sans-serif" text-anchor="middle" letter-spacing="2" font-weight="600">
       WEAR ${wear.toFixed(0)}  ·  STRESS ${stress.toFixed(0)}
     </text>
   </svg>`;

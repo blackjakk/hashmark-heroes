@@ -51,6 +51,8 @@ const GCFx = (() => {
   let _pxLiveBadge = null;      // PIXI.Container LIVE indicator (always-on)
   let _pxLiveDot   = null;      // PIXI.Graphics blinking red dot
   let _pxBigText   = null;      // PIXI.Text big celebration text ("TOUCHDOWN!" etc.)
+  let _pxLiveText  = null;      // PIXI.Text "LIVE" label (re-rastered once webfont loads)
+  let _pxFontsHooked = false;   // One-time document.fonts.ready re-raster guard
   let _bigTextStart = 0;
   let _bigTextDur   = 0;
   let _pxChyron    = null;      // PIXI.Container player-highlight chyron
@@ -264,13 +266,14 @@ const GCFx = (() => {
         _pxLiveDot.endFill();
         _pxLiveBadge.addChild(_pxLiveDot);
         const liveText = new PIXI.Text("LIVE", {
-          fontFamily: "Impact, Arial Black, sans-serif",
+          fontFamily: "Anton, Impact, Arial Black, sans-serif",
           fontSize: 24,
           fill: 0xffffff,
           letterSpacing: 2,
         });
         liveText.position.set(34, 7);
         _pxLiveBadge.addChild(liveText);
+        _pxLiveText = liveText;
         _pxApp.stage.addChild(_pxLiveBadge);
       } catch (e) {
         console.warn("PIXI live badge failed:", e);
@@ -280,7 +283,7 @@ const GCFx = (() => {
       // true. Pulsing alpha + slight red tint.
       try {
         _pxReplayBadge = new PIXI.Text("● INSTANT REPLAY", {
-          fontFamily: "Impact, Arial Black, sans-serif",
+          fontFamily: "Anton, Impact, Arial Black, sans-serif",
           fontSize: 38,
           fill: 0xff3030,
           stroke: 0x000000,
@@ -295,12 +298,25 @@ const GCFx = (() => {
         console.warn("PIXI replay badge failed:", e);
         _pxReplayBadge = null;
       }
+      // The static badges ("LIVE", "INSTANT REPLAY") bake their font into a
+      // texture at creation. If the "Anton" webfont is still downloading on a
+      // cold start, mark them dirty once fonts are ready so the next render
+      // pass re-rasterizes with the real face. (Big-text + chyron re-raster on
+      // their own since their .text changes per fire.)
+      if (!_pxFontsHooked && typeof document !== "undefined" && document.fonts?.ready) {
+        _pxFontsHooked = true;
+        try { document.fonts.load('24px "Anton"'); } catch (_) {}
+        document.fonts.ready.then(() => {
+          if (_pxLiveText) _pxLiveText.dirty = true;
+          if (_pxReplayBadge) _pxReplayBadge.dirty = true;
+        }).catch(() => {});
+      }
       // ── Big celebration text — drawn near the top so the TOUCHDOWN!
       // banner reads above the field action. Scale and alpha animated
       // per-fire via GCFx.bigText(text, color, durMs).
       try {
         _pxBigText = new PIXI.Text("", {
-          fontFamily: "Impact, Arial Black, sans-serif",
+          fontFamily: "Anton, Impact, Arial Black, sans-serif",
           fontSize: 110,
           fill: 0xffffff,
           stroke: 0x000000,
@@ -335,7 +351,7 @@ const GCFx = (() => {
         _chyronBg.endFill();
         _pxChyron.addChild(_chyronBg);
         _chyronTitle = new PIXI.Text("", {
-          fontFamily: "Impact, Arial Black, sans-serif",
+          fontFamily: "Anton, Impact, Arial Black, sans-serif",
           fontSize: 42,
           fill: 0xffffff,
           letterSpacing: 1.5,
@@ -343,7 +359,7 @@ const GCFx = (() => {
         _chyronTitle.position.set(24, 12);
         _pxChyron.addChild(_chyronTitle);
         _chyronSub = new PIXI.Text("", {
-          fontFamily: "Impact, Arial Black, sans-serif",
+          fontFamily: "Anton, Impact, Arial Black, sans-serif",
           fontSize: 22,
           fill: 0xf5c542,
           letterSpacing: 2,
