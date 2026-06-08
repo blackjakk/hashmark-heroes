@@ -1543,6 +1543,8 @@ function frnOpenPlayerCard(name, pid) {
   overlay.className = "frn-pcard-overlay";
   overlay.id = "frn-pcard-overlay";
   overlay.setAttribute("data-pid", p.pid || "");
+  // Team-color accent on the modal's top edge (modern reskin).
+  if (team && team.primary) overlay.style.setProperty("--pc-team", team.primary);
   const teamLine = team
     ? `<div class="frn-pcard-team-link">
          ${team.city} ${team.name} ·
