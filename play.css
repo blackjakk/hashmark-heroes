@@ -312,7 +312,7 @@
   .play-entry.kickoff  { background: var(--green-dk); }
   .play-entry.drive_summary {
     background: #14181f; color: #9bb1c8; text-align: center;
-    font-family: ui-monospace, monospace; font-size: 11px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px;
     padding: .35rem .5rem; margin: .15rem 0;
     border-top: 1px solid #2a3140; border-bottom: 1px solid #2a3140;
     letter-spacing: 0.02em;
@@ -979,7 +979,7 @@
   .frn-nav-home:hover { background: rgba(200,169,0,0.10); border-color: var(--gold); }
   .frn-nav-title { display: flex; align-items: baseline; gap: .65rem; flex-wrap: wrap; }
   .frn-nav-title-main {
-    font-family: 'Anton', 'Bebas Neue', sans-serif;
+    font-family: 'Bebas Neue', 'Anton', sans-serif;
     font-size: 1.05rem; letter-spacing: 1px; color: var(--gold);
   }
   .frn-nav-season {
@@ -1182,7 +1182,7 @@
   }
   .frn-story-icon { font-size: 1.5rem; }
   .frn-story-title {
-    font-family: 'Anton', 'Bebas Neue', sans-serif;
+    font-family: 'Bebas Neue', 'Anton', sans-serif;
     font-size: 1.2rem; letter-spacing: 1.5px; color: var(--gold);
   }
   .frn-story-pitch { font-size: .78rem; line-height: 1.45; color: var(--fg); margin-bottom: .5rem; }
@@ -3199,7 +3199,7 @@
     white-space: pre; font-size: 1rem; line-height: 1; overflow: hidden;
   }
   .bspnlive-score-num {
-    font-family: "Impact","Arial Black","Anton","Teko",system-ui,sans-serif;
+    font-family: "Anton","Teko","Arial Black",system-ui,sans-serif;
     font-size: clamp(4rem, 8vw, 8rem);
     font-weight: 900; line-height: .85;
     letter-spacing: -0.06em; font-variant-numeric: tabular-nums;
@@ -5639,7 +5639,7 @@
   /* BSPN logo — block-letter parody header */
   .frn-bspn-logo {
     margin: 0; padding: 0;
-    font-family: 'Courier New', monospace; color: var(--gold);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace; color: var(--gold);
     font-size: .55rem; line-height: 1; letter-spacing: 0;
     font-weight: 700; white-space: pre;
   }
@@ -6416,7 +6416,7 @@
     align-items: center; gap: 1rem;
     margin-top: .8rem; padding: .7rem 1rem;
     background: var(--bg2); border: 1px solid var(--border);
-    color: var(--green); font-family: monospace;
+    color: var(--green); font-family: 'IBM Plex Mono', ui-monospace, monospace;
     font-size: .65rem; letter-spacing: .3px; line-height: 1.2;
   }
   .frn-bs-footer-side { color: var(--gray); white-space: pre; overflow: hidden; }
@@ -8832,7 +8832,7 @@
   .frn-dp-name:hover { color: var(--gold-lt); text-decoration: underline; }
   .frn-dp-bottom { display: flex; align-items: center; gap: .35rem; }
   .frn-dp-meta    { font-size: .59rem; color: var(--gray); }
-  .frn-dp-combine { font-size: .59rem; color: var(--gold-lt); font-family: monospace; }
+  .frn-dp-combine { font-size: .59rem; color: var(--gold-lt); font-family: 'IBM Plex Mono', ui-monospace, monospace; }
   .frn-dp-actions { display: flex; gap: .3rem; align-items: center; }
   /* 4-icon scout cluster — replaces the single 🔍 button */
   .frn-dp-cat-cluster {

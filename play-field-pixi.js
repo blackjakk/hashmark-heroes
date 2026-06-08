@@ -30,6 +30,8 @@ const GCField = (() => {
   let _attachedTo = null;       // Canvas element we attached to
   let _lastRenderKey = "";      // Cache key: "homeId|awayId" — re-render on team change
   let _lastDynKey = "";         // Last (los, firstDownAbs, possColor) — skip rerender if same
+  let _lastTeams = null;        // Last {home,away} — for re-render once webfonts load
+  let _fontsHooked = false;     // One-time document.fonts.ready re-render guard
 
   function _pixiAvailable() {
     return typeof PIXI !== "undefined" && typeof PIXI.Application === "function";
@@ -97,6 +99,19 @@ const GCField = (() => {
       return true;
     }
     _lastRenderKey = key;
+    _lastTeams = { home: homeTeam, away: awayTeam };
+    // Field text (end-zone names, yard numbers, midfield initial) uses the
+    // loaded "Anton" webfont. PIXI.Text bakes the font into a texture at
+    // creation — so on a cold start (font still downloading) it would bake a
+    // fallback. Re-render once fonts are ready to swap in the real face. A
+    // no-op repaint if the font was already loaded.
+    if (!_fontsHooked && typeof document !== "undefined" && document.fonts?.ready) {
+      _fontsHooked = true;
+      try { document.fonts.load('900 36px "Anton"'); } catch (_) {}
+      document.fonts.ready.then(() => {
+        if (_lastTeams) { _lastRenderKey = ""; renderStatic(_lastTeams.home, _lastTeams.away); }
+      }).catch(() => {});
+    }
     // Clear prior render.
     _bg.removeChildren();
     // ── Base grass — full-canvas fill (matches canvas2D #1c5e2f) ──
@@ -151,7 +166,7 @@ const GCField = (() => {
     const ezTargetW = ezSpan - ezPad * 2;
     const makeText = (name) => {
       const t = new PIXI.Text(String(name || "").toUpperCase(), {
-        fontFamily: "monospace",
+        fontFamily: "Anton, sans-serif",
         fontWeight: "900",
         fontSize: ezTargetH,
         fill: 0xf0f0f0,                  // ~rgba(255,255,255,0.92)
@@ -201,7 +216,7 @@ const GCField = (() => {
     // ── Yard numbers — 10, 20, 30, 40, 50, 40, 30, 20, 10 at the top and
     // bottom of the field. White with black stroke, 36px 900 sans.
     const numStyle = {
-      fontFamily: "sans-serif",
+      fontFamily: "Anton, sans-serif",
       fontWeight: "900",
       fontSize: 36,
       fill: 0xfafafa,                    // ~rgba(255,255,255,0.95)
@@ -249,7 +264,7 @@ const GCField = (() => {
     if (homeTeam) {
       const initial = (homeTeam.name || "?")[0].toUpperCase();
       const initText = new PIXI.Text(initial, {
-        fontFamily: "monospace",
+        fontFamily: "Anton, sans-serif",
         fontWeight: "900",
         fontSize: 88,
         fill: homeHex,

@@ -4798,7 +4798,7 @@ function _frnRenderCreateError(err) {
       </div>
       <details style="margin-top:1.1rem;text-align:left;font-size:.65rem;color:var(--gray)">
         <summary style="cursor:pointer;color:var(--gold)">Technical details</summary>
-        <div style="margin-top:.4rem;font-family:monospace;white-space:pre-wrap;word-break:break-word">${safeMsg}</div>
+        <div style="margin-top:.4rem;font-family:'IBM Plex Mono',ui-monospace,monospace;white-space:pre-wrap;word-break:break-word">${safeMsg}</div>
       </details>
     </div>`;
 }
