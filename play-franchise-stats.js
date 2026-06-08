@@ -624,7 +624,7 @@ function _renderPSLeagueTab(myId, visitsLeft) {
         : `<td style="color:var(--gray)">—</td>`;
       const scoutBtn = scoutedByMe
         ? `<span style="color:var(--gold);font-size:.62rem">✓ scouted</span>`
-        : `<button class="frn-pcard-yrbtn" ${visitsLeft<=0?"disabled":""} onclick="frnPSScout('${escName}')">🔍 Scout</button>`;
+        : `<button class="frn-pcard-yrbtn" ${visitsLeft<=0?`style="opacity:.4"`:""} onclick="frnPSScout('${escName}')" title="${visitsLeft<=0?`Out of scout visits this week — they refresh (${SCOUT_VISITS_PER_WEEK}/week) when you advance`:`Scout this player · ${visitsLeft} visit${visitsLeft===1?"":"s"} left this week`}">🔍 Scout</button>`;
       return `<tr>
         <td style="color:var(--gold);font-size:.62rem">${p.position}</td>
         <td style="font-weight:600">${p.name}</td>
@@ -706,7 +706,11 @@ async function frnPSRelease(name) {
 }
 function frnPSScout(name) {
   const myId = franchise.chosenTeamId;
-  if (!_psScout(myId, name)) { alert("No scouting visits remaining this week."); return; }
+  if (!_psScout(myId, name)) {
+    const msg = `You're out of scout visits this week. You get ${SCOUT_VISITS_PER_WEEK} per week — they refresh when you advance to the next week.`;
+    if (typeof _frnAlert === "function") _frnAlert(msg); else alert(msg);
+    return;
+  }
   saveFranchise();
   renderFrnPracticeSquad("league");
 }
