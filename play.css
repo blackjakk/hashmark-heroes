@@ -12089,6 +12089,14 @@
     /* Keep modest bottom-margin on tables/blocks in main column;
        sections have their own existing margins. */
   }
+  /* Tabbed Player Development Report: the Strategy / Overview-context grids
+     lay the (formerly sidebar) blocks side by side. Those blocks carry their
+     own inline margin-bottom for the old single-column stack; zero it so the
+     grid `gap` is the only spacing and rows align cleanly. */
+  .frn-dev-strategy-grid > *,
+  .frn-dev-overview-ctx > * {
+    margin-bottom: 0 !important;
+  }
 
   /* ══════════════════════════════════════════════════════════════════════
      HH MODERN — scoped re-skin of the franchise dashboard (Overview first).

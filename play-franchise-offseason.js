@@ -12435,6 +12435,22 @@ function frnGainsFilterReasonSet(reason) {
   renderFrnOffseason();
 }
 
+// Player Development Report tab state. The sheet is one big page split into
+// three panels — Overview (how camp went), Players (per-player drill-down),
+// Roster Strategy (actionable GM blocks). Switching tabs is a pure DOM toggle
+// (no re-render) for instant feel; this module var is what the build reads to
+// restore the active tab after a FILTER change forces a full re-render.
+let _frnDevReportTab = "overview";
+function frnDevReportTab(id) {
+  _frnDevReportTab = id || "overview";
+  document.querySelectorAll("[data-devtab]").forEach(el => {
+    el.style.display = (el.getAttribute("data-devtab") === _frnDevReportTab) ? "" : "none";
+  });
+  document.querySelectorAll("[data-devtabbtn]").forEach(b => {
+    b.classList.toggle("active", b.getAttribute("data-devtabbtn") === _frnDevReportTab);
+  });
+}
+
 // Ceiling tier — grade (S/A/B/C/D) + growth room. Replaces raw ceiling
 // numbers in the gains sheet because exposing exact ceiling defeats
 // the Hidden Gem Reveal mechanic + makes re-sign decisions trivial
@@ -14448,58 +14464,69 @@ function _buildOffseasonGainsSheet() {
     </div>`;
   };
 
-  // Layout (per UI/UX flow analysis):
-  //   FULL-WIDTH HEADER:
-  //     · chips (position + reason filters)
-  //     · summary stat cards
-  //     · 4-chart row
-  //   2/3 + 1/3 GRID:
-  //     · MAIN COLUMN: STAR WATCH → TOP 5 GAINERS → TOP OF ROSTER →
-  //       GAINERS / HOLDING / DECLINERS tables. Player-level info,
-  //       benefits from the wider column.
-  //     · SIDEBAR: TEAM STATUS → RE-SIGN PRIORITY → DEPTH AT RISK →
-  //       CAMP NOTES → Hidden Gem Reveal. "Running commentary" — each
-  //       block is naturally narrow and reads better in a column.
-  //   On <960px the grid collapses to single column (sidebar drops
-  //   below main, all blocks full-width again).
-  //
-  // Flow change: charts moved from below STAR WATCH to right after
-  // summary cards. Visual rhythm: filters → headline numbers →
-  // glance at trend charts → drill into players. Charts as eye
-  // candy at the top, then info-density below.
+  // Layout: one report split into THREE TABS so it's no longer a single
+  // overwhelming scroll. Tab state lives in _frnDevReportTab (module-level)
+  // so it survives the full re-render a filter chip triggers; switching tabs
+  // is a pure DOM toggle via frnDevReportTab().
+  //   📊 OVERVIEW — "how did camp go?": camp grade + championship window,
+  //       summary stat cards / biggest movers, the trend charts, plus
+  //       team-status and camp-notes narrative.
+  //   👥 PLAYERS — "who changed?": the position/reason filter, star watch,
+  //       top movers, top of roster, and the Gainers/Holding/Decliners
+  //       tables. The drill-down lives entirely here.
+  //   🧭 ROSTER STRATEGY — "what should I do?": the actionable GM blocks —
+  //       position needs, re-sign priority, depth at risk, cliff watch,
+  //       sell-high, value spotlight, hidden gem, locker room.
+  // The Strategy / Overview-context grids use auto-fit minmax so they flow to
+  // one column on narrow screens with no media query; the synth row keeps its
+  // existing .frn-dev-synth-row responsive collapse.
+  const _t = (typeof _frnDevReportTab === "string") ? _frnDevReportTab : "overview";
+  const _hide = (id) => _t === id ? "" : ' style="display:none"';
   return `<div style="margin-top:.8rem;padding:.7rem .8rem;background:rgba(255,255,255,.02);border:1px solid var(--blborder);border-radius:4px">
     <div class="frn-sec-title" style="margin-bottom:.5rem">📊 PLAYER DEVELOPMENT REPORT</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.6rem" class="frn-dev-synth-row">
-      <div>${campCardHtml}</div>
-      <div>${champWindowHtml}</div>
+    <div class="frn-subnav">
+      <button class="frn-subnav-btn${_t==="overview"?" active":""}" data-devtabbtn="overview" onclick="frnDevReportTab('overview')">📊 Overview</button>
+      <button class="frn-subnav-btn${_t==="players"?" active":""}" data-devtabbtn="players" onclick="frnDevReportTab('players')">👥 Players</button>
+      <button class="frn-subnav-btn${_t==="strategy"?" active":""}" data-devtabbtn="strategy" onclick="frnDevReportTab('strategy')">🧭 Roster Strategy</button>
     </div>
-    ${summaryHtml}
-    ${chartsBlock}
-    <div style="margin-top:.6rem;padding:.4rem .5rem;background:rgba(255,255,255,.02);border:1px solid var(--blborder);border-radius:3px">
-      <div style="font-size:.5rem;color:#a98a2e;letter-spacing:1.2px;font-weight:700;margin-bottom:.25rem">🔍 FILTER PLAYER DRILL-DOWN</div>
-      ${chipsHtml}
-    </div>
-    ${emptyFilterNotice}
-    <div class="frn-dev-report-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:.7rem;margin-top:.4rem">
-      <div class="frn-dev-main" style="min-width:0">
-        ${starWatchBlock}
-        ${top5Movers}
-        ${topOverallsBlock}
-        ${_section("GAINERS",   gainers,   "#86e0a3")}
-        ${_section("HOLDING",   steady,    "var(--gray)", { collapsed: true })}
-        ${_section("DECLINERS", decliners, "#ff9b9b")}
+
+    <div data-devtab="overview"${_hide("overview")}>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.6rem" class="frn-dev-synth-row">
+        <div>${campCardHtml}</div>
+        <div>${champWindowHtml}</div>
       </div>
-      <div class="frn-dev-side" style="min-width:0;display:flex;flex-direction:column;gap:.6rem">
-        ${lockerRoomBlock}
+      ${summaryHtml}
+      ${chartsBlock}
+      <div class="frn-dev-overview-ctx" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.7rem;margin-top:.6rem;align-items:start">
         ${teamStatusBlock}
+        ${campNotesBlock}
+      </div>
+    </div>
+
+    <div data-devtab="players"${_hide("players")}>
+      <div style="margin-bottom:.6rem;padding:.4rem .5rem;background:rgba(255,255,255,.02);border:1px solid var(--blborder);border-radius:3px">
+        <div style="font-size:.5rem;color:#a98a2e;letter-spacing:1.2px;font-weight:700;margin-bottom:.25rem">🔍 FILTER PLAYER DRILL-DOWN</div>
+        ${chipsHtml}
+      </div>
+      ${emptyFilterNotice}
+      ${starWatchBlock}
+      ${top5Movers}
+      ${topOverallsBlock}
+      ${_section("GAINERS",   gainers,   "#86e0a3")}
+      ${_section("HOLDING",   steady,    "var(--gray)", { collapsed: true })}
+      ${_section("DECLINERS", decliners, "#ff9b9b")}
+    </div>
+
+    <div data-devtab="strategy"${_hide("strategy")}>
+      <div class="frn-dev-strategy-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:.7rem;align-items:start">
         ${posNeedsBlock}
-        ${valueSpotlightBlock}
         ${resignBlock}
         ${depthBlock}
         ${cliffWatchBlock}
         ${sellHighBlock}
-        ${campNotesBlock}
+        ${valueSpotlightBlock}
         ${heroBlock}
+        ${lockerRoomBlock}
       </div>
     </div>
   </div>`;
