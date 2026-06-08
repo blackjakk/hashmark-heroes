@@ -5,7 +5,9 @@
 
 const FRANCHISE_KEY   = "gc_franchise_v1";
 const FRANCHISE_WEEKS = 17;
-const PLAYOFF_TEAMS   = 8;
+const PLAYOFF_TEAMS   = 14;  // NFL-style: 7 per conference (#1 seed gets a bye)
+const PLAYOFF_PER_CONF = 7;
+const PLAYOFF_ROUND_NAMES = ["WILD CARD", "DIVISIONAL", "CONFERENCE", "SUPER BOWL"];
 const SALARY_CAP_BASE = 200; // $M — grows ~5-9% each offseason
 
 // Inline confirmation state — avoids browser confirm()/alert() dialogs.

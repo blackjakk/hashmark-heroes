@@ -247,7 +247,10 @@ function showFranchiseDashboard() {
   {
     const _fw = (typeof FRANCHISE_WEEKS !== "undefined") ? FRANCHISE_WEEKS : 17;
     const _brk = franchise.playoffBracket;
-    const _validBracket = _brk && Array.isArray(_brk.rounds) && _brk.rounds.length > 0;
+    // New 14-team brackets carry a `byes` array + 4 rounds; legacy 8-team
+    // saves (3 rounds, no byes) are treated as invalid so they heal to
+    // season_recap and re-seed via startFrnPlayoffs in the new format.
+    const _validBracket = _brk && Array.isArray(_brk.rounds) && _brk.rounds.length === 4 && Array.isArray(_brk.byes);
     if (franchise.phase === "draft" && franchise.draft == null) frnTransition("draft_grade");
     else if (franchise.phase === "regular" && (franchise.week || 1) > _fw && !franchise.playoffBracket) frnTransition("season_recap");
     // Legacy playoffs_pending (the retired auto-seed waypoint) and any "playoffs

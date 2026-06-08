@@ -6661,6 +6661,32 @@
   .frn-bt-team.mine .name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 2px; }
   .frn-bt-proj { font-size: .54rem; color: var(--blgray); font-style: italic; padding-left: .35rem; }
 
+  /* ── 14-team conference bracket layout (AFC over SB over NFC) ───────── */
+  .frn-bracket-conf { display: flex; flex-direction: column; gap: .5rem; }
+  .frn-bt-conf {
+    display: grid; grid-template-columns: auto 1fr; gap: .5rem; align-items: stretch;
+    background: rgba(255,255,255,.02); border: 1px solid var(--blborder);
+    border-radius: 8px; padding: .45rem .5rem;
+  }
+  .frn-bt-conf-lbl {
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    font-weight: 900; font-size: .8rem; letter-spacing: 2px;
+    color: var(--blgold); display: flex; align-items: center; justify-content: center;
+    padding: 0 .1rem;
+  }
+  .frn-bt-conf-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: .45rem; }
+  @media (max-width: 720px) { .frn-bt-conf-cols { grid-template-columns: 1fr; } }
+  .frn-bt-card.bye { opacity: .8; border-style: dashed; }
+  .frn-bt-bye-tag { font-size: .5rem !important; color: var(--blgray) !important; font-weight: 700; letter-spacing: .5px; }
+  .frn-bt-sb {
+    align-self: center; min-width: 9rem; text-align: center;
+    border: 1px solid var(--blgold); border-radius: 8px; padding: .4rem .6rem;
+    background: rgba(212,175,55,.06);
+  }
+  .frn-bt-sb.current { box-shadow: 0 0 0 2px var(--blgold) inset; }
+  .frn-bt-sb.done { background: rgba(212,175,55,.14); }
+  .frn-bt-sb-lbl { font-weight: 900; font-size: .68rem; letter-spacing: 1px; color: var(--blgold); margin-bottom: .3rem; }
+
   /* ── Current Game Hub ──────────────────────────────────────────────── */
   .frn-playoff-hub {
     background: var(--blbg2); border: 1px solid var(--blborder);

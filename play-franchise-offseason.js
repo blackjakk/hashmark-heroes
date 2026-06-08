@@ -3873,32 +3873,44 @@ function frnFinishGame() {
 }
 
 // ── Playoffs ─────────────────────────────────────────────────────────────────
+// One playoff matchup. `conf` tags which bracket it belongs to
+// ("AFC" / "NFC"; "SB" for the cross-conference Super Bowl).
+function _poMatch(conf, homeId = null, awayId = null) {
+  return { conf, homeId, awayId, homeScore: null, awayScore: null, winnerId: null };
+}
+// Seat two teams into a matchup, hosting the better seed (lower seed number).
+// Clears any prior result. Seeds come from the bracket's conference seeding.
+function _poSetMatch(m, idA, idB) {
+  const seeds = franchise.playoffBracket?.seeds || [];
+  const seedOf = id => seeds.find(s => s.teamId === id)?.seed ?? 99;
+  const [hi, lo] = seedOf(idA) <= seedOf(idB) ? [idA, idB] : [idB, idA];
+  m.homeId = hi; m.awayId = lo;
+  m.homeScore = null; m.awayScore = null; m.winnerId = null;
+}
+// NFL-style 14-team postseason: 7 seeds per conference, #1 byes the Wild
+// Card round, reseed each round so the top seed always draws the lowest
+// survivor, conference champions meet in the Super Bowl.
 function startFrnPlayoffs() {
   const sorted = standingsSorted();
-  const seeds  = sorted.slice(0, PLAYOFF_TEAMS).map((s, i) => ({
-    teamId: s.id, seed: i + 1,
-  }));
-  // 1v8, 4v5, 2v7, 3v6 → semis → championship
-  franchise.playoffBracket = {
-    seeds,
-    rounds: [
-      [
-        { homeId: seeds[0].teamId, awayId: seeds[7].teamId, homeScore: null, awayScore: null, winnerId: null },
-        { homeId: seeds[3].teamId, awayId: seeds[4].teamId, homeScore: null, awayScore: null, winnerId: null },
-        { homeId: seeds[1].teamId, awayId: seeds[6].teamId, homeScore: null, awayScore: null, winnerId: null },
-        { homeId: seeds[2].teamId, awayId: seeds[5].teamId, homeScore: null, awayScore: null, winnerId: null },
-      ],
-      [
-        { homeId: null, awayId: null, homeScore: null, awayScore: null, winnerId: null },
-        { homeId: null, awayId: null, homeScore: null, awayScore: null, winnerId: null },
-      ],
-      [
-        { homeId: null, awayId: null, homeScore: null, awayScore: null, winnerId: null },
-      ],
-    ],
-    roundIdx:  0,
-    champion:  null,
-  };
+  const CONFS  = ["AFC", "NFC"];
+  const seeds  = [];   // [{ teamId, seed, conf }] — conference-relative 1..7
+  const byes   = [];   // #1 seed of each conference (first-round bye)
+  const rounds = [[], [], [], []];  // WILD CARD · DIVISIONAL · CONFERENCE · SUPER BOWL
+  for (const conf of CONFS) {
+    const confTeams = sorted.filter(s => s.team?.conference === conf).slice(0, PLAYOFF_PER_CONF);
+    confTeams.forEach((s, i) => seeds.push({ teamId: s.id, seed: i + 1, conf }));
+    const id = n => confTeams[n - 1]?.id ?? null;   // teamId of conference seed n
+    byes.push(id(1));
+    // Wild Card: 2v7, 3v6, 4v5 (higher seed hosts); the #1 seed byes.
+    rounds[0].push(_poMatch(conf, id(2), id(7)));
+    rounds[0].push(_poMatch(conf, id(3), id(6)));
+    rounds[0].push(_poMatch(conf, id(4), id(5)));
+    rounds[1].push(_poMatch(conf));   // Divisional — 2 per conference
+    rounds[1].push(_poMatch(conf));
+    rounds[2].push(_poMatch(conf));   // Conference Championship — 1 per conference
+  }
+  rounds[3].push(_poMatch("SB"));     // Super Bowl — cross-conference
+  franchise.playoffBracket = { seeds, byes, rounds, roundIdx: 0, champion: null };
   frnTransition("playoffs");
   saveFranchise();
   renderFrnPlayoffs();
@@ -3911,7 +3923,7 @@ function _renderYourRunRecap() {
   const myId = franchise.chosenTeamId;
   const pb = franchise.playoffBracket;
   if (!pb) return "";
-  const roundNames = ["WILD CARD", "DIVISIONAL", "CHAMPIONSHIP"];
+  const roundNames = PLAYOFF_ROUND_NAMES;
   const myGames = [];
   for (let ri = 0; ri < pb.rounds.length; ri++) {
     for (let mi = 0; mi < pb.rounds[ri].length; mi++) {
@@ -3970,7 +3982,7 @@ function _renderRoadToChampionship() {
   // Find which matchup slot the user occupies in each round (works for
   // all bracket sizes — derived from the existing rounds shape since
   // the engine seeds them deterministically).
-  const roundNames = ["WILD CARD", "DIVISIONAL", "CHAMPIONSHIP"];
+  const roundNames = PLAYOFF_ROUND_NAMES;
   // Track which "future slot" the user is in by walking forward from
   // their current matchup and applying the (paired-matchups) rule.
   let userMatchIdx = pb.rounds[pb.roundIdx]?.findIndex(m =>
@@ -4296,122 +4308,75 @@ function _renderBracketTree() {
   const pb = franchise.playoffBracket;
   if (!pb) return "";
   const { seeds, rounds, roundIdx, champion } = pb;
-  const myId = franchise.chosenTeamId;
+  const myId   = franchise.chosenTeamId;
   const seedOf = id => seeds.find(s => s.teamId === id)?.seed;
+  const confOf = id => seeds.find(s => s.teamId === id)?.conf;
 
-  const isUserPath = (m) => {
-    if (!m) return false;
-    if (m.homeId === myId || m.awayId === myId) return true;
-    if (m.winnerId === myId) return true;
-    return false;
-  };
-
-  // Single-team row inside a bracket-tree card
-  const teamRow = (teamId, score, isWinner, isLoser) => {
+  const teamRow = (teamId, score, isWin, isLoss) => {
     if (teamId == null) {
-      return `<div class="frn-bt-team empty">
-        <span class="seed"></span>
-        <span class="name">—</span>
-        <span class="score"></span>
-      </div>`;
+      return `<div class="frn-bt-team empty"><span class="seed"></span><span class="name">TBD</span><span class="score"></span></div>`;
     }
     const t = getTeam(teamId);
-    const seed = seedOf(teamId);
-    const isMine = teamId === myId;
-    return `<div class="frn-bt-team ${isWinner?"win":""} ${isLoser?"loss":""} ${isMine?"mine":""}" style="--team-color:${t.primary}">
-      <span class="seed">${seed||"?"}</span>
-      <span class="name">${t.abbr || t.name.slice(0,3).toUpperCase()}</span>
+    return `<div class="frn-bt-team ${isWin?"win":""} ${isLoss?"loss":""} ${teamId===myId?"mine":""}" style="--team-color:${t?.primary||'#888'}">
+      <span class="seed">${seedOf(teamId)||"?"}</span>
+      <span class="name">${t ? (t.abbr || t.name.slice(0,3).toUpperCase()) : "?"}</span>
       <span class="score">${score != null ? score : ""}</span>
     </div>`;
   };
 
-  // Look up which teams could fill a future slot by walking the feeder
-  // matchups in the previous round.
-  const projectedTeamsForFuture = (ri, mi) => {
-    if (ri === 0) return [null, null];
-    const feederA = rounds[ri-1]?.[mi * 2];
-    const feederB = rounds[ri-1]?.[mi * 2 + 1];
-    const idA = feederA?.winnerId
-      ?? (feederA?.homeId && feederA?.awayId ? null : null);
-    const idB = feederB?.winnerId
-      ?? (feederB?.homeId && feederB?.awayId ? null : null);
-    return [idA, idB];
-  };
-
-  const matchupCardLite = (m, ri, mi) => {
-    const played = m && m.winnerId != null;
-    const isCurrent = ri === roundIdx && !played;
-    const onUserPath = m && isUserPath(m);
-    const tag = (ri === roundIdx && m && m.homeId && m.awayId && !played)
-      ? `<div class="frn-bt-tag">${_playoffMatchupTag(m, seeds).replace(/^(.. )/,"")}</div>`
-      : "";
-    // Build the two team rows. For unplayed future slots, project from feeders.
-    let homeId = m?.homeId, awayId = m?.awayId;
-    let homeScore = m?.homeScore, awayScore = m?.awayScore;
-    let projectedLine = "";
-    if (!played && (!homeId || !awayId)) {
-      // Future round — project from feeders
-      const [pHome, pAway] = projectedTeamsForFuture(ri, mi);
-      homeId = pHome; awayId = pAway;
-      // If either side has multiple candidates, show "TBD"
-      const feederA = rounds[ri-1]?.[mi * 2];
-      const feederB = rounds[ri-1]?.[mi * 2 + 1];
-      if (!homeId && feederA?.homeId && feederA?.awayId) {
-        const hA = getTeam(feederA.homeId), aA = getTeam(feederA.awayId);
-        projectedLine += `<div class="frn-bt-proj">Winner: ${hA?.abbr||"?"} / ${aA?.abbr||"?"}</div>`;
-      }
-      if (!awayId && feederB?.homeId && feederB?.awayId) {
-        const hB = getTeam(feederB.homeId), aB = getTeam(feederB.awayId);
-        projectedLine += `<div class="frn-bt-proj">Winner: ${hB?.abbr||"?"} / ${aB?.abbr||"?"}</div>`;
-      }
-    }
-    const hWin = played && m.winnerId === homeId;
-    const aWin = played && m.winnerId === awayId;
-    const classes = [
-      "frn-bt-card",
-      played ? "played" : "",
-      isCurrent ? "current" : "",
-      onUserPath ? "user-path" : "",
-      champion && played && m.winnerId === champion && ri === rounds.length - 1 ? "champion" : "",
-    ].filter(Boolean).join(" ");
-    const clickable = played
-      ? `onclick="frnOpenPlayoffBox(${ri}, ${mi})" role="button" tabindex="0"`
-      : "";
-    return `<div class="${classes}" ${clickable}>
-      ${tag}
-      ${teamRow(homeId, homeScore, hWin, played && !hWin)}
-      ${teamRow(awayId, awayScore, aWin, played && !aWin)}
-      ${projectedLine}
+  const card = (m) => {
+    if (!m) return "";
+    const ri = rounds.findIndex(r => r.includes(m));
+    const mi = rounds[ri]?.indexOf(m);
+    const played    = m.winnerId != null;
+    const isCurrent = ri === roundIdx && !played && m.homeId && m.awayId;
+    const onPath    = m.homeId === myId || m.awayId === myId || m.winnerId === myId;
+    const isChamp   = champion && played && m.winnerId === champion && ri === rounds.length - 1;
+    const cls = ["frn-bt-card", played?"played":"", isCurrent?"current":"", onPath?"user-path":"", isChamp?"champion":""].filter(Boolean).join(" ");
+    const click = played ? `onclick="frnOpenPlayoffBox(${ri},${mi})" role="button" tabindex="0"` : "";
+    return `<div class="${cls}" ${click}>
+      ${teamRow(m.homeId, m.homeScore, played && m.winnerId === m.homeId, played && m.winnerId !== m.homeId)}
+      ${teamRow(m.awayId, m.awayScore, played && m.winnerId === m.awayId, played && m.winnerId !== m.awayId)}
     </div>`;
   };
 
-  const roundLabels = ["WILD CARD", "DIVISIONAL", "CHAMPIONSHIP"];
-  // Render each round column. Pairs of feeders share a "pair-wrap" so we
-  // can visually group them (pseudo-element connectors line them up to
-  // the next column's parent slot).
-  const renderColumn = (ri) => {
-    const round = rounds[ri] || [];
-    const cards = [];
-    // Pair them up: matchups 2k and 2k+1 feed into matchup k of next round.
-    for (let mi = 0; mi < round.length; mi += 2) {
-      const pair = round.slice(mi, mi + 2);
-      cards.push(`<div class="frn-bt-pair">
-        ${pair.map((m, j) => matchupCardLite(m, ri, mi + j)).join("")}
-      </div>`);
-    }
-    const isCurrentRound = ri === roundIdx && !champion;
-    return `<div class="frn-bt-col ${isCurrentRound?"current":""}">
-      <div class="frn-bt-col-head">
-        <span class="num">${ri+1}</span>
-        <span class="lbl">${roundLabels[ri] || `ROUND ${ri+1}`}</span>
-        ${isCurrentRound ? `<span class="now">NOW</span>` : ""}
+  // The #1 seed's first-round bye, shown as a card in the Wild Card column.
+  const byeCard = (teamId) => {
+    if (teamId == null) return "";
+    const t = getTeam(teamId);
+    return `<div class="frn-bt-card bye ${teamId===myId?"user-path":""}">
+      <div class="frn-bt-team ${teamId===myId?"mine":""}" style="--team-color:${t?.primary||'#888'}">
+        <span class="seed">${seedOf(teamId)||1}</span>
+        <span class="name">${t ? (t.abbr || t.name.slice(0,3).toUpperCase()) : "?"}</span>
+        <span class="score frn-bt-bye-tag">BYE</span>
       </div>
-      <div class="frn-bt-col-cards">${cards.join("")}</div>
     </div>`;
   };
 
-  return `<div class="frn-bracket-tree">
-    ${rounds.map((_, ri) => renderColumn(ri)).join("")}
+  const SHORT = ["WILD CARD", "DIVISIONAL", "CONF"];
+  const confBracket = (conf) => {
+    const cols = [0, 1, 2].map(ri => {
+      const games = rounds[ri].filter(m => m.conf === conf);
+      let cards = games.map(card).join("");
+      if (ri === 0) cards = byeCard((pb.byes || []).find(id => confOf(id) === conf)) + cards;
+      const isCur = ri === roundIdx && !champion;
+      return `<div class="frn-bt-col ${isCur?"current":""}">
+        <div class="frn-bt-col-head"><span class="lbl">${SHORT[ri]}</span>${isCur?`<span class="now">NOW</span>`:""}</div>
+        <div class="frn-bt-col-cards">${cards}</div>
+      </div>`;
+    }).join("");
+    return `<div class="frn-bt-conf"><div class="frn-bt-conf-lbl">${conf}</div><div class="frn-bt-conf-cols">${cols}</div></div>`;
+  };
+
+  const sb     = rounds[3]?.[0];
+  const sbCur  = roundIdx === 3 && !champion;
+  return `<div class="frn-bracket-conf">
+    ${confBracket("AFC")}
+    <div class="frn-bt-sb ${sbCur?"current":""} ${champion?"done":""}">
+      <div class="frn-bt-sb-lbl">🏆 SUPER BOWL</div>
+      ${card(sb)}
+    </div>
+    ${confBracket("NFC")}
   </div>`;
 }
 
@@ -4442,7 +4407,7 @@ function _renderCurrentGameHub(currentRound) {
   const pb = franchise.playoffBracket;
   if (!pb || pb.champion) return "";
   const myId = franchise.chosenTeamId;
-  const roundNames = ["WILD CARD", "DIVISIONAL", "CHAMPIONSHIP"];
+  const roundNames = PLAYOFF_ROUND_NAMES;
   const roundIdx = pb.roundIdx;
   const userStatus = _userPlayoffStatus();
 
@@ -4578,7 +4543,7 @@ function _renderOtherMatchups(currentRound) {
     </div>`;
   };
   return `<div class="frn-pl-otherwrap">
-    <div class="frn-pl-otherlbl">OTHER ${["WILD CARD","DIVISIONAL","CHAMPIONSHIP"][roundIdx] || ""} MATCHUPS</div>
+    <div class="frn-pl-otherlbl">OTHER ${PLAYOFF_ROUND_NAMES[roundIdx] || ""} MATCHUPS</div>
     <div class="frn-pl-othergrid">${others.map(mkChip).join("")}</div>
   </div>`;
 }
@@ -4598,7 +4563,7 @@ function _renderPlayoffGameRecap() {
   const myId = franchise.chosenTeamId;
   const isUserGame = m.homeId === myId || m.awayId === myId;
   if (!isUserGame) return "";
-  const roundNames = ["WILD CARD", "DIVISIONAL", "CHAMPIONSHIP"];
+  const roundNames = PLAYOFF_ROUND_NAMES;
   const roundName = roundNames[ref.roundIdx] || `ROUND ${ref.roundIdx + 1}`;
   const nextRoundName = roundNames[ref.roundIdx + 1];
   const isFinalRound = ref.roundIdx >= (pb.rounds.length - 1);
@@ -4964,7 +4929,7 @@ function _renderPlayoffHero() {
   if (!pb) return "";
   const myId = franchise.chosenTeamId;
   const myTeam = getTeam(myId);
-  const ROUND = ["WILD CARD", "DIVISIONAL", "CHAMPIONSHIP"];
+  const ROUND = PLAYOFF_ROUND_NAMES;
   const roundIdx = pb.roundIdx;
   const accent = myTeam?.primary || "var(--gold)";
 
@@ -5173,7 +5138,7 @@ function renderFrnPlayoffs() {
   // PLAY GAME) + slim prep tasks up top, then the bracket demoted to a "season
   // map" panel and the around-the-round / your-run rails below. One nav (the
   // dashboard tabs) — no more BSPN sub-nav or "Return to Main Screen".
-  const ROUND = ["WILD CARD", "DIVISIONAL", "CHAMPIONSHIP"];
+  const ROUND = PLAYOFF_ROUND_NAMES;
   const roundLabel = ROUND[roundIdx] || "POSTSEASON";
   const stillAlive = !champion && userStatus.inBracket && userStatus.eliminatedRound == null;
   const yourRunRail =
@@ -5455,21 +5420,50 @@ function applyPlayoffResult(homeId, awayId, homeScore, awayScore) {
 
 function advancePlayoffRound() {
   const pb = franchise.playoffBracket;
+  if (!pb) return;
   const rd = pb.rounds[pb.roundIdx];
-  if (!rd.every(m => m.winnerId)) return;
-  const winners   = rd.map(m => m.winnerId);
-  const nextRdIdx = pb.roundIdx + 1;
-  if (nextRdIdx >= pb.rounds.length) {
-    pb.champion   = winners[0];
-    frnTransition("awards");
-  } else {
-    const nextRd = pb.rounds[nextRdIdx];
-    for (let i = 0; i < nextRd.length; i++) {
-      nextRd[i].homeId = winners[i * 2];
-      nextRd[i].awayId = winners[i * 2 + 1];
+  // Every live matchup (both participants seated) must be decided.
+  const live = rd.filter(m => m.homeId && m.awayId);
+  if (!live.length || !live.every(m => m.winnerId)) return;
+  const seedOf = id => pb.seeds.find(s => s.teamId === id)?.seed ?? 99;
+  const confOf = id => pb.seeds.find(s => s.teamId === id)?.conf;
+  const CONFS  = ["AFC", "NFC"];
+  const idx    = pb.roundIdx;
+
+  if (idx === 0) {
+    // Wild Card → Divisional: drop in each conference's #1 bye, then reseed
+    // the four survivors — top seed draws the lowest, the middle two meet.
+    for (const conf of CONFS) {
+      const winners = rd.filter(m => m.conf === conf && m.winnerId).map(m => m.winnerId);
+      const bye     = pb.byes.find(id => confOf(id) === conf);
+      const teams   = [bye, ...winners].filter(x => x != null).sort((a, b) => seedOf(a) - seedOf(b));
+      const games   = pb.rounds[1].filter(m => m.conf === conf);
+      if (teams.length === 4 && games.length === 2) {
+        _poSetMatch(games[0], teams[0], teams[3]);
+        _poSetMatch(games[1], teams[1], teams[2]);
+      }
     }
-    pb.roundIdx = nextRdIdx;
+    pb.roundIdx = 1; return;
   }
+  if (idx === 1) {
+    // Divisional → Conference Championship: two survivors per conference.
+    for (const conf of CONFS) {
+      const winners = rd.filter(m => m.conf === conf && m.winnerId).map(m => m.winnerId)
+        .sort((a, b) => seedOf(a) - seedOf(b));
+      const game = pb.rounds[2].find(m => m.conf === conf);
+      if (game && winners.length === 2) _poSetMatch(game, winners[0], winners[1]);
+    }
+    pb.roundIdx = 2; return;
+  }
+  if (idx === 2) {
+    // Conference Championships → Super Bowl (cross-conference; better seed hosts).
+    const champs = rd.map(m => m.winnerId).filter(x => x != null);
+    if (champs.length === 2) _poSetMatch(pb.rounds[3][0], champs[0], champs[1]);
+    pb.roundIdx = 3; return;
+  }
+  // Super Bowl decided → crown the champion.
+  pb.champion = rd[0].winnerId;
+  frnTransition("awards");
 }
 
 // ── Coach escalators ─────────────────────────────────────────────────────────
