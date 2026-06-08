@@ -114,7 +114,7 @@ function _wireWeekLabel(item, sel) {
   if (w >= 1 && w <= FRANCHISE_WEEKS) return `WEEK ${w}`;
   // Past the reg-season window — assume playoffs
   const idx = w - FRANCHISE_WEEKS - 1;
-  const ROUNDS = ["WILD CARD","DIVISIONAL","CHAMPIONSHIP"];
+  const ROUNDS = PLAYOFF_ROUND_NAMES;
   if (idx >= 0 && idx < ROUNDS.length) return ROUNDS[idx];
   if (w === 0) return "OFFSEASON";
   return `WEEK ${w}`;
@@ -7078,9 +7078,11 @@ function renderFrnSeasonRecap() {
   }
   const myStand = franchise.standings?.[myId] || { w:0, l:0, t:0, pf:0, pa:0 };
   const sorted  = standingsSorted();
-  const myIdx   = sorted.findIndex(s => s.id === myId);
-  const seed    = myIdx + 1;
-  const inPlayoffs = seed > 0 && seed <= PLAYOFF_TEAMS;
+  // Conference seeding (top PLAYOFF_PER_CONF per conference make it).
+  const myConf     = myTeam.conference;
+  const confSorted = sorted.filter(s => s.team?.conference === myConf);
+  const seed       = confSorted.findIndex(s => s.id === myId) + 1;
+  const inPlayoffs = seed > 0 && seed <= PLAYOFF_PER_CONF;
   const myRtg   = frnTeamRating(myId);
   const recStr  = `${myStand.w}-${myStand.l}${myStand.t?`-${myStand.t}`:""}`;
   const pf      = myStand.pf || 0, pa = myStand.pa || 0;
@@ -7151,15 +7153,22 @@ function renderFrnSeasonRecap() {
     </div>`;
 
   // ── Final Standings (32-team compact) ──────────────────────────────────
+  // Playoff field is per-conference (top PLAYOFF_PER_CONF each); the seed
+  // pill shows the conference seed (1-7), not the league rank.
+  const _confSeed = {};
+  for (const conf of ["AFC", "NFC"]) {
+    sorted.filter(s => s.team?.conference === conf).slice(0, PLAYOFF_PER_CONF)
+      .forEach((s, i) => { _confSeed[s.id] = i + 1; });
+  }
   const standingsRows = sorted.map((s, i) => {
-    const isPlayoff = i < PLAYOFF_TEAMS;
+    const isPlayoff = _confSeed[s.id] != null;
     const isMine    = s.id === myId;
     const t = s.team;
     const gp = s.w + s.l + s.t;
     const pct = gp ? (s.w / gp).toFixed(3).replace(/^0/,"") : ".000";
     const pdiff = (s.pf || 0) - (s.pa || 0);
     return `<tr class="frn-recap-stand-row ${isMine?"mine":""} ${isPlayoff?"playoff":""}">
-      <td class="seed">${isPlayoff ? `<span class="seed-pill">${i+1}</span>` : i+1}</td>
+      <td class="seed">${isPlayoff ? `<span class="seed-pill">${_confSeed[s.id]}</span>` : i+1}</td>
       <td class="team" style="color:${t.primary}">${isMine?"» ":""}${t.city} ${t.name}</td>
       <td class="rec">${s.w}-${s.l}${s.t?`-${s.t}`:""}</td>
       <td class="pct">${pct}</td>
@@ -8318,7 +8327,7 @@ function renderFrnRegular() {
   const potwRoundLabel = w => {
     if (w <= FRANCHISE_WEEKS) return `WEEK ${w}`;
     const ri = w - FRANCHISE_WEEKS - 1;
-    return ["WILD CARD","DIVISIONAL","CHAMPIONSHIP"][ri] || `R${ri+1}`;
+    return PLAYOFF_ROUND_NAMES[ri] || `R${ri+1}`;
   };
   const isLatestVoted = latestPotwWk != null && !!votesByWeek[latestPotwWk];
   const potwHtml = latestPotw ? `
