@@ -39,6 +39,7 @@ const PS_COST_PER_SLOT = 0.5;     // $M
 const PS_MAX_AGE       = 24;
 const PS_MAX_YEARS_EXP = 2;
 const SCOUT_VISITS_PER_WEEK = 2;
+const SCOUT_TOKEN_CAP = 10;   // scout-token bank ceiling; overflow auto-spends
 const WORKOUT_SLOTS_PER_FA_SEASON = 5;
 // Weekly flash probabilities per PS player.
 const PS_FLASH_PROBS = {
@@ -2802,24 +2803,34 @@ function _expireScoutingIntel() {
   }
 }
 // Reset weekly scout visits at advance-week.
-function _resetWeeklyScoutVisits() {
-  franchise.scoutVisits = franchise.scoutVisits || {};
-  franchise.scoutVisits[franchise.chosenTeamId] = {
-    week: franchise.week, used: 0, max: SCOUT_VISITS_PER_WEEK,
-  };
+// Scout tokens — a persistent BANK (not a weekly reset). You gain
+// SCOUT_VISITS_PER_WEEK each week (see _scoutTokensWeeklyTick) and may spend
+// as many as you've banked; the bank is capped at SCOUT_TOKEN_CAP, and any
+// overflow (and end-of-season leftovers) auto-spend on priority targets so
+// none are wasted.
+function _scoutTokenBank() {
+  if (franchise.scoutTokens == null) franchise.scoutTokens = SCOUT_VISITS_PER_WEEK;
+  return franchise.scoutTokens;
 }
 function _scoutVisitsRemaining(teamId) {
-  const v = franchise.scoutVisits?.[teamId];
-  if (!v || v.week !== franchise.week) return SCOUT_VISITS_PER_WEEK;
-  return Math.max(0, (v.max || SCOUT_VISITS_PER_WEEK) - (v.used || 0));
+  if (teamId !== franchise.chosenTeamId) return 0;
+  return Math.max(0, _scoutTokenBank());
 }
 function _consumeScoutVisit(teamId) {
-  const v = franchise.scoutVisits = franchise.scoutVisits || {};
-  if (!v[teamId] || v[teamId].week !== franchise.week) {
-    v[teamId] = { week: franchise.week, used: 0, max: SCOUT_VISITS_PER_WEEK };
-  }
-  v[teamId].used += 1;
+  if (teamId !== franchise.chosenTeamId) return;
+  franchise.scoutTokens = Math.max(0, _scoutTokenBank() - 1);
 }
+// Weekly accrual: +SCOUT_VISITS_PER_WEEK, capped; overflow auto-spends.
+function _scoutTokensWeeklyTick() {
+  franchise.scoutTokens = _scoutTokenBank() + SCOUT_VISITS_PER_WEEK;
+  if (franchise.scoutTokens > SCOUT_TOKEN_CAP) {
+    const overflow = franchise.scoutTokens - SCOUT_TOKEN_CAP;
+    if (typeof _psAutoSpendVisits === "function") _psAutoSpendVisits(overflow);
+    franchise.scoutTokens = Math.min(franchise.scoutTokens, SCOUT_TOKEN_CAP);
+  }
+}
+// Legacy no-op — the weekly-reset model was replaced by the token bank.
+function _resetWeeklyScoutVisits() {}
 // Weekly flash roll for every PS player on every team. Splits into
 // three tiers and stamps the flash log + emits wire alerts. The
 // poach pass uses the flash count to weight rival interest.
@@ -2988,9 +2999,10 @@ function _psScout(scoutingTeamId, playerName) {
 }
 // Auto-spend unused visits when the user advances the week. Picks the
 // most flash-y, highest-rated unscouted rival PS players first.
-function _psAutoSpendVisits() {
+function _psAutoSpendVisits(maxCount) {
   const myId = Number(franchise.chosenTeamId);
   let remaining = _scoutVisitsRemaining(myId);
+  if (typeof maxCount === "number") remaining = Math.min(remaining, Math.max(0, maxCount));
   if (remaining <= 0) return 0;
   const targets = [];
   for (const [tIdStr, ps] of Object.entries(franchise.practiceSquads || {})) {

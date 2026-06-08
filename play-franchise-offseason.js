@@ -3133,9 +3133,9 @@ function _runWeekEndResolution() {
     _pushNews({ type:"trade",
       label: `🔒 TRADE DEADLINE CLOSED · ${n} league move${n===1?"":"s"} this window${n===0?" (a quiet year)":""}` });
   }
-  // Practice squad: weekly flash roll + poach pass. Auto-spend any
-  // remaining scout visits if the user has that toggle on.
-  if (franchise.autoSpendScouts !== false) _psAutoSpendVisits();
+  // Practice squad: weekly flash roll + poach pass. Scout tokens accrue
+  // (+SCOUT_VISITS_PER_WEEK, banked & capped; overflow auto-spends).
+  _scoutTokensWeeklyTick();
   _psWeeklyFlashRoll();
   _psPoachPass();
   // In-season AWR growth: game reps build pattern recognition and situational
@@ -14932,6 +14932,10 @@ function frnNewSeason() {
   // for the new draft cycle. Reveals from the just-completed season
   // were already merged into draftScoutReveals at frnGoToDraft, so
   // wiping seasonScoutReveals here just starts the next cycle clean.
+  // Scout tokens: spend any leftover on priority PS targets (so they aren't
+  // wasted), then reset the bank for the new season.
+  if (typeof _psAutoSpendVisits === "function") _psAutoSpendVisits();
+  franchise.scoutTokens = SCOUT_VISITS_PER_WEEK;
   if (typeof _initSeasonScout === "function") _initSeasonScout(true);
   // MFF EPA: before incrementing the season, freeze the just-completed
   // season's EPA summary into franchise.epaSummary[oldSeason] (tiny — team

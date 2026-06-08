@@ -544,12 +544,9 @@ function renderFrnPracticeSquad(tab) {
       <div style="color:var(--gray);font-size:.7rem">
         ${myTeam.city} ${myTeam.name} · Week ${franchise.week} ·
         Cost <b style="color:var(--gold-lt)">$${psCost.toFixed(1)}M</b> ·
-        Scout visits <b style="color:var(--gold-lt)">${visitsLeft}/${SCOUT_VISITS_PER_WEEK}</b>
+        Scout tokens <b style="color:var(--gold-lt)">${visitsLeft}/${SCOUT_TOKEN_CAP}</b>
+        <span style="opacity:.6">(+${SCOUT_VISITS_PER_WEEK}/wk · spend freely · overflow & season-end auto-spend)</span>
       </div>
-      <label style="color:var(--gray);font-size:.65rem;display:flex;align-items:center;gap:.3rem;margin-left:auto">
-        <input type="checkbox" ${autoSpend?"checked":""} onchange="frnTogglePSAutoSpend(this.checked)">
-        Auto-spend remaining scouts on advance
-      </label>
       <button class="btn btn-outline" onclick="showFranchiseDashboard()">← Back</button>
     </div>
     <div class="frn-ana-tabs">${tabBar}</div>`;
@@ -624,7 +621,7 @@ function _renderPSLeagueTab(myId, visitsLeft) {
         : `<td style="color:var(--gray)">—</td>`;
       const scoutBtn = scoutedByMe
         ? `<span style="color:var(--gold);font-size:.62rem">✓ scouted</span>`
-        : `<button class="frn-pcard-yrbtn" ${visitsLeft<=0?`style="opacity:.4"`:""} onclick="frnPSScout('${escName}')" title="${visitsLeft<=0?`Out of scout visits this week — they refresh (${SCOUT_VISITS_PER_WEEK}/week) when you advance`:`Scout this player · ${visitsLeft} visit${visitsLeft===1?"":"s"} left this week`}">🔍 Scout</button>`;
+        : `<button class="frn-pcard-yrbtn" ${visitsLeft<=0?`style="opacity:.4"`:""} onclick="frnPSScout('${escName}')" title="${visitsLeft<=0?`Out of scout tokens — you bank +${SCOUT_VISITS_PER_WEEK}/week (cap ${SCOUT_TOKEN_CAP}); advance a week to earn more`:`Scout this player · ${visitsLeft} token${visitsLeft===1?"":"s"} banked`}">🔍 Scout</button>`;
       return `<tr>
         <td style="color:var(--gold);font-size:.62rem">${p.position}</td>
         <td style="font-weight:600">${p.name}</td>
@@ -707,7 +704,7 @@ async function frnPSRelease(name) {
 function frnPSScout(name) {
   const myId = franchise.chosenTeamId;
   if (!_psScout(myId, name)) {
-    const msg = `You're out of scout visits this week. You get ${SCOUT_VISITS_PER_WEEK} per week — they refresh when you advance to the next week.`;
+    const msg = `You're out of scout tokens. You bank +${SCOUT_VISITS_PER_WEEK} each week (up to ${SCOUT_TOKEN_CAP}) — advance a week to earn more. Overflow and any left at season's end auto-spend on top targets.`;
     if (typeof _frnAlert === "function") _frnAlert(msg); else alert(msg);
     return;
   }
