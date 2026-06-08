@@ -3022,6 +3022,24 @@ function makeFormation(losX, poss, opts = {}) {
   const s1 = { x: losX + dir * sDepth * PX, y: cy - (isGL ? 30 : 56), role: "S" };
   const s2 = { x: losX + dir * sDepth * PX, y: cy + (isGL ? 30 : 56), role: "S" };
 
+  // RED-ZONE COVERAGE SQUEEZE. Deep safeties (14yd, up to 20 on 3rd-and-
+  // long) and off corners (7-9yd) are placed at losX + dir·depth with no
+  // field bound. Inside the ~12 (startYard 88-94, short of the isGL=95
+  // box look) there isn't that much field behind the LOS, so they'd line
+  // up PAST the goal line — 3+ defenders standing in the back of the
+  // endzone. (Static misplacement, not a per-frame jump, so the teleport
+  // detector never flagged it.) Real defenses squeeze to the goal line:
+  // cap every downfield coverage defender there.
+  const _goalX = (typeof yardToAbsX === "function") ? yardToAbsX(100, poss) : null;
+  if (_goalX != null) {
+    const _dfSign = _goalX > losX ? 1 : -1;          // downfield (toward defense's goal)
+    const capX = (x) => _dfSign > 0 ? Math.min(x, _goalX) : Math.max(x, _goalX);
+    s1.x = capX(s1.x);
+    s2.x = capX(s2.x);
+    for (const c of cbs) c.x = capX(c.x);
+    for (const l of lbs) l.x = capX(l.x);
+  }
+
   // Backwards-compat slot keys (wr1/wr2/te/cb1/cb2) for existing callers,
   // plus new wr3/wr4/wr5/te2/cb3/cb4 slots that may be null in BASE personnel.
   const wr1 = wrSlots[0] || null;
