@@ -7709,6 +7709,7 @@ function _extensionModalInnerHtml() {
       (s, r) => s + ((r.yearsRemaining > yr) ? (r.amount || 0) : 0), 0);
     return out - inc;
   };
+  let _baseline0 = 0, _after0 = null; // captured at yr0 to drive the before→after headline
   const teamImpactRows = (typeof projectPlayerCapHit === "function") ? bases.map((base, i) => {
     let baseline = 0;
     for (const other of baselineRoster) {
@@ -7722,6 +7723,7 @@ function _extensionModalInnerHtml() {
     const total = baseline + dealHit;
     const projCap = cap * Math.pow(1.05, i);
     const free = projCap - total;
+    if (i === 0) { _baseline0 = baseline; _after0 = free; }
     const pct = projCap > 0 ? (total / projCap) * 100 : 100;
     const pctClamp = Math.min(100, pct);
     const barColor = pct < 85 ? "#86e0a3" : pct < 95 ? "#cce8d6" : pct < 100 ? "#e0b078" : "#ff8a8a";
@@ -7736,12 +7738,37 @@ function _extensionModalInnerHtml() {
       <span style="color:${freeColor};text-align:right;font-weight:700;font-family:'Bebas Neue','Anton',sans-serif">${free < 0 ? "⚠ −$" + (-free).toFixed(1) : "$" + free.toFixed(1)}M</span>
     </div>`;
   }).join("") : "";
+  // Before→after cap-room headline for THIS season — the single line that
+  // answers "what does signing this do to my cap right now?". Both sides
+  // share the same baseline (_baseline0), so the delta is exactly the swap
+  // of the player's current hit for the new deal's hit.
+  let capDeltaHtml = "";
+  if (typeof projectPlayerCapHit === "function" && _after0 != null) {
+    const curHit0    = projectPlayerCapHit(p, 0);
+    const roomBefore = cap - (_baseline0 + curHit0);
+    const roomAfter  = _after0;
+    const dRoom      = roomAfter - roomBefore;
+    const _money     = v => (v < 0 ? `−$${(-v).toFixed(1)}M` : `$${v.toFixed(1)}M`);
+    const dStr       = Math.abs(dRoom) < 0.05 ? "no change" : (dRoom < 0 ? `−$${(-dRoom).toFixed(1)}M` : `+$${dRoom.toFixed(1)}M`);
+    const dColor     = dRoom < -0.05 ? "#e0b078" : dRoom > 0.05 ? "#86e0a3" : "var(--gray)";
+    const afterColor = roomAfter < 0 ? "#ff8a8a" : "#86e0a3";
+    capDeltaHtml = `<div style="display:flex;align-items:baseline;justify-content:space-between;gap:.6rem;margin-bottom:.4rem;padding-bottom:.3rem;border-bottom:1px solid var(--blborder)">
+      <span style="font-size:.62rem;color:var(--gray)">Cap room this season</span>
+      <span style="font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:.4px;font-size:1rem">
+        <span style="color:var(--white)">${_money(roomBefore)}</span>
+        <span style="color:var(--gray);font-size:.8rem">→</span>
+        <span style="color:${afterColor}">${_money(roomAfter)}</span>
+        <span style="font-size:.7rem;color:${dColor}">(${dStr})</span>
+      </span>
+    </div>`;
+  }
   const teamImpactHtml = teamImpactRows ? `
     <div style="margin-top:.55rem;padding:.4rem .55rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.25rem">
         <span style="font-size:.55rem;color:#a98a2e;letter-spacing:1.2px;font-weight:700">📊 TEAM CAP IMPACT</span>
         <span style="color:var(--gray);font-size:.5rem">with this deal applied · cap projected +5%/yr</span>
       </div>
+      ${capDeltaHtml}
       ${teamImpactRows}
     </div>` : "";
   // Offer vs market read
@@ -13437,6 +13464,19 @@ function _buildOffseasonGainsSheet() {
     }
     return `<button onclick="frnExtendPlayer('${safeName}')" style="font-size:.55rem;letter-spacing:.5px;padding:.15rem .45rem;border-radius:2px;border:1px solid var(--blborder);background:transparent;color:var(--gold);cursor:pointer;font-family:inherit" title="Open contract extension">📝 EXTEND</button>`;
   };
+  // Shared TRADE-cell renderer — sibling to the EXTEND cell. Sends the
+  // player to the trade builder pre-staged on the block (frnTradeAwayPlayer).
+  // Morphs to a filled "🔄 ON BLOCK" chip once they're flagged, mirroring the
+  // EXTEND→signed morph so the row reflects live state.
+  const _tradeCellHtml = (name, pos, pid) => {
+    const safeName = (name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const safePos  = (pos  || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const live = pid ? _liveByPid[pid] : null;
+    if (live?.onTradeBlock) {
+      return `<button onclick="frnTradeAwayPlayer('${safeName}','${safePos}')" style="font-size:.5rem;letter-spacing:.4px;padding:.18rem .45rem;border-radius:2px;border:1px solid #8ab4f8;background:rgba(138,180,248,.12);color:#8ab4f8;cursor:pointer;font-family:inherit;font-weight:700" title="On the block — click to open the trade builder">🔄 ON BLOCK</button>`;
+    }
+    return `<button onclick="frnTradeAwayPlayer('${safeName}','${safePos}')" style="font-size:.55rem;letter-spacing:.5px;padding:.15rem .45rem;border-radius:2px;border:1px solid var(--blborder);background:transparent;color:#8ab4f8;cursor:pointer;font-family:inherit" title="Shop this player — open the trade builder with them on the block">🔄 TRADE</button>`;
+  };
   // Position filter state — chips at the top let the user narrow down.
   const POS_GROUPS = [
     ["ALL","ALL"], ["OFF","QB,RB,WR,TE,OL"], ["DEF","DL,LB,CB,S"], ["ST","K,P"],
@@ -14421,7 +14461,7 @@ function _buildOffseasonGainsSheet() {
     const dColor = c.delta > 0 ? "#86e0a3" : c.delta < 0 ? "#ff9b9b" : "var(--gray)";
     const dStr   = c.delta > 0 ? `+${c.delta}` : `${c.delta}`;
     return `<tr style="border-top:1px solid rgba(255,255,255,.04)">
-      <td style="padding:.3rem .5rem;font-weight:700;white-space:nowrap">${_playerLinkSmart(c.name)} ${_extendCellHtml(c.name, c.pid)}</td>
+      <td style="padding:.3rem .5rem;font-weight:700;white-space:nowrap">${_playerLinkSmart(c.name)} ${_extendCellHtml(c.name, c.pid)} ${_tradeCellHtml(c.name, c.pos, c.pid)}</td>
       <td style="padding:.3rem .5rem;color:var(--gray);font-size:.7rem">${c.pos}</td>
       <td style="padding:.3rem .5rem;color:var(--gray);font-size:.7rem;font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:.5px">${c.ageBefore} → ${c.ageNow}</td>
       <td style="padding:.3rem .5rem;font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:.5px;white-space:nowrap">${c.preOvr} → <span style="color:${dColor}">${c.postOvr}</span></td>
@@ -14464,6 +14504,67 @@ function _buildOffseasonGainsSheet() {
     </div>`;
   };
 
+  // ── LIVE CAP STRIP ────────────────────────────────────────────────────
+  // Pinned above the tabs (so it's visible on all three) — the cap meter
+  // updates the instant you re-sign someone here, answering "how did that
+  // change my cap?" at a glance. Numbers use the same capUsedByTeam /
+  // effectiveSalaryCap basis as the Cap Sheet, so they never disagree.
+  const _capTotal = (typeof effectiveSalaryCap === "function") ? effectiveSalaryCap(myId) : (franchise.salaryCap || (typeof SALARY_CAP_BASE !== "undefined" ? SALARY_CAP_BASE : 200));
+  const _capUsed  = (typeof capUsedByTeam === "function") ? capUsedByTeam(myId) : 0;
+  const _capRoom  = _capTotal - _capUsed;
+  const _capPct   = _capTotal > 0 ? Math.min(100, Math.max(0, (_capUsed / _capTotal) * 100)) : 0;
+  const _capBar   = _capPct < 85 ? "#86e0a3" : _capPct < 95 ? "#cce8d6" : _capPct < 100 ? "#e0b078" : "#ff8a8a";
+  // "Signed this offseason" — any contract written THIS season (re-signs,
+  // voluntary extensions, holdout deals). Same startSeason predicate the
+  // EXTEND chip uses, so it auto-clears next year with no flag bookkeeping.
+  let _signedN = 0, _signedAav = 0;
+  for (const lp of (franchise.rosters?.[myId] || [])) {
+    const c = lp.contract;
+    if (c && c.startSeason === _curSeason) { _signedN++; _signedAav += (c.aav || 0); }
+  }
+  const _roomStr = _capRoom < 0 ? `−$${(-_capRoom).toFixed(1)}M` : `$${_capRoom.toFixed(1)}M`;
+  const capStripHtml = `<div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:.6rem;padding:.45rem .65rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:4px">
+    <div style="display:flex;flex-direction:column;gap:.1rem;line-height:1.1">
+      <span style="font-size:.5rem;color:#a98a2e;letter-spacing:1.2px;font-weight:700">💰 SALARY CAP</span>
+      <span style="font-size:.52rem;color:var(--gray)">$${_capTotal.toFixed(0)}M cap · $${_capUsed.toFixed(1)}M used</span>
+    </div>
+    <div style="flex:1;min-width:8rem">
+      <div style="position:relative;height:12px;background:var(--bg3);border:1px solid var(--blborder);border-radius:2px;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;height:100%;width:${_capPct}%;background:${_capBar};transition:width .18s"></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;line-height:1">
+      <span style="font-size:.46rem;color:var(--gray);letter-spacing:1px">CAP ROOM</span>
+      <span style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.25rem;letter-spacing:.5px;color:${_capRoom < 0 ? "#ff8a8a" : "#86e0a3"}">${_roomStr}</span>
+    </div>
+    ${_signedN ? `<div style="font-size:.52rem;color:var(--gray);border-left:1px solid var(--blborder);padding-left:.8rem;line-height:1.3">✍ Signed this offseason<br><b style="color:#8ab4f8;font-size:.6rem">${_signedN} deal${_signedN > 1 ? "s" : ""} · $${_signedAav.toFixed(1)}M/yr</b></div>` : ""}
+  </div>`;
+
+  // ── ON THE BLOCK — shop candidates ────────────────────────────────────
+  // The "I'm not happy with this guy" shortlist: players who slipped in
+  // camp (negative dev delta), worst first. Each row carries the same TRADE
+  // button as the tables, so you can shop them straight to the trade builder.
+  const _blockCands = allMyChg
+    .filter(c => (c.delta || 0) < 0)
+    .sort((a, b) => (a.delta || 0) - (b.delta || 0))
+    .slice(0, 6);
+  let onBlockBlock = "";
+  if (_blockCands.length) {
+    const rows = _blockCands.map(c => `<div style="display:flex;align-items:center;gap:.5rem;justify-content:space-between;padding:.26rem 0;border-top:1px solid rgba(255,255,255,.05)">
+        <div style="min-width:0;font-size:.7rem">
+          <span style="font-weight:700">${_playerLinkSmart(c.name)}</span>
+          <span style="color:var(--gray);font-size:.58rem"> ${c.pos} · ${c.postOvr} OVR · age ${c.ageNow}</span>
+          <span style="color:#ff9b9b;font-weight:900;font-family:'Bebas Neue','Anton',sans-serif;font-size:.95rem;margin-left:.2rem">${c.delta}</span>
+        </div>
+        ${_tradeCellHtml(c.name, c.pos, c.pid)}
+      </div>`).join("");
+    onBlockBlock = `<div style="margin-bottom:.6rem;padding:.45rem .6rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-left:3px solid #8ab4f8;border-radius:3px">
+      <div style="font-size:.55rem;color:#8ab4f8;letter-spacing:1.2px;font-weight:700;margin-bottom:.15rem">🔄 ON THE BLOCK</div>
+      <div style="font-size:.5rem;color:var(--gray);margin-bottom:.1rem">Slipped in camp — shop them while the value holds.</div>
+      ${rows}
+    </div>`;
+  }
+
   // Layout: one report split into THREE TABS so it's no longer a single
   // overwhelming scroll. Tab state lives in _frnDevReportTab (module-level)
   // so it survives the full re-render a filter chip triggers; switching tabs
@@ -14484,6 +14585,7 @@ function _buildOffseasonGainsSheet() {
   const _hide = (id) => _t === id ? "" : ' style="display:none"';
   return `<div style="margin-top:.8rem;padding:.7rem .8rem;background:rgba(255,255,255,.02);border:1px solid var(--blborder);border-radius:4px">
     <div class="frn-sec-title" style="margin-bottom:.5rem">📊 PLAYER DEVELOPMENT REPORT</div>
+    ${capStripHtml}
     <div class="frn-subnav">
       <button class="frn-subnav-btn${_t==="overview"?" active":""}" data-devtabbtn="overview" onclick="frnDevReportTab('overview')">📊 Overview</button>
       <button class="frn-subnav-btn${_t==="players"?" active":""}" data-devtabbtn="players" onclick="frnDevReportTab('players')">👥 Players</button>
@@ -14521,6 +14623,7 @@ function _buildOffseasonGainsSheet() {
       <div class="frn-dev-strategy-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:.7rem;align-items:start">
         ${posNeedsBlock}
         ${resignBlock}
+        ${onBlockBlock}
         ${depthBlock}
         ${cliffWatchBlock}
         ${sellHighBlock}
@@ -15527,6 +15630,18 @@ function frnOpenTrade(targetTeamId, tab) {
   }
   saveFranchise();
   renderFrnTrade();
+}
+
+// Shop a specific player straight from the Player Development Report (or any
+// roster screen). Drops a trade-block breadcrumb — the same one the cuts
+// screen uses — then opens the trade builder in browse mode. frnOpenTrade
+// consumes the hint: lands on the BLOCK tab with this player auto-staged
+// (marked onTradeBlock) and scrolled into view, so "trade this guy" is one
+// click from wherever you spotted them.
+function frnTradeAwayPlayer(name, pos) {
+  if (!name) return;
+  franchise._tradeBlockHint = { name, pos: pos || "" };
+  frnOpenTrade(null); // null → browse mode; hint routes us to the block tab
 }
 
 function frnSetTradeSort(by) {
