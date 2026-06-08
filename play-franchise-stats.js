@@ -8522,7 +8522,7 @@ function mvpStatLine(p) {
   const parts = [];
   if (p.pass_att)  parts.push(`${p.pass_comp || 0}/${p.pass_att} ${p.pass_yds || 0} pYds ${p.pass_td || 0} pTD${p.pass_int ? ` ${p.pass_int} INT` : ""}`);
   if (p.rush_att)  parts.push(`${p.rush_att} car ${p.rush_yds || 0} yds ${p.rush_td || 0} TD`);
-  if (p.rec_tgt)   parts.push(`${p.rec || 0}/${p.rec_tgt} ${p.rec_yds || 0} yds ${p.rec_td || 0} TD`);
+  if (p.rec_tgt && p.pos !== "QB") parts.push(`${p.rec || 0}/${p.rec_tgt} ${p.rec_yds || 0} yds ${p.rec_td || 0} TD`);
   if (p.tkl || p.sk || p.int_made) {
     const d = [];
     if (p.tkl)      d.push(`${p.tkl} TKL`);
