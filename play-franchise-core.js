@@ -506,6 +506,36 @@ function activeRosterCount(teamId) {
 function rosterSpotsOpen(teamId) {
   return Math.max(0, ACTIVE_ROSTER_LIMIT - activeRosterCount(teamId));
 }
+// ── Roster-headcount surfacing + cut/keep evaluation ────────────────────────
+// One pill used across every roster-decision screen so you always know where
+// you stand against the 53-man limit. Neutral with room, amber at the last
+// spot, red when full / over.
+function frnRosterCountBadge(teamId, opts = {}) {
+  const n = activeRosterCount(teamId);
+  const lim = ACTIVE_ROSTER_LIMIT;
+  const open = rosterSpotsOpen(teamId);
+  const over = n > lim, full = n >= lim, tight = n === lim - 1;
+  const col = over ? "#ff6b6b" : full ? "#ffb454" : tight ? "#ffd454" : "var(--gray)";
+  const bg  = over ? "rgba(255,107,107,.14)" : full ? "rgba(255,180,84,.12)" : "rgba(255,255,255,.05)";
+  const ring = (over || full) ? col : "var(--border)";
+  const lead = opts.label === false ? "" : `<span style="opacity:.7;font-weight:600">ROSTER</span> `;
+  const tip = over ? `${n - lim} over the 53-man limit — make room`
+            : full ? "Active roster full (53/53)"
+            : `${open} open spot${open === 1 ? "" : "s"}`;
+  return `<span class="frn-roster-badge" title="${tip}" style="display:inline-flex;align-items:center;gap:.3rem;padding:.12rem .5rem;border-radius:999px;background:${bg};color:${col};font-size:.62rem;font-weight:800;letter-spacing:.3px;white-space:nowrap;border:1px solid ${ring}">${lead}${n}/${lim}</span>`;
+}
+// Keep-value: higher = more worth keeping. Mirrors the AI's _trimAiRostersToCap
+// cutValue (overall + perceived-potential ceiling × youth) so the user and the
+// AI evaluate cuts the SAME way. Used to rank expendability on the Make Room
+// screen (ascending = most expendable first).
+function _frnKeepValue(p) {
+  const ovr = p.overall || 60;
+  const age = p.age || 27;
+  const perceivedPot = (typeof _perceivedPotential === "function") ? _perceivedPotential(p) : (p.potential || ovr);
+  const ceiling = Math.max(0, perceivedPot - ovr);
+  const youthMul = Math.max(0, (28 - age) / 6);   // age 22 → 1.0, 25 → 0.5, 28+ → 0
+  return ovr + ceiling * youthMul * 0.4;
+}
 function _irReturnsUsed(teamId) {
   return ((franchise && franchise._irReturnsUsed) || {})[teamId] || 0;
 }

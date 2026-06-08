@@ -1048,7 +1048,7 @@ function _buildPSTab(myId) {
         <span style="font-size:.88rem">⚠️</span>
         <b style="color:var(--red);font-size:.78rem">${a.position} ${a.playerName}</b>
         <span style="font-size:.62rem;color:var(--gray)">being scouted by ${getTeam(a.suitorTeamId)?.name||"rival"} — promote by end of Wk ${a.deadlineWeek}</span>
-        <button onclick="frnPSPromote('${ep}')"
+        <button onclick="frnPreseasonPSPromote('${ep}')"
           style="margin-left:auto;background:rgba(245,197,66,.15);border:1px solid var(--gold);color:var(--gold-lt);font-size:.63rem;padding:.18rem .55rem;border-radius:3px;cursor:pointer;font-family:inherit;font-weight:700">
           ⬆ PROMOTE NOW
         </button>
@@ -1075,7 +1075,7 @@ function _buildPSTab(myId) {
       ${gradeBadge(p)}
       <span style="font-size:.6rem;color:var(--gray)">Age ${p.age||"?"}</span>
       ${flashBadge}
-      <button onclick="frnPSPromote('${ep}')"
+      <button onclick="frnPreseasonPSPromote('${ep}')"
         style="background:rgba(245,197,66,.1);border:1px solid var(--gold);color:var(--gold-lt);font-size:.58rem;padding:.12rem .38rem;border-radius:3px;cursor:pointer;font-family:inherit;flex-shrink:0">
         ⬆ Promote
       </button>
@@ -1116,14 +1116,18 @@ function _buildPSTab(myId) {
   </div>`;
 }
 
-async function frnPSPromote(playerName) {
+// Preseason PS promote. Renamed from frnPSPromote to stop clashing with the
+// in-season version in play-franchise-stats.js (which loads later and was
+// silently shadowing this one — sending preseason promotes to the wrong screen).
+// Preseason keeps a SOFT 53 check since final cuts happen later in camp.
+async function frnPreseasonPSPromote(playerName) {
   const myId = franchise.chosenTeamId;
   const ps = franchise.practiceSquads?.[myId] || [];
   const p = ps.find(x => x.name === playerName);
   if (!p) return;
   const myRoster = franchise.rosters[myId] || [];
-  if (myRoster.length >= 53) {
-    if (!await _frnConfirm(`Your roster is full (53 players). Promote ${p.name} anyway? You'll need to cut someone.`)) return;
+  if (myRoster.length >= ACTIVE_ROSTER_LIMIT) {
+    if (!await _frnConfirm(`Your roster is full (${ACTIVE_ROSTER_LIMIT} players). Promote ${p.name} anyway? You'll need to cut someone before the season.`)) return;
   }
   _psPromote(myId, p);
   saveFranchise();
@@ -6990,6 +6994,15 @@ function _faResolveAfterWeek(week, isSeasonEnd) {
       }
     }
   }
+  // ── 53-man enforcement after weekly FA resolution ─────────────────────────
+  // AI teams that signed past 53 trim themselves (potential + youth aware, with
+  // position floors via _trimAiRostersToCap) so rosters no longer bloat until
+  // the offseason. The USER is NEVER auto-cut — if a win pushed them over, flag
+  // it so the dashboard routes them to the Make Room screen (trade / release / IR).
+  if (typeof _trimAiRostersToCap === "function") {
+    try { _trimAiRostersToCap(ACTIVE_ROSTER_LIMIT); } catch (_) {}
+  }
+  if (activeRosterCount(myId) > ACTIVE_ROSTER_LIMIT) franchise._mustMakeRoom = true;
   franchise._faLastNews = { week, signed: newsSigned, lost: newsLost };
 }
 
