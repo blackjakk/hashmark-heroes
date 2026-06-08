@@ -3063,11 +3063,8 @@
   .bspnlive-root *::before,
   .bspnlive-root *::after { box-sizing: border-box; }
   /* Paper grain — VERY subtle so it doesn't fight readability */
-  .bspnlive-root::after {
-    content: ""; position: absolute; inset: 0; pointer-events: none;
-    background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0, rgba(0,0,0,0) 3px, rgba(0,0,0,0.012) 4px, rgba(0,0,0,0) 5px);
-    z-index: 100; mix-blend-mode: multiply;
-  }
+  /* (scan-line overlay removed by request) */
+  .bspnlive-root::after { content: none; }
   .bspnlive-root::before {
     content: ""; position: absolute; inset: 0; pointer-events: none;
     background: radial-gradient(ellipse at center, transparent 78%, rgba(0,0,0,0.035) 100%);
@@ -9824,11 +9821,8 @@
   .bspn-root *,
   .bspn-root *::before,
   .bspn-root *::after { box-sizing: border-box; }
-  .bspn-root::after {
-    content: ""; position: fixed; inset: 0; pointer-events: none;
-    background: repeating-linear-gradient(0deg, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0) 4px);
-    z-index: 100; mix-blend-mode: multiply;
-  }
+  /* (scan-line overlay removed by request) */
+  .bspn-root::after { content: none; }
   .bspn-num { font-variant-numeric: tabular-nums; }
 
   /* Header */

@@ -1631,28 +1631,39 @@ function careerEarningsStr(p) {
 // different subset of stats — and is more or less relevant by position.
 // QBs don't bench at the combine, OL skip the 3-cone, K/P skip drills entirely.
 // Use combineGrade(p) for position-relative letter grades.
+// Stable per-player pseudo-random in [0,1), from a stable identifier + a salt
+// (so each measurable draws independently). Gives combine numbers realistic
+// spread — identical-stat prospects no longer all land on the exact same
+// time/reps (e.g. every SPD-99 player at 4.31s) — while staying consistent
+// across the many calls/renders for one player (no flicker).
+function _combineJitter(p, salt) {
+  const key = String(p?.id ?? p?.name ?? "?") + "|" + salt;
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 100000) / 100000;
+}
 function combineMeasurables(p) {
   const [spd=50, str=50, agi=50, /*awr*/, /*thr*/, /*cat*/, blk=50, /*prs*/, /*cov*/, /*tck*/, kpw=50] = p.stats || [];
   const pos = p.position;
   // Bench reps: BLK contributes ~25% (OL/DL functional strength); skill
   // positions read pure raw strength.
   const strScore = ["OL","DL","TE","LB"].includes(pos) ? str * 0.75 + blk * 0.25 : str;
-  // 40-yd formula steepened: was 5.15 - (spd-40)*0.0135 which produced
-  // 4.35s for SPD 99 (NFL elite ~4.30 ✓) but only 5.15s for SPD 35 (NFL
-  // slow OL ~5.50). New: 5.55 - (spd-30)*0.018, so SPD 30 → 5.55s (real-NFL
-  // slowest), SPD 99 → 4.31s (Bo Jackson tier). Position SPD distribution
-  // (per pos caps in statsFor) drives the realistic per-pos spread.
+  // Stat→measurable mapping (central tendency): 40 from SPD (SPD 30 → 5.55s
+  // real-NFL slowest, SPD 99 → ~4.31s Bo Jackson tier), bench from STR, etc.
+  // A stable per-player signed jitter spreads the ties at the stat caps so
+  // dozens of capped prospects don't share the exact same 40/bench number.
+  const jit = (salt, spread) => (_combineJitter(p, salt) - 0.5) * spread;
   return {
-    fortyTime:  +(5.55 - (spd - 30) * 0.018).toFixed(2),
-    benchReps:  Math.max(2, Math.round(6 + (strScore - 40) * 0.42)),
-    coneTime:   +(8.10 - (agi - 40) * 0.026).toFixed(2),
-    shuttleTime:+(5.10 - (agi * 0.7 + spd * 0.3 - 40) * 0.020).toFixed(2),
-    verticalIn: Math.max(20, Math.round(26 + (spd + agi - 80) * 0.16)),
-    broadJumpIn:Math.max(85, Math.round(95 + (spd + agi - 80) * 0.42)),
+    fortyTime:  +(5.55 - (spd - 30) * 0.018 + jit("40", 0.12)).toFixed(2),
+    benchReps:  Math.max(2, Math.round(6 + (strScore - 40) * 0.42 + jit("bench", 5))),
+    coneTime:   +(8.10 - (agi - 40) * 0.026 + jit("cone", 0.18)).toFixed(2),
+    shuttleTime:+(5.10 - (agi * 0.7 + spd * 0.3 - 40) * 0.020 + jit("shuttle", 0.14)).toFixed(2),
+    verticalIn: Math.max(20, Math.round(26 + (spd + agi - 80) * 0.16 + jit("vert", 3))),
+    broadJumpIn:Math.max(85, Math.round(95 + (spd + agi - 80) * 0.42 + jit("broad", 5))),
     heightIn:   _combineHeight(p),
     weightLbs:  _combineWeight(p),
-    handSizeIn: pos === "QB" ? +(8.5 + Math.random() * 2.5).toFixed(2) : null,
-    armLengthIn:["QB","OL","DL","CB","S"].includes(pos) ? +(31 + Math.random() * 5).toFixed(2) : null,
+    handSizeIn: pos === "QB" ? +(8.5 + _combineJitter(p, "hand") * 2.5).toFixed(2) : null,
+    armLengthIn:["QB","OL","DL","CB","S"].includes(pos) ? +(31 + _combineJitter(p, "arm") * 5).toFixed(2) : null,
     kpw,
   };
 }
@@ -1664,7 +1675,7 @@ function combineMeasurables(p) {
 function _combineHeight(p) {
   const pos = p.position;
   const meanIn = { QB:75, RB:71, WR:73, TE:77, OL:77, DL:75, LB:74, CB:71, S:72, K:73, P:73 }[pos] ?? 73;
-  return meanIn + Math.round((Math.random() - 0.5) * 7);
+  return meanIn + Math.round((_combineJitter(p, "height") - 0.5) * 7);
 }
 // Weight — NFL position averages, with stat noise. STR adds mass for trench
 // positions; LEAN body type subtracts ~12 lbs. Random noise widened to ±15
