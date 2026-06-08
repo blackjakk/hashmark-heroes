@@ -5156,6 +5156,12 @@ function renderFrnPlayoffs() {
     const recap = _renderPlayoffGameRecap();
     if (recap) {
       $("frnHomeContent").innerHTML = `<div class="bspnlive-root" style="margin:-1rem -1.5rem 0 -1.5rem;padding-bottom:1.2rem">${recap}</div>`;
+      // Consume-once: the recap is a "you just played" takeover shown right
+      // after the game. Clear the flag now so any later re-render (switching
+      // tabs and returning — reachable since playoffs run in the dashboard)
+      // shows the command center, not a stale re-display of the first game's
+      // recap. "▶ To the Bracket" still routes home via frnDismissPlayoffRecap.
+      _frnPlayoffRecapPending = null;
       return;
     }
     // Bad ref or empty render — drop the flag and fall through to the bracket.
