@@ -1464,10 +1464,13 @@
   }
   .frn-card-box::before { content:none; position:absolute; top:-.55em; left:-.15em; color:var(--gold); font-size:1.05em; line-height:1; }
   .frn-card-box::after  { content:none; position:absolute; bottom:-.55em; right:-.15em; color:var(--gold); font-size:1.05em; line-height:1; }
+  /* Canonical in-card section title. (Consolidated from a duplicate def that
+     used to override the size/weight further down — kept the winning values
+     + the flex layout here as the single source of truth.) */
   .frn-card-title {
-    font-size: .66rem; font-weight: 700; color: var(--gold-lt);
-    letter-spacing: .8px; margin-bottom: .55rem;
-    padding-bottom: .32rem; border-bottom: 1px solid rgba(200,169,0,.30);
+    font-size: .62rem; font-weight: 800; color: var(--gold-lt);
+    letter-spacing: .7px; margin-bottom: .35rem;
+    padding-bottom: .28rem; border-bottom: 1px solid rgba(200,169,0,.30);
     text-shadow: 0 0 9px rgba(240,204,48,.13);
     display: flex; justify-content: space-between; align-items: center;
   }
@@ -1857,8 +1860,8 @@
     background: linear-gradient(180deg, rgba(0,0,0,.4), var(--bg2));
     border: 1px solid var(--gold-dim, #a98a2e);
     border-top: 3px solid var(--gold);
-    border-radius: 4px;
-    padding: 1.1rem 1.25rem;
+    border-radius: 14px;
+    padding: 1.2rem 1.3rem;
     margin-bottom: 1rem;
     position: relative; overflow: hidden;
   }
@@ -1881,18 +1884,18 @@
   }
   .frn-cuts-hero-eyebrow {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: .58rem; letter-spacing: 1.5px; font-weight: 800;
+    font-size: .68rem; letter-spacing: 1.5px; font-weight: 800;
     color: var(--gold-lt); text-transform: uppercase;
   }
   .frn-cuts-hero-title {
-    font-size: 1.55rem; font-weight: 900;
+    font-size: 2.2rem; font-weight: 900;
     color: var(--gold); margin: .25rem 0;
     letter-spacing: .5px;
   }
   .frn-cuts-hero.over .frn-cuts-hero-title { color: #ff8a8a; }
   .frn-cuts-hero.legal .frn-cuts-hero-title { color: #86e0a3; }
   .frn-cuts-hero-sub {
-    color: var(--gray); font-size: .82rem; line-height: 1.4;
+    color: var(--gray); font-size: .72rem; line-height: 1.4;
   }
   .frn-cuts-hero-right { text-align: right; }
   .frn-cuts-cap-num {
@@ -2958,12 +2961,6 @@
     border: 1px solid var(--gold); letter-spacing: .5px;
     margin-left: .35rem; border-radius: 999px;
   }
-  .frn-card-title {
-    font-size: .62rem; font-weight: 800; color: var(--gold-lt);
-    letter-spacing: .7px; padding-bottom: .28rem; margin-bottom: .35rem;
-    border-bottom: 1px solid rgba(200,169,0,.30);
-    text-shadow: 0 0 9px rgba(240,204,48,.13);
-  }
   .frn-pcard-seasonstats {
     display: grid; grid-template-columns: repeat(2, 1fr); gap: .15rem .5rem;
     font-size: .65rem; padding-top: .2rem;
@@ -3781,19 +3778,19 @@
   .frn-rpl-wrap { padding: 1rem 1.4rem; max-width: 1100px; margin: 0 auto; }
   .frn-rpl-hero {
     background: linear-gradient(135deg, #1a1410, #2a2018);
-    border-left: 4px solid #ffd54d; border-radius: 4px;
-    padding: 1rem 1.2rem; margin-bottom: 1rem;
+    border-left: 4px solid #ffd54d; border-radius: 14px;
+    padding: 1.2rem 1.3rem; margin-bottom: 1rem;
   }
   .frn-rpl-hero-eyebrow {
-    font-size: .65rem; letter-spacing: 4px; color: #ffd54d;
+    font-size: .68rem; letter-spacing: 4px; color: #ffd54d;
     font-weight: 800;
   }
   .frn-rpl-hero-title {
-    font-size: 2rem; font-weight: 900; letter-spacing: 2px;
+    font-size: 2.2rem; font-weight: 900; letter-spacing: 2px;
     color: #fff; margin: .15rem 0;
     font-family: 'Bebas Neue', 'Anton', sans-serif;
   }
-  .frn-rpl-hero-sub { font-size: .68rem; color: var(--blgray); }
+  .frn-rpl-hero-sub { font-size: .72rem; color: var(--blgray); }
   .frn-rpl-controls {
     display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
     margin-bottom: 1rem;
@@ -7261,7 +7258,7 @@
     animation: bspnlive-fade-in .6s ease-out;
   }
   .bspnlive-mvp-hero-eyebrow {
-    color: var(--mvp-color); font-size: .72rem;
+    color: var(--mvp-color); font-size: .68rem;
     letter-spacing: 2px; font-weight: 800;
   }
   .bspnlive-mvp-hero-name {
@@ -7702,20 +7699,20 @@
     background: linear-gradient(135deg, rgba(212,175,55,.12) 0%, var(--blbg2) 70%);
     border: 1px solid var(--blgold);
     box-shadow: 0 0 18px rgba(212,175,55,.18);
-    border-radius: 4px;
-    padding: 1.4rem 1.2rem;
+    border-radius: 14px;
+    padding: 1.2rem 1.3rem;
     text-align: center;
   }
   .frn-apb-hero-eyebrow {
-    font-size: .65rem; letter-spacing: 4px; color: var(--blgold);
+    font-size: .68rem; letter-spacing: 4px; color: var(--blgold);
     font-weight: 800; margin-bottom: .4rem;
   }
   .frn-apb-hero-title {
     font-family: "Bebas Neue","Anton",sans-serif;
-    font-size: 2.4rem; letter-spacing: 2px; color: var(--blwhite);
+    font-size: 2.2rem; letter-spacing: 2px; color: var(--blwhite);
     margin: 0 0 .35rem;
   }
-  .frn-apb-hero-sub { font-size: .75rem; color: var(--blgray); }
+  .frn-apb-hero-sub { font-size: .72rem; color: var(--blgray); }
 
   /* Your Pro Bowlers callout */
   .frn-apb-yours {
@@ -9504,16 +9501,16 @@
   /* Re-signings screen — hero header */
   .frn-resign-hero {
     background: linear-gradient(135deg, rgba(212,175,55,.1) 0%, var(--bg2) 65%);
-    border: 1px solid var(--gold-lt); border-radius: 4px;
-    padding: 1rem 1.2rem; margin-bottom: 1rem; text-align: center;
+    border: 1px solid var(--gold-lt); border-radius: 14px;
+    padding: 1.2rem 1.3rem; margin-bottom: 1rem; text-align: center;
   }
   .frn-resign-hero-eyebrow {
-    font-size: .58rem; letter-spacing: 3px; color: var(--gold);
+    font-size: .68rem; letter-spacing: 3px; color: var(--gold);
     font-weight: 800; margin-bottom: .3rem;
   }
   .frn-resign-hero-title {
     font-family: "Bebas Neue","Anton",sans-serif;
-    font-size: 1.8rem; letter-spacing: 2px; color: var(--white);
+    font-size: 2.2rem; letter-spacing: 2px; color: var(--white);
     margin: 0 0 .35rem;
   }
   .frn-resign-hero-sub { font-size: .72rem; color: var(--gray); }
@@ -10789,8 +10786,8 @@
   .frn-recap-hero {
     position: relative;
     background: linear-gradient(135deg, rgba(212,175,55,.10) 0%, var(--bg2) 60%);
-    border: 1px solid var(--gold-lt); border-radius: 4px;
-    padding: 1.5rem 1.4rem 1.2rem;
+    border: 1px solid var(--gold-lt); border-radius: 14px;
+    padding: 1.2rem 1.3rem;
     text-align: center;
   }
   .frn-recap-hero-eyebrow {
@@ -10799,7 +10796,7 @@
   }
   .frn-recap-hero-title {
     font-family: "Bebas Neue","Anton",sans-serif;
-    font-size: 2.6rem; letter-spacing: 3px; color: var(--blwhite);
+    font-size: 2.2rem; letter-spacing: 3px; color: var(--blwhite);
     margin: 0 0 .35rem; line-height: 1;
   }
   @media (max-width: 700px) { .frn-recap-hero-title { font-size: 1.8rem; letter-spacing: 2px; } }
@@ -12607,3 +12604,21 @@
     border-radius: 18px; box-shadow: var(--hh-shadow);
   }
   #franchiseHome .frn-draft-recents { border-radius: 12px; }
+
+  /* ── Eyebrow / overline label normalization (audit) ───────────────────────
+     The small uppercase labels atop sections were scattered across .55–.6rem,
+     which made screens feel uneven. Unify section/inline eyebrows to .58rem
+     here (single source of truth, placed last so it wins by source order).
+     Hero-banner overlines are normalized separately to .68rem at their rules. */
+  .sub-chip-eyebrow,
+  .recap-eyebrow,
+  .moment-eyebrow,
+  .hc-eyebrow,
+  .frn-awards-hl-hero-eyebrow,
+  .frn-apb-mvp-eyebrow,
+  .frn-apb-box-eyebrow,
+  .frn-resign-section-head .eyebrow,
+  .frn-counter-eyebrow,
+  .frn-hl-moment-eyebrow {
+    font-size: .58rem;
+  }
