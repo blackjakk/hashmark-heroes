@@ -14504,40 +14504,86 @@ function _buildOffseasonGainsSheet() {
     </div>`;
   };
 
-  // ── LIVE CAP STRIP ────────────────────────────────────────────────────
-  // Pinned above the tabs (so it's visible on all three) — the cap meter
-  // updates the instant you re-sign someone here, answering "how did that
-  // change my cap?" at a glance. Numbers use the same capUsedByTeam /
-  // effectiveSalaryCap basis as the Cap Sheet, so they never disagree.
+  // ── CAP HORIZON STRIP ─────────────────────────────────────────────────
+  // Pinned above the tabs (visible on all three). Reimagined from a single
+  // current-year meter into a multi-year horizon: one cell per upcoming
+  // season showing projected ROOM as the hero, a mini-meter, and how many
+  // deals expire that year (the *why* behind the room opening up). Long
+  // re-signs eat into the future cells live — exactly the feedback you want
+  // when committing years. Year 0 uses the same effectiveSalaryCap /
+  // projectPlayerCapHit basis as the re-sign popup, so "this year" matches
+  // the header and the modal to the dollar; future years roll each contract
+  // forward (expiring deals drop to $0) with cap growth at +5%/yr.
+  const _HORIZON_YEARS = 4;
   const _capTotal = (typeof effectiveSalaryCap === "function") ? effectiveSalaryCap(myId) : (franchise.salaryCap || (typeof SALARY_CAP_BASE !== "undefined" ? SALARY_CAP_BASE : 200));
   const _capUsed  = (typeof capUsedByTeam === "function") ? capUsedByTeam(myId) : 0;
-  const _capRoom  = _capTotal - _capUsed;
-  const _capPct   = _capTotal > 0 ? Math.min(100, Math.max(0, (_capUsed / _capTotal) * 100)) : 0;
-  const _capBar   = _capPct < 85 ? "#86e0a3" : _capPct < 95 ? "#cce8d6" : _capPct < 100 ? "#e0b078" : "#ff8a8a";
+  const _rosterList = franchise.rosters?.[myId] || [];
+  const _irList     = franchise.ir?.[myId] || [];
+  const _refunds    = franchise.refunds || [];
+  const _psCost     = (typeof psCostForTeam === "function") ? psCostForTeam(myId) : 0;
+  // Projected cap used in a given year — mirrors capUsedByTeam's components
+  // (roster + IR + dead money + PS) rolled forward via projectPlayerCapHit.
+  const _projUsedAt = (yr) => {
+    if (typeof projectPlayerCapHit !== "function") return _capUsed;
+    let used = 0;
+    for (const p of _rosterList) used += projectPlayerCapHit(p, yr);
+    for (const p of _irList)     used += projectPlayerCapHit(p, yr);
+    if (yr === 0) used += _psCost; // PS cost is a this-season charge only
+    const curSeason = franchise.season || 1;
+    for (const r of _refunds) {
+      if (!r.yearsRemaining || r.yearsRemaining <= yr) continue; // dead money decays out
+      if (r.startSeason && (curSeason + yr) < r.startSeason) continue;
+      if (r.fromTeamId === myId) used += r.amount;
+      else if (r.toTeamId === myId) used -= r.amount;
+    }
+    return Math.round(used * 10) / 10;
+  };
+  // Contracts whose final year IS this projected year (remaining − yr === 1).
+  const _expiringAt = (yr) => _rosterList.reduce(
+    (n, p) => n + (((p.contract?.remaining || 0) - yr) === 1 ? 1 : 0), 0);
   // "Signed this offseason" — any contract written THIS season (re-signs,
   // voluntary extensions, holdout deals). Same startSeason predicate the
   // EXTEND chip uses, so it auto-clears next year with no flag bookkeeping.
   let _signedN = 0, _signedAav = 0;
-  for (const lp of (franchise.rosters?.[myId] || [])) {
+  for (const lp of _rosterList) {
     const c = lp.contract;
     if (c && c.startSeason === _curSeason) { _signedN++; _signedAav += (c.aav || 0); }
   }
-  const _roomStr = _capRoom < 0 ? `−$${(-_capRoom).toFixed(1)}M` : `$${_capRoom.toFixed(1)}M`;
-  const capStripHtml = `<div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:.6rem;padding:.45rem .65rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:4px">
-    <div style="display:flex;flex-direction:column;gap:.1rem;line-height:1.1">
-      <span style="font-size:.5rem;color:#a98a2e;letter-spacing:1.2px;font-weight:700">💰 SALARY CAP</span>
-      <span style="font-size:.52rem;color:var(--gray)">$${_capTotal.toFixed(0)}M cap · $${_capUsed.toFixed(1)}M used</span>
-    </div>
-    <div style="flex:1;min-width:8rem">
-      <div style="position:relative;height:12px;background:var(--bg3);border:1px solid var(--blborder);border-radius:2px;overflow:hidden">
-        <div style="position:absolute;top:0;left:0;height:100%;width:${_capPct}%;background:${_capBar};transition:width .18s"></div>
+  const _capCells = [];
+  for (let yr = 0; yr < _HORIZON_YEARS; yr++) {
+    const projCap   = _capTotal * Math.pow(1.05, yr);
+    const used      = _projUsedAt(yr);
+    const room      = projCap - used;
+    const pct       = projCap > 0 ? Math.min(100, Math.max(0, (used / projCap) * 100)) : 0;
+    const barColor  = pct < 85 ? "#86e0a3" : pct < 95 ? "#cce8d6" : pct < 100 ? "#e0b078" : "#ff8a8a";
+    const roomColor = room < 0 ? "#ff8a8a" : "#86e0a3";
+    const roomStr   = room < 0 ? `−$${(-room).toFixed(1)}M` : `$${room.toFixed(1)}M`;
+    const isNow     = yr === 0;
+    const label     = isNow ? "THIS YEAR" : `+${yr} YR`;
+    const expN      = _expiringAt(yr);
+    _capCells.push(`<div style="padding:.42rem .55rem;background:${isNow ? "rgba(245,197,66,.06)" : "rgba(255,255,255,.02)"};border:1px solid ${isNow ? "rgba(245,197,66,.4)" : "var(--blborder)"};border-radius:3px;display:flex;flex-direction:column;gap:.24rem">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:.48rem;letter-spacing:1px;font-weight:700;color:${isNow ? "var(--gold)" : "var(--gray)"}">${label}</span>
+        <span style="font-size:.46rem;color:var(--gray)">S${(franchise.season || 1) + yr}</span>
       </div>
+      <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.2rem;letter-spacing:.4px;line-height:1;color:${roomColor}">${roomStr}<span style="font-size:.46rem;color:var(--gray);letter-spacing:.5px"> room</span></div>
+      <div style="position:relative;height:7px;background:var(--bg3);border:1px solid var(--blborder);border-radius:2px;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;height:100%;width:${pct}%;background:${barColor};transition:width .18s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.46rem;color:var(--gray)">
+        <span>$${used.toFixed(0)}M / $${projCap.toFixed(0)}M</span>
+        ${expN ? `<span style="color:#8ab4f8" title="${expN} contract${expN > 1 ? "s" : ""} expire after this season">↘ ${expN} exp</span>` : "<span></span>"}
+      </div>
+    </div>`);
+  }
+  const capStripHtml = `<div style="margin-bottom:.6rem;padding:.5rem .6rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:4px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.4rem;margin-bottom:.4rem">
+      <span style="font-size:.52rem;color:#a98a2e;letter-spacing:1.2px;font-weight:700">💰 CAP HORIZON <span style="color:var(--gray);font-weight:400;letter-spacing:.3px">· room as deals roll off · cap +5%/yr</span></span>
+      ${_signedN ? `<span style="font-size:.52rem;color:var(--gray)">✍ Signed this offseason: <b style="color:#8ab4f8">${_signedN} deal${_signedN > 1 ? "s" : ""} · $${_signedAav.toFixed(1)}M/yr</b></span>` : ""}
     </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;line-height:1">
-      <span style="font-size:.46rem;color:var(--gray);letter-spacing:1px">CAP ROOM</span>
-      <span style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.25rem;letter-spacing:.5px;color:${_capRoom < 0 ? "#ff8a8a" : "#86e0a3"}">${_roomStr}</span>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem">
+      ${_capCells.join("")}
     </div>
-    ${_signedN ? `<div style="font-size:.52rem;color:var(--gray);border-left:1px solid var(--blborder);padding-left:.8rem;line-height:1.3">✍ Signed this offseason<br><b style="color:#8ab4f8;font-size:.6rem">${_signedN} deal${_signedN > 1 ? "s" : ""} · $${_signedAav.toFixed(1)}M/yr</b></div>` : ""}
   </div>`;
 
   // ── ON THE BLOCK — shop candidates ────────────────────────────────────
