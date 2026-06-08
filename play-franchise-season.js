@@ -7818,7 +7818,7 @@ function _faRestructurePreview(player) {
 // Execute a restructure inline from the cuts screen. Mirrors the
 // commit half of the analytics-screen flow but re-renders the cuts
 // screen so the user stays in the cut-decision context.
-function frnFARestructureFromCuts(name, pos) {
+async function frnFARestructureFromCuts(name, pos) {
   const myId = franchise.chosenTeamId;
   const roster = franchise?.rosters?.[myId];
   const p = roster?.find(q => q.name === name && q.position === pos);
@@ -7833,7 +7833,7 @@ function frnFARestructureFromCuts(name, pos) {
             + `Frees $${prev.freed.toFixed(1)}M of cap now.\n`
             + `Adds $${prev.newProration.toFixed(1)}M/yr in dead money if cut later.\n\n`
             + `Limited to once per player per offseason.`;
-  if (!_frnConfirm(msg)) return;
+  if (!(await _frnConfirm(msg))) return;
   const c = p.contract;
   const yearIndex = Math.max(0, (c.years || 1) - (c.remaining || 1));
   if (c.baseSalaries) c.baseSalaries[yearIndex] = 0;
@@ -8142,7 +8142,7 @@ function _faPositionDepth(roster, pendingCutNames) {
 // Scoring: prefer players whose AAV/OVR ratio is high (overpaid) and
 // whose net relief is positive. Skip captains, elites, and players
 // whose cut would push a position below the ROSTER_SLOTS floor.
-function frnFAAutoCutSuggest() {
+async function frnFAAutoCutSuggest() {
   const myId = franchise.chosenTeamId;
   const myRoster = (franchise.rosters[myId] || []).slice();
   const cap = effectiveSalaryCap(myId);
@@ -8198,9 +8198,9 @@ function frnFAAutoCutSuggest() {
     ? "\n\n⚠ Every cuttable contract has heavy dead money — these picks LOSE money on the cap but free roster space. Consider restructures first."
     : "";
   if (freed < need) {
-    if (!_frnConfirm(`Auto-cut suggests ${recs.length} cuts freeing $${freed.toFixed(1)}M, but you still need to free $${(need - freed).toFixed(1)}M more. Stage these and pick more manually?${fallbackNote}`)) return;
+    if (!(await _frnConfirm(`Auto-cut suggests ${recs.length} cuts freeing $${freed.toFixed(1)}M, but you still need to free $${(need - freed).toFixed(1)}M more. Stage these and pick more manually?${fallbackNote}`))) return;
   } else {
-    if (!_frnConfirm(`Auto-cut will stage ${recs.length} cuts freeing $${freed.toFixed(1)}M (need $${need.toFixed(1)}M). Stage them now? You'll still need to confirm before they go through.${fallbackNote}`)) return;
+    if (!(await _frnConfirm(`Auto-cut will stage ${recs.length} cuts freeing $${freed.toFixed(1)}M (need $${need.toFixed(1)}M). Stage them now? You'll still need to confirm before they go through.${fallbackNote}`))) return;
   }
   for (const r of recs) franchise._pendingCuts.push(r.p.name);
   saveFranchise();
@@ -8238,7 +8238,7 @@ function frnFACutsClearFilters() {
 // Bulk-action on the currently-filtered subset. Action picks itself
 // based on the active filter mode so the button always does the
 // useful thing for what the user is looking at.
-function frnFACutsBulkApply() {
+async function frnFACutsBulkApply() {
   const myId = franchise.chosenTeamId;
   const cap = effectiveSalaryCap(myId);
   const myRoster = franchise.rosters[myId] || [];
@@ -8262,7 +8262,13 @@ function frnFACutsBulkApply() {
   // Pick the right action per filter mode.
   if (filterMode === "restructure") {
     const total = filtered.reduce((s, p) => s + (_faRestructurePreview(p).freed || 0), 0);
-    if (!_frnConfirm(`Restructure ${filtered.length} player${filtered.length===1?"":"s"}? Frees ~$${total.toFixed(1)}M total now, adds dead-money risk if any are cut later.`)) return;
+    if (!(await _frnConfirm(
+      `⚠ Restructure ALL ${filtered.length} eligible player${filtered.length===1?"":"s"}?\n\n` +
+      `Frees ~$${total.toFixed(1)}M of cap NOW — but it converts that base salary into ` +
+      `guaranteed signing-bonus money spread across future seasons. That RAISES your ` +
+      `future cap hits and dead-money risk, and it can't be undone.\n\n` +
+      `Restructure only as many as you need to get compliant — not the whole list. Proceed?`
+    ))) return;
     let did = 0;
     for (const p of filtered) {
       const prev = _faRestructurePreview(p);
@@ -8283,7 +8289,7 @@ function frnFACutsBulkApply() {
     return;
   }
   if (filterMode === "assets") {
-    if (!_frnConfirm(`Move ${filtered.length} asset${filtered.length===1?"":"s"} to your trade block? They'll be listed publicly when the next week tick happens.`)) return;
+    if (!(await _frnConfirm(`Move ${filtered.length} asset${filtered.length===1?"":"s"} to your trade block? They'll be listed publicly when the next week tick happens.`))) return;
     for (const p of filtered) p.onTradeBlock = true;
     saveFranchise();
     renderFrnFACuts();
@@ -8292,7 +8298,7 @@ function frnFACutsBulkApply() {
   // Default: stage all as pending cuts. Covers cuttable / blockers /
   // costly / position-only / all filters.
   const totalRelief = filtered.reduce((s, p) => s + _faCutEconomics(p).netRelief, 0);
-  if (!_frnConfirm(`Stage ${filtered.length} player${filtered.length===1?"":"s"} for cut? Net cap relief: ${totalRelief>=0?'+':'−'}$${Math.abs(totalRelief).toFixed(1)}M. Cuts are still pending until you confirm.`)) return;
+  if (!(await _frnConfirm(`Stage ${filtered.length} player${filtered.length===1?"":"s"} for cut? Net cap relief: ${totalRelief>=0?'+':'−'}$${Math.abs(totalRelief).toFixed(1)}M. Cuts are still pending until you confirm.`))) return;
   franchise._pendingCuts = franchise._pendingCuts || [];
   for (const p of filtered) {
     if (!franchise._pendingCuts.includes(p.name)) franchise._pendingCuts.push(p.name);
@@ -8313,7 +8319,7 @@ function frnFACutsClearPending() {
   saveFranchise();
   renderFrnFACuts();
 }
-function frnFACutsConfirm() {
+async function frnFACutsConfirm() {
   const myId = franchise.chosenTeamId;
   const roster = franchise.rosters[myId] || [];
   const pending = (franchise._pendingCuts || []).slice();
@@ -8325,7 +8331,7 @@ function frnFACutsConfirm() {
     const p = roster.find(q => q.name === n);
     return s + (p ? _faCutEconomics(p).netRelief : 0);
   }, 0);
-  if (!_frnConfirm(`Release ${pending.length} player${pending.length===1?"":"s"} now? Frees ~$${totalFreed.toFixed(1)}M in cap. This is final.`)) return;
+  if (!(await _frnConfirm(`Release ${pending.length} player${pending.length===1?"":"s"} now? Frees ~$${totalFreed.toFixed(1)}M in cap. This is final.`))) return;
   for (const name of pending) {
     const idx = roster.findIndex(p => p.name === name);
     if (idx !== -1) roster.splice(idx, 1);
