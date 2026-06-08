@@ -5051,8 +5051,28 @@ function buildAnimForPlay(play, prevPlay) {
               const tackleY = (_yacEndY != null ? _yacEndY : finalY) + 4;
               const arrProgress = clamp((t - throwPhase) / Math.max(0.001, (PRE + (1 - PRE) * tackleEvent.fallStartT) - throwPhase), 0, 1);
               const blend = arrProgress * arrProgress;
-              dd.x = dd.x + (tackleX - dd.x) * blend;
-              dd.y = dd.y + (tackleY - dd.y) * blend;
+              let _bdx = (tackleX - dd.x) * blend;
+              let _bdy = (tackleY - dd.y) * blend;
+              // SPEED-CAP the convergence. On a DEEP completion throwPhase
+              // lands late, so the throw→tackle window can collapse to a
+              // single frame — arrProgress (and blend) then jumps 0→1 in one
+              // frame and the raw lerp SNAPPED the cover defender from his
+              // pursuit spot straight onto the tackle point: a 10-20yd
+              // one-frame teleport clustered at ~85% on deep PA_SHOT/VERTICAL
+              // throws (the post-catch "defender teleports onto the catch"
+              // the detector flagged). Limit the per-frame step to the same
+              // physical max the pursuit sim uses so the close stays
+              // continuous; dt from the elapsed-time delta keeps it
+              // frame-rate independent.
+              const _bd = Math.hypot(_bdx, _bdy);
+              if (_bd > 0.0001) {
+                const _dtMs    = Math.max(0, elapsedMs - (d._covBlendEms ?? elapsedMs));
+                const _maxStep = SIM_DEFAULTS.MAX_SPEED * Math.max(1, factor) * _dtMs / 1000;
+                if (_bd > _maxStep) { const _s = _maxStep / _bd; _bdx *= _s; _bdy *= _s; }
+              }
+              d._covBlendEms = elapsedMs;
+              dd.x = dd.x + _bdx;
+              dd.y = dd.y + _bdy;
               if (d._sim) { d._sim.x = dd.x; d._sim.y = dd.y; }
               _distToCar = Math.hypot(dd.x - ballX, dd.y - ballY);
             }
