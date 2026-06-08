@@ -251,8 +251,13 @@ function showFranchiseDashboard() {
     // saves (3 rounds, no byes) are treated as invalid so they heal to
     // season_recap and re-seed via startFrnPlayoffs in the new format.
     const _validBracket = _brk && Array.isArray(_brk.rounds) && _brk.rounds.length === 4 && Array.isArray(_brk.byes);
+    const _champCrowned = _brk && _brk.champion != null;
     if (franchise.phase === "draft" && franchise.draft == null) frnTransition("draft_grade");
     else if (franchise.phase === "regular" && (franchise.week || 1) > _fw && !franchise.playoffBracket) frnTransition("season_recap");
+    // A crowned bracket is COMPLETE — never bounce it back to the pre-playoff
+    // recap (the symptom when advancePlayoffRound threw on a legacy bracket
+    // and left phase stuck at "playoffs"). Route to the awards screen.
+    else if ((franchise.phase === "playoffs_pending" || franchise.phase === "playoffs") && _champCrowned) frnTransition("awards");
     // Legacy playoffs_pending (the retired auto-seed waypoint) and any "playoffs
     // phase but no real bracket" save heal back to season_recap — its CTA
     // re-seeds via startFrnPlayoffs. This keeps seeding a TRANSITION concern so
