@@ -3631,7 +3631,7 @@ async function frnConfirmSimToPlayoffs() {
   const t = FRANCHISE_WEEKS;
   const weeks = t - franchise.week + 1;
   if (weeks <= 0) return;
-  if (!await _frnConfirm(`Sim to end of regular season (Week ${t})? That's ${weeks} weeks. You'll land on the playoff bracket.`)) return;
+  if (!await _frnConfirm(`Sim to end of regular season (Week ${t})? That's ${weeks} weeks. You'll land on the season recap, where you can review the field and start the playoffs.`)) return;
   _frnSimPanelOpen = false;
   frnSimToWeek(t);
 }
@@ -4957,6 +4957,17 @@ function _userPlayoffStatus() {
 
 function renderFrnPlayoffs() {
   const { playoffBracket, chosenTeamId } = franchise;
+  // Playoffs run inside the tabbed dashboard so the management tabs (Roster /
+  // Depth Chart, Front Office, League) stay available. Many call sites render
+  // the bracket directly (not via the dashboard router), so ensure the app
+  // shell is shown here on every playoff render path. (Skipped for the
+  // bracket-less heal path, which runs under playoffs_pending, not playoffs.)
+  if (franchise.phase === "playoffs" && typeof _frnRenderAppShell === "function") {
+    try { _frnRenderAppShell(); } catch (_e) {}
+    // Hide the milestone nav bar — the shell is the nav now (direct render
+    // paths skip the router's _frnUpdateNavBar, so hide it here).
+    const _nav = document.getElementById("frnNavBar"); if (_nav) _nav.style.display = "none";
+  }
   // Defensive + PURE: a missing/malformed bracket (no rounds) must not crash
   // the render (the rounds[roundIdx] access below assumes a real bracket). This
   // render never seeds — seeding is a transition concern (startFrnPlayoffs), and

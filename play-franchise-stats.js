@@ -6308,6 +6308,7 @@ function _hhTeamThemeVars(hex) {
 function _frnRenderAppShell() {
   const el = $("frnAppShell");
   if (!el) return;
+  el.style.display = "block";  // rendering the shell always makes it visible
   const myTeam = getTeam(franchise.chosenTeamId);
   // HH modern re-skin: expose the chosen team's color (plus derived readable
   // ink/accent) as CSS custom properties on the dashboard root so the scoped
@@ -6405,7 +6406,7 @@ function _frnRenderAppShell() {
         <div class="frn-bb-id-mark" style="background:${myTeam?.primary || "var(--gold)"}">${abbrev}</div>
         <div>
           <div class="frn-bb-id-name">${(myTeam?.city || "").toUpperCase()} ${(myTeam?.name || "TEAM").toUpperCase()}</div>
-          <div class="frn-bb-id-sub">${myTeam?.conference || ""} ${myTeam?.division || ""} · S${franchise.season || 1} W${Math.min(franchise.week || 1, FRANCHISE_WEEKS)} of ${FRANCHISE_WEEKS}</div>
+          <div class="frn-bb-id-sub">${myTeam?.conference || ""} ${myTeam?.division || ""} · S${franchise.season || 1} · ${franchise.phase === "playoffs" ? "PLAYOFFS" : "W" + Math.min(franchise.week || 1, FRANCHISE_WEEKS) + " of " + FRANCHISE_WEEKS}</div>
         </div>
       </div>
       <div class="frn-bb-id-divider"></div>
@@ -6509,7 +6510,7 @@ function _frnBuildTicker() {
 
 function _frnRenderActiveTab() {
   switch (_frnActiveTab) {
-    case "overview":    return renderFrnRegular();
+    case "overview":    return (franchise.phase === "playoffs") ? renderFrnPlayoffs() : renderFrnRegular();
     case "roster":      return renderFrnRosterHome();
     case "frontoffice": return renderFrnFrontOfficeHome();
     case "league":      return renderFrnLeagueHome();

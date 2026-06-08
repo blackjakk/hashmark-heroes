@@ -91,7 +91,9 @@ function _frnUpdateNavBar() {
   // to be boolean overlays detected here) — the router drives them, so the bar
   // just reads the phase config like any other.
   const cfg = _FRN_PHASE_NAV[phase];
-  if (!cfg || phase === "regular") { navEl.style.display = "none"; return; }
+  // Playoffs now render inside the tabbed dashboard shell (which is the nav),
+  // so hide this milestone bar there too — same as the regular season.
+  if (!cfg || phase === "regular" || phase === "playoffs") { navEl.style.display = "none"; return; }
   const seasonTag = franchise.season ? `Season ${franchise.season}` : "";
   const stepTxt   = cfg.step ? `<span class="frn-nav-step">${cfg.step}</span>` : "";
   const homeLabel = cfg.kind === "locked" ? "← Home (saved)" : "← Home";
@@ -429,14 +431,17 @@ function showFranchiseDashboard() {
   // self-contained full-screen UI.
   const shellEl = $("frnAppShell");
   const footEl  = $("frnAppFooter");
+  // The tabbed app shell now also runs during the playoffs so the user keeps
+  // their management tabs (Roster/Depth Chart, Front Office, League) in the
+  // postseason; the Overview tab shows the bracket (see _frnRenderActiveTab).
   if (shellEl) {
-    if (phase === "regular") {
+    if (phase === "regular" || phase === "playoffs") {
       shellEl.style.display = "block";
       // App-shell render is outside the dispatch try below, so guard it here —
       // a shell crash should degrade to the error fallback, not white-screen.
       if (typeof _frnRenderAppShell === "function") {
         try { _frnRenderAppShell(); }
-        catch (err) { _frnRenderError(err, "regular (app shell)"); return; }
+        catch (err) { _frnRenderError(err, phase + " (app shell)"); return; }
       }
     } else {
       shellEl.style.display = "none";
@@ -455,7 +460,7 @@ function showFranchiseDashboard() {
     else if (phase === "draft_grade")          _renderPostDraftGrade(_myDraftPicksForGrade());
     else if (phase === "regular")              _frnRenderActiveTab();
     else if (phase === "playoffs_pending")     renderFrnPlayoffs();
-    else if (phase === "playoffs")         renderFrnPlayoffs();
+    else if (phase === "playoffs")             _frnRenderActiveTab();
     else if (phase === "awards")           showFrnAwards();
     else if (phase === "offseason") {
       if (franchise._resignPending?.length) {
