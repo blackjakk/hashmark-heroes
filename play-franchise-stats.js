@@ -785,7 +785,9 @@ async function frnPSPromote(name) {
   }
   _psPromote(myId, p);
   saveFranchise();
-  renderFrnPracticeSquad("mine");
+  // Promoting can push you past 53 — if so, route to Make Room (trade/cut/IR)
+  // instead of carrying an illegal roster.
+  if (!_frnCheckMakeRoom()) renderFrnPracticeSquad("mine");
 }
 async function frnPSRelease(name) {
   if (!await _frnConfirm(`Release ${name} from the practice squad?`)) return;
@@ -979,6 +981,181 @@ function frnSignIrReplacement(pos) {
   if (!ok) { if (typeof toast==="function") toast("No "+pos+" available on the practice squad or FA pool."); return; }
   if (typeof saveFranchise === "function") saveFranchise();
   renderFrnInjuredReserve();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAKE ROOM — 53-man roster enforcement (NFL-style: you can't carry 54).
+// When an in-season add (FA win, PS promote) pushes you past 53 you land here
+// and must TRADE (for draft capital, pre-deadline), RELEASE, or IR a player to
+// get legal. The user is NEVER auto-cut. Players are ranked by keep-value
+// (overall + perceived potential + youth) so the most expendable surface first;
+// each shows OVR / potential / contract / positional depth + estimated trade
+// return so the call is informed.
+// ═══════════════════════════════════════════════════════════════════════════
+// Dashboard gate: routes to Make Room while over the limit; clears the flag
+// once legal. Returns true if it took over the screen.
+function _frnCheckMakeRoom() {
+  const myId = franchise.chosenTeamId;
+  if (activeRosterCount(myId) > ACTIVE_ROSTER_LIMIT) {
+    franchise._mustMakeRoom = true;
+    renderFrnMakeRoom();
+    return true;
+  }
+  if (franchise._mustMakeRoom) { delete franchise._mustMakeRoom; if (typeof saveFranchise === "function") saveFranchise(); }
+  return false;
+}
+
+function renderFrnMakeRoom() {
+  const myId = franchise.chosenTeamId;
+  const roster = franchise.rosters[myId] || [];
+  const over = roster.length - ACTIVE_ROSTER_LIMIT;
+  const week = franchise.week || 1;
+  const canTrade = week <= (typeof TRADE_DEADLINE_WEEK === "number" ? TRADE_DEADLINE_WEEK : 9);
+  const depth = {};
+  for (const p of roster) depth[p.position] = (depth[p.position] || 0) + 1;
+  const money = (m) => `$${(m || 0).toFixed(1)}M`;
+  const ranked = roster
+    .map(p => ({ p, k: _frnKeepValue(p), tv: (typeof _playerTradeValue === "function") ? _playerTradeValue(p) : (p.overall || 0) }))
+    .sort((a, b) => a.k - b.k);
+  const rows = ranked.map(({ p, tv }) => {
+    const esc = String(p.name).replace(/'/g, "\\'");
+    const pot = (typeof _perceivedPotential === "function") ? Math.round(_perceivedPotential(p)) : (p.potential || p.overall || 0);
+    const ceil = pot - (p.overall || 0);
+    const irE = (typeof irEligibility === "function") ? irEligibility(myId, p) : { ok: false };
+    const dc = (typeof deadCapOnRelease === "function") ? deadCapOnRelease(p) : { perYear: 0, years: 0 };
+    const deadTot = (dc.perYear || 0) * (dc.years || 0);
+    const c = p.contract || {};
+    return `<div style="display:grid;grid-template-columns:1fr repeat(4,auto) auto;gap:.6rem;align-items:center;padding:.45rem .6rem;border:1px solid var(--border);border-radius:10px;background:var(--bg2);margin-bottom:.35rem">
+      <div style="min-width:0">
+        <div><span class="frn-pname" data-player-name="${esc}" data-player-pid="${p.pid || ''}">${p.name}</span></div>
+        <div style="color:var(--gray);font-size:.6rem">${p.position} · ${depth[p.position]} at ${p.position} · Age ${p.age || '?'}</div>
+      </div>
+      <div style="text-align:center"><div style="font-weight:800">${p.overall || '?'}</div><div style="color:var(--gray);font-size:.52rem">OVR</div></div>
+      <div style="text-align:center"><div style="font-weight:800">${pot}${ceil > 0 ? `<span style="color:#86e0a3" title="upside">↑</span>` : ''}</div><div style="color:var(--gray);font-size:.52rem">POT</div></div>
+      <div style="text-align:center"><div style="font-weight:700;font-size:.7rem">${money(c.aav)}</div><div style="color:var(--gray);font-size:.52rem">${c.remaining || 0}yr left</div></div>
+      <div style="text-align:center"><div style="font-weight:800;color:var(--gold-lt)">${tv.toFixed(0)}</div><div style="color:var(--gray);font-size:.52rem">trade val</div></div>
+      <div style="display:flex;gap:.3rem;flex-wrap:wrap;justify-content:flex-end">
+        ${canTrade ? `<button class="frn-pcard-yrbtn" onclick="frnMakeRoomShopPicks('${esc}')" title="Get the best draft-pick offer for ${p.name}">🔀 Shop picks</button>
+        <button class="frn-pcard-yrbtn" onclick="frnShopMyPlayerFromCard('${esc}')" title="Open the trade center to negotiate">⇄ Negotiate</button>` : ''}
+        ${irE.ok ? `<button class="frn-pcard-yrbtn" onclick="frnMakeRoomIR('${esc}','${p.position}')" title="Injured Reserve — opens a roster spot, player still paid">🏥 IR</button>` : ''}
+        <button class="frn-pcard-yrbtn" onclick="frnMakeRoomRelease('${esc}','${p.position}')" title="Release${deadTot > 0 ? ` — $${deadTot.toFixed(1)}M dead cap` : ''}">✂️ Cut${deadTot > 0 ? ` <span style="opacity:.7">$${deadTot.toFixed(1)}M</span>` : ''}</button>
+      </div>
+    </div>`;
+  }).join("");
+  const legal = roster.length <= ACTIVE_ROSTER_LIMIT;
+  $("frnHomeContent").innerHTML = `
+    <div class="frn-card-box" style="border-top:3px solid ${over > 0 ? '#ff6b6b' : 'var(--gold)'}">
+      <div class="frn-card-title">🚧 MAKE ROOM ${frnRosterCountBadge(myId)}</div>
+      <p class="frn-prose" style="color:var(--gray);font-size:.78rem;margin:.2rem 0 .65rem;line-height:1.45">
+        ${over > 0
+          ? `Your active roster is <b style="color:#ff6b6b">${over} over</b> the ${ACTIVE_ROSTER_LIMIT}-man limit. Trade, release, or IR <b>${over}</b> player${over > 1 ? 's' : ''} to continue.`
+          : `Your roster is legal — you're good to go.`}
+        ${canTrade
+          ? `<br><span style="color:var(--gold-lt)">🔀 Trade window open through Week ${(typeof TRADE_DEADLINE_WEEK === "number" ? TRADE_DEADLINE_WEEK : 9)}</span> — shop a player for draft capital instead of cutting him for nothing.`
+          : `<br><span style="opacity:.7">⛔ Trade deadline has passed — release or IR only.</span>`}
+        Most expendable players (lowest keep-value: overall + potential + youth) are listed first.
+      </p>
+      <div>${rows}</div>
+      <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:.8rem">
+        <button class="btn ${legal ? 'btn-gold' : 'btn-outline'}" ${legal ? '' : 'disabled'} onclick="frnMakeRoomDone()">${legal ? '✓ Continue' : `Trim ${over} more to continue`}</button>
+      </div>
+    </div>`;
+}
+
+async function frnMakeRoomDone() {
+  const myId = franchise.chosenTeamId;
+  if (activeRosterCount(myId) > ACTIVE_ROSTER_LIMIT) {
+    (typeof toast === "function" ? toast : alert)("Still over the 53-man limit — trim one more.");
+    return;
+  }
+  delete franchise._mustMakeRoom;
+  if (typeof saveFranchise === "function") saveFranchise();
+  showFranchiseDashboard();
+}
+
+async function frnMakeRoomRelease(name, pos) {
+  const myId = franchise.chosenTeamId;
+  const roster = franchise.rosters[myId] || [];
+  const idx = roster.findIndex(p => p.name === name && p.position === pos);
+  if (idx === -1) return;
+  const p = roster[idx];
+  const dc = (typeof deadCapOnRelease === "function") ? deadCapOnRelease(p) : { perYear: 0, years: 0 };
+  const deadTot = (dc.perYear || 0) * (dc.years || 0);
+  const ok = await _frnConfirm(`Release ${pos} ${name}?${deadTot > 0 ? ` This leaves $${deadTot.toFixed(1)}M in dead cap over ${dc.years}yr.` : ''}`);
+  if (!ok) return;
+  roster.splice(idx, 1);
+  if (deadTot > 0) {
+    franchise.refunds = franchise.refunds || [];
+    franchise.refunds.push({ kind: "dead_cap", fromTeamId: myId, toTeamId: null, amount: dc.perYear, yearsRemaining: dc.years, label: `Dead cap: ${name}` });
+  }
+  if (typeof _pushNews === "function") _pushNews({ type: "cut", label: `✂️ Released ${pos} ${name}${deadTot > 0 ? ` ($${deadTot.toFixed(1)}M dead)` : ''}` });
+  if (typeof saveFranchise === "function") saveFranchise();
+  renderFrnMakeRoom();
+}
+
+function frnMakeRoomIR(name, pos) {
+  const myId = franchise.chosenTeamId;
+  const roster = franchise.rosters[myId] || [];
+  const p = roster.find(q => q.name === name && q.position === pos);
+  if (!p) return;
+  const e = (typeof irEligibility === "function") ? irEligibility(myId, p) : { ok: false, reason: "unavailable" };
+  if (!e.ok) { (typeof toast === "function" ? toast : alert)(`Can't IR ${name}: ${e.reason}`); return; }
+  if (placeOnIr(myId, p, e.designation)) {
+    if (typeof _pushNews === "function") _pushNews({ type: "ir", label: `🏥 ${pos} ${name} placed on IR (${e.designation})` });
+    if (typeof saveFranchise === "function") saveFranchise();
+    renderFrnMakeRoom();
+  }
+}
+
+// Quick-shop: surface the best AI draft-pick offer for a surplus player (a deal
+// that actually frees a roster spot, unlike a player-for-player swap). One-click
+// accept; "Negotiate" routes to the full trade center for a custom return.
+async function frnMakeRoomShopPicks(name) {
+  const myId = franchise.chosenTeamId;
+  const roster = franchise.rosters[myId] || [];
+  const p = roster.find(q => q.name === name);
+  if (!p) return;
+  if ((franchise.week || 1) > (typeof TRADE_DEADLINE_WEEK === "number" ? TRADE_DEADLINE_WEEK : 9)) {
+    (typeof toast === "function" ? toast : alert)("Trade deadline has passed — release or IR instead.");
+    return;
+  }
+  const targetVal = ((typeof _playerTradeValue === "function") ? _playerTradeValue(p) : (p.overall || 50)) * 0.85;
+  const interested = TEAMS.filter(t => t.id !== myId)
+    .map(t => ({ t, need: (typeof _aiTradeNeedBonus === "function") ? _aiTradeNeedBonus(t.id, [p]) : 1.5 }))
+    .filter(x => x.need > 1)
+    .sort((a, b) => b.need - a.need);
+  let best = null;
+  for (const { t } of interested) {
+    const picks = (franchise.picks || []).filter(pk => pk.currentOwnerId === t.id);
+    let bestPick = null, bestDiff = Infinity;
+    for (const pk of picks) {
+      const diff = Math.abs(_pickValue(pk) - targetVal);
+      if (diff < bestDiff) { bestDiff = diff; bestPick = pk; }
+    }
+    if (bestPick) { best = { t, pick: bestPick }; break; }
+  }
+  if (!best) {
+    (typeof toast === "function" ? toast : alert)(`No team is offering draft capital for ${name} right now. Open the trade center to negotiate, or release / IR him.`);
+    return;
+  }
+  const { t, pick } = best;
+  const pickLabel = `${pick.year} Round ${pick.round}${pick.isComp ? ' (comp)' : ''}`;
+  const ok = await _frnConfirm(`${t.city || ''} ${t.name} will trade their <b>${pickLabel}</b> pick for ${p.position} <b>${name}</b>. Accept?`);
+  if (!ok) return;
+  // Execute the player-for-pick swap (mirrors frnAcceptOffer): dead cap, move
+  // the player to their roster, transfer the pick to you. Frees a roster spot.
+  const theirRoster = franchise.rosters[t.id];
+  if (typeof _applyTradeMechanics === "function") _applyTradeMechanics([p], [], myId, t.id, 0, 0);
+  const i = roster.indexOf(p); if (i !== -1) roster.splice(i, 1);
+  p.onTradeBlock = false; delete p.tradeRequested;
+  if (typeof _clearGrudgeFlags === "function") _clearGrudgeFlags(p);
+  p.systemYears = 0; p._tradedAtSeason = franchise.season;
+  if (typeof _rollTradeReaction === "function") _rollTradeReaction(p);
+  theirRoster.push(p);
+  pick.currentOwnerId = myId;
+  if (typeof _pushNews === "function") _pushNews({ type: "trade", label: `🔀 Traded ${p.position} ${name} to ${t.name} for a ${pickLabel} pick` });
+  if (typeof saveFranchise === "function") saveFranchise();
+  renderFrnMakeRoom();
 }
 
 function renderFrnChat() {
@@ -6608,6 +6785,15 @@ function _frnBuildTicker() {
 }
 
 function _frnRenderActiveTab() {
+  // 53-man enforcement: while over the active-roster limit in-season, the Make
+  // Room screen takes over every tab until the user trades / releases / IRs back
+  // to 53 — NFL-style, you can't navigate away carrying an illegal roster.
+  if ((franchise.phase === "regular" || franchise.phase === "playoffs")
+      && activeRosterCount(franchise.chosenTeamId) > ACTIVE_ROSTER_LIMIT) {
+    franchise._mustMakeRoom = true;
+    return renderFrnMakeRoom();
+  }
+  if (franchise._mustMakeRoom) { delete franchise._mustMakeRoom; if (typeof saveFranchise === "function") saveFranchise(); }
   switch (_frnActiveTab) {
     case "overview":    return (franchise.phase === "playoffs") ? renderFrnPlayoffs() : renderFrnRegular();
     case "roster":      return renderFrnRosterHome();
@@ -6647,7 +6833,8 @@ function renderFrnRosterHome() {
   sub.className = "frn-subnav";
   sub.innerHTML = _FRN_ROSTER_TABS.map(t =>
     `<button class="frn-subnav-btn${t.id===active.id?" active":""}" onclick="frnSetRosterSubTab('${t.id}')">${t.label}</button>`
-  ).join("");
+  ).join("")
+  + `<span style="margin-left:auto;align-self:center">${frnRosterCountBadge(franchise.chosenTeamId)}</span>`;
   newEl.insertBefore(sub, newEl.firstChild);
 }
 
@@ -6679,7 +6866,8 @@ function renderFrnFrontOfficeHome() {
   sub.className = "frn-subnav";
   sub.innerHTML = _FRN_FO_TABS.map(t =>
     `<button class="frn-subnav-btn${t.id===active.id?" active":""}" onclick="frnSetFOSubTab('${t.id}')">${t.label}</button>`
-  ).join("");
+  ).join("")
+  + `<span style="margin-left:auto;align-self:center">${frnRosterCountBadge(franchise.chosenTeamId)}</span>`;
   newEl.insertBefore(sub, newEl.firstChild);
 }
 
@@ -7747,6 +7935,12 @@ function renderFrnRegular() {
       <div class="frn-card-title">GM PULSE <span class="frn-card-title-sub">at-a-glance</span></div>
       <div class="frn-pulse-grid">
         ${pulseChipHtml("CAP", `$${capRemaining.toFixed(1)}M`, capChipNote, capChipCol)}
+        ${(() => {
+          const _rn = activeRosterCount(franchise.chosenTeamId), _rl = ACTIVE_ROSTER_LIMIT, _ro = _rl - _rn;
+          const _rcol = _rn > _rl ? "#ff6b6b" : _rn >= _rl ? "#ffb454" : _ro <= 1 ? "#ffd454" : "var(--green-lt)";
+          const _rnote = _rn > _rl ? `${_rn - _rl} over limit` : _rn >= _rl ? "full" : `${_ro} open spot${_ro === 1 ? "" : "s"}`;
+          return pulseChipHtml("ROSTER", `${_rn}/${_rl}`, _rnote, _rcol);
+        })()}
         ${pulseChipHtml("TRADE WIN", tradeChipLabel, tradeDelta < 0 ? "deadline passed" : `until W${TRADE_DEADLINE_WEEK}`, tradeChipCol)}
         ${pulseChipHtml("BYE", byeChipLabel, byeDelta == null ? "—" : byeDelta < 0 ? "" : byeDelta === 0 ? "rest week" : `${byeDelta}w out`, byeChipCol)}
         ${pulseChipHtml("HEALTH", healthChipLabel, healthChipSub, healthChipCol)}
