@@ -17862,6 +17862,58 @@ function _renderTradeShopMarketTab(myId, sortBy, tp, cap) {
   </div>`;
 }
 
+// One-line season production for a player, by position (from seasonStats).
+function _tradeStatLine(p, teamId) {
+  const st = franchise.seasonStats?.[teamId]?.[p.name];
+  if (!st || !st.gp) return "";
+  const pos = p.position;
+  if (pos === "QB") return `${st.pass_yds||0} yд · ${st.pass_td||0} TD`.replace("yд","yd");
+  if (pos === "RB") return `${st.rush_yds||0} yd · ${st.rush_td||0} TD`;
+  if (pos === "WR" || pos === "TE") return `${st.rec||0} rec · ${st.rec_yds||0} yd`;
+  if (["DL","LB","CB","S"].includes(pos)) return `${st.tkl||0} tkl${st.sk?` · ${st.sk} sk`:""}${st.int_made?` · ${st.int_made} int`:""}`;
+  return "";
+}
+// Age-curve trajectory arrow — ascending (pre-prime) / prime / declining.
+function _tradeTraj(p) {
+  const peaks = { QB:[26,35], RB:[22,27], WR:[24,30], TE:[25,31], OL:[26,32], DL:[24,30], LB:[23,29], CB:[24,30], S:[24,30], K:[25,38], P:[25,38] };
+  const [lo, hi] = peaks[p.position] || [24, 30];
+  const a = p.age || 27;
+  if (a < lo)  return `<span class="frn-offer-traj up"   title="Ascending — pre-prime">▲</span>`;
+  if (a > hi)  return `<span class="frn-offer-traj down" title="Declining — past prime">▼</span>`;
+  return `<span class="frn-offer-traj prime" title="In his prime">●</span>`;
+}
+// Rich player chip for a trade-offer side. `mine` = a player I'd give up.
+function _tradeOfferChip(p, teamId, mine) {
+  const ovr   = p.overall || 0;
+  const ovrCol = ovr >= 85 ? "var(--green-lt)" : ovr >= 75 ? "var(--gold-lt)" : ovr >= 65 ? "var(--white)" : "var(--gray)";
+  const yrs   = p.contract?.remaining ?? p.contract?.years ?? 0;
+  const aav   = p.contract?.aav || 0;
+  const dead  = (p.contract?.bonusProration||0) * (p.contract?.remaining||0);
+  const kicker= p.contract?.tradeKicker || 0;
+  const injW  = p.injury?.weeksRemaining || 0;
+  const arch  = (typeof _archetypeLabel === "function" ? _archetypeLabel(p) : "") || "";
+  const stat  = _tradeStatLine(p, teamId);
+  const escName = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  const escPid  = (p.pid||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  return `<div class="frn-offer-chip">
+    <div class="frn-offer-chip-top">
+      <span class="frn-offer-chip-pos">${p.position}</span>
+      <span class="frn-offer-chip-ovr" style="color:${ovrCol}">${ovr}</span>
+      <span class="frn-offer-chip-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')" title="Open ${p.name}'s card">${p.name}</span>
+      ${_tradeTraj(p)}
+      ${injW > 0 ? `<span class="frn-offer-chip-inj" title="Injured — ${injW}w out">🩹</span>` : ""}
+    </div>
+    <div class="frn-offer-chip-meta">
+      <span class="frn-offer-chip-age">${p.age||"?"}yo</span>
+      <span class="frn-offer-chip-ct" title="Contract">${yrs}yr · $${aav.toFixed(1)}M</span>
+      ${arch ? `<span class="frn-offer-chip-arch">${arch}</span>` : ""}
+      ${stat ? `<span class="frn-offer-chip-stat">${stat}</span>` : ""}
+      ${kicker >= 0.05 ? `<span class="frn-offer-chip-flag kick" title="Trade kicker — one-time cap hit you absorb">⚡$${kicker.toFixed(1)}M</span>` : ""}
+      ${(mine && dead >= 0.05) ? `<span class="frn-offer-chip-flag dead" title="Dead cap you'd eat by dealing him">☠$${dead.toFixed(1)}M</span>` : ""}
+    </div>
+  </div>`;
+}
+
 function _renderTradeOffersTab() {
   const offers = (franchise.tradeOffers || []).slice().reverse();
   if (!offers.length) {
@@ -17869,7 +17921,8 @@ function _renderTradeOffersTab() {
   }
   return offers.map(o => {
     const fromTeam = getTeam(o.fromTeamId);
-    const myRoster = franchise.rosters[franchise.chosenTeamId];
+    const myId = franchise.chosenTeamId;
+    const myRoster = franchise.rosters[myId];
     const theirRoster = franchise.rosters[o.fromTeamId];
     const theyGive = o.theyGive.map(n => theirRoster.find(p => p.name === n)).filter(Boolean);
     const theyWant = o.theyWant.map(n => myRoster.find(p => p.name === n)).filter(Boolean);
@@ -17877,67 +17930,66 @@ function _renderTradeOffersTab() {
       : o.status === "accepted" ? `<span class="frn-offer-status accepted">ACCEPTED</span>`
       : o.status === "rejected" ? `<span class="frn-offer-status rejected">REJECTED</span>`
       : `<span class="frn-offer-status stale">STALE</span>`;
-    // Build "they give" items: players + picks + refund
-    const giveItems = [];
-    for (const p of theyGive) {
-      const kicker = p.contract?.tradeKicker || 0;
-      giveItems.push(`<div class="frn-offer-player">
-        <span style="color:var(--gold);font-size:.58rem;font-weight:700">${p.position}</span>
-        <span style="font-weight:700">${p.name}</span>
-        <span>${gradeBadge(p)}</span>
-        <span style="color:var(--gray);font-size:.62rem">${p.age||"?"}</span>
-        ${kicker >= 0.05 ? `<span style="color:#e8a000;font-size:.55rem;font-weight:700" title="Trade kicker — one-time cap hit you'll absorb">⚡ $${kicker.toFixed(1)}M kicker</span>` : ""}
-      </div>`);
-    }
+
+    // Pick / cap-absorb extras on the "you get" side (+ tally pick value).
+    const extraItems = [];
+    let pickVal = 0;
     if (o.pickIds && o.pickIds.length) {
-      // Group by round for display
       const byRd = {};
       for (const pid of o.pickIds) {
         const [yr, rd] = pid.split("-");
-        const k = `${yr}-${rd}`;
-        byRd[k] = (byRd[k] || 0) + 1;
+        pickVal += (PICK_VALUE_BY_ROUND[+rd] || 1);
+        byRd[`${yr}-${rd}`] = (byRd[`${yr}-${rd}`] || 0) + 1;
       }
       for (const [k, count] of Object.entries(byRd)) {
         const [yr, rd] = k.split("-");
-        giveItems.push(`<div class="frn-offer-player">
-          <span style="color:#7fbfff;font-size:.58rem;font-weight:700">PICK</span>
-          <span style="font-weight:700">${count>1?count+"× ":""}${yr} R${rd}</span>
-        </div>`);
+        extraItems.push(`<div class="frn-offer-chip pick"><div class="frn-offer-chip-top">
+          <span class="frn-offer-chip-pos pickpos">PICK</span>
+          <span class="frn-offer-chip-name">${count>1?count+"× ":""}${yr} Round ${rd}</span></div></div>`);
       }
     }
     if (o.absorb > 0) {
-      giveItems.push(`<div class="frn-offer-player">
-        <span style="color:var(--green-lt);font-size:.58rem;font-weight:700">ABSORB</span>
-        <span style="font-weight:700" title="They absorb this much of your dead cap from the trade">$${o.absorb.toFixed(1)}M of your dead cap</span>
-      </div>`);
+      extraItems.push(`<div class="frn-offer-chip"><div class="frn-offer-chip-top">
+        <span class="frn-offer-chip-pos" style="color:var(--green-lt)">CAP</span>
+        <span class="frn-offer-chip-name" title="They eat this much of your dead cap">absorbs $${o.absorb.toFixed(1)}M dead</span></div></div>`);
     }
 
-    // Precompute totals BEFORE the columns reference them — moving these
-    // declarations down hit a Temporal Dead Zone ReferenceError on giveCol
-    // when any pending offer rendered (totalKicker used at line 12325
-    // before its const declaration).
-    const totalDeadCap = theyWant.reduce((s, p) => s + (p.contract?.bonusProration||0) * (p.contract?.remaining||0), 0);
-    const totalKicker  = theyGive.reduce((s, p) => s + (p.contract?.tradeKicker||0), 0);
+    const totalKicker = theyGive.reduce((s, p) => s + (p.contract?.tradeKicker||0), 0);
+    const totalDead   = theyWant.reduce((s, p) => s + (p.contract?.bonusProration||0) * (p.contract?.remaining||0), 0);
 
     const giveCol = `<div class="frn-offer-side">
-      <div class="frn-offer-side-label" style="color:var(--green-lt)">THEY GIVE</div>
-      ${giveItems.length ? giveItems.join("") : `<div style="color:var(--gray);font-style:italic;font-size:.65rem">No longer available</div>`}
-      ${totalKicker >= 0.05 ? `<div style="color:#e8a000;font-size:.62rem;margin-top:.3rem;padding-top:.25rem;border-top:1px solid rgba(232,160,0,.2)">⚡ Kicker cap hit you absorb: <b>$${totalKicker.toFixed(1)}M</b></div>` : ""}
+      <div class="frn-offer-side-label" style="color:var(--green-lt)">↙ YOU GET</div>
+      ${theyGive.map(p => _tradeOfferChip(p, o.fromTeamId, false)).join("")}
+      ${extraItems.join("")}
+      ${(!theyGive.length && !extraItems.length) ? `<div class="frn-offer-empty">No longer available</div>` : ""}
     </div>`;
     const wantCol = `<div class="frn-offer-side">
-      <div class="frn-offer-side-label" style="color:var(--gold-lt)">THEY WANT</div>
-      ${theyWant.length ? theyWant.map(p => {
-        const dead = (p.contract?.bonusProration||0) * (p.contract?.remaining||0);
-        return `<div class="frn-offer-player">
-          <span style="color:var(--gold);font-size:.58rem;font-weight:700">${p.position}</span>
-          <span style="font-weight:700">${p.name}</span>
-          <span>${gradeBadge(p)}</span>
-          <span style="color:var(--gray);font-size:.62rem">${p.age||"?"}</span>
-          ${dead >= 0.05 ? `<span style="color:#ff9090;font-size:.55rem;font-weight:700" title="Dead cap you'll absorb">☠ $${dead.toFixed(1)}M dead</span>` : ""}
-        </div>`;
-      }).join("") : `<div style="color:var(--gray);font-style:italic;font-size:.65rem">No longer available</div>`}
-      ${totalDeadCap >= 0.05 ? `<div style="color:#ff9090;font-size:.62rem;margin-top:.3rem;padding-top:.25rem;border-top:1px solid rgba(255,100,100,.2)">☠ Total dead cap absorbed: <b>$${totalDeadCap.toFixed(1)}M</b></div>` : ""}
+      <div class="frn-offer-side-label" style="color:var(--gold-lt)">YOU GIVE ↗</div>
+      ${theyWant.length ? theyWant.map(p => _tradeOfferChip(p, myId, true)).join("") : `<div class="frn-offer-empty">No longer available</div>`}
     </div>`;
+
+    // ── Verdict + bottom-line summary ───────────────────────────────────────
+    const getVal  = theyGive.reduce((s, p) => s + _playerTradeValue(p), 0) + pickVal + (o.absorb || 0);
+    const giveVal = theyWant.reduce((s, p) => s + _playerTradeValue(p), 0);
+    const ratio   = giveVal > 0 ? getVal / giveVal : (getVal > 0 ? 2 : 1);
+    const verdict = ratio >= 1.15 ? { t:"YOU WIN",   c:"var(--green-lt)", bg:"rgba(80,200,120,.14)" }
+                  : ratio <= 0.85 ? { t:"THEY WIN",  c:"#ff9090",         bg:"rgba(255,100,100,.12)" }
+                  :                 { t:"FAIR DEAL",  c:"var(--gold-lt)",  bg:"rgba(212,175,55,.12)" };
+    const capChange = theyGive.reduce((s,p)=>s+(p.contract?.aav||0),0) - theyWant.reduce((s,p)=>s+(p.contract?.aav||0),0);
+    const capStr = `${capChange>=0?"+":"−"}$${Math.abs(capChange).toFixed(1)}M/yr`;
+    let needNote = "";
+    for (const p of theyGive) {
+      if (typeof _draftNeedLevel === "function" && _draftNeedLevel(myId, p.position) >= 1) { needNote = `✓ fills a ${p.position} need`; break; }
+    }
+    const summary = `<div class="frn-offer-summary">
+      <span class="frn-offer-verdict" style="color:${verdict.c};background:${verdict.bg};border-color:${verdict.c}">${verdict.t}</span>
+      <span class="frn-offer-sum-bit" title="Estimated trade value (talent · age · contract · picks)">value <b style="color:${verdict.c}">${getVal.toFixed(0)}</b> <span style="opacity:.6">vs</span> <b>${giveVal.toFixed(0)}</b></span>
+      <span class="frn-offer-sum-bit" title="Annual cap change (AAV coming in − AAV going out)">cap <b style="color:${capChange<=0?'var(--green-lt)':'#ffb0b0'}">${capStr}</b></span>
+      ${totalKicker>=0.05?`<span class="frn-offer-sum-bit" style="color:#e8a000" title="One-time kicker you absorb">⚡$${totalKicker.toFixed(1)}M</span>`:""}
+      ${totalDead>=0.05?`<span class="frn-offer-sum-bit" style="color:#ff9090" title="Dead cap you eat by dealing them">☠$${totalDead.toFixed(1)}M</span>`:""}
+      ${needNote?`<span class="frn-offer-sum-bit" style="color:var(--green-lt)">${needNote}</span>`:""}
+    </div>`;
+
     return `<div class="frn-offer-card ${o.status}">
       <div class="frn-offer-head">
         <div>
@@ -17953,6 +18005,7 @@ function _renderTradeOffersTab() {
         <div class="frn-offer-arrow">⇄</div>
         ${wantCol}
       </div>
+      ${o.status === "pending" ? summary : ""}
       ${o.status === "pending" ? (() => {
         const counterCount = o.counterCount || 0;
         const counterUsed = counterCount >= 2;

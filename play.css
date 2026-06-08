@@ -8328,6 +8328,49 @@
     display: flex; gap: .35rem; justify-content: flex-end; margin-top: .5rem;
   }
 
+  /* Rich player chip in trade offers — talent + age/traj + contract + stat */
+  #franchiseHome .frn-offer-card,
+  #franchiseHome .frn-offer-side { border-radius: 8px; }
+  .frn-offer-chip { padding: .32rem 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+  .frn-offer-chip:last-child { border-bottom: none; }
+  .frn-offer-chip-top { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+  .frn-offer-chip-pos {
+    font-size: .54rem; font-weight: 800; letter-spacing: .3px; color: var(--gold);
+    background: rgba(212,175,55,.14); padding: .05rem .25rem; border-radius: 3px;
+    min-width: 1.6rem; text-align: center;
+  }
+  .frn-offer-chip-pos.pickpos { color: #7fbfff; background: rgba(127,191,255,.14); }
+  .frn-offer-chip-ovr { font-size: .92rem; font-weight: 900; font-variant-numeric: tabular-nums; min-width: 1.4rem; }
+  .frn-offer-chip-name {
+    font-weight: 700; font-size: .72rem; cursor: pointer;
+    text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px;
+  }
+  .frn-offer-chip-name:hover { color: var(--gold-lt); }
+  .frn-offer-traj { font-size: .58rem; }
+  .frn-offer-traj.up    { color: var(--green-lt); }
+  .frn-offer-traj.down  { color: #ff9090; }
+  .frn-offer-traj.prime { color: var(--gold-lt); }
+  .frn-offer-chip-inj { font-size: .6rem; }
+  .frn-offer-chip-meta {
+    display: flex; align-items: center; gap: .25rem .5rem; flex-wrap: wrap;
+    margin-top: .15rem; padding-left: 1.9rem; font-size: .57rem; color: var(--gray);
+  }
+  .frn-offer-chip-ct   { color: var(--gold-lt); }
+  .frn-offer-chip-arch { color: var(--white); opacity: .8; }
+  .frn-offer-chip-stat { color: var(--green-lt); }
+  .frn-offer-chip-flag { font-weight: 700; }
+  .frn-offer-empty { color: var(--gray); font-style: italic; font-size: .65rem; padding: .3rem 0; }
+  .frn-offer-summary {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .7rem;
+    margin-top: .55rem; padding: .4rem .55rem; background: var(--bg3);
+    border: 1px solid var(--border); border-radius: 7px; font-size: .62rem; color: var(--gray);
+  }
+  .frn-offer-verdict {
+    font-size: .62rem; font-weight: 900; letter-spacing: .5px;
+    padding: .14rem .5rem; border: 1px solid; border-radius: 999px;
+  }
+  .frn-offer-sum-bit { white-space: nowrap; }
+
   /* Trade screen */
   .frn-trade-layout {
     display: grid; grid-template-columns: 1fr 1fr; gap: .7rem;
