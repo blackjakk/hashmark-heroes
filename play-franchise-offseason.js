@@ -2912,6 +2912,7 @@ function _teamStreak(teamId, w) { // signed: +n win streak / −n loss streak, b
 }
 // A short human reason for a player's current morale (used in the Locker Room).
 function _moraleReason(p, teamId, rank) {
+  if (p._tradeReaction === "SULK" && (p._tradeReactionYrs || 0) > 0) return "sulking after the trade";
   const r = (rank || _starterRankByPos(teamId)).get(p) ?? 9;
   const starters = _MORALE_STARTERS[p.position] ?? 2;
   if (!(r < starters) && (p.overall || 0) >= 78) return "buried on the depth chart";
@@ -3038,8 +3039,14 @@ function _updateMoraleForWeek(w) {
       if (p.personality === "captain")        d = d * 0.6 + 0.5; // even-keeled, slight lift
       else if (p.personality === "cancer")    d = d - 1.2;       // chronic drag
       else if (p.personality === "quiet_pro") d *= 0.7;          // low volatility
+      // Active trade-sulk — a player still inside his post-trade effect window
+      // keeps stewing, and is capped below "happy" so the morale read stays
+      // consistent with the "😒 SULKING" badge (no more Thrilled-while-sulking).
+      const _sulking = p._tradeReaction === "SULK" && (p._tradeReactionYrs || 0) > 0;
+      if (_sulking) d -= 1.5;
       d += (MORALE_BASE - p.morale) * 0.06;                      // mean-revert
       p.morale = Math.max(5, Math.min(99, Math.round((p.morale + d) * 10) / 10));
+      if (_sulking) p.morale = Math.min(p.morale, 64);           // can't reach 'happy' (68) while sulking
       // Trade request — a good player stewing at rock-bottom for ~3 weeks asks
       // out. Recovers if morale climbs back. The signal; the user acts on it.
       if ((p.overall || 0) >= 80 && p.morale < 30) {
@@ -11485,6 +11492,14 @@ function _rollTradeReaction(p, opts) {
   p._tradeReactionRevealed = false;
   p._tradeReactionSeason = (typeof franchise !== "undefined" ? franchise.season : 0);
   p._tradeReactionFromCut = cutAndSigned;
+  // A SULK reaction is, at heart, a morale event — he's unhappy about the move.
+  // Knock his morale down now so it can't read "Thrilled" while the "😒 SULKING"
+  // badge shows (the two used to live in separate systems and contradict each
+  // other). The weekly update keeps it suppressed through the effect window.
+  if (reaction === "SULK") {
+    if (typeof _initMorale === "function") _initMorale(p);
+    p.morale = Math.min(p.morale ?? MORALE_BASE, 40); // frustrated tier
+  }
 }
 // Reveal trigger — call at season-end (after the player has played a full
 // season under the boost/penalty) so the news + tag are backed by actual
@@ -13470,9 +13485,18 @@ function _buildOffseasonCapHorizon() {
     }
     return Math.round(used * 10) / 10;
   };
-  // Contracts whose final year IS this projected year (remaining − yr === 1).
-  const _expiringAt = (yr) => _rosterList.reduce(
-    (n, p) => n + (((p.contract?.remaining || 0) - yr) === 1 ? 1 : 0), 0);
+  // Contracts whose final year IS this projected year (remaining − yr === 1) —
+  // they roll off and open room the NEXT season. Sorted by the cap hit they
+  // free, so the per-cell tooltip leads with the deals that matter most.
+  const _esc = (s) => String(s).replace(/"/g, "&quot;");
+  const _expiringListAt = (yr) => _rosterList
+    .filter(p => ((p.contract?.remaining || 0) - yr) === 1)
+    .map(p => ({
+      name: p.name || "?",
+      position: p.position || "",
+      hit: (typeof projectPlayerCapHit === "function") ? projectPlayerCapHit(p, yr) : (p.contract?.aav || 0),
+    }))
+    .sort((a, b) => b.hit - a.hit);
   // "Signed this offseason" — any contract written THIS season (re-signs,
   // voluntary extensions, holdout deals). Same startSeason predicate the
   // EXTEND chip uses, so it auto-clears next year with no flag bookkeeping.
@@ -13492,7 +13516,13 @@ function _buildOffseasonCapHorizon() {
     const roomStr   = room < 0 ? `−$${(-room).toFixed(1)}M` : `$${room.toFixed(1)}M`;
     const isNow     = yr === 0;
     const label     = isNow ? "THIS YEAR" : `+${yr} YR`;
-    const expN      = _expiringAt(yr);
+    const expList   = _expiringListAt(yr);
+    const expN      = expList.length;
+    const expTip    = expN
+      ? `${expN} deal${expN > 1 ? "s" : ""} expire after S${_curSeason + yr} → room opens up the next season:\n` +
+        expList.slice(0, 8).map(e => `• ${e.name} (${e.position}) $${e.hit.toFixed(1)}M`).join("\n") +
+        (expN > 8 ? `\n• +${expN - 8} more` : "")
+      : "";
     _capCells.push(`<div style="padding:.42rem .55rem;background:${isNow ? "rgba(245,197,66,.06)" : "rgba(255,255,255,.02)"};border:1px solid ${isNow ? "rgba(245,197,66,.4)" : "var(--blborder)"};border-radius:3px;display:flex;flex-direction:column;gap:.24rem">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <span style="font-size:.48rem;letter-spacing:1px;font-weight:700;color:${isNow ? "var(--gold)" : "var(--gray)"}">${label}</span>
@@ -13504,7 +13534,7 @@ function _buildOffseasonCapHorizon() {
       </div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.46rem;color:var(--gray)">
         <span>$${used.toFixed(0)}M / $${projCap.toFixed(0)}M</span>
-        ${expN ? `<span style="color:#8ab4f8" title="${expN} contract${expN > 1 ? "s" : ""} expire after this season">↘ ${expN} exp</span>` : "<span></span>"}
+        ${expN ? `<span style="color:#8ab4f8;cursor:help" title="${_esc(expTip)}">↘ ${expN} exp</span>` : "<span></span>"}
       </div>
     </div>`);
   }
@@ -13513,7 +13543,7 @@ function _buildOffseasonCapHorizon() {
       <span style="font-size:.52rem;color:#a98a2e;letter-spacing:1.2px;font-weight:700">💰 CAP HORIZON <span style="color:var(--gray);font-weight:400;letter-spacing:.3px">· room as deals roll off · cap +5%/yr</span></span>
       <div style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap">
         ${_signedN ? `<span style="font-size:.52rem;color:var(--gray)">✍ Signed this offseason: <b style="color:#8ab4f8">${_signedN} deal${_signedN > 1 ? "s" : ""} · $${_signedAav.toFixed(1)}M/yr</b></span>` : ""}
-        <button class="frn-cap-btn" onclick="renderFrnAnalytics('mysheet')" style="font-size:.52rem">📊 View Cap</button>
+        <button class="frn-cap-btn" onclick="renderFrnAnalytics('horizon')" style="font-size:.52rem" title="Open the full multi-year Cap Horizon — per-year detail + which players expire">📅 Full Horizon →</button>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem">

@@ -8139,7 +8139,9 @@ function _faRiskBadges(player) {
   // first season under the boost/penalty has to play out before the tag appears).
   if (player._tradeReactionRevealed && player._tradeReaction === "CHIP") {
     out.push({ tag: player._cancerRedeemed ? "🔥 REDEEMED" : "🔥 CHIPPED", col: "#ff8c42" });
-  } else if (player._tradeReactionRevealed && player._tradeReaction === "SULK") {
+  } else if (player._tradeReactionRevealed && player._tradeReaction === "SULK" && (player.morale ?? 62) < 68) {
+    // Gate on morale: a sulking player whose morale has genuinely recovered to
+    // "happy"+ has come around — don't show "SULKING" next to a glowing mood.
     out.push({ tag: "😒 SULKING", col: "#9a8db5" });
   }
   return out;
