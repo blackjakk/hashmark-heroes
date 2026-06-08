@@ -12434,3 +12434,28 @@
   /* QA: round the persistent footer's inline-styled EXPORT/IMPORT buttons
      (they aren't .btn, so the global button rounding misses them). */
   #franchiseHome .frn-bb-footer button { border-radius: 6px !important; }
+
+  /* ── HH MODERN · Draft screens (board / pre-show / grade) ────────────────
+     They already inherit the dark theme + team accent (--gold remaps to the
+     team color), but several bespoke elements were sharp-cornered and the
+     "on the clock" banner was hardcoded gold. Round them + team-tint. */
+  #franchiseHome .frn-draft-clock-card {
+    border-radius: 14px; border-width: 1px;
+    border-color: color-mix(in srgb, var(--team) 55%, var(--border));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--team) 18%, transparent), color-mix(in srgb, var(--team) 5%, transparent));
+    box-shadow: var(--hh-shadow);
+  }
+  #franchiseHome .frn-draft-day-badge { border-radius: 999px; }
+  #franchiseHome .frn-draft-run-alert,
+  #franchiseHome .frn-draft-target-gone { border-radius: 10px; }
+  #franchiseHome .frn-draft-prospect { border-radius: 10px; }
+  #franchiseHome .frn-draft-prospect:hover {
+    border-color: color-mix(in srgb, var(--team) 45%, var(--border));
+  }
+  #franchiseHome .frn-dp-name { font-family: 'Bricolage Grotesque', sans-serif; }
+  #franchiseHome .frn-draft-grade-card {
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--team-accent, var(--team));
+    border-radius: 18px; box-shadow: var(--hh-shadow);
+  }
+  #franchiseHome .frn-draft-recents { border-radius: 12px; }
