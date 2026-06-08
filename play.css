@@ -3035,22 +3035,23 @@
      under .bspnlive-root.
      ────────────────────────────────────────────────────────────────────── */
   .bspnlive-root {
-    /* Light "paper / broadcast graphic" palette — switched from the
-       black CRT look so dark-primary team colors (Ravens / Bulldogs /
-       Sentinels etc.) don't blend into the background. */
-    --blbg:      #f4f5f7;
-    --blbg2:     #ffffff;
-    --blbg3:     #eceef2;
-    --blborder:  #cdd2d8;
-    --blbordr2:  #a2aab3;
-    --blgreen:   #1b8a3a;
-    --blgreen-d: #0f5f25;
-    --blgold:    #8a6500;       /* darker mustard — reads on white & light cards */
-    --blwhite:   #0b0e13;       /* near-black primary text */
-    --blgray:    #3b4654;       /* readable secondary on white bg */
-    --blred:     #b81118;
-    --away-color:#444;
-    --home-color:#444;
+    /* HH modern: dark broadcast palette (was a light "paper" theme). Dark
+       team colors are kept legible by lifting --away/--home-color at the
+       render site and ringing team marks; the green field is a PIXI canvas
+       and is unaffected. */
+    --blbg:      #0a0d13;
+    --blbg2:     #141a24;
+    --blbg3:     #1a212d;
+    --blborder:  rgba(255,255,255,.08);
+    --blbordr2:  rgba(255,255,255,.16);
+    --blgreen:   #3ecf8e;
+    --blgreen-d: #1f9d63;
+    --blgold:    #f5c542;
+    --blwhite:   #f1f4f9;
+    --blgray:    #9aa7b8;
+    --blred:     #ff5b5b;
+    --away-color:#888;
+    --home-color:#888;
 
     background: var(--blbg); color: var(--blwhite);
     font-family: "IBM Plex Mono","JetBrains Mono","Roboto Mono","Courier New",monospace;
@@ -3116,7 +3117,7 @@
     display: grid; grid-template-columns: 1fr auto 1fr;
     align-items: center; padding: .9rem 1.6rem;
     border-bottom: 1px solid var(--blborder);
-    background: linear-gradient(180deg, #ffffff, #f0f2f6);
+    background: linear-gradient(180deg, var(--blbg2), var(--blbg3));
   }
   .bspnlive-score-team { display: flex; align-items: center; gap: 1.2rem; }
   .bspnlive-score-team.right { flex-direction: row-reverse; }
