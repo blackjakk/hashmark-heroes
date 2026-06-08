@@ -2785,7 +2785,7 @@
   /* Player detail card */
   .frn-player-card {
     background: var(--bg3); border: 1px solid var(--gold);
-    padding: .65rem .8rem; position: sticky; top: 0;
+    padding: .65rem .8rem; position: sticky; top: 0; border-radius: 12px;
   }
   .frn-player-card-head {
     display: flex; justify-content: space-between; align-items: flex-start;
@@ -2803,9 +2803,9 @@
   }
   .frn-stat-bar {
     flex: 1; height: 5px; background: var(--bg);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border); border-radius: 3px; overflow: hidden;
   }
-  .frn-stat-bar-fill { height: 100%; transition: width .2s; }
+  .frn-stat-bar-fill { height: 100%; transition: width .2s; border-radius: 3px; }
   .frn-stat-val {
     width: 1.6rem; text-align: right; color: var(--white);
     font-weight: 700; font-size: .65rem;
@@ -2818,7 +2818,7 @@
   .frn-player-meta {
     display: grid; grid-template-columns: 1fr 1fr; gap: .35rem;
     font-size: .68rem; margin-top: .5rem;
-    padding: .35rem .5rem; background: var(--bg2); border: 1px solid var(--border);
+    padding: .4rem .55rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
   }
   .frn-meta-label {
     color: var(--gold); font-size: .55rem; font-weight: 700;
@@ -2877,8 +2877,10 @@
     padding: 1.2rem;
   }
   .frn-pcard-overlay-inner {
-    background: var(--bg2); border: 2px solid var(--gold);
-    box-shadow: 6px 6px 0 rgba(0,0,0,0.6);
+    background: var(--bg2); border: 1px solid var(--border);
+    border-top: 3px solid var(--pc-team, var(--gold));
+    border-radius: 14px;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.7);
     max-width: 820px; width: 100%; max-height: 92vh; overflow: auto;
     position: relative;
   }
@@ -2904,8 +2906,8 @@
     .frn-pcard-split { grid-template-columns: 1fr; }
   }
   .frn-pcard-section {
-    border: 1px solid var(--border); padding: .55rem .65rem;
-    background: var(--bg3);
+    border: 1px solid var(--border); padding: .6rem .7rem;
+    background: var(--bg3); border-radius: 10px;
   }
   .frn-rawstat-row {
     display: grid; grid-template-columns: 38px 1fr 28px; gap: .35rem;
@@ -2915,15 +2917,16 @@
   .frn-rawstat-bar {
     height: 7px; background: rgba(255,255,255,0.06);
     border: 1px solid rgba(255,255,255,0.08); position: relative;
+    border-radius: 4px; overflow: hidden;
   }
   .frn-rawstat-bar-fill {
     position: absolute; left: 0; top: 0; bottom: 0;
-    background: linear-gradient(90deg, #c8a040, #ffe27a);
+    background: linear-gradient(90deg, #c8a040, #ffe27a); border-radius: 4px;
   }
   .frn-rawstat-val { color: var(--white); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
   .frn-pcard-archetype {
-    border: 1px solid var(--gold-lt); padding: .5rem .65rem;
-    background: rgba(200,169,0,0.05);
+    border: 1px solid var(--gold-lt); padding: .5rem .7rem;
+    background: rgba(200,169,0,0.05); border-radius: 10px;
   }
   .frn-pcard-archetype-name {
     font-size: .68rem; font-weight: 900; color: var(--gold);
@@ -2937,7 +2940,7 @@
     display: inline-block; font-size: .55rem; padding: .1rem .35rem;
     background: rgba(200,169,0,0.18); color: var(--gold);
     border: 1px solid var(--gold); letter-spacing: .5px;
-    margin-left: .35rem;
+    margin-left: .35rem; border-radius: 999px;
   }
   .frn-card-title {
     font-size: .62rem; font-weight: 800; color: var(--gold-lt);
@@ -2990,8 +2993,8 @@
   .frn-pcard-yrbtn {
     background: var(--bg2); border: 1px solid var(--border);
     color: var(--text); cursor: pointer; font-family: inherit;
-    font-size: .58rem; font-weight: 700; padding: .25rem .5rem;
-    border-radius: 3px; letter-spacing: .3px;
+    font-size: .58rem; font-weight: 700; padding: .26rem .6rem;
+    border-radius: 999px; letter-spacing: .3px;
     transition: background .12s, border-color .12s, color .12s;
     white-space: nowrap;
   }
