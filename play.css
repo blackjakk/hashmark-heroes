@@ -9,7 +9,12 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background: var(--bg); color: var(--white);
-    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', ui-monospace, monospace;
+    /* IBM Plex Mono is the font actually loaded in play.html (and used by the
+       newer bspnlive surfaces). The base previously led with JetBrains Mono —
+       which is NOT loaded — so on any machine without it installed the whole
+       app fell back to Courier New (the dated look). Lead with the loaded
+       face; keep the rest as fallbacks. */
+    font-family: 'IBM Plex Mono', 'JetBrains Mono', 'Cascadia Code', ui-monospace, 'Courier New', monospace;
     min-height: 100vh; line-height: 1.5;
     position: relative;
   }
