@@ -1541,7 +1541,10 @@ const FieldHUD = {
 
 const BSPNGameScreen = {
   render(state) {
-    return `<div class="bspnlive-root v2" style="--away-color:${state.awayTeam.primary};--home-color:${state.homeTeam.primary}">
+    // HH modern: lift dark team primaries so they stay legible as accents on
+    // the dark broadcast surface (light teams pass through unchanged).
+    const _lift = (hex) => { try { return (typeof _hhTeamThemeVars === "function") ? _hhTeamThemeVars(hex).accent : hex; } catch (_e) { return hex; } };
+    return `<div class="bspnlive-root v2" style="--away-color:${_lift(state.awayTeam.primary)};--home-color:${_lift(state.homeTeam.primary)}">
       ${BSPNHeader.render()}
       ${BSPNScoreboard.render(state)}
       ${MomentumBar.render(state)}
