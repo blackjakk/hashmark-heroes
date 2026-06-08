@@ -5756,6 +5756,19 @@
     display: grid; grid-template-columns: 44px 1fr auto; gap: .45rem;
     padding: .45rem .55rem; background: var(--bg3); border-radius: 3px;
     border: 1px solid var(--border); align-items: center;
+    position: relative;
+  }
+  /* Reveal glow on a just-scouted card — a brief gold flash that fades while
+     the FLIP transition glides the card to its new sorted slot, so the eye
+     can follow which prospect you just scouted. Lifted above siblings so the
+     moving card reads clearly over the reflow. */
+  .frn-scout-row.frn-scout-revealed {
+    z-index: 3; animation: frnScoutReveal .95s ease-out;
+  }
+  @keyframes frnScoutReveal {
+    0%   { box-shadow: 0 0 0 0 rgba(245,197,66,0);   background: rgba(245,197,66,.30); border-color: var(--gold); }
+    22%  { box-shadow: 0 0 16px 2px rgba(245,197,66,.55); background: rgba(245,197,66,.22); border-color: var(--gold); }
+    100% { box-shadow: 0 0 0 0 rgba(245,197,66,0);   background: var(--bg3); border-color: var(--border); }
   }
   .frn-scout-row.pinned {
     border-left: 3px solid var(--gold);

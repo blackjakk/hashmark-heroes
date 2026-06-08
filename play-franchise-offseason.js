@@ -21109,9 +21109,67 @@ function frnSeasonScoutCategory(name, cat) {
   if (typeof renderFrnScoutingBoard === "function" &&
       typeof document !== "undefined" &&
       document.querySelector(".frn-scout-page")) {
-    renderFrnScoutingBoard();
+    _frnFlipScoutBoard(name, renderFrnScoutingBoard);
   }
   return true;
+}
+
+// ── Scout board reveal + FLIP move ────────────────────────────────────────
+// Scouting sharpens a prospect's grade, so the board re-sorts and the card
+// jumps to a new slot — you lose track of who you just scouted. This wraps
+// the re-render: measure each card's position BEFORE, let the board re-render
+// (and re-sort), then play every card from its OLD position to its new one
+// (a FLIP) so the eye can follow the move, and give the scouted card a brief
+// reveal glow so it's the one you're tracking. Honors prefers-reduced-motion.
+function _frnScrollParent(el) {
+  let n = el && el.parentElement;
+  while (n && n !== document.body) {
+    const oy = getComputedStyle(n).overflowY;
+    if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight + 2) return n;
+    n = n.parentElement;
+  }
+  return document.scrollingElement || document.documentElement;
+}
+function _frnFlipScoutBoard(highlightName, renderFn) {
+  const reduce = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const rowsBefore = document.querySelectorAll(".frn-scout-row[data-name]");
+  if (reduce || !rowsBefore.length) { renderFn(); return; }
+  const scroller  = _frnScrollParent(rowsBefore[0]);
+  const scrollTop = scroller ? scroller.scrollTop : 0;
+  const before = new Map();
+  rowsBefore.forEach(el => before.set(el.getAttribute("data-name"), el.getBoundingClientRect().top));
+  renderFn();
+  if (scroller) scroller.scrollTop = scrollTop;   // full re-render resets scroll — restore so deltas are true
+  const moving = [];
+  document.querySelectorAll(".frn-scout-row[data-name]").forEach(el => {
+    const key = el.getAttribute("data-name");
+    const oldTop = before.get(key);
+    if (oldTop != null) {
+      const dy = oldTop - el.getBoundingClientRect().top;
+      if (Math.abs(dy) > 1) {
+        el.style.transform  = `translateY(${dy}px)`;
+        el.style.transition = "none";
+        el.style.willChange = "transform";
+        moving.push({ el, dy });
+      }
+    }
+    if (highlightName && key === highlightName) {
+      el.classList.add("frn-scout-revealed");
+      el.addEventListener("animationend", () => el.classList.remove("frn-scout-revealed"), { once: true });
+    }
+  });
+  // Next frame: release the inverse transforms so each card glides to its slot.
+  // Scale the glide by distance — a one-slot shift snaps (.32s) while a big
+  // re-rank (hidden gem jumping up the board) takes longer (up to .85s) so
+  // the eye can still track it instead of it blurring across the list.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    for (const { el, dy } of moving) {
+      const dur = Math.min(0.85, Math.max(0.32, 0.28 + Math.abs(dy) / 4000));
+      el.style.transition = `transform ${dur.toFixed(2)}s cubic-bezier(.22,.61,.36,1)`;
+      el.style.transform  = "";
+      el.addEventListener("transitionend", () => { el.style.transition = ""; el.style.willChange = ""; }, { once: true });
+    }
+  }));
 }
 
 // Merge in-season reveals into the draft's reveal storage so the existing
@@ -21583,7 +21641,7 @@ function renderFrnScoutingBoard() {
     const smartBtn = `<button class="frn-scout-smart${smartDisabled?" disabled":""}"
         ${smartDisabled ? "disabled" : `onclick="frnSmartScout('${_esc(p.name)}')"`}
         title="${allDone ? "All 4 categories already scouted" : (bank === 0 ? "No credits this week" : "Smart scout — spend 1 credit on the most useful unscouted category")}">⚡</button>`;
-    return `<div class="frn-scout-row${pinned?" pinned":""}${inCompare?" compared":""}">
+    return `<div class="frn-scout-row${pinned?" pinned":""}${inCompare?" compared":""}" data-name="${_esc(p.name)}">
       <div class="frn-scout-row-pin-col">${pinBtn}${cmpBtn}</div>
       <div class="frn-scout-row-main">
         <div class="frn-scout-row-name">
