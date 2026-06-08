@@ -5109,6 +5109,19 @@ function renderFrnPlayoffs() {
     });
     return;
   }
+  // A legacy / pre-14-team bracket (≠4 rounds or missing `byes`) can't be
+  // played by the current engine — advancing it throws and the user gets
+  // bounced to the season recap mid-run. Heal it here (the direct render
+  // path bypasses the load-time heal) so its recap CTA re-seeds in the new
+  // format. Skip once a champion is crowned — that's complete, route to
+  // awards, never back to the recap.
+  const _validShape = playoffBracket.rounds.length === 4 && Array.isArray(playoffBracket.byes);
+  if (!_validShape) {
+    if (typeof frnTransition === "function") frnTransition(playoffBracket.champion != null ? "awards" : "season_recap");
+    saveFranchise();
+    if (typeof showFranchiseDashboard === "function") showFranchiseDashboard();
+    return;
+  }
   const { rounds, roundIdx, champion } = playoffBracket;
   const userStatus = _userPlayoffStatus();
   const currentRound = !champion && roundIdx < rounds.length ? rounds[roundIdx] : null;
@@ -5420,7 +5433,15 @@ function applyPlayoffResult(homeId, awayId, homeScore, awayScore) {
 
 function advancePlayoffRound() {
   const pb = franchise.playoffBracket;
-  if (!pb) return;
+  if (!pb || !Array.isArray(pb.rounds)) return;
+  // 14-team conference bracket only. A legacy/pre-rework bracket (≠4 rounds
+  // or no `byes`) can't be advanced by this engine — bail WITHOUT throwing.
+  // (Pre-fix this threw on pb.byes.find / pb.rounds[3], which left phase
+  // stuck at "playoffs" so the phase-heal bounced the user back to the
+  // pre-playoff season recap right after they crowned a champion.) The
+  // playoff render + load-heal route such a bracket to season_recap to
+  // re-seed in the current format.
+  if (pb.rounds.length !== 4 || !Array.isArray(pb.byes)) return;
   const rd = pb.rounds[pb.roundIdx];
   // Every live matchup (both participants seated) must be decided.
   const live = rd.filter(m => m.homeId && m.awayId);
