@@ -4353,6 +4353,18 @@ function generateFranchiseSchedule() {
     const last = arr.pop();
     arr.splice(1, 0, last);
   }
+  // Home/away BALANCE pass. The circle-method assignment above left whole sets
+  // of teams stuck all-home or all-away (e.g. 17 away, 0 home) — which also
+  // robbed those teams of home-field advantage all season. Greedy fix: walk the
+  // games and make whichever team currently has FEWER home games the host; over
+  // 17 games/team this settles to an 8-9 split. Deterministic (no RNG).
+  const homeCount = {};
+  for (const g of schedule) {
+    if ((homeCount[g.homeId] || 0) > (homeCount[g.awayId] || 0)) {
+      const t = g.homeId; g.homeId = g.awayId; g.awayId = t;
+    }
+    homeCount[g.homeId] = (homeCount[g.homeId] || 0) + 1;
+  }
   return schedule;
 }
 

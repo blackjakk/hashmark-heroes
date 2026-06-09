@@ -1354,8 +1354,17 @@ class GameSimulator {
     trySub("wr1", "WR");
     trySub("wr2", "WR");
     trySub("te",  "TE");
-    // QB only rotates in heavy garbage time — never on fatigue alone.
-    if (garbage === "heavy" && _rand() < 0.35) {
+    // QB rotates in heavy garbage time, OR when its snap share is dialed low —
+    // an intentional rest ("Rest Starters This Week"). Normal games keep the QB
+    // share high (≈0.95+), so qbSubP stays 0 and the RNG draw is skipped — same
+    // _rand() consumption as before outside garbage time (calibration-neutral).
+    // QB still never rotates on fatigue alone.
+    const _qbEntry = snapMap?.qb;
+    const _qbShare = (_qbEntry == null) ? null
+                   : (typeof _qbEntry === "number") ? _qbEntry : _qbEntry.share;
+    let _qbSubP = (_qbShare != null && _qbShare <= 0.15) ? (1 - _qbShare) : 0;  // low share = resting
+    if (garbage === "heavy") _qbSubP = Math.max(_qbSubP, 0.35);
+    if (_qbSubP > 0 && _rand() < _qbSubP) {
       const exclude = Object.values(this.offR.starters);
       const backup = this._pickBackup(side, "QB", exclude);
       if (backup) {

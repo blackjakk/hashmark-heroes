@@ -21319,10 +21319,10 @@ function _renderCompareCard(prospects, reveals) {
     const grade = (typeof gradeLabel === "function") ? gradeLabel(sg) : "—";
     const projRound = _projectedRoundFromGrade(sg);
     return `<div class="frn-cmp-col-hdr">
-      <div class="frn-cmp-name" onclick="frnOpenPlayerCard('${_esc(p.name)}')">${_esc(p.name)}</div>
+      <div class="frn-cmp-name" onclick="frnOpenPlayerCard('${_jsStr(p.name)}')">${_esc(p.name)}</div>
       <div class="frn-cmp-sub">${_esc(p.position)} · ${p.collegeYear}${p.declaredEarly?" · DECLARED":""} · Grade ${grade}</div>
       <div class="frn-cmp-sub">${arch ? _esc(arch)+" · " : ""}Proj R${projRound} · ${cats}/4 scouted</div>
-      <button class="frn-cmp-remove" onclick="frnScoutBoardToggleCompare('${_esc(p.name)}')" title="Remove from compare">✕</button>
+      <button class="frn-cmp-remove" onclick="frnScoutBoardToggleCompare('${_jsStr(p.name)}')" title="Remove from compare">✕</button>
     </div>`;
   }).join("");
   // Stat rows
@@ -21390,6 +21390,15 @@ function frnSmartScout(name) {
 // frnDraftScoutCategory but works across the regular season instead of
 // the draft itself. Targets any player in franchise.collegePlayers
 // (FR/SO/JR/SR — early-scouting underclassmen is the whole point).
+// JS-string escape for names passed as arguments INSIDE an onclick="..." (a
+// single-quoted JS string within a double-quoted HTML attribute). The HTML
+// escaper (_esc) turns ' into &#39;, which the browser decodes back to ' when
+// parsing the attribute — terminating the JS string and breaking the handler
+// for apostrophe names (e.g. "Ja'Veius", "D'Vante"). This escapes for the JS
+// literal instead. Use _esc for visible text / titles; _jsStr for onclick args.
+function _jsStr(s) {
+  return String(s ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+}
 function frnSeasonScoutCategory(name, cat) {
   if (!franchise.collegePlayers) return false;
   if (!DRAFT_SCOUT_CATEGORIES.includes(cat)) return false;
@@ -21693,7 +21702,7 @@ function _renderMockDraft(eligible, pinSet, reveals, eligibleByPos) {
     return `<div class="frn-mock-row${pinned?" pinned":""}">
       <span class="frn-mock-pick">${pick}</span>
       <span class="frn-mock-pos">${_esc(p.position)}</span>
-      <span class="frn-mock-name" onclick="frnOpenPlayerCard('${_esc(p.name)}')">${pinned?"★ ":""}${_esc(p.name)}</span>
+      <span class="frn-mock-name" onclick="frnOpenPlayerCard('${_jsStr(p.name)}')">${pinned?"★ ":""}${_esc(p.name)}</span>
       <span class="frn-mock-year">${p.collegeYear}${p.declaredEarly?"·D":""}</span>
       <span class="frn-mock-ovr" title="Scouted grade — sharpens with scouting">${mockGrade}</span>
       <span class="frn-mock-arch">${archLabel ? _esc(archLabel) : ""}</span>
@@ -21927,7 +21936,7 @@ function renderFrnScoutingBoard() {
       const tip  = has
         ? `${meta.label} scouted${note ? " — " + note : ""}`
         : (canSpend ? meta.desc : `${meta.label} — out of credits (refills next week)`);
-      const onclick = canSpend ? `onclick="frnSeasonScoutCategory('${_esc(p.name)}','${cat}')"` : "disabled";
+      const onclick = canSpend ? `onclick="frnSeasonScoutCategory('${_jsStr(p.name)}','${cat}')"` : "disabled";
       return `<button class="frn-scout-cat ${cls}" ${onclick} title="${_esc(tip)}" style="--cat-color:${meta.color}">
         <span class="frn-scout-cat-icon">${meta.icon}</span>
         <span class="frn-scout-cat-label">${meta.label}</span>
@@ -21946,10 +21955,10 @@ function renderFrnScoutingBoard() {
     const knock = knockType ? `<span class="frn-scout-knock" title="Scout for the matching category to resolve this concern">⚠ ${_esc(knockLabel)}</span>` : "";
 
     const pinned = pinSet.has(p.name);
-    const pinBtn = `<button class="frn-scout-pin${pinned?" active":""}" onclick="frnTogglePinProspect('${_esc(p.name)}')" title="${pinned?"Unpin from watch list":"Add to watch list — pinned prospects auto-target at the draft"}">${pinned?"★":"☆"}</button>`;
+    const pinBtn = `<button class="frn-scout-pin${pinned?" active":""}" onclick="frnTogglePinProspect('${_jsStr(p.name)}')" title="${pinned?"Unpin from watch list":"Add to watch list — pinned prospects auto-target at the draft"}">${pinned?"★":"☆"}</button>`;
     const compareList = _SCOUT_BOARD_STATE.compare || [];
     const inCompare = compareList.includes(p.name);
-    const cmpBtn = `<button class="frn-scout-cmp${inCompare?" active":""}" onclick="frnScoutBoardToggleCompare('${_esc(p.name)}')" title="${inCompare?"Remove from compare":"Add to compare (max 2 — third add replaces the oldest)"}">⇄</button>`;
+    const cmpBtn = `<button class="frn-scout-cmp${inCompare?" active":""}" onclick="frnScoutBoardToggleCompare('${_jsStr(p.name)}')" title="${inCompare?"Remove from compare":"Add to compare (max 2 — third add replaces the oldest)"}">⇄</button>`;
 
     // Smart scout — picks the most useful next category (knock-resolving
     // first, then film, then next available). Disabled if no credits or
@@ -21957,14 +21966,14 @@ function renderFrnScoutingBoard() {
     const allDone = scoutedCats.length >= DRAFT_SCOUT_CATEGORIES.length;
     const smartDisabled = bank === 0 || allDone;
     const smartBtn = `<button class="frn-scout-smart${smartDisabled?" disabled":""}"
-        ${smartDisabled ? "disabled" : `onclick="frnSmartScout('${_esc(p.name)}')"`}
+        ${smartDisabled ? "disabled" : `onclick="frnSmartScout('${_jsStr(p.name)}')"`}
         title="${allDone ? "All 4 categories already scouted" : (bank === 0 ? "No credits this week" : "Smart scout — spend 1 credit on the most useful unscouted category")}">⚡</button>`;
     return `<div class="frn-scout-row${pinned?" pinned":""}${inCompare?" compared":""}" data-name="${_esc(p.name)}">
       <div class="frn-scout-row-pin-col">${pinBtn}${cmpBtn}</div>
       <div class="frn-scout-row-main">
         <div class="frn-scout-row-name">
           <span class="frn-scout-row-pos">${_esc(p.position)}</span>
-          <span class="frn-scout-row-pname" onclick="frnOpenPlayerCard('${_esc(p.name)}')">${_esc(p.name)}</span>
+          <span class="frn-scout-row-pname" onclick="frnOpenPlayerCard('${_jsStr(p.name)}')">${_esc(p.name)}</span>
           ${yearBadge}
           <span class="frn-scout-ovr" title="Scouted grade — sharpens as you spend credits. ±N is the current estimate noise.">${gradeShown}</span>
           ${projBadge}
