@@ -15345,10 +15345,17 @@ function _playerTradeValue(p, opts = {}) {
   // the player, otherwise applies name-hashed noise (tighter for vets/
   // All-Pros, wider for rookies/journeymen). Without observerTeamId,
   // falls back to true OVR — used for absolute "true value" displays.
+  // 1. Non-linear OVR curve anchored at REPLACEMENT LEVEL (~60 OVR = a freely
+  //    available body, worth ~0). Quadratic so role players stay cheap and only
+  //    the top end climbs steeply. Calibrated against PICK_VALUE_BY_ROUND
+  //    (1st=32, 2nd=16, 3rd=9, 4th=5, 5th=3, 6th=2): ~70→4 (Day-3 pick),
+  //    80→17 (2nd), 88→33 (1st), 95→59 (~2 firsts). The old (OVR-50)^1.5/4
+  //    curve valued a 70 OVR depth player like a 2nd-rounder — that's how the
+  //    AI ended up giving a 1st+4th for a mid-tier young player.
   const evalOvr = opts.observerTeamId
     ? _perceivedOverall(p, { observerTeamId: opts.observerTeamId })
     : (p.overall || 60);
-  const ovrBase = Math.pow(Math.max(0, evalOvr - 50), 1.5) / 4;
+  const ovrBase = Math.pow(Math.max(0, evalOvr - 60), 2) / 24;
   // 2. Position scarcity multiplier — QBs / pass rushers / blindside
   //    tackles cost more than RBs / kickers / punters.
   const posMul = POSITION_CHIP_MULT[p.position] || 1.0;
@@ -15360,7 +15367,10 @@ function _playerTradeValue(p, opts = {}) {
   const market = (typeof computeMarketValue === "function") ? computeMarketValue(p, cap) : (p.contract?.aav || 1);
   const remaining = p.contract?.remaining || 0;
   const surplusPerYr = market - (p.contract?.aav || 0);
-  const contractDelta = surplusPerYr * remaining * 0.6;   // cap-$ → trade points
+  // Contract is a MODIFIER on talent, not the main driver. A modest 0.25
+  // conversion (was 0.6) keeps a cheap rookie deal from outweighing OVR — the
+  // surplus on a young flier should nudge value, not turn him into a 1st-rounder.
+  const contractDelta = surplusPerYr * remaining * 0.25;  // cap-$ → trade points
   // 5. Years-remaining bonus — more team control = more value.
   const yrsMul = remaining === 0 ? 0.5
     : remaining === 1 ? 0.85
