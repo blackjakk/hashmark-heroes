@@ -7,80 +7,72 @@ Paste this verbatim into the next chat to resume.
 ## Repo + state
 
 - Repo: `/home/user/hashmark-heroes` (vanilla HTML/CSS/JS, no build step).
-- Branch: `claude/youthful-franklin-UasDV` — pushed, working tree clean.
-  As of this writing **`HEAD == origin/branch == origin/main == b543374`**
-  (main was fast-forwarded; everything is recorded).
+- Branch: `claude/charming-cray-ggpd7f` — pushed, working tree clean, and
+  **`main` is fast-forwarded to the same tip** (user-confirmed; they treat
+  main as live).
 - Load order matters (browser globals via `<script>` in `play.html`):
   `play-data.js` → `play-player.js` → … → `play-engine.js` →
   `play-franchise-core.js` → `play-franchise-season.js` →
   `play-franchise-stats.js` → `play-franchise-offseason.js` → …
   Top-level `const`/`function` are cross-file accessible.
 - Syntax check: `node --check <file>.js`. Realism gate: `node _sim_audit.js [seasons] [seed]`
-  (bands in `AUDIT.md`). Manual verify: `npx http-server -p 5173` + headless
-  Playwright at `/opt/node22/lib/node_modules/playwright`.
-- Older arcs (teleport/position-contract refactor, sprite atlas, broadcast cam)
-  are in `HANDOFF.md` §3–3B. That history is settled — don't redo it.
+  (bands in `AUDIT.md`; zero flagged metrics = pass). Manual verify:
+  `npx http-server -p 5173` + headless Playwright at
+  `/opt/node22/lib/node_modules/playwright`.
+- Older arcs are settled history: `HANDOFF.md` §3–3B (teleport/position
+  refactors), and the 2026-06 franchise-systems + UI arc (contrast fixes,
+  Workstreams A/B, drive charts, blowout rest…) is in `git log` + the docs.
 
-## What just shipped (this session)
-
-A franchise-systems + UI arc. Newest first:
+## What just shipped (this session, newest first)
 
 | Commit | What |
 |---|---|
-| `b543374` | **Color contrast.** Team-colored text (abbrevs/names/scores/headers) was raw dark-navy at ~1.1:1 (invisible). Routed box-score color through `_teamInk()` at the source (`_bspnTeamFromFranchise`); wrapped standings/leaders/schedule/recap abbrevs; lifted `--bspn-gray`/`--bspn-gray-dim` for AA. Box-score informational fails 26→0 (8 left are decorative, WCAG-exempt). |
-| `111e1ec` | Live game: consolidate the two scoreboards into one (sticky scoreboard, hide field-HUD top corners). |
-| `41c37e6` | Reimagine the live-game control deck (`#playbackControls` broadcast deck). |
-| `1ffa5e5` | Pre-game "Play Game" screen → broadcast matchup hero (`.frn-hero-vsbanner`/`-side`/`-wpbar`). |
-| `fcee76b` | Reimagine the Play (start) screen (`.fps-*`). |
-| `4678f96` | **Workstream C (start):** run/pass Coordinator seam in the engine (`this._coordinators[this.poss]` in `_play()`, defaults to existing pass-prob roll when unset). |
-| `70f985c` | Scouting: "Your Draft Capital" panel (picks + takeable prospects) in `renderFrnScoutingBoard`. |
-| `9315651` | WPA swings: situational context ("why the play mattered") in `mffSeasonTopSwingsHtml` + `mffPlayerOfGameFor`. |
-| `fe6c40c` | 3 bug fixes: schedule home/away balance (`@`/vs was always away), rested QB still played (now subs at snap-share ≤0.15), apostrophe names couldn't be scouted (`_jsStr` escaper). |
-| `ed3935c` | **Workstream B:** deterministic seeded sim. Module-level swappable RNG in `play-data.js` (`_rand`/`_setSimRng`/`_clearSimRng`/`_mulberry32`/`_hashSeed`); `Math.random()`→`_rand()` across engine/player/sim/data. Same seed → byte-identical game. Calibration-neutral when unseeded. |
-| `7d22982` | Situational stats: comeback / wire-to-wire / one-score tracking (`_classifyGameSituation`, `_sit` on standings). |
-| `91aed23` | Drive-by-drive recap: persist a drive log (`_extractDriveLog` → `g.drives`) + render a Drive Chart (`_bspnRenderDriveChart`). |
-| `c3cc989` | **Workstream A:** phase-accurate Blowout Rest off the game timeline (`_gameRestFraction`, `_restFractionFromMargin`). |
-| `3ed4baa` | Rest Starters button + AI playoff rest (`_aiShouldRestForPlayoffs`) + reimagined Depth Chart WORKLOAD & REST card; configurable thresholds split offense/defense (`_REST_OFF_POS`/`_REST_DEF_POS`, `frnSetRestPolicy`). |
+| `de4b9e8` | **Workstream C: 4th-down Coordinator seam.** Engine consults `this._coordinators[poss]` with `kind:"fourthDown"` AFTER the AI pipeline produced `action` (same RNG draws → unset/defer = byte-identical, gate-safe; audit ran clean). Interactive mode pauses on your 4th downs: GO / FG (distance on the button, >68yd disabled) / PUNT / COACH CALL, G/F/P/O keys. GO chains into the run/pass prompt. HC-callout suppressed when the user drove the call. |
+| `cfc9629` | **"Playoffs → Week 17" bug FIXED (root-caused by code audit).** Legacy `playoffs_pending` phase + VALID bracket slipped both load heals; tab round-trip fell through Overview → `renderFrnRegular()` (week label clamps to W17). Layered fix: load-heal retires `playoffs_pending` outright; symmetric heals for phase-knocked-to-regular with live/crowned bracket; tab-route guard. Verified against 4 synthesized legacy states. |
+| `d7b5409` | **Workstream C.2: single-player interactive playcalling.** 🎙 Call the Plays on the pre-game hero. Deterministic re-sim with an input tape: each decision re-runs a fresh seeded sim, replays the tape through the coordinator seam, aborts via sentinel throw at the next unanswered call (~30ms). Partial runs use JSON-cloned rosters + snapshot-restored ejection/career-ending logs (engine mutates shared player objects in-game!); a completed run re-runs once on real rosters so mutations land exactly once. `frnPlayGame` split into `_frnEnterLiveGameScreen` / `_frnBuildLiveSim` / `_frnStartLivePlayback`; chaos rolls hoisted (`_frnChaosRolls`). Return-mid-game finishes via coach mode. Playback hooks in `startNextPlay`/`jumpAheadTo`/⏭End route partial-end → call panel (`_ipcMaybePrompt`). |
+| `651b05f` | UI-audit fixes: live-scoreboard + playoff-bracket team-ink contrast (the `_teamInk` rule missed the live surfaces); trimmed-game linescores (trimmer now keeps the user's games' `g.scoring`; CPU recaps rebuild exact quarter totals from the drive log; dashes + honest copy when nothing retained); live chrome (Return btn + scrubbers deck-styled, LIVE BIO labels WEAR/STRESS/FATIGUE). |
 
-Design notes for the in-game-clock / multiplayer direction live in
-`INGAME_CLOCK_AND_MULTIPLAYER.md` (`d4164aa`). The engine already has a real
-play-by-play clock (`GameSimulator`); A/B/C reframed around persisting &
-exposing that.
+Also: `CODEBASE_AUDIT_PLAN.md` is new — 9 prioritized audit workstreams
+(injection sweep → save integrity → realism-gate extensions → determinism →
+perf → UX/a11y → code health → error/state fuzz → deps/deploy) with methods
+and pass criteria. The full UI/UX audit findings that seeded it are in the
+session log (Tools-tab dissolution, Analytics pill sprawl, Abandon-button
+demotion, save-status jargon, Overview header slimming are the open IA items).
 
 ## What's open / suggested next moves
 
-1. **Live-game chrome polish (offered, not started):** restyle the
-   Return-to-Franchise button + play scrubber to match the new control deck.
-   Low risk, finishes the live-game-screen reimagining.
-2. **Workstream C continuation:** the Coordinator seam exists in the engine
-   (`_coordinators[poss]`). Next is the *yieldable* play loop + a single-player
-   playcall UI so a human can call plays instead of auto-rolling pass-prob.
-   This is the larger, multi-session piece toward head-to-head.
-3. **"Playoffs → Week 17 loop" bug — UNREPRODUCED.** User reported the playoff
-   bracket bouncing back to the regular-season dashboard. Full playoff sim in
-   the normal flow lands correctly on awards/champion. Likely a legacy/malformed
-   bracket from an old save. **Awaiting a screenshot or save export to repro.**
-4. Playoff format confirmed correct: **14 teams** (`PLAYOFF_PER_CONF = 7`).
+1. **`CODEBASE_AUDIT_PLAN.md` workstream 1: the injection sweep** (143
+   innerHTML sinks / ~600 inline onclick handlers) — cheap and mechanical.
+2. **Workstream C next steps:** 2-point/PAT decision seam (same pattern as
+   4th down), tempo, then C.3 server-authoritative netcode for live H2H
+   (design in `INGAME_CLOCK_AND_MULTIPLAYER.md`).
+3. **IA quick wins from the UX audit** (see plan §F bullet list).
+4. Playoff format remains 14 teams (`PLAYOFF_PER_CONF = 7`).
 
-## Verification recipe used this session
+## Verification recipes that paid off this session
 
-- **WCAG contrast audit (box score):** headless Playwright → `frnQuickStart()` →
-  `frnSimWeek()` → `renderFrnPastGame(week, homeId, awayId)`, then walk
-  `#frnHomeContent *`, **alpha-composite** each element's bg over its ancestors
-  (translucent `meta.bg` like `rgba(...,.12)` must be composited or you get
-  false positives), compute `(L1+0.05)/(L2+0.05)`, flag <4.5 (normal) / <3
-  (large). `_teamInk(hex)` (play-franchise-stats.js ~6708) is the contrast-safe
-  text color — lifts dark primaries to a readable accent; use for TEXT, never
-  backgrounds/borders/`--team-color` tints.
+- **WCAG walker:** alpha-composite each element's bg over ancestors before
+  computing contrast (translucent `meta.bg` false-positives otherwise).
+  `_teamInk(hex)` = contrast-safe TEXT color; never backgrounds/borders.
+- **Interactive-playcall invariants (headless):** outcome-prefix
+  byte-identity across decisions = compare `plays` JSON **with `motion`
+  stripped** (motion is display-only and re-stitched at the boundary);
+  real-roster JSON must be byte-identical during partial play and change
+  exactly once on commit.
+- **Synthesized-save testing:** set `franchise.phase`/bracket shapes by hand
+  in the page, call `showFranchiseDashboard()`, assert which screen renders —
+  found the playoffs bug without a user save.
 
 ## Conventions
 
 - Commit messages end with the session URL line; never put the model id in
-  commits/PRs/code. Fast-forward `main` only after the user confirms (they did).
-- Scratch verification scripts (`_c_*.cjs`, screenshots) are throwaway — delete
-  before committing; don't leave untracked files (a Stop hook flags them).
+  commits/PRs/code. `main` is fast-forwarded after user confirmation (a
+  standing pattern now — but still confirm on first push of a session).
+- Scratch verification scripts (`_c_*.cjs`, screenshots) are throwaway —
+  delete before committing; don't leave untracked files (a Stop hook flags
+  them).
 
 ---
 
-That's it. Ask me what you'd like to pick up — or say "restyle the return
-button + scrubber" to finish the live-game chrome, or "continue Workstream C".
+That's it. Say "start the injection sweep" (audit plan §A), "continue
+Workstream C" (2pt seam / netcode), or "do the IA quick wins".
