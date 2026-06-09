@@ -4025,10 +4025,15 @@ function _ipcMaybePrompt() {
   return true;
 }
 
-// Your call, from the panel buttons (or R / P / O keys).
+// Your call, from the panel buttons (or keyboard). Two decision kinds share
+// the one tape (decisions replay in deterministic order): "playcall" snaps
+// take run/pass, "fourthDown" takes go/fg/punt. Anything else (incl. "auto")
+// records null = defer to the AI.
 function frnPlaycall(call) {
   if (!_ipc || _ipc.status !== "pending") return;
-  _ipc.tape.push(call === "run" || call === "pass" ? call : null);
+  const kind  = _ipc.pending?.kind || "playcall";
+  const valid = kind === "fourthDown" ? ["go", "fg", "punt"] : ["run", "pass"];
+  _ipc.tape.push(valid.includes(call) ? call : null);
   _ipc.pending = null;
   _ipcHidePanel();
   _ipcRun();
@@ -4061,16 +4066,11 @@ function _ipcEnsurePanel() {
   el.style.display = "none";
   el.innerHTML = `
     <div class="ipc-head">
-      <span class="ipc-badge">🎙 YOUR CALL</span>
+      <span class="ipc-badge" id="ipcBadge">🎙 YOUR CALL</span>
       <span class="ipc-sit" id="ipcSit"></span>
-      <span class="ipc-lean" id="ipcLean" title="What your OC would call here"></span>
+      <span class="ipc-lean" id="ipcLean" title="What your coach would call here"></span>
     </div>
-    <div class="ipc-btns">
-      <button class="ipc-btn ipc-run" onclick="frnPlaycall('run')" title="Hand it off [R]">🏃 RUN</button>
-      <button class="ipc-btn ipc-pass" onclick="frnPlaycall('pass')" title="Drop back [P]">🎯 PASS</button>
-      <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let the OC call this one [O]">🧠 OC CALL</button>
-      <button class="ipc-btn ipc-coach" onclick="frnPlaycallCoachMode()" title="Hand the rest of the game to the OC — no more prompts">⏩ COACH MODE</button>
-    </div>`;
+    <div class="ipc-btns" id="ipcBtns"></div>`;
   const cap = document.getElementById("playCaption");
   if (cap && cap.parentElement === center) cap.insertAdjacentElement("afterend", el);
   else center.appendChild(el);
@@ -4082,6 +4082,7 @@ function _ipcShowPanel() {
   const el = _ipcEnsurePanel();
   if (!el || !_ipc || !_ipc.pending) return;
   const c = _ipc.pending;
+  const kind = c.kind || "playcall";
   const down = ["1ST", "2ND", "3RD", "4TH"][(c.down || 1) - 1] || `${c.down}TH`;
   const goalToGo = (c.yardLine + c.ytg) >= 100;
   const dist = goalToGo ? "GOAL" : c.ytg;
@@ -4091,11 +4092,36 @@ function _ipcShowPanel() {
   const my  = c.score[_ipc.userSide];
   const opp = c.score[_ipc.userSide === "home" ? "away" : "home"];
   const lead = my > opp ? "UP" : my < opp ? "DOWN" : "TIED";
-  const lean = c.passProb >= 0.5
-    ? `OC LEAN · PASS ${Math.round(c.passProb * 100)}%`
-    : `OC LEAN · RUN ${Math.round((1 - c.passProb) * 100)}%`;
+  const coachBtn = `<button class="ipc-btn ipc-coach" onclick="frnPlaycallCoachMode()" title="Hand the rest of the game to your coaches — no more prompts">⏩ COACH MODE</button>`;
+  let badge, lean, btns;
+  if (kind === "fourthDown") {
+    badge = "🎲 4TH DOWN — YOUR CALL";
+    lean = `COACH SAYS · ${c.aiAction === "go" ? "GO FOR IT" : c.aiAction === "fg" ? `FG (${c.fgDist} yd)` : "PUNT"}`;
+    const fgOk = (c.fgDist || 99) <= 68;
+    const fgTitle = c.inFGRange
+      ? `${c.fgDist}-yd attempt [F]`
+      : `${c.fgDist}-yd attempt — beyond ${Math.round(c.maxFgDist || 54)} yd, your kicker would be praying [F]`;
+    btns = `
+      <button class="ipc-btn ipc-go" onclick="frnPlaycall('go')" title="Keep the offense out there [G]">💪 GO FOR IT</button>
+      <button class="ipc-btn ipc-fg${c.inFGRange ? "" : " ipc-longshot"}" ${fgOk ? "" : "disabled"} onclick="frnPlaycall('fg')" title="${fgTitle}">🥅 FIELD GOAL · ${c.fgDist} YD</button>
+      <button class="ipc-btn ipc-punt" onclick="frnPlaycall('punt')" title="Flip the field [P]">🦶 PUNT</button>
+      <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let your coach decide [O]">🧠 COACH CALL</button>
+      ${coachBtn}`;
+  } else {
+    badge = "🎙 YOUR CALL";
+    lean = c.passProb >= 0.5
+      ? `OC LEAN · PASS ${Math.round(c.passProb * 100)}%`
+      : `OC LEAN · RUN ${Math.round((1 - c.passProb) * 100)}%`;
+    btns = `
+      <button class="ipc-btn ipc-run" onclick="frnPlaycall('run')" title="Hand it off [R]">🏃 RUN</button>
+      <button class="ipc-btn ipc-pass" onclick="frnPlaycall('pass')" title="Drop back [P]">🎯 PASS</button>
+      <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let the OC call this one [O]">🧠 OC CALL</button>
+      ${coachBtn}`;
+  }
+  el.querySelector("#ipcBadge").textContent = badge;
   el.querySelector("#ipcSit").textContent  = `${down} & ${dist} · ${spot} · ${qlab} ${mm}:${ss} · ${lead} ${my}-${opp}`;
   el.querySelector("#ipcLean").textContent = lean;
+  el.querySelector("#ipcBtns").innerHTML = btns;
   el.style.display = "flex";
 }
 
@@ -4113,9 +4139,17 @@ function _ipcInstallKeys() {
     if (!el || el.style.display === "none") return;
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
     const k = e.key.toLowerCase();
-    if (k === "r")      { e.preventDefault(); frnPlaycall("run"); }
-    else if (k === "p") { e.preventDefault(); frnPlaycall("pass"); }
-    else if (k === "o") { e.preventDefault(); frnPlaycall("auto"); }
+    const fourth = _ipc?.pending?.kind === "fourthDown";
+    if (fourth) {
+      if (k === "g")      { e.preventDefault(); frnPlaycall("go"); }
+      else if (k === "f") { e.preventDefault(); frnPlaycall("fg"); }
+      else if (k === "p") { e.preventDefault(); frnPlaycall("punt"); }
+      else if (k === "o") { e.preventDefault(); frnPlaycall("auto"); }
+    } else {
+      if (k === "r")      { e.preventDefault(); frnPlaycall("run"); }
+      else if (k === "p") { e.preventDefault(); frnPlaycall("pass"); }
+      else if (k === "o") { e.preventDefault(); frnPlaycall("auto"); }
+    }
   });
 }
 

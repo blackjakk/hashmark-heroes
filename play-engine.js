@@ -3391,10 +3391,39 @@ class GameSimulator {
       // precedence when the coach's analyticsAgg rolled high enough.
       if (_mffAnalyticsAction != null) action = _mffAnalyticsAction;
 
+      // ── COORDINATOR SEAM (Workstream C) — 4th-down decision ─────────────
+      // Same contract as the run/pass seam: the AI's full pipeline above has
+      // already produced `action` (consuming its usual RNG draws), so an
+      // unset or deferring coordinator leaves the stream byte-identical —
+      // gate-safe, calibration-neutral. An installed coordinator (interactive
+      // playcalling / future H2H) sees the situation + the AI's intended
+      // action and can override with "go" | "fg" | "punt". An FG call beyond
+      // any plausible range (>68-yd attempt) falls back to the AI action
+      // rather than staging a cartoon kick.
+      let _coordDrove4th = false;
+      {
+        const _c4 = this._coordinators && this._coordinators[this.poss];
+        if (_c4) {
+          const call = _c4({
+            kind: "fourthDown",
+            side: this.poss, down: this.down, ytg: this.ytg, yardLine: this.yardLine,
+            quarter: this.quarter, time: this.time,
+            score: { home: this.score.home, away: this.score.away },
+            aiAction: action, fgDist: toEZ + 17, inFGRange, maxFgDist: _maxFgDist,
+          });
+          if (call === "go" || call === "punt" || (call === "fg" && (toEZ + 17) <= 68)) {
+            _coordDrove4th = call !== action;
+            action = call;
+          }
+        }
+      }
+
       // HC decision callout — when the coach defies the chart, surface it.
       // Fires on go-for-its outside the obvious 4th-and-1 case (or when an
-      // identifiable HC trait drove the call). Skipped on auto-punts.
-      if (action === "go" && (hcStyle === "Riverboat Gambler" || hcStyle === "Conservative" || this.ytg >= 3)) {
+      // identifiable HC trait drove the call). Skipped on auto-punts — and
+      // when a coordinator (the USER) made the call; that's your gamble,
+      // not the HC's.
+      if (action === "go" && !_coordDrove4th && (hcStyle === "Riverboat Gambler" || hcStyle === "Conservative" || this.ytg >= 3)) {
         const offTeamObj = this.poss === "home" ? this.home : this.away;
         const hcName = (typeof franchise !== "undefined")
           ? franchise.coaches?.[offTeamId]?.hc?.name : null;
@@ -3955,6 +3984,7 @@ class GameSimulator {
     const _coord = this._coordinators && this._coordinators[_offSideKey];
     if (_coord) {
       const call = _coord({
+        kind: "playcall",
         side: _offSideKey, down: this.down, ytg: this.ytg, yardLine: this.yardLine,
         quarter: this.quarter, time: this.time,
         score: { home: this.score.home, away: this.score.away },

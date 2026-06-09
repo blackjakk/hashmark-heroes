@@ -4881,6 +4881,14 @@
   .ipc-btn.ipc-run:hover  { box-shadow: 0 0 12px rgba(62,207,142,.3); border-color: var(--blgreen, #3ecf8e); }
   .ipc-btn.ipc-pass { border-color: rgba(109,139,255,.55); }
   .ipc-btn.ipc-pass:hover { box-shadow: 0 0 12px rgba(109,139,255,.3); border-color: #8aa2ff; }
+  /* 4th-down decision buttons */
+  .ipc-btn.ipc-go   { border-color: rgba(245,197,66,.55); }
+  .ipc-btn.ipc-go:hover   { box-shadow: 0 0 12px rgba(245,197,66,.3); border-color: var(--blgold, #f5c542); }
+  .ipc-btn.ipc-fg   { border-color: rgba(77,189,189,.55); }
+  .ipc-btn.ipc-fg:hover:not(:disabled) { box-shadow: 0 0 12px rgba(77,189,189,.3); border-color: #4dbdbd; }
+  .ipc-btn.ipc-fg.ipc-longshot { color: var(--blgray, #9aa7b8); border-style: dashed; }
+  .ipc-btn.ipc-fg:disabled { opacity: .35; cursor: not-allowed; }
+  .ipc-btn.ipc-punt { border-color: rgba(255,255,255,.2); }
   .ipc-btn.ipc-auto, .ipc-btn.ipc-coach {
     font-size: .78rem; color: var(--blgray, #9aa7b8); padding: .5rem .8rem;
   }
