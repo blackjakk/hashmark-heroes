@@ -4266,7 +4266,7 @@ async function frnDeleteSlot(id) {
     <div class="frn-delete-warn">This <b>cannot be undone</b>. The save data and all career history will be permanently erased.</div>
   `;
   const ok = await _frnConfirmModal({
-    title: `Delete "${slot.name}"?`,
+    title: `Delete "${safeName}"?`,
     body,
     confirmLabel: "Delete franchise",
     cancelLabel: "Keep it",
@@ -4301,6 +4301,33 @@ function frnExportSave() {
   setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
 }
 
+// Imported save files are the one fully untrusted input ("try my save" is a
+// sharing pattern): every string in the JSON flows into hundreds of innerHTML
+// sinks as player/coach names, news labels, descs, chat… No persisted field
+// legitimately stores markup (verified — news/chat/descs are plain text,
+// decorated at render), so neutralize injection chars in EVERY imported string
+// at this one choke point:
+//   • tag-like `<` (`<a…`, `</…`, `<!--`, `<?`) → `‹`  — blocks <script>/<img>
+//     element injection at every innerHTML text sink. A lone comparison `<`
+//     ("win prob <5%") survives.
+//   • `"` → `”` (typographic) — blocks `title="…${name}…"` attribute breakout
+//     (handler injection without needing a tag). No name legitimately needs a
+//     straight double-quote rendered as data; the swap is visually invisible.
+// Display sinks still escape on top (defense in depth); this makes the
+// untrusted blob safe even at the dozens of attribute sinks that don't.
+function _sanitizeImportedStrings(node) {
+  if (typeof node === "string") return node.replace(/<(?=[a-zA-Z/!?])/g, "‹").replace(/"/g, "”");
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) node[i] = _sanitizeImportedStrings(node[i]);
+    return node;
+  }
+  if (node && typeof node === "object") {
+    for (const k of Object.keys(node)) node[k] = _sanitizeImportedStrings(node[k]);
+    return node;
+  }
+  return node;
+}
+
 async function frnImportSave() {
   const input = document.createElement("input");
   input.type = "file";
@@ -4317,7 +4344,7 @@ async function frnImportSave() {
         return;
       }
       if (franchise && !await _frnConfirm("Importing will replace your current active franchise. Continue?")) return;
-      franchise = incoming;
+      franchise = _sanitizeImportedStrings(incoming);
       _flushSaveFranchise();
       if (typeof showFranchiseDashboard === "function") showFranchiseDashboard();
     } catch (e) {
@@ -4800,7 +4827,7 @@ function renderFrnStartScreen() {
     const isActive = meta.activeSlotId === s.id;
     return `<div class="fps-slot ${isActive?"active":""}" style="--accent:${_slotAccent(sm)}">
       <div class="fps-slot-body">
-        <div class="fps-slot-name">${s.name}${isActive ? ` <span class="fps-slot-badge">ACTIVE</span>` : ""}</div>
+        <div class="fps-slot-name">${_escHtml(s.name)}${isActive ? ` <span class="fps-slot-badge">ACTIVE</span>` : ""}</div>
         <div class="fps-slot-meta">${sm.teamName ? sm.teamName + " · " : ""}Season ${sm.season || 1} · ${_phaseLabel(sm)}${sm.record ? " · " + sm.record : ""}</div>
         <div class="fps-slot-time">${s.lastSaved ? new Date(s.lastSaved).toLocaleString() : ""}</div>
       </div>
@@ -4825,7 +4852,7 @@ function renderFrnStartScreen() {
     return `<button class="fps-continue" style="--accent:${_slotAccent(sm)}" onclick="frnSwitchSlot(${top.id})">
       <div class="fps-continue-l">
         <div class="fps-continue-lbl">CONTINUE</div>
-        <div class="fps-continue-team">${sm.teamName || top.name}</div>
+        <div class="fps-continue-team">${_escHtml(sm.teamName || top.name)}</div>
         <div class="fps-continue-meta">Season ${sm.season || 1} · ${_phaseLabel(sm)}${sm.record ? " · " + sm.record : ""}</div>
       </div>
       <div class="fps-continue-cta">▶</div>

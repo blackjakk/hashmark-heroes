@@ -1244,12 +1244,14 @@ function playerLink(p) {
   // Madonna/Pelé tier — display ONLY the nickname (p.name stays intact
   // for lookups). Falls through to legal name when no nickname.
   const display = (p.goesByNicknameOnly && p.nickname) ? p.nickname : p.name;
-  return `<span class="frn-pname${tierCls}" data-player-name="${escName}"${pidAttr}${tierTitle}>${iconHtml}${display}</span>`;
+  // Visible name is escaped — this is THE shared player-name renderer behind
+  // the box score, leaders, scoring summary, and dozens of other surfaces.
+  return `<span class="frn-pname${tierCls}" data-player-name="${escName}"${pidAttr}${tierTitle}>${iconHtml}${_escHtml(display)}</span>`;
 }
 function playerLinkByName(name) {
   if (!name) return "";
   const escName = String(name).replace(/"/g, "&quot;");
-  return `<span class="frn-pname" data-player-name="${escName}">${name}</span>`;
+  return `<span class="frn-pname" data-player-name="${escName}">${_escHtml(name)}</span>`;
 }
 // Prefer a live-player lookup so pid is embedded for collision-free hover.
 // Falls back to name-only link for retired / historical players not on any roster.
@@ -4011,7 +4013,7 @@ async function renderFrnDepthChart() {
     return `<div class="frn-dc-player ${isStarter?"s1":isCascade?"sc":"s2"}${isInjured?" injured":""}${misplaced?" misplaced":""}"${titleAttr}>
       <span class="frn-dc-rank ${rankClass}">${rankLabel}</span>
       ${gradeBadge(p)}
-      <span class="frn-dc-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${p.name}</span>
+      <span class="frn-dc-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name)}</span>
       <span class="frn-dc-meta">${p.age} · $${aav}M · ${yrs}yr</span>
       ${archBadge}${cascadeBadge}${injBadge}${expBadge}${blkBadge}${moodBadge}${potBadge}${misBadge}
       ${promoteBtn}
@@ -4195,7 +4197,7 @@ async function renderFrnDepthChart() {
           : "";
         return `<div class="frn-dc-pkg-cell${isPkgOnly?" pkg-only":""}${archFits?" arch-fit":""}">
           <div class="frn-dc-pkg-cell-slot">${slotKey}${pkgIcon}</div>
-          <div class="frn-dc-pkg-cell-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${starter.name}</div>
+          <div class="frn-dc-pkg-cell-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(starter.name)}</div>
           <div class="frn-dc-pkg-cell-ovr">OVR ${starter.overall}</div>
           ${archHtml}
         </div>`;
@@ -4240,7 +4242,7 @@ async function renderFrnDepthChart() {
         </div>
         <div class="frn-dc-player s1" style="grid-column:2/5">
           ${gradeBadge(p)}
-          <span class="frn-dc-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${p.name}</span>
+          <span class="frn-dc-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name)}</span>
           <span class="frn-dc-meta">${p.age} · $${(p.contract?.aav||0).toFixed(1)}M · ${p.contract?.remaining||0}yr</span>
           ${isExpiring ? `<span class="frn-dc-badge exp">EXP</span>` : ""}
         </div>
@@ -5478,7 +5480,7 @@ function renderFrnSnapShares() {
       const escPid  = (p.pid||"").replace(/'/g,"\\'");
       const pStam = p._stamina ?? 75;
       return `<div class="frn-snap-player${faded?" faded":""}" data-pid="${p.pid||""}" data-kind="${kind}">
-        <span class="frn-snap-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${p.name}</span>
+        <span class="frn-snap-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name)}</span>
         <span class="frn-snap-meta">${p.position} · ${p.overall||"—"} OVR · age ${p.age||"?"}</span>
         <div class="frn-snap-stam-row">
           <span class="frn-snap-stam" title="Stamina ${pStam}" style="color:${staminaCol(pStam)};border-color:${staminaCol(pStam)}55">STAM ${pStam}</span>
@@ -5542,7 +5544,7 @@ function renderFrnSnapShares() {
     ${ironRows.map(({ p, snaps }) => {
       const pStam = p._stamina ?? 75;
       const col = snaps >= SNAPS_PER_GAME ? "#ff6b6b" : "var(--gold-lt)";
-      return `<span class="frn-snap-iron-tag" style="border-color:${col}55;color:${col}">${p.name} · ${snaps}/${SNAPS_PER_GAME} snaps · STAM ${pStam}</span>`;
+      return `<span class="frn-snap-iron-tag" style="border-color:${col}55;color:${col}">${_escHtml(p.name)} · ${snaps}/${SNAPS_PER_GAME} snaps · STAM ${pStam}</span>`;
     }).join("")}
   </div>` : "";
 
@@ -7147,7 +7149,7 @@ function renderFrnLockerRoom() {
     const tag = p.personality === "captain" ? `<span style="color:var(--gold);font-size:.52rem"> ⭐</span>`
               : p.personality === "cancer"  ? `<span style="color:#ff8a8a;font-size:.52rem"> ☢</span>` : "";
     return `<div class="frn-lr-row">
-      <span class="frn-lr-name" onclick="frnOpenPlayerCard('${esc(p.name)}')" title="Open ${esc(p.name)}">${p.name}${tag}</span>
+      <span class="frn-lr-name" onclick="frnOpenPlayerCard('${esc(p.name)}')" title="Open ${esc(p.name)}">${_escHtml(p.name)}${tag}</span>
       <span class="frn-lr-pos">${p.position}</span>
       <span class="frn-lr-ovr">${p.overall || 0}</span>
       <span class="frn-lr-mood" style="color:${t.color}">${t.icon} ${t.label}</span>
