@@ -5086,25 +5086,27 @@ function _renderPlayoffHero() {
       <span class="frn-hero-eyebrow-rec">#${mySeed || "?"} SEED · YOUR ${recStr} · ${opp.name} ${oppStand.w}-${oppStand.l}${oppStand.t ? "-" + oppStand.t : ""}</span>
     </div>
     <div class="frn-hero-body">
-      <div class="frn-hero-wp">
-        <div class="frn-hero-wp-num" style="color:${wpCol}">${winPct}<span class="frn-hero-wp-pct">%</span></div>
-        <div class="frn-hero-wp-label" style="color:${wpCol}">${wpLabel}</div>
-        <div class="frn-hero-wp-sub">WIN PROBABILITY</div>
-      </div>
-      <div class="frn-hero-mid">
-        <div class="frn-hero-narrative">${narrative}</div>
-        <div class="frn-hero-matchup-row">
-          <div class="frn-hero-team you">
-            <div class="frn-hero-team-name">${myTeam.name.toUpperCase()}</div>
-            <div class="frn-hero-team-rtgs">OFF <b>${myRtg.off}</b> · DEF <b>${myRtg.def}</b> · QB <b>${myRtg.qb}</b></div>
-          </div>
-          <div class="frn-hero-vs">${isHome ? "vs" : "@"}</div>
-          <div class="frn-hero-team opp">
-            <div class="frn-hero-team-name">${opp.name.toUpperCase()}</div>
-            <div class="frn-hero-team-rtgs">OFF <b>${oppRtg.off}</b> · DEF <b>${oppRtg.def}</b> · QB <b>${oppRtg.qb}</b></div>
-          </div>
+      <div class="frn-hero-vsbanner">
+        <div class="frn-hero-side you" style="--c:${myTeam.primary||'var(--gold)'}">
+          <div class="frn-hero-side-name">${myTeam.name.toUpperCase()}</div>
+          <div class="frn-hero-side-rec">#${mySeed||"?"} · ${recStr}</div>
+          <div class="frn-hero-side-rtgs">OFF <b>${myRtg.off}</b> · DEF <b>${myRtg.def}</b> · QB <b>${myRtg.qb}</b></div>
+        </div>
+        <div class="frn-hero-vsbadge">${isHome ? "VS" : "@"}</div>
+        <div class="frn-hero-side opp" style="--c:${opp.primary||'var(--gray)'}">
+          <div class="frn-hero-side-name">${opp.name.toUpperCase()}</div>
+          <div class="frn-hero-side-rec">#${oppSeed||"?"} · ${oppStand.w}-${oppStand.l}${oppStand.t?'-'+oppStand.t:''}</div>
+          <div class="frn-hero-side-rtgs">OFF <b>${oppRtg.off}</b> · DEF <b>${oppRtg.def}</b> · QB <b>${oppRtg.qb}</b></div>
         </div>
       </div>
+      <div class="frn-hero-wprow">
+        <div class="frn-hero-wpbar" title="Win probability — your team vs the opponent">
+          <div class="frn-hero-wpbar-you" style="width:${winPct}%;--c:${myTeam.primary||'var(--gold)'}"><span>${winPct}%</span></div>
+          <div class="frn-hero-wpbar-opp" style="width:${100-winPct}%;--c:${opp.primary||'var(--gray)'}"><span>${100-winPct}%</span></div>
+        </div>
+        <div class="frn-hero-wplabel" style="color:${wpCol}">${wpLabel} <span>WIN PROB</span></div>
+      </div>
+      <div class="frn-hero-narrative">${narrative}</div>
     </div>
     <div class="frn-hero-cta-row">
       <button class="frn-hero-play-btn" onclick="frnPlayGame(${m.homeId},${m.awayId},true)">▶ PLAY GAME<span class="frn-hero-play-sub">interactive · live simulation</span></button>

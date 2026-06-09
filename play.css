@@ -11863,10 +11863,45 @@
     color: var(--gray); font-weight: 600; letter-spacing: .6px;
   }
   .frn-hero-body {
-    display: grid; grid-template-columns: minmax(0, 200px) 1fr;
-    gap: 1.4rem; align-items: center;
+    display: block;
     margin-bottom: 1rem;
   }
+  /* ── Reimagined gameday hero: broadcast VS banner + win-prob bar ───────── */
+  .frn-hero-vsbanner {
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch;
+    border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+    margin-bottom: .7rem;
+  }
+  .frn-hero-side {
+    padding: .65rem .85rem; position: relative; min-width: 0;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--c, var(--gold)) 26%, transparent), transparent 85%);
+  }
+  .frn-hero-side.you { box-shadow: inset 3px 0 0 var(--c, var(--gold)); }
+  .frn-hero-side.opp { text-align: right; box-shadow: inset -3px 0 0 var(--c, var(--gray)); }
+  .frn-hero-side-name {
+    font-family: 'Bebas Neue','Anton',sans-serif; font-size: 1.55rem; letter-spacing: .5px;
+    color: var(--blwhite, #eaeef4); line-height: 1;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .frn-hero-side-rec { font-size: .62rem; color: var(--blgray, #9aa7b8); letter-spacing: .5px; margin-top: .12rem; }
+  .frn-hero-side-rtgs { font-family: 'IBM Plex Mono', monospace; font-size: .58rem; color: var(--gray, #999); margin-top: .25rem; }
+  .frn-hero-side-rtgs b { color: var(--gold-lt, #f0cc30); font-weight: 900; }
+  .frn-hero-vsbadge {
+    display: flex; align-items: center; justify-content: center; align-self: center;
+    font-family: 'Bebas Neue','Anton',sans-serif; font-size: .9rem; letter-spacing: 1px;
+    color: var(--gold-lt, #f0cc30); padding: 0 .75rem; opacity: .9;
+  }
+  .frn-hero-wprow { display: flex; align-items: center; gap: .7rem; margin-bottom: .65rem; }
+  .frn-hero-wpbar {
+    flex: 1; display: flex; height: 15px; border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--border); background: var(--bg3, #0d141b);
+  }
+  .frn-hero-wpbar-you, .frn-hero-wpbar-opp { display: flex; align-items: center; min-width: 0; transition: width .25s ease; }
+  .frn-hero-wpbar-you { justify-content: flex-start; background: color-mix(in srgb, var(--c, var(--gold)) 75%, transparent); }
+  .frn-hero-wpbar-opp { justify-content: flex-end;   background: color-mix(in srgb, var(--c, var(--gray)) 50%, transparent); }
+  .frn-hero-wpbar span { font-size: .5rem; font-weight: 800; color: #fff; padding: 0 .4rem; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.65); }
+  .frn-hero-wplabel { font-size: .68rem; font-weight: 900; letter-spacing: .8px; white-space: nowrap; }
+  .frn-hero-wplabel span { color: var(--gray, #999); font-weight: 700; letter-spacing: 1.5px; font-size: .54rem; }
   .frn-hero-wp {
     text-align: center;
     padding: .25rem .5rem;
