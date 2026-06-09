@@ -194,6 +194,18 @@ possible and behaviorally against `AUDIT.md` otherwise.
 
 ## Workstream C — Externalize playcalling + netcode (the H2H core)
 
+> **Status: started — the run/pass Coordinator seam has landed.** `_play()`
+> (play-engine.js) now routes its run/pass decision through an optional
+> per-side coordinator: `this._coordinators[poss]` is called with the live
+> game state + the AI's computed `passProb` and returns `"pass"`/`"run"` (or
+> null to defer). When unset, the original `_rand() < passProb` roll runs
+> unchanged — verified byte-identical across same-seed games (gate-safe,
+> calibration-neutral), and an injected coordinator fully drives the call
+> (forced-pass → 74 pass/1 run; forced-run → 47/0). Remaining: extend the seam
+> to 4th-down/tempo decisions, make the drive loop YIELDABLE (pause for a call),
+> build the single-player playcall UI (you vs the AICoordinator), then the
+> server-authoritative netcode for live H2H.
+
 Today the playcall brain is **inline** in the engine (tempo, 4th-down, run/pass
 tendencies computed mid-loop). For H2H it must become an **interface**:
 

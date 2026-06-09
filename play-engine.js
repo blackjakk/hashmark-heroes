@@ -3941,7 +3941,29 @@ class GameSimulator {
     // ~12pp of pass to bring rush TDs back near NFL pace.
     if (this._inGoalToGo) passProb = Math.max(0.20, passProb - 0.12);
     else if (this._inRedZone) passProb = Math.max(0.25, passProb - 0.06);
-    const playType = _rand() < passProb ? "pass" : "run";
+    // ── COORDINATOR SEAM (Workstream C) ──────────────────────────────────
+    // The run/pass call. By default the AI rolls against the situational
+    // passProb computed above — UNCHANGED behavior. But a Coordinator can be
+    // installed per side (this._coordinators[side]) to DRIVE the call instead:
+    // a human (single-player playcalling) or, later, a networked opponent. It
+    // receives the live game state + the AI's passProb (so it can defer) and
+    // returns "pass" | "run" (or null to fall back to the AI roll). When no
+    // coordinator is set, the _rand() roll runs exactly as before — gate-safe,
+    // calibration-neutral (same RNG draw, so the audit is unaffected).
+    let playType;
+    const _offSideKey = this.poss;
+    const _coord = this._coordinators && this._coordinators[_offSideKey];
+    if (_coord) {
+      const call = _coord({
+        side: _offSideKey, down: this.down, ytg: this.ytg, yardLine: this.yardLine,
+        quarter: this.quarter, time: this.time,
+        score: { home: this.score.home, away: this.score.away },
+        passProb,
+      });
+      playType = (call === "pass" || call === "run") ? call : (_rand() < passProb ? "pass" : "run");
+    } else {
+      playType = _rand() < passProb ? "pass" : "run";
+    }
 
     // ── PENALTY ROLL ──
     // NFL averages ~12 accepted penalties per game (~6/team) at ~9%/play.
