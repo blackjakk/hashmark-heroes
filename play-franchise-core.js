@@ -4461,6 +4461,48 @@ function _restStartersArmed(teamId) {
   return _aiShouldRestForPlayoffs(teamId);
 }
 
+// ── GAME TIMELINE → derived queries (Workstream A) ───────────────────────────
+// The sim persists a scoring timeline on each played game (g.scoring: cumulative
+// {qtr, homeScore, awayScore, isScore}). This is the first GAMEPLAY consumer of
+// that timeline: it answers "how much of this game was garbage time?" so rest
+// benefits (wear shed + injury damp) are PHASE-ACCURATE — a wire-to-wire blowout
+// rests starters far more than a game that stayed close until a late flurry, even
+// at the same final margin. Falls back to a final-margin proxy when no timeline
+// exists (legacy saves / quick-sims), preserving the prior behavior.
+function _restFractionFromMargin(margin) {
+  return margin >= 35 ? 0.42 : margin >= 28 ? 0.32 : margin >= 21 ? 0.22 : margin >= 14 ? 0.13 : 0;
+}
+function _gameRestFraction(homeId, awayId, finalHome, finalAway) {
+  if (finalHome === finalAway) return 0;                          // tie → no garbage time
+  const margin = Math.abs((finalHome || 0) - (finalAway || 0));
+  const g = (franchise?.schedule || []).find(x => x.played && x.homeId === homeId && x.awayId === awayId);
+  const scoring = g?.scoring;
+  if (!Array.isArray(scoring) || !scoring.length) return _restFractionFromMargin(margin);
+  const winner = finalHome > finalAway ? "home" : "away";
+  // Winner's lead at the end of each quarter (carried forward between scores).
+  const lead = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  let curLead = 0, qi = 1;
+  for (const ev of scoring) {
+    if (!ev || !ev.isScore) continue;
+    const q = Math.min(4, Math.max(1, ev.qtr || 1));
+    curLead = winner === "home" ? (ev.homeScore || 0) - (ev.awayScore || 0)
+                                : (ev.awayScore || 0) - (ev.homeScore || 0);
+    for (; qi <= q; qi++) lead[qi] = curLead;
+  }
+  for (; qi <= 4; qi++) lead[qi] = curLead;                       // OT folds into the final lead
+  // "Decided by Q" = earliest quarter after which the winner stayed comfortably
+  // ahead (≥14) through the end. Garbage-time share follows from that.
+  const COMFORT = 14;
+  let decidedQtr = 5;
+  for (let q = 1; q <= 4; q++) {
+    let held = true;
+    for (let q2 = q; q2 <= 4; q2++) if (lead[q2] < COMFORT) { held = false; break; }
+    if (held) { decidedQtr = q; break; }
+  }
+  const byQtr = { 1: 0.55, 2: 0.40, 3: 0.24, 4: 0.10 };
+  return decidedQtr <= 4 ? byQtr[decidedQtr] : _restFractionFromMargin(margin);
+}
+
 function recordFranchiseResult(homeId, awayId, homeScore, awayScore) {
   const h = franchise.standings[homeId], a = franchise.standings[awayId];
   if (!h || !a) return;
@@ -4471,11 +4513,13 @@ function recordFranchiseResult(homeId, awayId, homeScore, awayScore) {
   else                            { h.t++; a.t++; }
   // Roll injuries for both teams — contact path (hit-driven) and
   // non-contact path (stress/exertion-driven). Both fire per game.
-  // The final margin is passed so a blowout-rest policy can pull starters
-  // for garbage time (shed wear + damped injury roll). See _rollGameInjuries.
+  // The final margin gates blowout rest; the rest FRACTION (derived from the
+  // game's scoring timeline) scales the benefit by how much of the game was
+  // garbage time — so rest is phase-accurate, not just final-margin-based.
   const _gameMargin = Math.abs(homeScore - awayScore);
-  _rollGameInjuries(homeId, _gameMargin);
-  _rollGameInjuries(awayId, _gameMargin);
+  const _restFrac   = _gameRestFraction(homeId, awayId, homeScore, awayScore);
+  _rollGameInjuries(homeId, _gameMargin, _restFrac);
+  _rollGameInjuries(awayId, _gameMargin, _restFrac);
   if (typeof _rollNonContactInjuries === "function") {
     _rollNonContactInjuries(homeId);
     _rollNonContactInjuries(awayId);

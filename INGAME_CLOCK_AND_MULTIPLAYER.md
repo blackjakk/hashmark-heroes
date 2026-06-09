@@ -98,6 +98,15 @@ audited engine (`AUDIT.md` bands) is never destabilized.
 
 ## Workstream A — Persist & expose game-state
 
+> **Status: largely shipped.** Discovery found the sim *already* persists a
+> scoring timeline per game (`g.scoring`: cumulative `{qtr, homeScore, awayScore,
+> isScore}`) plus `g.momentumLog`, and the box score already derives quarter
+> scores + a scoring summary from it. The remaining gap — a **gameplay** consumer
+> of the timeline — is now closed: **phase-accurate Blowout Rest** (below) reads
+> the timeline via the new `_gameRestFraction` accessor (`play-franchise-core.js`)
+> and scales the rest benefit by how much of the game was garbage time. A margin
+> fallback preserves behavior on legacy/quick-sim games with no timeline.
+
 **Goal:** make the timeline a first-class, serializable artifact instead of an
 ephemeral local.
 
@@ -111,14 +120,16 @@ ephemeral local.
 3. Expose **derived queries**: "score/WP at quarter Q", "when did margin first
    exceed N", "snaps by player by quarter".
 
-**Immediately unlocks:**
-- **Phase-accurate Blowout Rest** — the shipped feature (§7) reads `g.timeline`
-  to know *when* the game was in hand, replacing the final-margin proxy. Only
-  the trigger changes; the policy + payoff are untouched.
+**Unlocks:**
+- **Phase-accurate Blowout Rest** ✅ — reads the persisted `g.scoring` timeline
+  (via `_gameRestFraction`) to know *when* the game was in hand. A wire-to-wire
+  blowout protects starters far more (injury mul ~0.30, deep wear shed) than a
+  late pull-away at the same final margin (~0.71, little shed). The margin
+  threshold still gates *whether* rest happens; the timeline scales *how much*.
 - **Situational stats** — clutch (4th-quarter close), garbage-time splits,
-  comeback tracking — feeding awards/records/morale realism.
-- **Watch-the-game / replay** — a drive-by-drive (later play-by-play) recap
-  rendered from the timeline.
+  comeback tracking — the same `g.scoring` walk powers these next.
+- **Watch-the-game / replay** — already present (`replayClips`, quarter scores,
+  scoring summary, momentum/WP); a drive-by-drive recap can build on it.
 
 Risk: **low.** No engine-math changes; this is logging + a schema. Gate-safe by
 construction (final box score unchanged → `AUDIT.md` bands unaffected).
@@ -214,9 +225,9 @@ Every change here that touches `play-engine.js` / `play-player.js` must hold the
 
 - **Phase 0 — Blowout Rest (final-margin).** ✅ Shipped (§7). Proves the
   policy + payoff; survives the migration.
-- **Phase 1 — Workstream A.** Persist `GameState` + a drive-level `g.timeline`;
-  expose queries. Upgrade Blowout Rest to read the timeline; add clutch /
-  garbage-time stats; ship a drive-by-drive recap.
+- **Phase 1 — Workstream A.** ✅ Timeline already persisted (`g.scoring`);
+  phase-accurate Blowout Rest now reads it via `_gameRestFraction`. Remaining:
+  clutch / garbage-time stat splits + a drive-by-drive recap (same timeline walk).
 - **Phase 2 — Workstream B.** Seed the engine RNG; store per-game seed; lock in
   replays. Decide authority = server-authoritative.
 - **Phase 3 — Workstream C.1/C.2.** Extract the `Coordinator` seam + make the
