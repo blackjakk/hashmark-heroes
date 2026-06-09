@@ -190,6 +190,46 @@
     color: var(--gray); font-size: .85rem;
   }
 
+  /* ── Reimagined live-game control deck (scoped to #playbackControls so it
+        never touches other .btn usage) ──────────────────────────────────── */
+  #playbackControls {
+    gap: .4rem; align-items: center; flex-wrap: wrap;
+    margin: 0 0 .55rem; padding: .5rem .7rem;
+    background: linear-gradient(180deg, #131b23, #0b1117);
+    border: 1px solid var(--blborder, rgba(255,255,255,.08));
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  #playbackControls .btn {
+    font-family: 'Bebas Neue','Anton',sans-serif; letter-spacing: .8px;
+    font-size: .82rem; padding: .42rem .75rem; border-radius: 5px; line-height: 1;
+    background: #18222d; color: var(--blwhite, #eaeef4);
+    border: 1px solid rgba(255,255,255,.12); cursor: pointer;
+    transition: background .1s, border-color .1s, transform .06s, box-shadow .1s;
+  }
+  #playbackControls .btn:hover:not(:disabled) { background: #20303f; border-color: var(--blgold, #f5c542); }
+  #playbackControls .btn:active:not(:disabled) { transform: translateY(1px); }
+  #playbackControls .btn:disabled { opacity: .38; cursor: not-allowed; }
+  #playbackControls #playBtn:not(:disabled) {
+    background: linear-gradient(180deg, var(--blgreen, #3ecf8e), var(--blgreen-d, #1f9d63));
+    color: #06140d; border-color: var(--blgreen, #3ecf8e); font-weight: 800;
+    box-shadow: 0 0 14px rgba(62,207,142,.35);
+  }
+  #playbackControls #pauseBtn:not(:disabled) { color: var(--blgold, #f5c542); border-color: rgba(245,197,66,.45); }
+  /* skip cluster — lighter weight than the transport buttons */
+  #playbackControls #nextPlayBtn,
+  #playbackControls #endQtrBtn,
+  #playbackControls #endHalfBtn,
+  #playbackControls #endBtn {
+    font-size: .68rem; letter-spacing: .5px; color: var(--blgray, #9aa7b8);
+  }
+  #playbackControls .speed-control {
+    margin-left: auto; gap: .5rem; color: var(--blgray, #9aa7b8);
+    font-size: .62rem; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700;
+  }
+  #playbackControls .speed-control input[type="range"] { accent-color: var(--blgold, #f5c542); }
+  #playbackControls #speedLabel { color: var(--blgold, #f5c542); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0; }
+
   /* Game layout */
   .game-grid { display: grid; grid-template-columns: minmax(0, 3.2fr) minmax(280px, 1fr); gap: 1rem; }
   @media (max-width: 1400px) { .game-grid { grid-template-columns: 1fr; } }
