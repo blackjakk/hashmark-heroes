@@ -3923,41 +3923,48 @@ function _flushSaveFranchise() {
   franchise._saveStamp = Date.now();
   // Always-on: ask for persistent storage so the IDB store doesn't get evicted.
   _requestPersistentStorage();
-  // Async write to IDB — primary store, no size limit. Fire and forget.
-  _idbPut(activeId, franchise).catch(e => console.warn("[IDB save] failed:", e));
 
   let payload;
   try { payload = JSON.stringify(franchise); }
   catch (e) { console.error("[save] JSON serialize failed:", e); _saveLastError = "serialize:" + e.message; return; }
-  // Proactively trim if payload is approaching the 5MB safe zone — most browsers
-  // hard-cap localStorage around 5-10MB per origin.
-  if (payload.length > 4_000_000) {
-    console.warn(`[save] payload ${(payload.length/1024/1024).toFixed(2)}MB — proactively trimming`);
+
+  // ── IDB write — canonical store, no practical size limit. ──
+  // _idbPut's actual put() runs in a later microtask (behind _idbOpen's
+  // promise), so passing the live `franchise` would let the deferred
+  // structured-clone observe the in-place localStorage trim below — silently
+  // dropping the trimmed data from the CANONICAL store too. When a trim is
+  // coming, hand IDB a detached snapshot (parsed from the pre-trim payload)
+  // so it always persists the FULL save, exactly as the comments promise.
+  const willTrim = payload.length > 4_000_000;
+  const idbValue = willTrim ? JSON.parse(payload) : franchise;
+  _idbPut(activeId, idbValue).catch(e => console.warn("[IDB save] failed:", e));
+
+  // ── localStorage mirror — fast sync path, ~5MB browser cap. ──
+  // The re-watch payloads (replayClips ~90% of a mature save, plus the EPA
+  // playLog) are the dominant bulk and are pure cosmetic/derived data the
+  // canonical IDB store already holds — exclude them from the mirror WITHOUT
+  // mutating live state (stash + restore), so the running session keeps its
+  // highlights even after a pressure trim and a reload restores everything
+  // from IDB. Proactively when the full payload is large.
+  if (willTrim) {
+    console.warn(`[save] payload ${(payload.length/1024/1024).toFixed(2)}MB — slimming the localStorage mirror (IDB keeps the full save)`);
+    const stash = { replayClips: franchise.replayClips, playLog: franchise.playLog };
+    franchise.replayClips = []; franchise.playLog = {};
     _trimFranchiseForStorage();
     try { payload = JSON.stringify(franchise); } catch {}
+    franchise.replayClips = stash.replayClips; franchise.playLog = stash.playLog;
   }
   try {
     localStorage.setItem(_slotDataKey(activeId), payload);
     _saveLastError = null;
     _saveLastSize = payload.length;
   } catch (e) {
-    // localStorage hit quota — that's OK, IDB has the canonical save.
-    // We still want a localStorage entry so sync loads find SOMETHING, so try
-    // trimming and retry once.
-    console.warn(`[save] localStorage full (${(payload.length/1024/1024).toFixed(2)}MB) — IDB has the full save. Trimming localStorage cache.`);
-    _trimFranchiseForStorage();
-    try {
-      const trimmed = JSON.stringify(franchise);
-      localStorage.setItem(_slotDataKey(activeId), trimmed);
-      _saveLastError = null;
-      _saveLastSize = trimmed.length;
-    } catch (e2) {
-      // Even trimmed version doesn't fit. Just remove the stale entry — load
-      // will fall through to IDB.
-      try { localStorage.removeItem(_slotDataKey(activeId)); } catch {}
-      _saveLastError = `idb-only:${(payload.length/1024/1024).toFixed(2)}MB`;
-      _saveLastSize = 0;
-    }
+    // Still over quota even slimmed. That's OK — IDB has the canonical save;
+    // remove the stale localStorage entry so a sync load falls through to IDB.
+    console.warn(`[save] localStorage full (${(payload.length/1024/1024).toFixed(2)}MB) — IDB has the full save; clearing the stale mirror.`);
+    try { localStorage.removeItem(_slotDataKey(activeId)); } catch {}
+    _saveLastError = `idb-only:${(payload.length/1024/1024).toFixed(2)}MB`;
+    _saveLastSize = 0;
   }
 }
 let _saveLastError = null;
@@ -3977,6 +3984,8 @@ function frnSaveDiagnostics() {
                   : `${b} B`;
   const total = sizeOf(franchise);
   const sections = [
+    ["replayClips",        franchise.replayClips],
+    ["playLog",            franchise.playLog],
     ["rosters",            franchise.rosters],
     ["history",            franchise.history],
     ["hallOfFame",         franchise.hallOfFame],
@@ -4070,6 +4079,18 @@ function _trimFranchiseForStorage() {
 }
 window.addEventListener("beforeunload", () => { if (_saveFranchiseTimer) _flushSaveFranchise(); });
 
+// The on-load integrity suite: pid/coach/depth-chart/etc. backfills + injury
+// repair. Factored out of loadFranchise's two inline copies so the IMPORT path
+// (foreign / legacy / hand-edited saves) gets the exact same healing — without
+// it, an imported save skips every backfill and can render broken or crash.
+function _runSaveBackfills() {
+  _backfillPlayerPids(); _backfillTEC(); _backfillCoachingStaff(); _backfillCoachable(); _backfillPhysicalPeak(); _backfillStamina(); _backfillDepthChart(); _backfillReplayClips();
+  if (typeof _backfillCollegePipeline === "function") _backfillCollegePipeline();
+  if (typeof _backfillSeasonScout === "function") _backfillSeasonScout();
+  if (typeof _backfillPinnedProspects === "function") _backfillPinnedProspects();
+  _repairInjuries();
+}
+
 function loadFranchise() {
   _migrateLegacySave();
   const meta = _readSlotsMeta();
@@ -4080,7 +4101,7 @@ function loadFranchise() {
     if (raw) {
       franchise = JSON.parse(raw);
       if (franchise && franchise.pendingFranchiseGame) franchise.pendingFranchiseGame = null;
-      _backfillPlayerPids(); _backfillTEC(); _backfillCoachingStaff(); _backfillCoachable(); _backfillPhysicalPeak(); _backfillStamina(); _backfillDepthChart(); _backfillReplayClips(); if(typeof _backfillCollegePipeline==="function")_backfillCollegePipeline(); if(typeof _backfillSeasonScout==="function")_backfillSeasonScout(); if(typeof _backfillPinnedProspects==="function")_backfillPinnedProspects(); _repairInjuries();
+      _runSaveBackfills();
       // Race the IDB read — if IDB has a newer save (lastSaved timestamp via
       // _saveLastFlush on franchise), use it. Otherwise keep the sync result.
       _idbGet(slotId).then(idbFranchise => {
@@ -4090,7 +4111,7 @@ function loadFranchise() {
         if (idbTime > lsTime) {
           franchise = idbFranchise;
           if (franchise.pendingFranchiseGame) franchise.pendingFranchiseGame = null;
-          _backfillPlayerPids(); _backfillTEC(); _backfillCoachingStaff(); _backfillCoachable(); _backfillPhysicalPeak(); _backfillStamina(); _backfillDepthChart(); _backfillReplayClips(); if(typeof _backfillCollegePipeline==="function")_backfillCollegePipeline(); if(typeof _backfillSeasonScout==="function")_backfillSeasonScout(); if(typeof _backfillPinnedProspects==="function")_backfillPinnedProspects(); _repairInjuries();
+          _runSaveBackfills();
           if (typeof showFranchiseDashboard === "function") showFranchiseDashboard();
         }
       }).catch(() => {});
@@ -4101,7 +4122,7 @@ function loadFranchise() {
         if (!idbFranchise) return;
         franchise = idbFranchise;
         if (franchise.pendingFranchiseGame) franchise.pendingFranchiseGame = null;
-        _backfillPlayerPids(); _backfillTEC(); _backfillCoachingStaff(); _backfillCoachable(); _backfillPhysicalPeak(); _backfillStamina(); _backfillDepthChart(); _backfillReplayClips(); if(typeof _backfillCollegePipeline==="function")_backfillCollegePipeline(); if(typeof _backfillSeasonScout==="function")_backfillSeasonScout(); if(typeof _backfillPinnedProspects==="function")_backfillPinnedProspects(); _repairInjuries();
+        _runSaveBackfills();
         if (typeof showFranchiseDashboard === "function") showFranchiseDashboard();
       }).catch(() => {});
     }
@@ -4305,18 +4326,16 @@ function frnExportSave() {
 // sharing pattern): every string in the JSON flows into hundreds of innerHTML
 // sinks as player/coach names, news labels, descs, chat… No persisted field
 // legitimately stores markup (verified — news/chat/descs are plain text,
-// decorated at render), so neutralize injection chars in EVERY imported string
-// at this one choke point:
-//   • tag-like `<` (`<a…`, `</…`, `<!--`, `<?`) → `‹`  — blocks <script>/<img>
-//     element injection at every innerHTML text sink. A lone comparison `<`
-//     ("win prob <5%") survives.
-//   • `"` → `”` (typographic) — blocks `title="…${name}…"` attribute breakout
-//     (handler injection without needing a tag). No name legitimately needs a
-//     straight double-quote rendered as data; the swap is visually invisible.
-// Display sinks still escape on top (defense in depth); this makes the
-// untrusted blob safe even at the dozens of attribute sinks that don't.
+// decorated at render). Neutralize tag-like `<` (`<a…`, `</…`, `<!--`, `<?`)
+// → `‹` at this one choke point: it blocks <script>/<img> element injection
+// at every innerHTML text sink, while a lone comparison `<` ("win prob <5%",
+// "<200 lbs") survives because the lookahead requires a letter/slash/!/?.
+// Defense in depth only — display sinks escape at the sink (playerLink,
+// _escHtml) and the few name-bearing title="" attributes escape too, so a
+// stray `"` can't break out even though this leaves quotes untouched (keeping
+// the round-trip lossless for legit inch-marks like 6'0" in scouting text).
 function _sanitizeImportedStrings(node) {
-  if (typeof node === "string") return node.replace(/<(?=[a-zA-Z/!?])/g, "‹").replace(/"/g, "”");
+  if (typeof node === "string") return node.replace(/<(?=[a-zA-Z/!?])/g, "‹");
   if (Array.isArray(node)) {
     for (let i = 0; i < node.length; i++) node[i] = _sanitizeImportedStrings(node[i]);
     return node;
@@ -4345,6 +4364,10 @@ async function frnImportSave() {
       }
       if (franchise && !await _frnConfirm("Importing will replace your current active franchise. Continue?")) return;
       franchise = _sanitizeImportedStrings(incoming);
+      if (franchise.pendingFranchiseGame) franchise.pendingFranchiseGame = null;
+      // Foreign / legacy / hand-edited saves must heal exactly like a normal
+      // load — otherwise they skip every backfill and can render broken.
+      try { _runSaveBackfills(); } catch (e) { console.warn("[import] backfill:", e); }
       _flushSaveFranchise();
       if (typeof showFranchiseDashboard === "function") showFranchiseDashboard();
     } catch (e) {

@@ -39,6 +39,16 @@ Measured smells to anchor several workstreams below:
 ### A. Security / injection audit — `innerHTML` + inline-handler sweep
 *Priority: HIGH (cheap, systematic), Risk addressed: XSS-class bugs, the
 apostrophe-breaks-scouting class of escaping bugs.*
+> **DONE** (commits in the injection-sweep + save-integrity arc). Escaped the
+> shared player-name renderers (`playerLink`/`playerLinkByName`) + all
+> name-bearing `title=""` attributes; upgraded **all ~94 inline JS-string
+> escapers** (`.replace(/'/…)`, `&#39;`, `safeName`, `_jsStr`) to also
+> `&quot;`-escape so `onclick="fn('${name}')"` can't break the double-quoted
+> attribute; import path sanitizes tag-like `<`. Verified: 10-screen runtime
+> sweep with hostile `"`/`<img>` names → 0 injected handlers, 0 page errors.
+> **Remaining (ticket):** the 40+ bespoke `>${p.name}<` *display* sinks still
+> rely on the import `<`-backstop + clean generation rather than escaping at
+> the sink — not a live vuln, but finish escape-at-sink for defense in depth.
 
 Single-player game, but data flows through ~143 `innerHTML` sinks and ~600
 inline `onclick` strings: generated player/team names (apostrophes,
@@ -59,6 +69,28 @@ save files (fully attacker-controlled JSON).
 
 ### B. Save integrity, migrations & storage audit
 *Priority: HIGH (data loss = worst failure a save-game can have).*
+> **DONE** (save-integrity arc). Findings + fixes:
+> - **IDB silently lost data under pressure** (critical): `_idbPut`'s write
+>   ran in a later microtask, so the in-place localStorage trim mutated
+>   `franchise` *before* the canonical IDB clone was taken — IDB got the
+>   trimmed save, contradicting "IDB is canonical/uncapped". Now IDB always
+>   receives a detached pre-trim snapshot (verified: 120 clips in IDB while
+>   the oversized localStorage mirror correctly clears).
+> - **replayClips was ~91% of the save** (~80MB at 4 weeks, ~350MB/season)
+>   and `_trimReplayClips` left the current season **uncapped**; now capped
+>   at 30/week (every week), and excluded from the localStorage mirror
+>   without dropping them from the live session (stash + restore).
+> - **Import skipped all backfills**: `frnImportSave` now runs the same
+>   `_runSaveBackfills()` suite as load (extracted from its two inline copies).
+> - **Sanitizer regression** from workstream A (corrupted inch-mark `"` in
+>   scouting text) reverted to `<`-only → round-trip is byte-lossless again.
+> - Diagnostics now lists `replayClips` + `playLog` (were invisible).
+> Verified headless: round-trip byte-identical, import restores 0-missing
+> pids, forced-trim preserves all user-visible data, migrations idempotent.
+> **Remaining (tickets):** make `_trimFranchiseForStorage` fully non-mutating
+> (it still trims careerHistory on the live object); cut the per-clip payload
+> (regenerate motion from `seed`+inputs per workstream B rather than storing
+> ~180KB of waypoint tracks per highlight); de-jargon the "IDB only" save UI.
 
 The repair/migration block in `showFranchiseDashboard` is ~200 lines of
 one-shot heals; `_trimFranchiseForStorage` deletes data under pressure (one

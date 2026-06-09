@@ -142,7 +142,7 @@ function _decorateWireLabel(rawLabel, teamSet, playerSet) {
     const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const reN = new RegExp(`(^|[^A-Za-z>])(${esc})(?=[^A-Za-z<]|$)`);
     if (!reN.test(out)) continue;
-    const escClick = name.replace(/'/g, "\\'");
+    const escClick = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
     out = out.replace(reN, (m, pre, hit) =>
       `${pre}<span class="frn-wire-player" onclick="frnOpenPlayerCard('${escClick}')">${hit}</span>`);
   }
@@ -364,7 +364,7 @@ function renderFrnNewsArchive(season) {
       <div class="frn-wire-storylines-head">🧵 STORYLINES <span class="sub">recurring threads this season</span></div>
       ${storylines.map(s => {
         const isOpen = _frnWireExpanded.has(s.key);
-        const escKey = s.key.replace(/'/g, "\\'");
+        const escKey = s.key.replace(/'/g, "\\'").replace(/"/g, "&quot;");
         return `<div class="frn-wire-storyline${isOpen?" open":""}">
           <button class="frn-wire-storyline-head" onclick="frnToggleStoryline('${escKey}')">
             <span class="caret">${isOpen?"▾":"▸"}</span>
@@ -562,7 +562,7 @@ function _renderPSMyTab(myId, ps, alerts) {
       ${alerts.map(a => `
         <div style="font-size:.72rem;padding:.2rem 0">
           ${getTeam(a.suitorTeamId)?.name} wants ${a.position} ${a.playerName} —
-          <button class="frn-pcard-yrbtn" onclick="frnPSPromote('${a.playerName.replace(/'/g,"\\'")}')">Promote Now</button>
+          <button class="frn-pcard-yrbtn" onclick="frnPSPromote('${a.playerName.replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">Promote Now</button>
           or lose him after week ${a.deadlineWeek}
         </div>`).join("")}
     </div>` : "";
@@ -581,7 +581,7 @@ function _renderPSMyTab(myId, ps, alerts) {
     const tag = hasGem ? `<span style="color:var(--gold);font-weight:700">💎 GEM</span>`
               : hasWow ? `<span style="color:var(--gold-lt);font-weight:700">⭐ FLASH</span>`
               : "";
-    const escName = (p.name || "").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    const escName = (p.name || "").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     return `<tr>
       <td style="color:var(--gold);font-size:.62rem">${p.position}</td>
       <td style="font-weight:700">${playerLink(p)} ${tag}</td>
@@ -605,7 +605,7 @@ function _renderPSLeagueTab(myId, visitsLeft) {
     const ps = franchise.practiceSquads?.[t.id] || [];
     if (!ps.length) return "";
     const rows = ps.map(p => {
-      const escName = (p.name || "").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+      const escName = (p.name || "").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
       const intel = franchise.scoutedPS?.[p.name];
       const scoutedByMe = intel && intel.byTeamId === myId;
       // Without scouting: only show position, age, draft, noisy grade.
@@ -627,7 +627,7 @@ function _renderPSLeagueTab(myId, visitsLeft) {
       const scoutBtn = scoutedByMe
         ? `<span style="color:var(--gold);font-size:.62rem">✓ scouted</span>`
         : `<button class="frn-pcard-yrbtn" ${visitsLeft<=0?`style="opacity:.4"`:""} onclick="frnPSScout('${escName}')" title="${visitsLeft<=0?`Out of scout tokens — you bank +${SCOUT_VISITS_PER_WEEK}/week (cap ${SCOUT_TOKEN_CAP}); advance a week to earn more`:`Scout this player · ${visitsLeft} token${visitsLeft===1?"":"s"} banked`}">🔍 Scout</button>`;
-      const poachBtn = `<button class="frn-pcard-yrbtn" style="border-color:var(--gold);color:var(--gold)" onclick="frnPSPoach('${escName}')" title="Sign ${p.name} off ${t.name}'s practice squad onto YOUR active roster (2yr / $1.0M minimum)">📲 Sign</button>`;
+      const poachBtn = `<button class="frn-pcard-yrbtn" style="border-color:var(--gold);color:var(--gold)" onclick="frnPSPoach('${escName}')" title="Sign ${_escHtml(p.name)} off ${_escHtml(t.name)}'s practice squad onto YOUR active roster (2yr / $1.0M minimum)">📲 Sign</button>`;
       return `<tr>
         <td style="color:var(--gold);font-size:.62rem">${p.position}</td>
         <td style="font-weight:600">${p.name}</td>
@@ -691,7 +691,7 @@ function _renderPSSignTab(myId, ps) {
   const openSlots = PS_SLOTS - ps.length;
   const disabled  = openSlots <= 0;
   const eligP = p => (typeof _psEligible === "function") ? _psEligible(p) : ((p.age || 22) <= PS_MAX_AGE);
-  const escn  = n => (n || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const escn  = n => (n || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
   const back  = `<button class="btn btn-outline" onclick="renderFrnPracticeSquad('mine')" style="margin-bottom:.6rem">← Back to My PS</button>`;
   const head  = `<div style="color:var(--gray);font-size:.7rem;margin-bottom:.6rem">
     Stash young players (≤${PS_MAX_YEARS_EXP} yrs exp · ≤${PS_MAX_AGE} yo) to develop them off your 53.
@@ -840,7 +840,7 @@ function renderFrnInjuryReport() {
       ? "Out for the year — frees the roster spot, keeps the cap hit"
       : `Designated to return — out a minimum of ${IR_RETURN_MIN_WEEKS} weeks, uses 1 of your ${irReturnSlotsLeft(myId)} return slots`;
     return `<td><button class="btn btn-outline" style="font-size:.6rem;padding:.18rem .5rem" title="${tip}"
-      onclick="frnPlaceOnIr('${_bspnEsc(p.name).replace(/'/g,"\\'")}','${elig.designation}')">🚑 ${label}</button></td>`;
+      onclick="frnPlaceOnIr('${_bspnEsc(p.name).replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${elig.designation}')">🚑 ${label}</button></td>`;
   };
   const rowHtml = (p, opp) => `
     <tr>
@@ -891,7 +891,7 @@ function renderFrnInjuredReserve() {
       const dis = open <= 0 ? "disabled" : "";
       const tip = open <= 0 ? "No open roster spot — cut or IR a player first" : "Activate to the 53-man roster";
       return `<button class="btn btn-gold" style="font-size:.6rem;padding:.18rem .55rem" ${dis} title="${tip}"
-        onclick="frnActivateFromIr('${_bspnEsc(p.name).replace(/'/g,"\\'")}')">↩︎ Activate</button>`;
+        onclick="frnActivateFromIr('${_bspnEsc(p.name).replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">↩︎ Activate</button>`;
     }
     if (!healed) return `<span style="color:#ff9090">🩹 ${p.injury.weeksRemaining} wk left</span>`;
     const wait = Math.max(0, (m.minReturnWeek || 0) - (franchise.week || 1));
@@ -1018,7 +1018,7 @@ function renderFrnMakeRoom() {
     .map(p => ({ p, k: _frnKeepValue(p), tv: (typeof _playerTradeValue === "function") ? _playerTradeValue(p) : (p.overall || 0) }))
     .sort((a, b) => a.k - b.k);
   const rows = ranked.map(({ p, tv }) => {
-    const esc = String(p.name).replace(/'/g, "\\'");
+    const esc = String(p.name).replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const pot = (typeof _perceivedPotential === "function") ? Math.round(_perceivedPotential(p)) : (p.potential || p.overall || 0);
     const ceil = pot - (p.overall || 0);
     const irE = (typeof irEligibility === "function") ? irEligibility(myId, p) : { ok: false };
@@ -1035,7 +1035,7 @@ function renderFrnMakeRoom() {
       <div style="text-align:center"><div style="font-weight:700;font-size:.7rem">${money(c.aav)}</div><div style="color:var(--gray);font-size:.52rem">${c.remaining || 0}yr left</div></div>
       <div style="text-align:center"><div style="font-weight:800;color:var(--gold-lt)">${tv.toFixed(0)}</div><div style="color:var(--gray);font-size:.52rem">trade val</div></div>
       <div style="display:flex;gap:.3rem;flex-wrap:wrap;justify-content:flex-end">
-        ${canTrade ? `<button class="frn-pcard-yrbtn" onclick="frnMakeRoomShopPicks('${esc}')" title="Get the best draft-pick offer for ${p.name}">🔀 Shop picks</button>
+        ${canTrade ? `<button class="frn-pcard-yrbtn" onclick="frnMakeRoomShopPicks('${esc}')" title="Get the best draft-pick offer for ${_escHtml(p.name)}">🔀 Shop picks</button>
         <button class="frn-pcard-yrbtn" onclick="frnShopMyPlayerFromCard('${esc}')" title="Open the trade center to negotiate">⇄ Negotiate</button>` : ''}
         ${irE.ok ? `<button class="frn-pcard-yrbtn" onclick="frnMakeRoomIR('${esc}','${p.position}')" title="Injured Reserve — opens a roster spot, player still paid">🏥 IR</button>` : ''}
         <button class="frn-pcard-yrbtn" onclick="frnMakeRoomRelease('${esc}','${p.position}')" title="Release${deadTot > 0 ? ` — $${deadTot.toFixed(1)}M dead cap` : ''}">✂️ Cut${deadTot > 0 ? ` <span style="opacity:.7">$${deadTot.toFixed(1)}M</span>` : ''}</button>
@@ -1736,8 +1736,8 @@ function frnOpenPlayerCard(name, pid) {
   // One-shot compare: this button opens the dedicated compare modal
   // pre-populated with this player on the left and a position-filtered
   // picker on the right. No hidden multi-step state.
-  const escapedPid = (p.pid || "").replace(/'/g, "\\'");
-  const escName = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const escapedPid = (p.pid || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+  const escName = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
   // HTML-attribute-safe variant for `title=""` and innerHTML interpolation.
   // Names with HTML special chars (&, <, ", >) would break the attribute
   // otherwise. Player generator doesn't produce these today, but defense
@@ -3938,7 +3938,7 @@ async function renderFrnDepthChart() {
     const autoPid   = autoChart[slotKey]?.[isStarter ? "starter" : "backup"];
     const autoP     = autoPid ? byPid[autoPid] : null;
     const misBadge  = (misplaced && autoP)
-      ? `<span class="frn-dc-badge mis" title="AUTO-by-OVR would place ${autoP.name} (OVR ${autoP.overall}) here">⚠ ${autoP.name.split(" ").slice(-1)[0]}</span>`
+      ? `<span class="frn-dc-badge mis" title="AUTO-by-OVR would place ${_escHtml(autoP.name)} (OVR ${autoP.overall}) here">⚠ ${autoP.name.split(" ").slice(-1)[0]}</span>`
       : "";
     if (!p) {
       return `<div class="frn-dc-player ${isStarter?"s1":"s2"} empty${misplaced?" misplaced":""}">
@@ -3947,8 +3947,8 @@ async function renderFrnDepthChart() {
         ${misBadge}
       </div>`;
     }
-    const escName    = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-    const escPid     = (p.pid||"").replace(/'/g,"\\'");
+    const escName    = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
+    const escPid     = (p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     const isInjured  = (p.injury?.weeksRemaining || 0) > 0;
     const isExpiring = (p.contract?.remaining || 0) <= 1;
     const aav        = (p.contract?.aav||0).toFixed(1);
@@ -4187,8 +4187,8 @@ async function renderFrnDepthChart() {
             <div class="frn-dc-pkg-cell-name">— empty —</div>
           </div>`;
         }
-        const escName = (starter.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-        const escPid  = (starter.pid||"").replace(/'/g,"\\'");
+        const escName = (starter.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
+        const escPid  = (starter.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
         const archLabel = _archetypeLabel(starter);
         const archFits  = archLabel && _slotFitsArchetype(starter, slotKey);
         const _escArch = s => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
@@ -4233,8 +4233,8 @@ async function renderFrnDepthChart() {
   let unassignedHtml = "";
   if (unassigned.length) {
     const rows = unassigned.map(p => {
-      const escName    = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-      const escPid     = (p.pid||"").replace(/'/g,"\\'");
+      const escName    = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
+      const escPid     = (p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
       const isExpiring = (p.contract?.remaining||0) <= 1;
       return `<div class="frn-dc-row">
         <div class="frn-dc-slot-lbl">
@@ -5472,12 +5472,12 @@ function renderFrnSnapShares() {
     addSnaps(starter?.pid, sSnaps);
     if (rotates) addSnaps(backup?.pid, bSnaps);
     const cascadeNote = (rotates && cascadeBackup && cascadeBackup !== backup)
-      ? `<span class="frn-snap-cascade" title="Cascade backup (injury sub): ${cascadeBackup.name} — slides up from another slot, can't take per-snap reps">⤴ INJ: ${cascadeBackup.name.split(" ").slice(-1)[0]}</span>`
+      ? `<span class="frn-snap-cascade" title="Cascade backup (injury sub): ${_escHtml(cascadeBackup.name)} — slides up from another slot, can't take per-snap reps">⤴ INJ: ${cascadeBackup.name.split(" ").slice(-1)[0]}</span>`
       : "";
     const playerCell = (p, snaps, faded, kind) => {
       if (!p) return `<div class="frn-snap-player empty"><span class="frn-snap-empty">— open —</span></div>`;
-      const escName = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-      const escPid  = (p.pid||"").replace(/'/g,"\\'");
+      const escName = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
+      const escPid  = (p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
       const pStam = p._stamina ?? 75;
       return `<div class="frn-snap-player${faded?" faded":""}" data-pid="${p.pid||""}" data-kind="${kind}">
         <span class="frn-snap-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name)}</span>
@@ -7129,7 +7129,7 @@ function renderFrnLockerRoom() {
   const rank = (typeof _starterRankByPos === "function") ? _starterRankByPos(myId) : new Map();
   const reasonOf = (p) => (typeof _moraleReason === "function") ? _moraleReason(p, myId, rank) : "";
   const lr = (typeof _lockerRoom === "function") ? _lockerRoom(myId) : { captains: [], cancers: [], pairs: [] };
-  const esc = n => (n || "").replace(/'/g, "&#39;");
+  const esc = n => (n || "").replace(/'/g, "&#39;").replace(/"/g, "&quot;");
 
   const avg = roster.reduce((s, p) => s + (p.morale ?? 62), 0) / roster.length;
   const mood = tierOf(avg);
@@ -7149,7 +7149,7 @@ function renderFrnLockerRoom() {
     const tag = p.personality === "captain" ? `<span style="color:var(--gold);font-size:.52rem"> ⭐</span>`
               : p.personality === "cancer"  ? `<span style="color:#ff8a8a;font-size:.52rem"> ☢</span>` : "";
     return `<div class="frn-lr-row">
-      <span class="frn-lr-name" onclick="frnOpenPlayerCard('${esc(p.name)}')" title="Open ${esc(p.name)}">${_escHtml(p.name)}${tag}</span>
+      <span class="frn-lr-name" onclick="frnOpenPlayerCard('${esc(p.name)}')" title="Open ${_escHtml(p.name)}">${_escHtml(p.name)}${tag}</span>
       <span class="frn-lr-pos">${p.position}</span>
       <span class="frn-lr-ovr">${p.overall || 0}</span>
       <span class="frn-lr-mood" style="color:${t.color}">${t.icon} ${t.label}</span>
@@ -7293,7 +7293,7 @@ function renderFrnDraftReportCard() {
         : `<span style="color:var(--gray)">${getTeam(cur.teamId)?.name || "?"}</span>`;
       return `<div class="frn-drc-row">
         <span class="frn-drc-slot">R${pick.round}.${pick.pick}${pick.isComp ? "c" : ""}</span>
-        <span class="frn-drc-name" onclick="frnOpenPlayerCard('${esc(pick.name)}')" title="Open ${esc(pick.name)}">${pick.name}</span>
+        <span class="frn-drc-name" onclick="frnOpenPlayerCard('${esc(pick.name)}')" title="Open ${_escHtml(pick.name)}">${_escHtml(pick.name)}</span>
         <span class="frn-drc-pos">${pick.pos}</span>
         <span class="frn-drc-grade" title="Draft-day scout grade">${gradeStr}</span>
         <span class="frn-drc-scout" title="${wasScouted ? pick.scoutedCats + ' scouting report(s) spent' : 'not scouted'}">${wasScouted ? `🔍${pick.scoutedCats}` : ""}</span>
@@ -7411,7 +7411,7 @@ function renderFrnLeagueCapMap() {
     return "#3aa84a";
   };
 
-  const cleanN = (s) => (s||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  const cleanN = (s) => (s||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
   const renderedTiles = tiles.map(t => {
     const x = t.item.payload;
     const fill = colorFor(x);
@@ -8595,8 +8595,8 @@ function renderFrnRegular() {
       <div class="frn-card-title">🏈 PLAYMAKERS <span class="frn-card-title-sub">top performers · S${season} · click any card</span></div>
       <div class="frn-myguys-grid">
         ${hotTop.map((h, i) => {
-          const esc = (h.p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-          const pid = (h.p.pid||"").replace(/'/g,"\\'");
+          const esc = (h.p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
+          const pid = (h.p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
           const ovr = h.p.overall || 60;
           const ovrCol = ovr >= 88 ? "#f5c542" : ovr >= 80 ? "#86e0a3" : ovr >= 70 ? "var(--gold-lt)" : "var(--gray)";
           const posCol = _myPosColor(h.p.position);
@@ -8638,8 +8638,8 @@ function renderFrnRegular() {
   // name, key stat, FFP/G — that fills the empty gutter outside the
   // centered dashboard. Same data as PLAYMAKERS just split + condensed.
   const _railCardHtml = (h, i) => {
-    const esc = (h.p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-    const pid = (h.p.pid||"").replace(/'/g,"\\'");
+    const esc = (h.p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
+    const pid = (h.p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     const ovr = h.p.overall || 60;
     const posCol = _myPosColor(h.p.position);
     const ffPerGame = h.gp > 0 ? (h.ff / h.gp).toFixed(1) : h.ff.toFixed(1);
@@ -12059,7 +12059,7 @@ function renderFrnCoachingStaff() {
   // Compare toggle button — appears on every market card.
   const _compareBtn = (role, idx, name) => {
     const isOn = _frnCoachesCompare.some(x => x.role === role && x.idx === idx);
-    const escName = String(name || "").replace(/'/g,"\\'");
+    const escName = String(name || "").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     return `<button class="frn-coach-compare-btn${isOn?" on":""}" onclick="event.stopPropagation();_frnCoachesToggleCompare('${role}',${idx},'${escName}')" title="Add to compare (max 2)">${isOn?"✓ Comparing":"⇆ Compare"}</button>`;
   };
   const marketHcHtml  = _filterSortMarket(market.filter(c => c.type === "hc")).map(({ c, idx: i }) => {

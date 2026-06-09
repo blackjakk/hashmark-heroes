@@ -906,7 +906,7 @@ function _renderApbSelections(t) {
         ${myCount > 0 ? `<span class="mine">${myCount} of yours</span>` : ""}
       </div>
       <div class="frn-apb-team-card-roster">
-        ${topStarters.map(p => `<span class="role" title="${p.name}">
+        ${topStarters.map(p => `<span class="role" title="${_escHtml(p.name)}">
           <span class="pos">${p.pos}</span> ${p.name.split(" ").slice(-1)[0]}
           <span class="src" style="color:${p.srcTeamPrimary}">${p.srcTeamAbbr}</span>
         </span>`).join("")}
@@ -2103,9 +2103,14 @@ function _saveReplayClips(highlights) {
   _trimReplayClips();
 }
 
-// Cap highlight storage. Strategy: keep the best 200 of any earlier
-// season (current season uncapped — it's actively being viewed). Plus
-// per-season-week, keep top 30 / week.
+// Cap highlight storage. Each clip carries full play + context motion tracks
+// (~180KB), so an UNCAPPED current season (16 games × 7 clips × 17 weeks) grew
+// replayClips to ~350MB/season — by far the largest save section and a real
+// storage-integrity risk (it dwarfs everything else and was never trimmed by
+// the storage-pressure path either). Cap EVERY week — current included — at
+// the top 30 by rating; that's well past the week-recap's top 6 and keeps
+// plenty of replay-library variety while bounding growth to ~90MB/season.
+// Earlier seasons additionally cap to the best 200 overall.
 function _trimReplayClips() {
   if (!franchise?.replayClips) return;
   const curSeason = franchise.season;
@@ -2119,9 +2124,7 @@ function _trimReplayClips() {
   const kept = [];
   for (const [key, arr] of byWeek.entries()) {
     arr.sort((a, b) => b.rating - a.rating);
-    const isCurWeek = key.startsWith(`${curSeason}_`);
-    const cap = isCurWeek ? arr.length : 30;
-    for (const h of arr.slice(0, cap)) kept.push(h);
+    for (const h of arr.slice(0, 30)) kept.push(h);
   }
   // Then trim past-season highlights overall to top 200
   const pastSeason = kept.filter(h => h.season !== curSeason);
@@ -5031,8 +5034,8 @@ function _renderPlayoffGameRecap() {
     : pos === "RB" ? "💨" : pos === "WR" || pos === "TE" ? "🪂"
     : "🛡";
   const heroCardHtml = (h, sideClass) => {
-    const escName = (h.p.name || "").replace(/'/g, "\\'");
-    const escPid  = (h.p.pid || "").replace(/'/g, "\\'");
+    const escName = (h.p.name || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+    const escPid  = (h.p.pid || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     return `<div class="frn-prg-hero ${sideClass}">
       <div class="frn-prg-hero-icon">${heroIcon(h.p.pos)}</div>
       <div class="frn-prg-hero-body">
@@ -6194,7 +6197,7 @@ function renderFrnAnalytics(defaultTab) {
             c.incentives.map(inc => `<span title="${inc.label}: $${inc.bonus.toFixed(1)}M ${inc.type}" style="font-size:.52rem;padding:.08rem .25rem;border-radius:3px;background:${inc.type==="LTBE"?"rgba(200,169,0,.25)":"rgba(100,100,100,.25)"};color:${inc.type==="LTBE"?"var(--gold)":"var(--gray)"}">${inc.type} $${inc.bonus.toFixed(1)}M</span>`).join("")
           }</div>`
         : "";
-      const escName = p.name.replace(/'/g, "\\'");
+      const escName = p.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
       const isPendingRestructure = _restructurePending?.name === p.name && _restructurePending?.pos === p.position;
       const isPendingPayCut      = _payCutPending?.name === p.name && _payCutPending?.pos === p.position;
       // Inline pay-cut negotiation row — sits in place of the player row
@@ -6635,7 +6638,7 @@ function renderFrnAnalytics(defaultTab) {
     if (!candidates.length) return `<p style="color:var(--gray);font-size:.78rem">No obvious cut candidates — your roster looks cap-healthy.</p>`;
 
     const rows = candidates.map(({ p, capHit, market, deadTotal, deadPY, deadYrs, savings, overpaid }) => {
-      const escN = p.name.replace(/'/g,"\\'");
+      const escN = p.name.replace(/'/g,"\\'").replace(/"/g, "&quot;");
       return `<tr>
         <td style="font-weight:700">${playerLink(p)}</td>
         <td style="color:var(--gray)">${p.position}</td>
@@ -7597,7 +7600,7 @@ function _renderHoldoutCenterRow(d) {
   const myId = franchise.chosenTeamId;
   const myRoster = franchise.rosters[myId] || [];
   const live = myRoster.find(p => p.name === d.name);
-  const escName = (d.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const escName = (d.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
   const cap = effectiveSalaryCap(myId);
   const ovr = live?.overall ?? d.overall ?? 70;
   const age = live?.age ?? d.age ?? "?";
@@ -8991,7 +8994,7 @@ function _renderResignUI(cap, capCommitted) {
             : ratio >= 0.92
               ? { label: "≈ FAIR", color: "var(--gold)", text: `Market $${market.toFixed(1)}M ≈ option $${optVal.toFixed(1)}M` }
               : { label: "⚠ OVERPAY", color: "#ff9090", text: `Market $${market.toFixed(1)}M < option $${optVal.toFixed(1)}M` };
-          const escNm = p.name.replace(/'/g, "\\'");
+          const escNm = p.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
           const tag = (typeof potentialTag === "function") ? potentialTag(p, { known: true }) : "";
           const stat = _statLine(p.name);
           return `<div style="display:flex;align-items:center;gap:.6rem;padding:.45rem .55rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;flex-wrap:wrap">
@@ -13936,7 +13939,7 @@ function _buildOffseasonGainsSheet() {
   // the user actually wants ("show me who I've signed").
   const _curSeason = franchise.season || 1;
   const _extendCellHtml = (name, pid) => {
-    const safeName = (name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const safeName = (name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const live = pid ? _liveByPid[pid] : null;
     const c = live?.contract;
     if (c && c.startSeason === _curSeason) {
@@ -13951,8 +13954,8 @@ function _buildOffseasonGainsSheet() {
   // Morphs to a filled "🔄 ON BLOCK" chip once they're flagged, mirroring the
   // EXTEND→signed morph so the row reflects live state.
   const _tradeCellHtml = (name, pos, pid) => {
-    const safeName = (name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-    const safePos  = (pos  || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const safeName = (name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+    const safePos  = (pos  || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const live = pid ? _liveByPid[pid] : null;
     if (live?.onTradeBlock) {
       return `<button onclick="frnTradeAwayPlayer('${safeName}','${safePos}')" style="font-size:.5rem;letter-spacing:.4px;padding:.18rem .45rem;border-radius:2px;border:1px solid #8ab4f8;background:rgba(138,180,248,.12);color:#8ab4f8;cursor:pointer;font-family:inherit;font-weight:700" title="On the block — click to open the trade builder">🔄 ON BLOCK</button>`;
@@ -14151,7 +14154,7 @@ function _buildOffseasonGainsSheet() {
   const lockerRoomBlock = (() => {
     const lr = _lockerRoom(myId);
     if (!lr.captains.length && !lr.cancers.length && !lr.pairs.length) return "";
-    const esc = n => (n || "").replace(/'/g, "&#39;");
+    const esc = n => (n || "").replace(/'/g, "&#39;").replace(/"/g, "&quot;");
     const capLine = lr.captains.length
       ? `<div style="font-size:.6rem;margin-bottom:.2rem"><span style="color:var(--gold);font-weight:700">⭐ Captains</span> <span style="color:var(--blwhite)">${lr.captains.map(c => esc(c.name)).join(", ")}</span></div>` : "";
     const canLine = lr.cancers.length
@@ -15192,7 +15195,7 @@ function _renderHoldoutsBlock() {
   };
 
   const rowFor = (h) => {
-    const escName = (h.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const escName = (h.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const live = myRoster.find(p => p.name === h.name);
     const ovr = live?.overall ?? h.overall ?? 70;
     const age = live?.age ?? h.age ?? "?";
@@ -17480,7 +17483,7 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
 
   const receiveSet = new Set(tp.youReceive);
   const browseRows = cappedBrowse.map(({p, teamId, team}) => {
-    const escName = (p.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const escName = (p.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const sel = receiveSet.has(p.name) && partnerId === teamId;
     const kicker = p.contract?.tradeKicker || 0;
     const kickerTag = kicker >= 0.05
@@ -17514,7 +17517,7 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
     : myRoster.filter(p => p.position === posFilter));
   const sendSet = new Set(tp.youSend);
   const sendRows = _sortRoster(sendRoster, sortBy).map(p => {
-    const escName = (p.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const escName = (p.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const sel = sendSet.has(p.name);
     const blockTag = p.onTradeBlock ? `<span style="color:#e8a000;font-size:.55rem;font-weight:700">●BLK</span>` : "";
     const dead = (p.contract?.bonusProration || 0) * (p.contract?.remaining || 0);
@@ -18018,7 +18021,7 @@ function _renderTradeValueBoard(myRoster) {
   const colorMode = franchise._tvbColorMode || "position";
   const tmW = 720, tmH = 280;
   const tiles = _faSquarify(valued.map(o => ({ value: o.value, payload: o.p })), tmW, tmH);
-  const cleanN = (n) => (n||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  const cleanN = (n) => (n||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
 
   // Color helpers reused from cuts screen where available. For the
   // trade context, add "contract years left" as a useful axis.
@@ -18053,7 +18056,7 @@ function _renderTradeValueBoard(myRoster) {
     return `<div class="frn-tvb-tile"
       style="left:${xPct.toFixed(2)}%;top:${yPct.toFixed(2)}%;width:${wPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;background:${fill}"
       onclick="frnOpenPlayerCard('${cleanN(p.name)}')"
-      title="${p.name} (${p.position}) · ${p.overall||"?"} OVR · age ${p.age||"?"} · $${aav}M × ${yrs}yr · TV ${value.toFixed(1)}">
+      title="${_escHtml(p.name)} (${p.position}) · ${p.overall||"?"} OVR · age ${p.age||"?"} · $${aav}M × ${yrs}yr · TV ${value.toFixed(1)}">
       ${showName ? `<div class="frn-tvb-name">${p.name}</div>` : ""}
       ${showSub  ? `<div class="frn-tvb-sub">${p.position} · ${p.overall||"?"} · $${aav}M</div>` : ""}
     </div>`;
@@ -18108,7 +18111,7 @@ function _renderTradeBlockTab(myRoster, sortBy) {
 
   const sorted = _sortRoster(myRoster, sortBy);
   const rows = sorted.map(p => {
-    const escName = (p.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const escName = (p.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const ask = p.blockAsk;
     const askPieces = [];
     if (ask?.askedPicks) {
@@ -18433,7 +18436,7 @@ function _renderTradeShopMarketTab(myId, sortBy, tp, cap) {
   };
 
   const rows = shownList.map(({p, teamId, team, stance, mode, askPrice, watched}) => {
-    const escName = (p.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const escName = (p.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const modeMeta = (typeof _AI_MODE_META === "object" && _AI_MODE_META[mode]) || { icon: "⚖", label: "BAL", col: "var(--gray)" };
     const watchIcon = watched ? `<span class="frn-trade-watch-icon" title="On your watchlist">👁</span> ` : "";
     const modeBadge = `<span class="frn-trade-mode" style="color:${modeMeta.col}" title="${modeMeta.label} team — ${mode==='rebuild'?'discounts for picks':mode==='win_now'?'wants established vets':'mixed appetite'}">${modeMeta.icon}</span>`;
@@ -18449,7 +18452,7 @@ function _renderTradeShopMarketTab(myId, sortBy, tp, cap) {
       : `<button class="btn btn-gold frn-trade-propose-btn" onclick="frnShopProposeForPlayer(${teamId},'${escName}')" title="Open the Propose Trade tab with this player pre-selected">→ Propose</button>`;
     return `<div class="frn-trade-market-row${isUntouchable?" untouchable":""}">
       <span class="frn-trade-pos">${p.position}</span>
-      <span class="frn-trade-name" onclick="frnOpenPlayerCard('${escName}')" title="View ${p.name}'s player card">${watchIcon}${p.name}</span>
+      <span class="frn-trade-name" onclick="frnOpenPlayerCard('${escName}')" title="View ${_escHtml(p.name)}'s player card">${watchIcon}${p.name}</span>
       <span class="frn-trade-team">${modeBadge} ${team.name}</span>
       <span class="frn-trade-stance-col">${stancePill(stance, team.name)}</span>
       <span>${gradeBadge(p)}</span>
@@ -18537,13 +18540,13 @@ function _tradeOfferChip(p, teamId, mine) {
   const injW  = p.injury?.weeksRemaining || 0;
   const arch  = (typeof _archetypeLabel === "function" ? _archetypeLabel(p) : "") || "";
   const stat  = _tradeStatLine(p, teamId);
-  const escName = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-  const escPid  = (p.pid||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  const escName = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
+  const escPid  = (p.pid||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
   return `<div class="frn-offer-chip">
     <div class="frn-offer-chip-top">
       <span class="frn-offer-chip-pos">${p.position}</span>
       <span class="frn-offer-chip-ovr" style="color:${ovrCol}">${ovr}</span>
-      <span class="frn-offer-chip-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')" title="Open ${p.name}'s card">${p.name}</span>
+      <span class="frn-offer-chip-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')" title="Open ${_escHtml(p.name)}'s card">${p.name}</span>
       ${_tradeTraj(p)}
       ${injW > 0 ? `<span class="frn-offer-chip-inj" title="Injured — ${injW}w out">🩹</span>` : ""}
     </div>
@@ -19334,7 +19337,7 @@ function _renderDraftNotes(p, opts = {}) {
   const scoutedCats = opts.scoutedCats || [];
   const knockReveals = opts.knockReveals || {};
   const expanded = !!opts.expanded;
-  const esc = (p.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const esc = (p.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
   const TIER_DOT = { "minor": "🟡", "major": "🟠", "red-flag": "🔴", "elite": "💎", "solid": "✓", "developmental": "·" };
   const concernCounts = { minor: 0, major: 0, "red-flag": 0 };
@@ -19952,7 +19955,7 @@ function _renderDraftFloor() {
     const borderColor = isTarget ? "#ff8a8a"
                       : isWatched ? "#6cc6ff"
                       : isMostRecent ? "var(--gold)" : "transparent";
-    const esc = (pk.prospectName||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    const esc = (pk.prospectName||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     const tag = isTarget
       ? ` <span style="color:#ff8a8a;font-size:.55rem;letter-spacing:.5px">· YOUR TARGET</span>`
       : isWatched
@@ -20164,7 +20167,7 @@ function renderFrnDraftPreshow() {
   // earlier rev) merge in transparently.
   const legacy = franchise.draftWatchlist || [];
   const watchSet = new Set([...(franchise.watchedPlayers || []), ...legacy]);
-  const safeName = n => (n || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const safeName = n => (n || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
   const _nameWithStar = (p) => {
     const watched = watchSet.has(p.name);
     return `<span style="color:var(--white);cursor:pointer;display:inline-flex;align-items:baseline;gap:.25rem" onclick="frnCombineWatchToggle('${safeName(p.name)}')" title="${watched ? "Remove from watchlist" : "Add to watchlist"}">
@@ -21619,7 +21622,7 @@ const _SCOUT_STAT_LABELS = [
 // see which prospect wins each attribute at a glance.
 function _renderCompareCard(prospects, reveals) {
   if (!prospects.length) return "";
-  const _esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/'/g, "&#39;");
+  const _esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/'/g, "&#39;").replace(/"/g, "&quot;");
   const headerCells = prospects.map((p, i) => {
     const arch = (typeof _archetypeLabel === "function") ? _archetypeLabel(p) : "";
     const rev  = reveals[p.name];
@@ -21993,7 +21996,7 @@ function _renderMockDraft(eligible, pinSet, reveals, eligibleByPos) {
   // Track first elite per scarce position — only that one gets RISER
   const scarceTagged = new Set();
 
-  const _esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/'/g, "&#39;");
+  const _esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/'/g, "&#39;").replace(/"/g, "&quot;");
 
   const rows = top32.map((p, i) => {
     const pick = i + 1;
@@ -22204,7 +22207,7 @@ function renderFrnScoutingBoard() {
   }).join("");
 
   // Rows
-  const _esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/'/g, "&#39;");
+  const _esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/'/g, "&#39;").replace(/"/g, "&quot;");
   const cardForProspect = (p) => {
     const rev = reveals[p.name];
     const scoutedCats = rev?.categories || [];
@@ -23069,7 +23072,7 @@ function renderFrnDraft() {
   // ── Prospect board ───────────────────────────────────────────────────────
   _migrateDraftScouts();
   const renderProspectCard = (p, displayRank) => {
-    const esc = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    const esc = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     const needLvl = _draftNeedLevel(myId, p.position);
     const needBadge = needLvl===2 ? `<span class="frn-draft-need-crit">❗NEED</span>`
                     : needLvl===1 ? `<span class="frn-draft-need-need">⚠ NEED</span>` : "";
@@ -23157,7 +23160,7 @@ function renderFrnDraft() {
       <div class="frn-dp-rank">${displayRank}</div>
       <div class="frn-dp-body">
         <div class="frn-dp-top">
-          <span class="frn-dp-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${p.name}'s scouting card">${p.name}</span>
+          <span class="frn-dp-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s scouting card">${p.name}</span>
           ${_posPillHtml(p.position)}
           ${_posRankChip}
           ${needBadge}
@@ -23326,14 +23329,14 @@ function renderFrnDraft() {
   const recsHtml = recs.length ? `<div class="frn-draft-info-card frn-draft-recs">
     <div class="frn-card-title" style="margin-bottom:.3rem">🎯 WAR ROOM · RECOMMENDED</div>
     ${recs.map((r, i) => {
-      const esc = (r.p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+      const esc = (r.p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
       const sg = r.seen;
       const sgColor = sg >= 82 ? "var(--green-lt)" : sg >= 70 ? "var(--gold)" : sg >= 60 ? "var(--gold-lt)" : "var(--gray)";
       return `<div class="frn-draft-rec-row">
         <span class="frn-draft-rec-rank">${i+1}</span>
         <div class="frn-draft-rec-body">
           <div class="frn-draft-rec-top">
-            <span class="frn-draft-rec-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${r.p.name}'s scouting card">${r.p.name}</span>
+            <span class="frn-draft-rec-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(r.p.name)}'s scouting card">${r.p.name}</span>
             ${_posPillHtml(r.p.position)}
             <span style="color:${sgColor};font-weight:700;font-size:.6rem" title="Your scout grade">${gradeLabel(sg)}</span>
           </div>
@@ -23341,7 +23344,7 @@ function renderFrnDraft() {
             <span>${r.why}</span><span style="color:${r.conf.color}"> · ${r.conf.short}</span>
           </div>
         </div>
-        <button class="btn btn-gold frn-draft-rec-draft" onclick="frnDraftPick('${esc}')" title="Draft ${r.p.name}">DRAFT</button>
+        <button class="btn btn-gold frn-draft-rec-draft" onclick="frnDraftPick('${esc}')" title="Draft ${_escHtml(r.p.name)}">DRAFT</button>
       </div>`;
     }).join("")}
     <div class="frn-draft-rec-foot">Ranked by need × value × your scouting · scout more to sharpen</div>
@@ -23766,7 +23769,7 @@ function renderFrnPreDraftScout() {
   }).join("");
 
   const rowsHtml = shown.map((p, i) => {
-    const esc         = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    const esc         = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     const sg          = scoutGrade(p);
     const conf        = _draftConfidence(p);
     const sgColor     = sg >= 82 ? "var(--green-lt)" : sg >= 70 ? "var(--gold)" : sg >= 60 ? "var(--gold-lt)" : "var(--gray)";
@@ -23785,7 +23788,7 @@ function renderFrnPreDraftScout() {
     }).join("");
     return `<div class="frn-prescout-row">
       <span class="frn-prescout-rank">${i+1}</span>
-      <span class="frn-prescout-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${p.name}'s scouting card">${p.name}</span>
+      <span class="frn-prescout-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s scouting card">${p.name}</span>
       ${_posPillHtml(p.position)}
       <span class="frn-prescout-proj">${projLabel}</span>
       ${needBadge}
@@ -24266,7 +24269,7 @@ function _renderPostDraftGrade(myPicks) {
       ? `<div style="margin-top:.65rem;background:var(--bg2);border:1px solid var(--border);padding:.5rem .65rem">
            <div class="frn-card-title" style="margin-bottom:.25rem">YOUR UDFA CLAIMS (${udfaClaims.length})</div>
            ${udfaClaims.map(p => {
-             const e = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+             const e = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
              return `<div class="frn-draft-pick-review">
                <span class="frn-draft-ticker-pick-no">UDFA</span>
                <span style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${e}')">${p.name}</span>
@@ -24359,7 +24362,7 @@ function _renderPostDraftGrade(myPicks) {
   };
 
   const renderPickRow = (pk, isUdfa) => {
-    const esc = (pk.prospectName || "").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    const esc = (pk.prospectName || "").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     const labelLeft = isUdfa ? "UDFA" : `R${pk.round}.${pk.pickInRound ?? (((pk.pick-1)%32)+1)}${pk.isComp?"c":""}`;
     if (pk.missing) {
       return `<div class="frn-draft-pick-review" style="opacity:.55">
@@ -25448,9 +25451,9 @@ function renderFrnUDFAScramble() {
   const claimedRows = (d.udfaUserClaims || []).map(name => {
     const p = d.class.find(q => q.name === name);
     if (!p) return "";
-    const esc = (p.name||"").replace(/'/g,"\\'");
+    const esc = (p.name||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     return `<div class="frn-udfa-claim-row">
-      <span style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${esc}')" title="Open ${p.name}'s card">${p.name}</span>
+      <span style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s card">${p.name}</span>
       ${_posPillHtml(p.position)}
       ${gradeBadge(p)}
       <button class="btn btn-outline" onclick="frnDraftUnclaimUDFA('${esc}')">× Remove</button>
@@ -25488,7 +25491,7 @@ function renderFrnUDFAScramble() {
   };
 
   const renderUdfaCard = (p, displayRank) => {
-    const esc = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    const esc = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     const needLvl = _draftNeedLevel(myId, p.position);
     const needBadge = needLvl===2 ? `<span class="frn-draft-need-crit">❗NEED</span>`
                     : needLvl===1 ? `<span class="frn-draft-need-need">⚠ NEED</span>` : "";
@@ -25521,7 +25524,7 @@ function renderFrnUDFAScramble() {
       <div class="frn-dp-rank">${displayRank}</div>
       <div class="frn-dp-body">
         <div class="frn-dp-top">
-          <span class="frn-dp-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${p.name}'s card">${p.name}</span>
+          <span class="frn-dp-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s card">${p.name}</span>
           ${_posPillHtml(p.position)}
           ${needBadge}
           ${gradeBadge(p)}

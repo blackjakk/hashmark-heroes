@@ -3240,8 +3240,9 @@ function jerseyForPlayer(p) {
   if (!p) return "";
   if (p.number) return p.number;
   const pool = JERSEYS_BY_POS[p.position] || ["00"];
+  const nm = p.name || "";
   let hash = 0;
-  for (let i = 0; i < p.name.length; i++) hash = (hash * 31 + p.name.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < nm.length; i++) hash = (hash * 31 + nm.charCodeAt(i)) >>> 0;
   return pool[hash % pool.length];
 }
 function attachPlayerStyles(formation, offStarters, defStarters, lookup) {

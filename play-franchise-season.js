@@ -985,7 +985,7 @@ function renderFrnPreseason(tab, scoutId, scoutView, selName) {
       .slice(0, 12);
 
     const rows = candidates.map(({ p, hit, dead, deadPY, deadYrs, netSave }) => {
-      const escN = p.name.replace(/'/g, "\\'");
+      const escN = p.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
       const isFree = dead < 0.5;
       return `<tr style="${isFree ? "background:rgba(0,180,0,.06)" : ""}">
         <td style="font-weight:700;color:${isFree?"var(--green-lt)":"var(--white)"}">${isFree?"✓ ":""}${p.name}</td>
@@ -1054,7 +1054,7 @@ function _buildPSTab(myId) {
   const eligible = myRoster.filter(p => _psEligible(p));
 
   const alertsHtml = poachAlerts.map(a => {
-    const ep = (a.playerName || "").replace(/'/g, "\\'");
+    const ep = (a.playerName || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     return `<div style="background:rgba(220,50,50,.12);border:1px solid rgba(220,50,50,.4);border-radius:4px;padding:.45rem .55rem;margin-bottom:.4rem">
       <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
         <span style="font-size:.88rem">⚠️</span>
@@ -1069,8 +1069,8 @@ function _buildPSTab(myId) {
   }).join("");
 
   const psRows = myPS.map(p => {
-    const ep = (p.name || "").replace(/'/g, "\\'");
-    const epid = (p.pid || "").replace(/'/g, "\\'");
+    const ep = (p.name || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+    const epid = (p.pid || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const flashLog = p._psFlashLog || [];
     const recentFlashes = flashLog.filter(f => f.season === franchise.season);
     const gemFlash = recentFlashes.find(f => f.kind === "gem");
@@ -1095,8 +1095,8 @@ function _buildPSTab(myId) {
   }).join("");
 
   const eligRows = eligible.filter(p => !myPS.some(x => x.name === p.name)).map(p => {
-    const ep = (p.name || "").replace(/'/g, "\\'");
-    const epid = (p.pid || "").replace(/'/g, "\\'");
+    const ep = (p.name || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+    const epid = (p.pid || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const slotsLeft = Math.max(0, PS_SLOTS - myPS.length);
     return `<div style="display:flex;align-items:center;gap:.4rem;padding:.28rem .45rem;background:var(--bg3);border:1px solid var(--border);border-radius:4px;margin-bottom:.18rem;opacity:${slotsLeft<=0?.45:1}">
       <span style="font-size:.58rem;color:var(--gold);font-weight:700;min-width:1.6rem">${p.position}</span>
@@ -1231,7 +1231,7 @@ function _preseasonRosterTab(roster, selName) {
         <tbody>
           ${players.map((p, i) => {
             const pKey = p.pid || p.name;
-            const escName = pKey.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            const escName = pKey.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
             const isStarter = i === 0;
             const isSel = selected && (selected.pid ? selected.pid === p.pid : selected.name === p.name);
             const aav = p.contract?.aav || 0;
@@ -1240,7 +1240,7 @@ function _preseasonRosterTab(roster, selName) {
             const { perYear: deadPerYr, years: deadYrs } = deadCapOnRelease(p);
             const deadTotal = Math.round(deadPerYr * deadYrs * 10) / 10;
             const thisYearSave = Math.round((capHit - deadPerYr) * 10) / 10;
-            const escNm = p.name.replace(/'/g, "\\'");
+            const escNm = p.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
             const isPendingRelease = _releasePending?.name === p.name && _releasePending?.pos === p.position;
             const tag = potentialTag(p, { known: true });
             // Compress the potential tag to a short chip for the table
@@ -1263,7 +1263,7 @@ function _preseasonRosterTab(roster, selName) {
               : `<button class="frn-pre-cut" onclick="event.stopPropagation();frnReleasePlayer('${escNm}','${p.position}')" title="Release — opens decision panel">✗</button>`;
             return `<tr class="frn-scout-row ${isSel?"selected":""}" style="background:${rowBg}" onclick="renderFrnPreseason('roster',null,null,'${escName}')">
               <td class="frn-scout-slot">${isStarter?"★":"#"+(i+1)}</td>
-              <td style="font-weight:${isStarter?700:400}"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${escName}','${(p.pid||"").replace(/'/g,"\\'")}')">${p.name}</span></td>
+              <td style="font-weight:${isStarter?700:400}"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${escName}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">${p.name}</span></td>
               <td>${gradeBadge(p)}</td>
               <td>${potChip}</td>
               <td style="color:${ageColor}">${p.age || "?"}</td>
@@ -1299,7 +1299,7 @@ function _buildReleaseDecisionPanel(roster) {
   const j1SaveY1 = Math.round((capHit - (j1Year1 || deadPerYr)) * 10) / 10;
   const j1Eligible = (j1Allowed || 0) > 0 && deadYrs >= 2 && deadTotal > 0;
   const tag = potentialTag(p, { known: true });
-  const escNm = p.name.replace(/'/g, "\\'");
+  const escNm = p.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
   const saveDelta = j1SaveY1 - standardSaveY1;
   const futureDelta = (j1Year2 || 0) - (deadPerYr * (deadYrs - 1));
 
@@ -1439,8 +1439,8 @@ function _buildScoutPlayerPanel(p, scouted) {
   const pos = p.position;
   const cmb = combineMeasurables(p);
   const isKicker = pos === "K" || pos === "P";
-  const escN   = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-  const escPid = (p.pid||"").replace(/'/g,"\\'");
+  const escN   = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
+  const escPid = (p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
 
   // Grade + confidence
   const gradeBadgeHtml = _scoutGradeBadge(p, scouted);
@@ -1736,12 +1736,12 @@ function _preseasonScoutTab(myId, scoutId, view, selName) {
 
   const _threatCard = (labelText, p) => {
     if (!p) return "";
-    const pKey = (p.pid || p.name).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const pKey = (p.pid || p.name).replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const statLine = _threatStatLine(p);
     return `<div class="frn-scout-threat-card"
       onclick="renderFrnPreseason('scout',${scoutId},'${view}','${pKey}')">
       <div class="frn-scout-threat-lbl">${labelText}</div>
-      <div class="frn-scout-threat-name"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${(p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'")}','${(p.pid||"").replace(/'/g,"\\'")}')">${p.name}</span></div>
+      <div class="frn-scout-threat-name"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${(p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">${p.name}</span></div>
       <div style="margin-top:.15rem">${_scoutGradeBadge(p, scoutedThisSeason)}</div>
       ${statLine ? `<div class="frn-scout-threat-stat">${statLine}</div>` : ""}
     </div>`;
@@ -1772,13 +1772,13 @@ function _preseasonScoutTab(myId, scoutId, view, selName) {
   const rowHtml = (p, slotLabel) => {
     const pKey = p.pid || p.name;
     const isSel = selected && (selected.pid ? selected.pid === p.pid : selected.name === p.name);
-    const escName = pKey.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const escName = pKey.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const isStarter = slotLabel.includes("1") || slotLabel === "QB" || slotLabel === "RB"
       || slotLabel === "TE" || slotLabel === "K" || slotLabel === "P";
     return `<tr class="frn-scout-row ${isSel?"selected":""}"
       onclick="renderFrnPreseason('scout',${scoutId},'${view}','${escName}')">
       <td class="frn-scout-slot">${slotLabel}</td>
-      <td style="font-weight:${isStarter?700:400}"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${escName}','${(p.pid||"").replace(/'/g,"\\'")}')">${p.name}</span></td>
+      <td style="font-weight:${isStarter?700:400}"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${escName}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">${p.name}</span></td>
       <td>${_scoutGradeBadge(p, scoutedThisSeason)}</td>
       <td style="color:var(--gray)">${p.age || "?"}</td>
       <td style="color:var(--gray);font-size:.66rem">${draftStr(p)}</td>
@@ -1800,7 +1800,7 @@ function _preseasonScoutTab(myId, scoutId, view, selName) {
     });
   }
 
-  const escSel = selected ? (selected.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'") : "";
+  const escSel = selected ? (selected.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;") : "";
   // Single toggle replaces the old Depth Chart / Full Roster sub-tabs —
   // depth chart is the default, click to fold in every backup.
   const starterCount = posOrder.reduce((s, pos) =>
@@ -4980,8 +4980,8 @@ function _moralePanelHtml(p) {
   const reason = (typeof _moraleReason === "function") ? _moraleReason(p, myId, rank) : "";
   const pct    = Math.round(Math.max(0, Math.min(100, m)));
   const w      = (franchise && franchise.week) || 1;
-  const jsName = (p.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-  const jsPid  = (p.pid  || "").replace(/'/g, "\\'");
+  const jsName = (p.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+  const jsPid  = (p.pid  || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
   const dis    = `disabled style="opacity:.4;cursor:not-allowed"`;
 
   const chips = [];
@@ -5527,8 +5527,8 @@ function _faCompareCardHtml(fa, chosenTeamId, currentSelKey) {
   if (!fa) return "";
   const sg = scoutGrade(fa);
   const suitors = TEAMS.filter(t => t.id !== chosenTeamId && _faAIInterest(t.id, fa) >= 0.1).length;
-  const escKey = (fa.pid || fa.name).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-  const escSel = (currentSelKey || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const escKey = (fa.pid || fa.name).replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+  const escSel = (currentSelKey || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
   return `<div style="padding:.45rem .55rem;background:var(--bg2);border:1px dashed var(--gold);border-radius:4px;margin-bottom:.55rem">
     <div style="display:flex;align-items:baseline;gap:.4rem;margin-bottom:.2rem">
       <span style="font-size:.55rem;letter-spacing:1.5px;color:var(--gold);font-weight:700">📌 PINNED FOR COMPARE</span>
@@ -5955,7 +5955,7 @@ function renderFrnFA(selectedKey) {
     const myOffer = _faOffers[faKey] || _faOffers[p.name];
     const offered = !!myOffer;
     const isSel = selected && (p.pid ? p.pid === selected.pid : p.name === selected.name);
-    const escKey = (faKey || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const escKey = (faKey || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const young = p.age <= 25;
     const wo = workoutResults[p.name];
     const woIcon = wo ? (wo.result === "standout" ? "⭐" : wo.result === "solid" ? "✅" : wo.result === "mixed" ? "〰️" : "❌") : "";
@@ -6021,7 +6021,7 @@ function renderFrnFA(selectedKey) {
   const overCap = projectedCap > cap;
 
   const selFaKey   = selected ? (selected.pid || selected.name) : "";
-  const escSelName = selFaKey.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const escSelName = selFaKey.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
   // Detail panel + offer form for selected FA
   let detailHtml = "";
@@ -6170,7 +6170,7 @@ function renderFrnFA(selectedKey) {
         <div style="flex:1">
           <div style="display:flex;align-items:center;gap:.38rem;flex-wrap:wrap;margin-bottom:.12rem">
             <span style="font-size:1.05rem;font-weight:900;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px"
-              onclick="frnOpenPlayerCard('${escSelName}','${(selected.pid||'').replace(/'/g,"\\'")}')"
+              onclick="frnOpenPlayerCard('${escSelName}','${(selected.pid||'').replace(/'/g,"\\'").replace(/"/g, "&quot;")}')"
               title="View full player card">${selected.name}</span>
             ${_posPillHtml(selected.position)}
             ${gradeBadge(selected)}
@@ -6383,7 +6383,7 @@ function renderFrnFA(selectedKey) {
   }
 
   // Right panel: cut list — queued cuts at top with UNDO, safe (no dead cap) shown by default
-  const escForSel = selected ? selected.name.replace(/\\/g, "\\\\").replace(/'/g, "\\'") : "";
+  const escForSel = selected ? selected.name.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;") : "";
   // Offers can be keyed by pid or name — check both like the detail panel does
   const _selCutOffer = selected ? (_faOffers[selFaKey] || _faOffers[selected.name]) : null;
   const cutSet = _selCutOffer ? new Set(_selCutOffer.cutNames || []) : new Set();
@@ -6412,8 +6412,8 @@ function renderFrnFA(selectedKey) {
   const _showDeadCap = !!(window._faCutShowDeadCap);
   const _buildCutRow = (p, isQueued) => {
     const aav = p.contract?.aav || 0;
-    const ep   = (p.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-    const epid = (p.pid  || "").replace(/'/g, "\\'");
+    const ep   = (p.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+    const epid = (p.pid  || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const { perYear: dPY, years: dYrs } = deadCapOnRelease(p);
     const hasDead = dYrs > 0 && dPY > 0;
     const isStarter = !!(p.pid && dcStarters.has(p.pid));
@@ -6446,8 +6446,8 @@ function renderFrnFA(selectedKey) {
 
   const _buildQueuedCard = p => {
     const aav  = p.contract?.aav || 0;
-    const ep   = (p.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-    const epid = (p.pid  || "").replace(/'/g, "\\'");
+    const ep   = (p.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+    const epid = (p.pid  || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     return `<div style="background:rgba(255,60,60,.13);border:1px solid rgba(255,107,107,.55);border-radius:4px;padding:.38rem .48rem;margin-bottom:.28rem">
       <div style="display:flex;align-items:center;gap:.35rem;margin-bottom:.28rem">
         <span style="font-size:.58rem;color:#ff9090;font-weight:700;flex-shrink:0">${p.position}</span>
@@ -6530,7 +6530,7 @@ function renderFrnFA(selectedKey) {
           const sugg = _faSuggestedCuts(chosenTeamId, _cutQueued.map(p => p.name), 4);
           if (!sugg.length || !sel) return "";
           const rows = sugg.map(s => {
-            const escName = (s.player.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            const escName = (s.player.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
             const dead = s.deadTotal >= 0.5
               ? `<span style="color:#ff9090;font-size:.5rem">☠$${s.deadTotal.toFixed(1)}M</span>`
               : `<span style="color:var(--green-lt);font-size:.5rem">clean</span>`;
@@ -6538,7 +6538,7 @@ function renderFrnFA(selectedKey) {
               <span style="color:var(--blgray);font-weight:700;font-size:.55rem">${s.player.position}</span>
               <span onclick="frnOpenPlayerCard('${escName}')" title="View player card" style="font-size:.66rem;color:var(--blwhite);cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.player.name}</span>
               <span style="color:var(--green-lt);font-weight:700;text-align:right;font-size:.6rem">+$${s.netSavings.toFixed(1)}M</span>
-              <button onclick="frnFAToggleCut('${sel.replace(/'/g,"\\'")}','${escName}',true)" style="background:rgba(255,70,70,.18);border:1px solid #ff6b6b;color:#ffaaaa;font-size:.52rem;padding:.1rem .25rem;border-radius:3px;cursor:pointer;font-family:inherit;font-weight:700">CUT</button>
+              <button onclick="frnFAToggleCut('${sel.replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${escName}',true)" style="background:rgba(255,70,70,.18);border:1px solid #ff6b6b;color:#ffaaaa;font-size:.52rem;padding:.1rem .25rem;border-radius:3px;cursor:pointer;font-family:inherit;font-weight:700">CUT</button>
               <span style="grid-column:2/4;color:var(--gray);font-size:.5rem;padding-left:0">${dead} · ${s.player.age}yr · OVR ${s.player.overall} · <i style="color:#e8a000">${s.reason}</i></span>
             </div>`;
           }).join("");
@@ -7299,7 +7299,7 @@ function renderFrnFANegotiations(selectedName) {
   if (!selKey) selKey = active.find(([, n]) => n.yourBid)?.[0] || active[0][0];
   const selNeg = negs[selKey];
   const selHigh = _faNegCurrentHigh(selNeg);
-  const escSel  = selKey.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const escSel  = selKey.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
   const fa = selNeg.fa;
 
   // ── Bid state ─────────────────────────────────────────────────────────────
@@ -7322,7 +7322,7 @@ function renderFrnFANegotiations(selectedName) {
   const listHtml = active.map(([name, n]) => {
     const high = _faNegCurrentHigh(n);
     const isSel = name === selKey;
-    const escName = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const escName = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const youLead = high?.isYou;
     const outbid  = n.yourBid && high && !high.isYou;
     const war     = n.knockoutWar;
@@ -7415,7 +7415,7 @@ function renderFrnFANegotiations(selectedName) {
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:.38rem;flex-wrap:wrap;margin-bottom:.12rem">
           <span style="font-size:1.05rem;font-weight:900;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px"
-            onclick="frnOpenPlayerCard('${escSel}','${(fa.pid||"").replace(/'/g,"\\'")}')">${fa.name}</span>
+            onclick="frnOpenPlayerCard('${escSel}','${(fa.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">${fa.name}</span>
           ${_posPillHtml(fa.position)}
           ${gradeBadge(fa)}
           <span style="font-size:.6rem;color:var(--blgray);margin-left:auto">${ageStage} · age ${fa.age}</span>
@@ -7568,8 +7568,8 @@ function renderFrnFANegotiations(selectedName) {
   const _showDeadCap = !!(window._faCutShowDeadCap);
 
   const _negCutRow = p => {
-    const ep   = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-    const epid = (p.pid||"").replace(/'/g,"\\'");
+    const ep   = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
+    const epid = (p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     const aav  = p.contract?.aav||0;
     const {perYear:dPY,years:dYrs} = deadCapOnRelease(p);
     const hasDead = dYrs>0&&dPY>0;
@@ -7601,8 +7601,8 @@ function renderFrnFANegotiations(selectedName) {
   };
 
   const _negQueuedCard = p => {
-    const ep   = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-    const epid = (p.pid||"").replace(/'/g,"\\'");
+    const ep   = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
+    const epid = (p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     const aav  = p.contract?.aav||0;
     return `<div style="background:rgba(255,60,60,.13);border:1px solid rgba(255,107,107,.55);border-radius:4px;padding:.38rem .48rem;margin-bottom:.28rem">
       <div style="display:flex;align-items:center;gap:.35rem;margin-bottom:.28rem">
@@ -8539,7 +8539,7 @@ function renderFrnFACuts() {
     return true;
   });
 
-  const cleanName = (n) => (n||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const cleanName = (n) => (n||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
   // — HERO BLOCK —
   const heroHtml = `
@@ -8624,7 +8624,7 @@ function renderFrnFACuts() {
           row.isOver = cum > cap;
           row.cum = cum;
         }
-        const cleanN = (n) => (n||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+        const cleanN = (n) => (n||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
         const renderedTiles = tilesHtml.map(row => {
           const { t, p, econ, col, isPending, isOver, dimmed, verdict } = row;
           const wPct = (t.w / tmW) * 100;
@@ -8640,7 +8640,7 @@ function renderFrnFACuts() {
           return `<div class="${cls}"
             style="left:${xPct.toFixed(2)}%;top:${yPct.toFixed(2)}%;width:${wPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;background:${col.fill}"
             onclick="frnOpenPlayerCard('${cleanN(p.name)}')"
-            title="${p.name} (${p.position}) · $${econ.hit.toFixed(1)}M hit · ${verdict.verdict==='pending'?'PENDING CUT':(verdict.label||'')}"
+            title="${_escHtml(p.name)} (${p.position}) · $${econ.hit.toFixed(1)}M hit · ${verdict.verdict==='pending'?'PENDING CUT':(verdict.label||'')}"
             >
             ${showName ? `<div class="frn-cuts-tm-name">${p.name}</div>` : ""}
             ${showHit  ? `<div class="frn-cuts-tm-hit">$${econ.hit.toFixed(1)}M · ${p.position}</div>` : ""}
@@ -8833,7 +8833,7 @@ function renderFrnFACuts() {
     return `<tr class="${isPending?"pending":""} verdict-${verdict.verdict}">
       <td class="frn-cuts-td-pos">${p.position}</td>
       <td class="frn-cuts-td-name">
-        <span class="frn-cuts-name-link" onclick="frnOpenPlayerCard('${cleanName(p.name)}')" title="${p.name} — click for full card · ceiling, contract, career history">${p.name}</span>
+        <span class="frn-cuts-name-link" onclick="frnOpenPlayerCard('${cleanName(p.name)}')" title="${_escHtml(p.name)} — click for full card · ceiling, contract, career history">${p.name}</span>
         ${badges.length ? `<span class="frn-cuts-badges">${badges.map(b => `<span class="frn-cuts-badge" style="color:${b.col};border-color:${b.col}55">${b.tag}</span>`).join("")}</span>` : ""}
       </td>
       <td class="frn-cuts-td-ovr" style="color:${ovrCol}">${ovrStr}</td>
@@ -8852,7 +8852,7 @@ function renderFrnFACuts() {
       <td class="frn-cuts-td-action">
         <div class="frn-cuts-action-cluster">
           ${(!isPending && restructure.eligible) ? `<button class="frn-cuts-row-btn restruct" onclick="frnFARestructureFromCuts('${cleanName(p.name)}','${p.position}')" title="Convert $${restructure.currentBase.toFixed(1)}M base → $${restructure.newProration.toFixed(1)}M/yr bonus. Frees cap now, adds dead-money risk later.">♻ +$${restructure.freed.toFixed(1)}M</button>` : ""}
-          ${(!isPending && tradeTag) ? `<button class="frn-cuts-row-btn trade" onclick="frnFATradeFromCuts('${cleanName(p.name)}','${p.position}')" title="Open the trade hub with ${p.name} on the block">🔀 trade</button>` : ""}
+          ${(!isPending && tradeTag) ? `<button class="frn-cuts-row-btn trade" onclick="frnFATradeFromCuts('${cleanName(p.name)}','${p.position}')" title="Open the trade hub with ${_escHtml(p.name)} on the block">🔀 trade</button>` : ""}
           <button class="frn-cuts-row-btn ${isPending?"undo":"cut"}" onclick="frnFACutsTogglePending('${cleanName(p.name)}')">
             ${isPending ? "← undo" : "✗ cut"}
           </button>
