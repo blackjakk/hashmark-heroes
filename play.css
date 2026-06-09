@@ -4836,6 +4836,63 @@
     font-size: .6rem; letter-spacing: 0;
   }
 
+  /* ── Interactive playcalling — the "YOUR CALL" panel ──────────────────
+        Injected under the field when the game pauses on the user's
+        offensive snap. Deck-matched chrome with a gold attention edge. */
+  .ipc-panel {
+    display: flex; flex-direction: column; gap: .55rem;
+    margin: .6rem 0 .2rem;
+    padding: .65rem .8rem;
+    background: linear-gradient(180deg, #131b23, #0b1117);
+    border: 1px solid rgba(245,197,66,.55);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.4), 0 0 18px rgba(245,197,66,.16),
+                inset 0 1px 0 rgba(255,255,255,.04);
+    animation: ipcPulseIn .18s ease-out;
+  }
+  @keyframes ipcPulseIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .ipc-head {
+    display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap;
+  }
+  .ipc-badge {
+    font-family: 'Bebas Neue','Anton',sans-serif; font-size: .95rem;
+    letter-spacing: 1.5px; color: var(--blgold, #f5c542);
+  }
+  .ipc-sit {
+    font-family: 'IBM Plex Mono', monospace; font-size: .72rem;
+    color: var(--blwhite, #eaeef4); letter-spacing: .5px;
+  }
+  .ipc-lean {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace; font-size: .62rem;
+    color: var(--blgray, #9aa7b8); letter-spacing: .5px;
+  }
+  .ipc-btns { display: flex; gap: .45rem; flex-wrap: wrap; }
+  .ipc-btn {
+    font-family: 'Bebas Neue','Anton',sans-serif; letter-spacing: 1px;
+    font-size: .95rem; padding: .5rem 1.1rem; border-radius: 6px; line-height: 1;
+    background: #18222d; color: var(--blwhite, #eaeef4);
+    border: 1px solid rgba(255,255,255,.14); cursor: pointer;
+    transition: background .1s, border-color .1s, transform .06s, box-shadow .1s;
+  }
+  .ipc-btn:hover { background: #20303f; border-color: var(--blgold, #f5c542); }
+  .ipc-btn:active { transform: translateY(1px); }
+  .ipc-btn.ipc-run  { border-color: rgba(62,207,142,.5); }
+  .ipc-btn.ipc-run:hover  { box-shadow: 0 0 12px rgba(62,207,142,.3); border-color: var(--blgreen, #3ecf8e); }
+  .ipc-btn.ipc-pass { border-color: rgba(109,139,255,.55); }
+  .ipc-btn.ipc-pass:hover { box-shadow: 0 0 12px rgba(109,139,255,.3); border-color: #8aa2ff; }
+  .ipc-btn.ipc-auto, .ipc-btn.ipc-coach {
+    font-size: .78rem; color: var(--blgray, #9aa7b8); padding: .5rem .8rem;
+  }
+  .ipc-btn.ipc-coach { margin-left: auto; }
+
+  /* Hero entry button for the interactive mode */
+  .frn-sim-btn.frn-callplays-btn {
+    color: var(--blgold, #f5c542);
+    border-color: rgba(245,197,66,.45);
+  }
+  .frn-sim-btn.frn-callplays-btn:hover { border-color: var(--blgold, #f5c542); }
+
   /* Side rail content blocks */
   .bspnlive-lastplay-text {
     color: var(--blwhite); font-size: .78rem; line-height: 1.45;

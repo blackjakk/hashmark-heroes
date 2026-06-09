@@ -3777,21 +3777,44 @@ function frnSimSeason() {
 }
 
 // ── Play a live (animated) franchise game ────────────────────────────────────
-function frnPlayGame(homeId, awayId, isPlayoff) {
-  // Hide franchise home so gameArea takes focus; show playback controls
+// Screen setup shared by both live modes (classic watch + interactive
+// playcalling): hide the dashboard, show the deck, stamp the pending game.
+function _frnEnterLiveGameScreen(homeId, awayId, isPlayoff) {
   $("franchiseHome").style.display = "none";
   $("playbackControls").style.display = "flex";
   // Clear any leftover replay-mode flag from a prior highlight view.
   window._replayMode = false;
   franchise.pendingFranchiseGame = { homeId, awayId, isPlayoff };
   saveFranchise();
-
-  const home       = getTeam(homeId), away = getTeam(awayId);
-  const homeRoster = franchise.rosters[homeId];
-  const awayRoster = franchise.rosters[awayId];
-
-  // Use franchise rosters for league nickname computation
+  // Use franchise rosters for league nickname computation. Once per game —
+  // NOT per sim build: the interactive runner rebuilds the sim many times
+  // and a reshuffle would change play descriptions between rebuilds.
   assignLeagueNicknames(franchise.rosters);
+}
+
+// Chaotic-chemistry swings are rolled ONCE per game and passed into the
+// builder as fixed values. The interactive runner re-builds the sim on every
+// playcall (deterministic re-sim with an input tape) — an inline Math.random
+// here would re-roll the swing each rebuild and desync the replayed prefix.
+function _frnChaosRolls(homeId, awayId) {
+  return {
+    home: _computeChemistryBonus(homeId).chaotic ? (Math.random() < 0.5 ? 2 : -2) : 0,
+    away: _computeChemistryBonus(awayId).chaotic ? (Math.random() < 0.5 ? 2 : -2) : 0,
+  };
+}
+
+// One construction path for every live-game sim so classic watch, interactive
+// playcalling, and auto-sims are driven by identical coaching + scheme +
+// chemistry modifiers. (Mirrors frnSimOnce's modifier stack.)
+// `cloneRosters` hands the sim deep copies — the engine mutates player objects
+// in-game (wear, injuries, ejections, concussion counters), and the
+// interactive runner's throwaway partial re-sims must not stack those onto
+// the real league. Player objects are save-serialized JSON, so a JSON
+// round-trip is a faithful clone.
+function _frnBuildLiveSim(homeId, awayId, isPlayoff, chaos, cloneRosters) {
+  const home       = getTeam(homeId), away = getTeam(awayId);
+  const homeRoster = cloneRosters ? JSON.parse(JSON.stringify(franchise.rosters[homeId])) : franchise.rosters[homeId];
+  const awayRoster = cloneRosters ? JSON.parse(JSON.stringify(franchise.rosters[awayId])) : franchise.rosters[awayId];
 
   const isRivalry = _areRivals(homeId, awayId);
   const sim = new GameSimulator(home, away, homeRoster, awayRoster,
@@ -3810,8 +3833,8 @@ function frnPlayGame(homeId, awayId, isPlayoff) {
   const chemAway = _computeChemistryBonus(awayId);
   sim.homeR.offense += chemHome.offBonus; sim.homeR.defense += chemHome.defBonus;
   sim.awayR.offense += chemAway.offBonus; sim.awayR.defense += chemAway.defBonus;
-  if (chemHome.chaotic) { const s = Math.random() < 0.5 ? 2 : -2; sim.homeR.offense += s; sim.homeR.defense += s; }
-  if (chemAway.chaotic) { const s = Math.random() < 0.5 ? 2 : -2; sim.awayR.offense += s; sim.awayR.defense += s; }
+  if (chaos?.home) { sim.homeR.offense += chaos.home; sim.homeR.defense += chaos.home; }
+  if (chaos?.away) { sim.awayR.offense += chaos.away; sim.awayR.defense += chaos.away; }
   const ocHome = franchise.coaches?.[homeId]?.oc?.trait;
   const ocAway = franchise.coaches?.[awayId]?.oc?.trait;
   const dcHome = franchise.coaches?.[homeId]?.dc?.trait;
@@ -3847,7 +3870,11 @@ function frnPlayGame(homeId, awayId, isPlayoff) {
   const awaySchemeMod = Math.round(_schemeMatchup(_getTeamOffScheme(awayId), _getTeamDefScheme(homeId)) * 0.5);
   sim.homeR.offense += homeSchemeMod;
   sim.awayR.offense += awaySchemeMod;
-  gameResult = sim.simulate();
+  return sim;
+}
+
+// Kick off playback of whatever `gameResult` now holds.
+function _frnStartLivePlayback() {
   playHead = 0; animState = null; playing = false;
   cancelAnimationFrame(rafId);
 
@@ -3864,7 +3891,248 @@ function frnPlayGame(homeId, awayId, isPlayoff) {
   updateButtons();
 }
 
+function frnPlayGame(homeId, awayId, isPlayoff) {
+  _frnEnterLiveGameScreen(homeId, awayId, isPlayoff);
+  const sim = _frnBuildLiveSim(homeId, awayId, isPlayoff, _frnChaosRolls(homeId, awayId));
+  gameResult = sim.simulate();
+  _frnStartLivePlayback();
+}
+
+// ── Interactive playcalling (Workstream C.2 — single-player) ────────────────
+// You are the OC: the game pauses at every one of YOUR offensive snaps and you
+// call run/pass (or defer to the AI). Defense + special teams stay AI-called.
+//
+// Architecture: deterministic re-sim with an input tape. The engine's drive
+// loop is synchronous and can't literally pause, but Workstream B made the
+// game-sim byte-identical under a seed. So each decision step re-runs a FRESH
+// sim from kickoff with the same seed, replays every previous answer through
+// the run/pass Coordinator seam (same RNG draws → identical prefix), and
+// aborts with a sentinel throw at the first unanswered call. The aborted
+// sim's plays-so-far become the playback; the user answers; repeat. ~30ms per
+// re-sim, no engine control-flow changes, and the audited loops are untouched.
+let _ipc = null; // { homeId, awayId, isPlayoff, userSide, seed, chaos, tape, pending, status, coachMode }
+
+function frnPlayGameInteractive(homeId, awayId, isPlayoff) {
+  const userSide = franchise.chosenTeamId === homeId ? "home"
+                 : franchise.chosenTeamId === awayId ? "away" : null;
+  if (!userSide) { frnPlayGame(homeId, awayId, isPlayoff); return; } // not your game — just watch
+  _frnEnterLiveGameScreen(homeId, awayId, isPlayoff);
+  _ipc = {
+    homeId, awayId, isPlayoff, userSide,
+    seed: _deriveGameSeed(homeId, awayId, isPlayoff),
+    chaos: _frnChaosRolls(homeId, awayId),
+    tape: [],          // your answers, in decision order: "run" | "pass" | null (defer to AI)
+    pending: null,     // context of the decision the game is paused on
+    status: "running", // "pending" (awaiting your call) | "final"
+    coachMode: false,  // true → hand every remaining call to the AI
+  };
+  _ipcRun();
+  _frnStartLivePlayback();
+}
+
+// One deterministic step: fresh seeded sim, tape replayed, paused at the next
+// unanswered decision (status "pending") or run to completion ("final").
+// Sets the global `gameResult` either way — the playback layer doesn't care
+// whether the plays array is partial.
+//
+// Mutation discipline: every step runs on CLONED rosters with the engine's
+// franchise-side logs snapshot-restored, so the dozens of throwaway re-sims
+// can't stack in-game wear/injuries/ejections onto the real league. Only a
+// COMPLETED game commits — when a cloned run finishes, we re-run it once on
+// the real rosters (identical inputs → byte-identical game under the seed)
+// so the real mutations land exactly once, exactly like the classic path.
+function _ipcRun(commitReal) {
+  if (!_ipc) return;
+  const cloneMode = !commitReal;
+  let logSnap = null;
+  if (cloneMode) {
+    logSnap = {
+      ej: franchise._ejectionLog     !== undefined ? JSON.stringify(franchise._ejectionLog)     : undefined,
+      ce: franchise._careerEndingLog !== undefined ? JSON.stringify(franchise._careerEndingLog) : undefined,
+    };
+  }
+  _setSimRng(_ipc.seed);
+  let sim, completed = false;
+  try {
+    sim = _frnBuildLiveSim(_ipc.homeId, _ipc.awayId, _ipc.isPlayoff, _ipc.chaos, cloneMode);
+    let di = 0; // decision index — tape answers are consumed in order
+    sim._coordinators = {
+      [_ipc.userSide]: (ctx) => {
+        if (di < _ipc.tape.length) return _ipc.tape[di++];
+        if (_ipc.coachMode) return null; // AI rolls its own passProb
+        _ipc.pending = ctx;
+        const e = new Error("ipc-pending");
+        e._ipcPending = true;
+        throw e;
+      },
+    };
+    const result = sim.simulate();
+    completed = true;
+    if (!cloneMode) {
+      gameResult = result;
+      _ipc.status = "final";
+      _ipc.pending = null;
+    }
+  } catch (e) {
+    if (!e || !e._ipcPending) { _ipc = null; throw e; }
+    _ipc.status = "pending";
+    gameResult = _ipcPartialResult(sim);
+  } finally {
+    _clearSimRng();
+    if (cloneMode && logSnap) {
+      if (logSnap.ej !== undefined) franchise._ejectionLog = JSON.parse(logSnap.ej);
+      else delete franchise._ejectionLog;
+      if (logSnap.ce !== undefined) franchise._careerEndingLog = JSON.parse(logSnap.ce);
+      else delete franchise._careerEndingLog;
+    }
+  }
+  // Cloned run finished the game → commit pass on the real rosters.
+  if (completed && cloneMode) _ipcRun(true);
+}
+
+// Mirror of simulate()'s return shape, built from a mid-game sim instance so
+// the playback/scoreboard/box-score consumers work on a partial game.
+function _ipcPartialResult(sim) {
+  const lookup = new Map();
+  for (const p of sim.hRoster) lookup.set(p.name, { ...p, team: "home" });
+  for (const p of sim.aRoster) lookup.set(p.name, { ...p, team: "away" });
+  return {
+    homeTeam: sim.home, awayTeam: sim.away,
+    homeScore: sim.score.home, awayScore: sim.score.away,
+    homeRatings: sim.homeR, awayRatings: sim.awayR,
+    homeRoster: sim.hRoster, awayRoster: sim.aRoster,
+    playerLookup: lookup,
+    plays: sim.plays, drives: sim.drives,
+    stats: sim.stats,
+    weather: sim.weather,
+    winner: null,
+    _ipcPartial: true,
+  };
+}
+
+// Playback hook — called wherever the playback layer hits the end of the
+// plays array (startNextPlay / jumpAheadTo / the ⏭ End button). Returns true
+// if an interactive decision is waiting and the call panel took over (the
+// caller must NOT render the FINAL screen).
+function _ipcMaybePrompt() {
+  if (!_ipc || _ipc.status !== "pending") return false;
+  if (!gameResult || playHead < gameResult.plays.length) return false;
+  playing = false;
+  cancelAnimationFrame(rafId);
+  animState = null;
+  if (typeof updateButtons === "function") updateButtons();
+  _ipcShowPanel();
+  return true;
+}
+
+// Your call, from the panel buttons (or R / P / O keys).
+function frnPlaycall(call) {
+  if (!_ipc || _ipc.status !== "pending") return;
+  _ipc.tape.push(call === "run" || call === "pass" ? call : null);
+  _ipc.pending = null;
+  _ipcHidePanel();
+  _ipcRun();
+  playing = true;
+  if (typeof updateButtons === "function") updateButtons();
+  startNextPlay();
+}
+
+// Hand the rest of the game to the AI — no more prompts, plays out to FINAL.
+function frnPlaycallCoachMode() {
+  if (!_ipc || _ipc.status !== "pending") return;
+  _ipc.coachMode = true;
+  _ipc.pending = null;
+  _ipcHidePanel();
+  _ipcRun();
+  playing = true;
+  if (typeof updateButtons === "function") updateButtons();
+  startNextPlay();
+}
+
+// ── Call-panel chrome (injected under the field, deck-styled) ───────────────
+function _ipcEnsurePanel() {
+  let el = document.getElementById("ipcPanel");
+  if (el && document.body.contains(el)) return el;
+  const center = document.querySelector(".bspnlive-center");
+  if (!center) return null;
+  el = document.createElement("div");
+  el.id = "ipcPanel";
+  el.className = "ipc-panel";
+  el.style.display = "none";
+  el.innerHTML = `
+    <div class="ipc-head">
+      <span class="ipc-badge">🎙 YOUR CALL</span>
+      <span class="ipc-sit" id="ipcSit"></span>
+      <span class="ipc-lean" id="ipcLean" title="What your OC would call here"></span>
+    </div>
+    <div class="ipc-btns">
+      <button class="ipc-btn ipc-run" onclick="frnPlaycall('run')" title="Hand it off [R]">🏃 RUN</button>
+      <button class="ipc-btn ipc-pass" onclick="frnPlaycall('pass')" title="Drop back [P]">🎯 PASS</button>
+      <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let the OC call this one [O]">🧠 OC CALL</button>
+      <button class="ipc-btn ipc-coach" onclick="frnPlaycallCoachMode()" title="Hand the rest of the game to the OC — no more prompts">⏩ COACH MODE</button>
+    </div>`;
+  const cap = document.getElementById("playCaption");
+  if (cap && cap.parentElement === center) cap.insertAdjacentElement("afterend", el);
+  else center.appendChild(el);
+  _ipcInstallKeys();
+  return el;
+}
+
+function _ipcShowPanel() {
+  const el = _ipcEnsurePanel();
+  if (!el || !_ipc || !_ipc.pending) return;
+  const c = _ipc.pending;
+  const down = ["1ST", "2ND", "3RD", "4TH"][(c.down || 1) - 1] || `${c.down}TH`;
+  const goalToGo = (c.yardLine + c.ytg) >= 100;
+  const dist = goalToGo ? "GOAL" : c.ytg;
+  const spot = c.yardLine <= 50 ? `OWN ${c.yardLine}` : `OPP ${100 - c.yardLine}`;
+  const mm = Math.floor((c.time || 0) / 60), ss = String(Math.floor((c.time || 0) % 60)).padStart(2, "0");
+  const qlab = c.quarter <= 4 ? `Q${c.quarter}` : "OT";
+  const my  = c.score[_ipc.userSide];
+  const opp = c.score[_ipc.userSide === "home" ? "away" : "home"];
+  const lead = my > opp ? "UP" : my < opp ? "DOWN" : "TIED";
+  const lean = c.passProb >= 0.5
+    ? `OC LEAN · PASS ${Math.round(c.passProb * 100)}%`
+    : `OC LEAN · RUN ${Math.round((1 - c.passProb) * 100)}%`;
+  el.querySelector("#ipcSit").textContent  = `${down} & ${dist} · ${spot} · ${qlab} ${mm}:${ss} · ${lead} ${my}-${opp}`;
+  el.querySelector("#ipcLean").textContent = lean;
+  el.style.display = "flex";
+}
+
+function _ipcHidePanel() {
+  const el = document.getElementById("ipcPanel");
+  if (el) el.style.display = "none";
+}
+
+let _ipcKeysInstalled = false;
+function _ipcInstallKeys() {
+  if (_ipcKeysInstalled) return;
+  _ipcKeysInstalled = true;
+  document.addEventListener("keydown", (e) => {
+    const el = document.getElementById("ipcPanel");
+    if (!el || el.style.display === "none") return;
+    if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+    const k = e.key.toLowerCase();
+    if (k === "r")      { e.preventDefault(); frnPlaycall("run"); }
+    else if (k === "p") { e.preventDefault(); frnPlaycall("pass"); }
+    else if (k === "o") { e.preventDefault(); frnPlaycall("auto"); }
+  });
+}
+
 function frnFinishGame() {
+  // Interactive game still mid-flight? Hand the rest to the OC (coach mode)
+  // so the persisted result below is a COMPLETE game, then drop the session.
+  if (_ipc && _ipc.status === "pending") {
+    _ipc.coachMode = true;
+    try { _ipcRun(); } catch (e) { console.error("[ipc] finish-out failed:", e); }
+  }
+  _ipc = null;
+  _ipcHidePanel();
+  // Stop any in-flight play animation BEFORE tearing down the game area — a
+  // pending rAF tick drawing to a removed canvas throws.
+  playing = false;
+  cancelAnimationFrame(rafId);
+  animState = null;
   const retBtn = $("frnReturnBtn");
   if (retBtn) retBtn.style.display = "none";
   // Hide playback controls + game area, restore franchise home
@@ -5115,6 +5383,7 @@ function _renderPlayoffHero() {
     <div class="frn-hero-cta-row">
       <button class="frn-hero-play-btn" onclick="frnPlayGame(${m.homeId},${m.awayId},true)">▶ PLAY GAME<span class="frn-hero-play-sub">interactive · live simulation</span></button>
       <div class="frn-hero-sims">
+        <button class="frn-sim-btn frn-callplays-btn" onclick="frnPlayGameInteractive(${m.homeId},${m.awayId},true)" title="You're the OC — the game pauses at every one of your offensive snaps">🎙 Call the Plays</button>
         <button class="frn-sim-btn" onclick="frnSimPlayoffGame(${m.homeId},${m.awayId})">⏩ Sim Game</button>
       </div>
     </div>

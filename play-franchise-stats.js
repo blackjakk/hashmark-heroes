@@ -8302,6 +8302,7 @@ function renderFrnRegular() {
             <span class="frn-hero-play-sub">interactive · live simulation</span>
           </button>
           <div class="frn-hero-sims">
+            <button class="frn-sim-btn frn-callplays-btn" onclick="frnPlayGameInteractive(${nextGame.homeId},${nextGame.awayId},false)" title="You're the OC — the game pauses at every one of your offensive snaps">🎙 Call the Plays</button>
             <button class="frn-sim-btn" onclick="frnSimGame(${nextGame.homeId},${nextGame.awayId})">⏩ Sim Game</button>
             ${_renderSimForwardPanel()}
           </div>

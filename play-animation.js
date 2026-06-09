@@ -10320,6 +10320,9 @@ function buildJogTransition(prevPlay, nextPlay) {
 function startNextPlay() {
   if (!gameResult) return;
   if (playHead >= gameResult.plays.length) {
+    // Interactive playcalling: the plays array is a PARTIAL game paused on
+    // the user's next offensive call — show the call panel, not FINAL.
+    if (typeof _ipcMaybePrompt === "function" && _ipcMaybePrompt()) return;
     playing = false;
     renderStaticEnd();
     updateButtons();

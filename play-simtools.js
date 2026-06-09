@@ -1053,6 +1053,9 @@ endBtn.addEventListener("click", () => {
   cancelAnimationFrame(rafId);
   playHead = gameResult.plays.length;
   animState = null;
+  // Interactive playcalling: ⏭ End fast-forwards to your next call, not to a
+  // fake FINAL built from a partial plays array.
+  if (typeof _ipcMaybePrompt === "function" && _ipcMaybePrompt()) return;
   renderStaticEnd();
   updateButtons();
 });
@@ -1076,6 +1079,8 @@ function jumpAheadTo(targetIdx) {
   renderProgress();
 
   if (playHead >= gameResult.plays.length) {
+    // Interactive playcalling: a partial game's "end" is the next decision.
+    if (typeof _ipcMaybePrompt === "function" && _ipcMaybePrompt()) return;
     renderStaticEnd();
     updateButtons();
     return;
