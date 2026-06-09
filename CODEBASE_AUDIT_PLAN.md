@@ -111,6 +111,24 @@ bug fixed this arc: trimmed scoring → zeroed linescores); save is dual-written
 
 ### C. Engine realism & statistical audit — extend the existing gate
 *Priority: MEDIUM (the strongest existing audit — extend, don't rebuild).*
+> **DONE** (realism-gate arc). Added to `_sim_audit.js` + `AUDIT.md` bands +
+> the regression baseline (`_audit_baseline.json`, seed 1337):
+> - **Special-teams returns gate** (KR avg, PR avg, return-TD/game). Surfaced
+>   a real, N-stable finding: KR avg ≈28.9 yd (NFL ~22) yet ~0.005 return
+>   TD/game (NFL ~0.05) — returns too long on average, never house-called.
+>   Documented as an open realism item; not yet fixed.
+> - **Penalty-mix gate** — accepted penalties/game bucketed into NFL families
+>   (pre-snap / holding / pass-cover / personal / total). 5/5 in band.
+> - **Game-outcome shape** — one-score-game % (43.3%, mildly under NFL 44–52)
+>   and tie % added to EVENT RATES.
+> - **Interactive-mode invariant** (Workstream C gate-safety): a deferring
+>   coordinator produces a byte-identical seeded game to none — baselined as a
+>   **hard gate** (value 1, tol 0), so any engine edit that breaks the seam
+>   fails CI. Verified PASS at 2 and 8 seasons.
+> Gate: 14/14 metrics within tolerance (2 informational NFL-band warns: KR
+> avg, one-score %). **Remaining (tickets):** the KR-return realism fix;
+> injury-rate-by-position bands (the injury data lives in `_brady_audit.js`,
+> the better home for it); time-of-possession spread.
 
 `_sim_audit.js` + `AUDIT.md` bands already cover the headline distributions.
 Known soft spots to add bands for: special teams (KR/PR yardage + TD rates,

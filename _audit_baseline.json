@@ -138,6 +138,81 @@
       ]
     },
     {
+      "audit": "_sim_audit.js",
+      "args": [
+        "2"
+      ],
+      "tier": "full",
+      "label": "sim_interactive_invariant",
+      "pattern": "deferring-coordinator determinism: \\w+ \\(([0-9])\\)",
+      "value": 1,
+      "tol": 0,
+      "nfl": [
+        1,
+        1
+      ]
+    },
+    {
+      "audit": "_sim_audit.js",
+      "args": [
+        "2"
+      ],
+      "tier": "full",
+      "label": "sim_kr_avg_yds",
+      "pattern": "KR avg \\(yds\\)\\s+([0-9.]+)",
+      "value": 28.7,
+      "tol": 2.5,
+      "nfl": [
+        20,
+        25
+      ]
+    },
+    {
+      "audit": "_sim_audit.js",
+      "args": [
+        "2"
+      ],
+      "tier": "full",
+      "label": "sim_pr_avg_yds",
+      "pattern": "PR avg \\(yds\\)\\s+([0-9.]+)",
+      "value": 8.6,
+      "tol": 2,
+      "nfl": [
+        7,
+        12
+      ]
+    },
+    {
+      "audit": "_sim_audit.js",
+      "args": [
+        "2"
+      ],
+      "tier": "full",
+      "label": "sim_penalties_per_game",
+      "pattern": "TOTAL accepted / game\\s+([0-9.]+)",
+      "value": 10.55,
+      "tol": 1.6,
+      "nfl": [
+        9,
+        15
+      ]
+    },
+    {
+      "audit": "_sim_audit.js",
+      "args": [
+        "2"
+      ],
+      "tier": "full",
+      "label": "sim_one_score_game_pct",
+      "pattern": "One-score games \\(margin <=8\\)\\s+([0-9.]+)%",
+      "value": 43.4,
+      "tol": 4,
+      "nfl": [
+        44,
+        52
+      ]
+    },
+    {
       "audit": "_clutch_audit.js",
       "args": [
         "2000"

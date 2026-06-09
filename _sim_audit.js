@@ -134,6 +134,15 @@ const audit = `
   // Misc gameplay-system counters (special teams returns, trick plays, 2-pt /
   // onside, clock, momentum, play-type mix, ejections).
   const ST = { krAtt:0, krYds:0, krTd:0, prAtt:0, prYds:0, prTd:0, muff:0 };
+  // Penalty mix by NFL bucket + game-outcome shape (one-score / tie). Penalty
+  // types come off the play log's penType (accepted "penalty" plays only).
+  const PEN = {};            // penType -> count
+  let   PENtot = 0;
+  let   tieGames = 0;        // games that ended level (OT exhausted)
+  // Interactive-mode invariant (Workstream C): a coordinator that always
+  // DEFERS (returns null) must leave a seeded game byte-identical to one with
+  // no coordinator at all — proves the run/pass + 4th-down seams are
+  // gate-safe. Measured once, post-loop, on its own fixed seed.
   const TR = { reverse:0, option:0, flea:0, fakePunt:0, fakeFg:0 };
   const SIT2 = { twoAtt:0, onside:0, onsideRec:0, kneel:0, spike:0, mom:0, pa:0 };
   const PTYPE = {};                       // pass concept → count
@@ -190,6 +199,7 @@ const audit = `
         const r = sim.simulate();
         lb.games++; lb.ptsSum += (r.homeScore + r.awayScore);
         game_margin.push(Math.abs(r.homeScore - r.awayScore));
+        if (r.homeScore === r.awayScore) tieGames++;
         // End-of-game fatigue by starter position (read off the sim instance).
         const _fat = sim._fatigue || {};
         for (const sid of [h.id, a.id]) {
@@ -295,7 +305,8 @@ const audit = `
           const k = p.kind;
           // Rare-event + situational counters — ALL play kinds, before the
           // run/pass filter so kickoffs / kneels / spikes / momentum aren't skipped.
-          if      (k === "muff")     ST.muff++;
+          if      (k === "penalty")  { PEN[p.penType||"Unknown"] = (PEN[p.penType||"Unknown"]||0)+1; PENtot++; }
+          else if (k === "muff")     ST.muff++;
           else if (k === "kneel")    SIT2.kneel++;
           else if (k === "spike")    SIT2.spike++;
           else if (k === "momentum") SIT2.mom++;
@@ -457,8 +468,16 @@ const audit = `
   const ypa = lb.pass_att ? lb.passYds / lb.pass_att : 0;
   // Median game margin — pure distributional measure of competitiveness
   const marginMedian = q(game_margin, 0.50);
+  // One-score games (final margin ≤ 8): NFL ~44-52% of games. Tie games are
+  // vanishingly rare in the NFL (~0.1-0.4%); the sim allows an OT to expire
+  // level, so this should stay near-zero — a loose ceiling catches a bug that
+  // makes ties common.
+  const oneScorePct = game_margin.filter(v=>v<=8).length / game_margin.length * 100;
+  const tiePct      = tieGames / (lb.games||1) * 100;
   const E = [
     ["Shutout rate (team-games at 0 pts)", shutoutPct.toFixed(2)+"%", "1.0-2.5%", shutoutPct>=1.0 && shutoutPct<=2.5],
+    ["One-score games (margin <=8)",       oneScorePct.toFixed(1)+"%","44-52%",   oneScorePct>=44 && oneScorePct<=52],
+    ["Tie games (OT expired level)",       tiePct.toFixed(2)+"%",     "0-1.5%",   tiePct>=0 && tiePct<=1.5],
     ["40+ pt games (team-games >=40)",     big40Pct.toFixed(2)+"%",   "3.0-7.0%", big40Pct>=3.0 && big40Pct<=7.0],
     ["Games with margin >=14",             margin14Pct.toFixed(1)+"%","40-55%",   margin14Pct>=40 && margin14Pct<=55],
     ["Games with margin >=21 (blowouts)",  margin21Pct.toFixed(1)+"%","20-32%",   margin21Pct>=20 && margin21Pct<=32],
@@ -689,15 +708,67 @@ const audit = `
     console.log("   "+("Q"+q).padEnd(6)+(s.yds/s.plays).toFixed(2).padStart(8)+String(s.plays).padStart(8));
   }
 
-  // ============== SPECIAL TEAMS RETURNS ==============
+  // ============== SPECIAL TEAMS RETURNS — gated ==============
   const _gp = lb.games || 1;
+  const krAvg = ST.krYds/Math.max(1,ST.krAtt), prAvg = ST.prYds/Math.max(1,ST.prAtt);
+  const retTdPerG = (ST.krTd + ST.prTd) / _gp;
+  const STg = [
+    // [label, val, lo, hi, fmt] — NFL: KR ~21-24 yd, PR ~8-11 yd, return TDs
+    // ~0.03-0.10/game combined (kick + punt), muffs rare.
+    ["KR avg (yds)",        krAvg,            20, 25,  v=>v.toFixed(1)],
+    ["PR avg (yds)",        prAvg,            7,  12,  v=>v.toFixed(1)],
+    ["Return TD / game",    retTdPerG,        0.02, 0.12, v=>v.toFixed(3)],
+  ];
+  let stOk = 0;
   console.log("");
   console.log("══════════════════════════════════════════════════════════");
-  console.log(" SPECIAL TEAMS RETURNS (per game, both teams)  NFL refs in (parens)");
+  console.log(" SPECIAL TEAMS RETURNS (per game, both teams)");
   console.log("══════════════════════════════════════════════════════════");
-  console.log("   Kick returns:  "+(ST.krAtt/_gp).toFixed(1)+"/g  avg "+(ST.krYds/Math.max(1,ST.krAtt)).toFixed(1)+" (~22)  TD "+(ST.krTd/Math.max(1,_gp)).toFixed(3)+"/g");
-  console.log("   Punt returns:  "+(ST.prAtt/_gp).toFixed(1)+"/g  avg "+(ST.prYds/Math.max(1,ST.prAtt)).toFixed(1)+" (~9)   TD "+(ST.prTd/Math.max(1,_gp)).toFixed(3)+"/g");
-  console.log("   Muffs: "+(ST.muff/_gp).toFixed(3)+"/g");
+  console.log(" "+"METRIC".padEnd(22)+" "+"SIM".padStart(9)+"   "+"NFL BAND".padStart(13)+"  FLAG");
+  console.log(" "+"-".repeat(54));
+  for (const [label,val,lo,hi,fmt] of STg) {
+    const ok = val>=lo && val<=hi; if (ok) stOk++;
+    console.log(" "+label.padEnd(22)+" "+fmt(val).padStart(9)+"   "+(fmt(lo)+"-"+fmt(hi)).padStart(13)+"   "+(ok?"OK":"!!"));
+  }
+  console.log(" "+"-".repeat(54));
+  console.log(" "+stOk+"/"+STg.length+" in range");
+  console.log("   volume: KR "+(ST.krAtt/_gp).toFixed(1)+"/g · PR "+(ST.prAtt/_gp).toFixed(1)+"/g · muffs "+(ST.muff/_gp).toFixed(3)+"/g");
+
+  // ============== PENALTY MIX — by NFL bucket, per game (both teams) ==============
+  // Buckets the engine's penType strings into the families the NFL reports.
+  // Total accepted penalties ~12-14/game; bands are deliberately loose — this
+  // is a SHAPE check (catch "all holding" / "no PI" bugs), not a tight gate.
+  const _penBucket = (t) => {
+    if (/False Start|Offsides|Neutral Zone|Encroachment|Delay of Game|Illegal Formation|Illegal Motion/i.test(t)) return "pre-snap";
+    if (/Holding/i.test(t)) return "holding";
+    if (/Pass Interference|Illegal Contact|Illegal Use of Hands|Ineligible/i.test(t)) return "pass-cover";
+    if (/Unnecessary Roughness|Face Mask|Horse Collar|Taunting|Roughing/i.test(t)) return "personal";
+    return "other";
+  };
+  const penByBucket = { "pre-snap":0, "holding":0, "pass-cover":0, "personal":0, "other":0 };
+  for (const [t,n] of Object.entries(PEN)) penByBucket[_penBucket(t)] += n;
+  const PENg = [
+    // per game (both teams). NFL approx: pre-snap ~4-5, holding ~2.5-4,
+    // pass-cover ~1.2-2.2, personal ~0.7-1.6.
+    ["pre-snap / game",  penByBucket["pre-snap"]/_gp,  3.0, 6.0, v=>v.toFixed(2)],
+    ["holding / game",   penByBucket["holding"]/_gp,   2.0, 4.5, v=>v.toFixed(2)],
+    ["pass-cover / game",penByBucket["pass-cover"]/_gp,0.9, 2.6, v=>v.toFixed(2)],
+    ["personal / game",  penByBucket["personal"]/_gp,  0.4, 1.8, v=>v.toFixed(2)],
+    ["TOTAL accepted / game", PENtot/_gp,               9.0, 15.0, v=>v.toFixed(2)],
+  ];
+  let penOk = 0;
+  console.log("");
+  console.log("══════════════════════════════════════════════════════════");
+  console.log(" PENALTY MIX — accepted penalties per game by family (both teams)");
+  console.log("══════════════════════════════════════════════════════════");
+  console.log(" "+"METRIC".padEnd(22)+" "+"SIM".padStart(9)+"   "+"NFL BAND".padStart(13)+"  FLAG");
+  console.log(" "+"-".repeat(54));
+  for (const [label,val,lo,hi,fmt] of PENg) {
+    const ok = val>=lo && val<=hi; if (ok) penOk++;
+    console.log(" "+label.padEnd(22)+" "+fmt(val).padStart(9)+"   "+(fmt(lo)+"-"+fmt(hi)).padStart(13)+"   "+(ok?"OK":"!!"));
+  }
+  console.log(" "+"-".repeat(54));
+  console.log(" "+penOk+"/"+PENg.length+" in range");
 
   // ============== TRICK PLAYS & SITUATIONAL ==============
   console.log("");
@@ -791,6 +862,40 @@ const audit = `
   }
   console.log("  "+"─".repeat(50));
   console.log("  "+"ALL 3rd downs".padEnd(20)+String(totA).padStart(8)+String(totC).padStart(8)+(totA?(100*totC/totA).toFixed(1)+"%":"—").padStart(9)+"   36-44%");
+  console.log("");
+
+  // ============== INTERACTIVE-MODE INVARIANT (Workstream C) ==============
+  // The run/pass + 4th-down Coordinator seams must be behavior-preserving when
+  // unused: a coordinator that always DEFERS (returns null) has to produce a
+  // byte-identical game to no coordinator under the same seed. This is the
+  // gate-safety claim the interactive-playcalling feature rests on; assert it
+  // here so any future engine edit that breaks it fails the audit. Uses the
+  // engine's seeded RNG (_setSimRng), independent of the audit's global seed.
+  let invariantPass = "SKIP", invA = 0, invB = 0;
+  if (typeof _setSimRng === "function" && typeof _clearSimRng === "function") {
+    const h = TEAMS[0], a = TEAMS[1];
+    const baseH = buildRoster(h), baseA = buildRoster(a);   // built once, cloned per run
+    const clone = (r) => JSON.parse(JSON.stringify(r));
+    const fingerprint = (res) => res.plays.map(p =>
+      p.kind+"|"+(p.yards??"")+"|"+(p.down??"")+"|"+(p.quarter??p.qtr??"")+"|"+(p.homeScore??"")+"|"+(p.awayScore??"")
+    ).join(" ;; ");
+    const runOnce = (coord) => {
+      _setSimRng(20260609);
+      const sim = new GameSimulator(h, a, clone(baseH), clone(baseA));
+      if (coord) sim._coordinators = { home: () => null, away: () => null };
+      const res = sim.simulate();
+      _clearSimRng();
+      return res;
+    };
+    const noCoord  = runOnce(false);
+    const deferral = runOnce(true);
+    invA = noCoord.plays.length; invB = deferral.plays.length;
+    invariantPass = (fingerprint(noCoord) === fingerprint(deferral)) ? "PASS" : "FAIL";
+  }
+  console.log("══════════════════════════════════════════════════════════");
+  console.log(" INTERACTIVE-MODE INVARIANT (deferring coordinator == none)");
+  console.log("══════════════════════════════════════════════════════════");
+  console.log("   deferring-coordinator determinism: "+invariantPass+" ("+(invariantPass==="PASS"?1:0)+")  (plays "+invA+" vs "+invB+")");
   console.log("");
 
 })();

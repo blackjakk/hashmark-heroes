@@ -388,6 +388,41 @@ franchise award/record code calls) + the four `play-franchise-*.js` files.
 | Punt avg | 43–48 |
 | OT game % | 4–10% |
 
+### Game-outcome shape (`_sim_audit.js` EVENT RATES)
+| Metric | NFL band |
+|---|---|
+| One-score games (final margin ≤8) | 44–52% |
+| Tie games (OT expired level) | 0–1.5% (NFL ~0.1–0.4%) |
+
+### Special teams returns (`_sim_audit.js`)
+| Metric | NFL band |
+|---|---|
+| KR avg (yds) | 20–25 |
+| PR avg (yds) | 7–12 |
+| Return TD / game (KR+PR) | 0.02–0.12 |
+
+> **Open finding (kick returns):** at seed 1337 the sim runs KR avg ≈ **28.7
+> yds** (NFL ~22) and return TDs ≈ **0.004/game** (NFL ~0.05) — returns are
+> too long on average yet almost never break for a score. The model gives
+> consistent medium-long returns without the NFL's "mostly short, occasional
+> housecall" tail. Tracked as an open realism item, not yet fixed.
+
+### Penalty mix (`_sim_audit.js`, accepted penalties/game, both teams)
+| Family | NFL band |
+|---|---|
+| Pre-snap (false start, offsides, NZ, delay, illegal form/motion) | 3.0–6.0 |
+| Holding (off + def) | 2.0–4.5 |
+| Pass-coverage (PI, illegal contact/hands, ineligible) | 0.9–2.6 |
+| Personal foul (UR, facemask, horse collar, taunt, roughing) | 0.4–1.8 |
+| TOTAL accepted | 9–15 |
+
+### Interactive-mode invariant (`_sim_audit.js`, Workstream C gate-safety)
+A coordinator that always **defers** (`() => null`) must produce a
+byte-identical game to no coordinator under the same seed — proves the
+run/pass + 4th-down Coordinator seams are behavior-preserving when unused.
+Prints `PASS (1)` / `FAIL (0)`; baselined as a **hard gate** (value 1, tol 0)
+so any future engine edit that breaks the seam fails CI.
+
 ### Franchise health (`_brady_audit.js`, bands scale with sim length)
 | Metric | Band | Meaning |
 |---|---|---|
