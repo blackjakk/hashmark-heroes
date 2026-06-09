@@ -4816,6 +4816,7 @@ function _franchiseGameToBSPNData(g, week) {
     topPerformers: leaders.topPerformers,
     injuryRecap: _bspnBuildInjuryRecap(g, week, home, away),
     gameNotes: _bspnBuildGameNotes(g, week, awayT, homeT, home, away, homeWon, leaders),
+    drives: (Array.isArray(g.drives) && g.drives.length) ? { list: g.drives, awayT, homeT } : null,
   };
 }
 
@@ -5151,6 +5152,47 @@ function _bspnRenderLeadersGroup(group, teamsById) {
     ${rows}
   </section>`;
 }
+// Drive-by-drive chart for the past-game viewer — one compact row per
+// possession (team, plays/yards/time/start FP, result, running away–home score)
+// grouped under quarter headers. Reads the persisted g.drives timeline.
+function _bspnRenderDriveChart(drives) {
+  if (!drives || !Array.isArray(drives.list) || !drives.list.length) return "";
+  const { list, awayT, homeT } = drives;
+  const meta = (side) => side === "home"
+    ? { ab: homeT.abbreviation, col: homeT.primaryColor }
+    : { ab: awayT.abbreviation, col: awayT.primaryColor };
+  const fmtTime = (s) => `${Math.floor((s || 0) / 60)}:${String(Math.floor((s || 0) % 60)).padStart(2, "0")}`;
+  const fp = (yl) => yl == null ? "" : (yl <= 50 ? `own ${yl}` : `opp ${100 - yl}`);
+  const resultMeta = (r) => {
+    const R = String(r || "").toUpperCase();
+    if (/PUNT/.test(R))                 return { label: "PUNT",      col: "var(--gray)" };
+    if (/DOWNS/.test(R))                return { label: "ON DOWNS",  col: "#ff8a8a" };
+    if (/SAFETY/.test(R))               return { label: "SAFETY",    col: "#ff8a8a" };
+    if (/INT|FUMBLE|TURNOVER/.test(R))  return { label: "TURNOVER",  col: "#ff8a8a" };
+    if (/MISS/.test(R))                 return { label: "MISSED FG", col: "#e0b078" };
+    if (/\bTD\b|TOUCHDOWN|RTN-TD/.test(R)) return { label: "TD",     col: "#86e0a3" };
+    if (/\bFG\b|FIELD GOAL/.test(R))    return { label: "FG",        col: "#cfe8a8" };
+    if (/HALF|END/.test(R))             return { label: "END HALF",  col: "var(--gray)" };
+    return { label: R || "—", col: "var(--gray)" };
+  };
+  let lastQ = 0;
+  const rows = list.map(d => {
+    const m = meta(d.team), rm = resultMeta(d.result);
+    const qHdr = d.qtr !== lastQ
+      ? `<div style="font-size:.55rem;letter-spacing:1px;color:var(--gray);font-weight:700;margin:.35rem 0 .1rem">${d.qtr <= 4 ? "Q" + d.qtr : "OT"}</div>` : "";
+    lastQ = d.qtr;
+    return `${qHdr}<div style="display:flex;align-items:baseline;gap:.4rem;padding:.16rem 0;border-top:1px solid rgba(255,255,255,.05);font-size:.62rem">
+      <span style="font-weight:800;color:${m.col};min-width:2.4rem">${m.ab}</span>
+      <span style="color:var(--gray);flex:1;min-width:0">${d.plays} pl · ${d.yds} yd · ${fmtTime(d.sec)}${fp(d.startYL) ? ` · ${fp(d.startYL)}` : ""}</span>
+      <span style="font-weight:700;color:${rm.col};min-width:4rem;text-align:right">${rm.label}</span>
+      <span style="color:var(--white);font-variant-numeric:tabular-nums;min-width:2.6rem;text-align:right">${d.a}–${d.h}</span>
+    </div>`;
+  }).join("");
+  return `<section class="bspn-panel">
+    <div class="bspn-panel-title">DRIVE CHART <span style="font-weight:400;color:var(--gray);font-size:.6rem">· ${list.length} drives · score = ${awayT.abbreviation}–${homeT.abbreviation}</span></div>
+    <div>${rows}</div>
+  </section>`;
+}
 function _bspnRenderNotes(notes) {
   if (!notes?.length) return "";
   return `<section class="bspn-panel">
@@ -5180,7 +5222,7 @@ function _bspnRenderFooter() {
 function _bspnRenderPage(data) {
   if (!data) return "";
   const { summary, comparisonStats, awayBoxScoreGroups, homeBoxScoreGroups,
-    scoringSummary, leaderGroups, topPerformers, injuryRecap, gameNotes } = data;
+    scoringSummary, leaderGroups, topPerformers, injuryRecap, gameNotes, drives } = data;
   const teamsById = {
     [summary.awayTeam.id]: summary.awayTeam,
     [summary.homeTeam.id]: summary.homeTeam,
@@ -5204,6 +5246,7 @@ function _bspnRenderPage(data) {
           ${(leaderGroups || []).map(g => _bspnRenderLeadersGroup(g, teamsById)).join("")}
           ${topPerformers ? _bspnRenderLeadersGroup(topPerformers, teamsById) : ""}
           ${_bspnRenderScoring(scoringSummary, teamsById)}
+          ${_bspnRenderDriveChart(drives)}
           ${_bspnRenderInjuryRecap(injuryRecap)}
           ${_bspnRenderNotes(gameNotes)}
         </aside>

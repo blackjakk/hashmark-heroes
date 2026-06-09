@@ -1896,6 +1896,7 @@ function markGamePlayed(homeId, awayId, homeScore, awayScore, gameStats, plays, 
     if (gameStats) g.stats = _stripGameStatsForStorage(gameStats);
     if (plays)     g.scoring = _extractScoringTimeline(plays, homeScore, awayScore);
     if (plays)     g.momentumLog = _extractMomentumLog(plays);
+    if (plays)     g.drives = _extractDriveLog(plays);
     // MFF EPA: append a compact per-play log for this game so EPA can be
     // computed live. Each game starts with a header marker {__g:1,homeId,awayId}
     // so the EPA walker knows where games begin/end (and which team is
@@ -1958,6 +1959,30 @@ function _extractMomentumLog(plays) {
     out.push({
       team: p.team, amount: p.amount, source: p.source || "",
       homeScore: p.homeScore || 0, awayScore: p.awayScore || 0,
+    });
+  }
+  return out.length ? out : null;
+}
+
+// Compact drive-by-drive log from the sim's drive_summary plays. One entry per
+// possession: who had it, how it ended, plays/yards/time, start field position,
+// quarter, and the score after. ~9 small fields × ~26 drives/game ≈ tiny.
+// Powers the past-game Drive Chart (and is a clean timeline artifact for any
+// future drive-level features). Returns null when there's nothing to log.
+function _extractDriveLog(plays) {
+  if (!Array.isArray(plays)) return null;
+  const out = [];
+  for (const p of plays) {
+    if (p.kind !== "drive_summary") continue;
+    out.push({
+      team: p.team || null,
+      result: p.driveResult || "",
+      plays: p.drivePlays || 0,
+      yds: p.driveYards || 0,
+      sec: Math.max(0, Math.round(p.driveTime || 0)),
+      startYL: p.driveStartYL ?? null,
+      qtr: p.quarter || 1,
+      h: p.homeScore || 0, a: p.awayScore || 0,
     });
   }
   return out.length ? out : null;
@@ -3502,6 +3527,7 @@ function frnSimWeek() {
     g.stats = _stripGameStatsForStorage(r.full?.stats);
     g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
       g.momentumLog = _extractMomentumLog(r.full?.plays);
+      g.drives = _extractDriveLog(r.full?.plays);
     // Highlights — top 7 per game saved to franchise.replayClips
     if (r.full?.plays) {
       try {
@@ -3540,6 +3566,7 @@ function frnSimToWeek(targetWeek) {
       g.stats = _stripGameStatsForStorage(r.full?.stats);
       g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
       g.momentumLog = _extractMomentumLog(r.full?.plays);
+      g.drives = _extractDriveLog(r.full?.plays);
       if (r.full?.weather) g.weather = { label: r.full.weather.label, windStrength: r.full.weather.windStrength };
       if (r.full?.isRivalry) g.isRivalry = true;
       if (r.full?.homeWgp || r.full?.awayWgp) g.gameplan = {
@@ -3569,6 +3596,7 @@ function frnSimToEndOfSeason() {
       g.stats = _stripGameStatsForStorage(r.full?.stats);
       g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
       g.momentumLog = _extractMomentumLog(r.full?.plays);
+      g.drives = _extractDriveLog(r.full?.plays);
       if (r.full?.weather) g.weather = { label: r.full.weather.label, windStrength: r.full.weather.windStrength };
       if (r.full?.isRivalry) g.isRivalry = true;
       if (r.full?.homeWgp || r.full?.awayWgp) g.gameplan = {
@@ -3716,6 +3744,7 @@ function frnSimSeason() {
       g.stats = _stripGameStatsForStorage(r.full?.stats);
       g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
       g.momentumLog = _extractMomentumLog(r.full?.plays);
+      g.drives = _extractDriveLog(r.full?.plays);
       if (r.full?.weather) g.weather = { label: r.full.weather.label, windStrength: r.full.weather.windStrength };
       if (r.full?.isRivalry) g.isRivalry = true;
       if (r.full?.homeWgp || r.full?.awayWgp) g.gameplan = {

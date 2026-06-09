@@ -6697,6 +6697,7 @@ class GameSimulator {
         desc: `═ ${driveStartTeam}: ${plays}-play, ${yardsGained >= 0 ? yardsGained : yardsGained} yds, ${ts} — starting ${fpStart} → ${result.toUpperCase()} ═`,
         quarter: this.quarter, time: this.time,
         homeScore: this.score.home, awayScore: this.score.away,
+        team: start,
         driveResult: result,
         drivePlays: plays,
         driveYards: yardsGained,
