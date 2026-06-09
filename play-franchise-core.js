@@ -3052,6 +3052,72 @@ function _psDemote(teamId, player) {
   ps.push(moved);
   return true;
 }
+// Position floors for auto-demote — never strip a position below this when
+// pulling a young body down to the PS (mirrors _seedPracticeSquads' FLOORS so
+// the active roster keeps a starter + sensible backups).
+const _PS_DEMOTE_FLOORS = { QB: 2, K: 1, P: 1, TE: 2, RB: 2, WR: 4, OL: 7, DL: 5, LB: 4, CB: 4, S: 3 };
+// Pick a PS-eligible free agent to stash. Prefers the LOWEST-overall eligible
+// body — consistent with how PS is seeded (raw prospects who didn't make the
+// cut) and so AI doesn't vacuum upside young FAs off the open market. Null if
+// none eligible.
+function _bestPsEligibleFA() {
+  const fa = franchise.freeAgents || [];
+  let pick = null;
+  for (const p of fa) {
+    if (!_psEligible(p)) continue;
+    if (!pick || (p.overall || 0) < (pick.overall || 0)) pick = p;
+  }
+  return pick;
+}
+// Pick the lowest-OVR eligible young player a team can spare (its position
+// still clears the floor afterward). Null if nothing's spare.
+function _bestPsDemoteCandidate(teamId) {
+  const roster = franchise.rosters[teamId] || [];
+  const counts = {};
+  for (const p of roster) counts[p.position] = (counts[p.position] || 0) + 1;
+  let best = null;
+  for (const p of roster) {
+    if (!_psEligible(p)) continue;
+    const floor = _PS_DEMOTE_FLOORS[p.position] ?? 0;
+    if ((counts[p.position] || 0) <= floor) continue;        // can't spare him
+    if (!best || (p.overall || 0) < (best.overall || 0)) best = p;
+  }
+  return best;
+}
+// AUTO-REPLENISH — keep practice squads stocked toward PS_SLOTS. Nothing used
+// to call the manual _psSignFromFA / _psDemote for AI teams, so squads only
+// ever drained (poaching, promotions, age-outs) and trended to empty over a
+// franchise. This tops them back up: a fresh young FA first (non-disruptive),
+// else demote a spare young body off the active roster.
+//   opts.aiOnly      — skip the user's team (default true; the user manages
+//                      their own PS via the depth/PS UI).
+//   opts.maxPerTeam  — cap additions per team per call (default Infinity =
+//                      fill fully; in-season passes a small number).
+//   opts.allowDemote — allow pulling from the active roster (default true;
+//                      in-season passes false so it doesn't thin 53-mans mid-year).
+function _psReplenishTeams(opts = {}) {
+  if (!franchise || !franchise.practiceSquads) return 0;
+  const aiOnly     = opts.aiOnly !== false;
+  const maxPerTeam = opts.maxPerTeam != null ? opts.maxPerTeam : Infinity;
+  const allowDemote = opts.allowDemote !== false;
+  const myId = Number(franchise.chosenTeamId);
+  let added = 0;
+  for (const t of TEAMS) {
+    if (aiOnly && t.id === myId) continue;
+    const ps = (franchise.practiceSquads[t.id] = franchise.practiceSquads[t.id] || []);
+    let n = 0;
+    while (ps.length < PS_SLOTS && n < maxPerTeam) {
+      const fa = _bestPsEligibleFA();
+      if (fa && _psSignFromFA(t.id, fa)) { n++; added++; continue; }
+      if (allowDemote) {
+        const cand = _bestPsDemoteCandidate(t.id);
+        if (cand && _psDemote(t.id, cand)) { n++; added++; continue; }
+      }
+      break;  // no eligible body available from either source
+    }
+  }
+  return added;
+}
 // POACH — sign a RIVAL's practice-squad player onto YOUR active roster (the
 // NFL rule: poaching puts him on your 53, not your PS). Removes him from the
 // rival's PS, signs a 2yr/$1M minimum deal (same terms as a promote), and

@@ -3145,6 +3145,9 @@ function _runWeekEndResolution() {
   _scoutTokensWeeklyTick();
   _psWeeklyFlashRoll();
   _psPoachPass();
+  // Light in-season AI backfill — recover gradually from poaching/promotions
+  // using only the FA pool (no demotes, so 53-mans aren't thinned mid-year).
+  if (typeof _psReplenishTeams === "function") _psReplenishTeams({ aiOnly: true, allowDemote: false, maxPerTeam: 1 });
   // In-season AWR growth: game reps build pattern recognition and situational
   // awareness for all active-roster players. Flat rate regardless of archetype —
   // the starting AWR value is the differentiator, not the growth speed.
@@ -15265,6 +15268,10 @@ function frnNewSeason() {
   }
   franchise._faOffers = {};
   franchise._faResults = null;
+  // Re-stock AI practice squads toward PS_SLOTS off the fresh FA pool + the
+  // post-draft young glut. Without this, squads only ever drained (poaching,
+  // promotions, age-outs) and trended to empty across a franchise.
+  if (typeof _psReplenishTeams === "function") _psReplenishTeams({ aiOnly: true, allowDemote: true });
   saveFranchise();
   showFranchiseDashboard();
 }
