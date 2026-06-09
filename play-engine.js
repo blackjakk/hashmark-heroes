@@ -1,6 +1,6 @@
 // ─── Game simulator ───────────────────────────────────────────────────────
 function normal(mean, sd) {
-  const u1 = Math.random() || 0.0001, u2 = Math.random();
+  const u1 = _rand() || 0.0001, u2 = _rand();
   return Math.round(mean + Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * sd);
 }
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -358,7 +358,7 @@ class GameSimulator {
     // MFF advanced-analytics attribution. When on, the engine records per-snap
     // per-player rep outcomes (currently: pass-rush pressures / pass-pro
     // pressures-allowed) onto the box-score stat lines. The writes are purely
-    // additive (new keys via the `||0` idiom), consume NO Math.random(), and
+    // additive (new keys via the `||0` idiom), consume NO _rand(), and
     // never alter a play outcome — so toggling this flag leaves every existing
     // aggregate byte-identical (proven by _mff_ab_check.js). Default on; the
     // A/B harness sets `_MFF_ATTR = false` to verify calibration is untouched.
@@ -500,7 +500,7 @@ class GameSimulator {
     //   SNOW  (5%)  — combined wind + rain, FG range crushed
     //   HOT   (5%)  — minor fatigue late
     {
-      const r = Math.random();
+      const r = _rand();
       let label;
       if      (r < 0.60) label = "CLEAR";
       else if (r < 0.75) label = "WINDY";
@@ -509,14 +509,14 @@ class GameSimulator {
       else               label = "HOT";
       // Wind direction (-1 = toward home goal, +1 = toward away goal).
       // Only meaningful for WINDY / SNOW.
-      const windDir = Math.random() < 0.5 ? -1 : 1;
+      const windDir = _rand() < 0.5 ? -1 : 1;
       // Wind strength 0..1 (only used for WINDY/SNOW)
-      const windStrength = label === "WINDY" ? 0.5 + Math.random() * 0.5
-                         : label === "SNOW"  ? 0.4 + Math.random() * 0.4
+      const windStrength = label === "WINDY" ? 0.5 + _rand() * 0.5
+                         : label === "SNOW"  ? 0.4 + _rand() * 0.4
                          : 0;
       this.weather = { label, windDir, windStrength };
     }
-    this.poss = Math.random() < 0.5 ? "home" : "away";
+    this.poss = _rand() < 0.5 ? "home" : "away";
     this.yardLine = 25; this.down = 1; this.ytg = 10;
     this.plays = []; this.drives = [];
     // Timeouts: each team gets 3 per half. Reset at halftime.
@@ -736,7 +736,7 @@ class GameSimulator {
       let injChance = (force - 0.9) * 0.0045 * vuln;
       if (opts.eventType === "sack") injChance += 0.0018 + Math.abs(opts.sackDepth || 0) * 0.00030;
       if (opts.negativeYards) injChance += Math.abs(opts.negativeYards) * 0.00075;
-      if (Math.random() < injChance && typeof this._triggerBigHitInjury === "function") {
+      if (_rand() < injChance && typeof this._triggerBigHitInjury === "function") {
         this._triggerBigHitInjury(carrier, force, opts, tackler);
       }
       // Tackler can also get hurt on the same play — head-to-head
@@ -748,7 +748,7 @@ class GameSimulator {
         const tVuln = clamp(1.0 + (75 - tStr) / 60, 0.7, 1.4);  // less than carrier vuln
         let tInjChance = (force - 1.1) * 0.0018 * tVuln;
         if (tackler.archetype === "HEADHUNTER") tInjChance *= 1.5;
-        if (Math.random() < tInjChance && typeof this._triggerBigHitInjury === "function") {
+        if (_rand() < tInjChance && typeof this._triggerBigHitInjury === "function") {
           // Reverse the event — tackler is now the "carrier" of the injury
           this._triggerBigHitInjury(tackler, force, { eventType: "hitter", concussionLean: true }, carrier);
         }
@@ -796,7 +796,7 @@ class GameSimulator {
     if (chance === 0) return;
     if (isDefenseless) chance *= 1.35;
     if (force >= 1.9) chance *= 1.15;
-    if (Math.random() >= chance) return;
+    if (_rand() >= chance) return;
     // ── Apply UR penalty ──────────────────────────────────────────
     const defKey = this.poss === "home" ? "away" : "home";
     const meta = _PENALTY_RATES?.["Unnecessary Roughness"];
@@ -828,7 +828,7 @@ class GameSimulator {
     if (arch === "HEADHUNTER" && isDefenseless && force >= 1.7) ejectChance += 0.10;
     if (tackler._urThisGame >= 2)                     ejectChance += 0.22;  // second flag in game
     if (tackler._urThisGame >= 3)                     ejectChance += 0.40;  // egregious pattern
-    if (ejectChance > 0 && Math.random() < ejectChance) {
+    if (ejectChance > 0 && _rand() < ejectChance) {
       tackler._ejectedThisGame = true;
       tackler.ejections = (tackler.ejections || 0) + 1;
       // Bench him — fake "injury" with weeksRemaining=0 so engine subs
@@ -931,7 +931,7 @@ class GameSimulator {
     // ── WEIGHTED PICK ────────────────────────────────────────────
     let total = 0;
     for (const v of Object.values(w)) total += Math.max(0, v);
-    let r = Math.random() * total;
+    let r = _rand() * total;
     for (const [k, v] of Object.entries(w)) {
       if (v > 0 && (r -= v) <= 0) return k;
     }
@@ -960,35 +960,35 @@ class GameSimulator {
     // front so it can be stamped onto injury history. Mechanism layers
     // ON TOP of the play-context biasing below.
     const mechanism = this._pickHitMechanism(tackler, opts);
-    if (opts.concussionLean && Math.random() < 0.60) {
+    if (opts.concussionLean && _rand() < 0.60) {
       // Hitter-side reciprocal injury → mostly concussion
       const c = pickType("concussion"); if (c) t = c;
     } else if (opts.eventType === "sack" && force >= 1.5) {
       // Sack → shoulder (60%) or concussion (35%)
-      const r = Math.random();
+      const r = _rand();
       if (r < 0.35) { const c = pickType("concussion"); if (c) t = c; }
       else if (r < 0.95) { const s = pickType("shoulder"); if (s) t = s; }
     } else if (ctx.type === "pass" && ctx.depth === "deep" && force >= 1.5) {
       // Deep pass + safety hit → concussion / shoulder (high-speed collision)
-      const r = Math.random();
+      const r = _rand();
       if (r < 0.50) { const c = pickType("concussion"); if (c) t = c; }
       else if (r < 0.80) { const s = pickType("shoulder"); if (s) t = s; }
     } else if (ctx.type === "pass" && ctx.depth === "short" && ctx.location === "middle" && force >= 1.4) {
       // Crossing routes + LB middle hit → concussion / ribs (no rib var → chest reads as back)
-      if (Math.random() < 0.45) { const c = pickType("concussion"); if (c) t = c; }
+      if (_rand() < 0.45) { const c = pickType("concussion"); if (c) t = c; }
     } else if (ctx.type === "run" && ctx.direction === "outside" && force >= 1.3) {
       // Outside run + low tackle → knee/ankle (cut block territory)
-      const r = Math.random();
+      const r = _rand();
       if (r < 0.45) { const k = pickType("knee"); if (k) t = k; }
       else if (r < 0.75) { const a = pickType("ankle sprain"); if (a) t = a; }
     } else if (ctx.isGoalLine || (ctx.type === "run" && ctx.yards < 0)) {
       // Pile-up at LOS / GL → shoulder, hand, sometimes knee from awkward fall
-      const r = Math.random();
+      const r = _rand();
       if (r < 0.35) { const s = pickType("shoulder"); if (s) t = s; }
       else if (r < 0.55) { const h = pickType("hand/wrist"); if (h) t = h; }
       else if (r < 0.75) { const k = pickType("knee"); if (k) t = k; }
     } else if (tackler && tackler.archetype === "HEADHUNTER" && force >= 1.7) {
-      if (Math.random() < 0.45) { const c = pickType("concussion"); if (c) t = c; }
+      if (_rand() < 0.45) { const c = pickType("concussion"); if (c) t = c; }
     }
     // ── HIT-MECHANISM OVERRIDE ──────────────────────────────────────
     // Mechanism is the FINAL biomechanical filter — it overrides the
@@ -998,7 +998,7 @@ class GameSimulator {
     // hit hits shoulder. A behind hit (blindside sack) takes the
     // shoulder + sometimes back/hamstring.
     if (force >= 1.3) {
-      const r = Math.random();
+      const r = _rand();
       if (mechanism === "high") {
         if (r < 0.80) { const c = pickType("concussion"); if (c) t = c; }
       } else if (mechanism === "low") {
@@ -1020,7 +1020,7 @@ class GameSimulator {
     // Force-scaled catastrophic chance. At force 1.3 → ~3%, 1.7 → ~15%,
     // 2.0 → ~30%. Far above the weekly _CATASTROPHIC_UPGRADE_CHANCE of 8%.
     const catChance = clamp((force - 1.2) * 0.35, 0, 0.40);
-    if (Math.random() < catChance && typeof _CATASTROPHIC_VARIANTS !== "undefined") {
+    if (_rand() < catChance && typeof _CATASTROPHIC_VARIANTS !== "undefined") {
       const variant = _CATASTROPHIC_VARIANTS[t.label];
       if (variant) {
         t = { ...t, ...variant };
@@ -1028,7 +1028,7 @@ class GameSimulator {
         // Career-ending chance also force-scaled — a violent hit IS more
         // likely to end someone's career.
         const ceMul = force >= 1.9 ? 1.6 : force >= 1.6 ? 1.2 : 1.0;
-        if (Math.random() < (variant.careerEndingChance || 0) * ceMul) {
+        if (_rand() < (variant.careerEndingChance || 0) * ceMul) {
           careerEnding = true;
         }
       }
@@ -1043,7 +1043,7 @@ class GameSimulator {
       else if (force >= 1.4) { baseMin = 2; baseMax = 4; }
       // else default 1-2 weeks
     }
-    const wks = careerEnding ? 99 : baseMin + Math.floor(Math.random() * (baseMax - baseMin + 1));
+    const wks = careerEnding ? 99 : baseMin + Math.floor(_rand() * (baseMax - baseMin + 1));
     player.injury = {
       label: t.label,
       weeksRemaining: wks,
@@ -1339,7 +1339,7 @@ class GameSimulator {
       if (fat >= 90)      p = Math.max(p, 0.60);
       else if (fat >= 75) p = Math.max(p, 0.40);
       else if (fat >= 60) p = Math.max(p, 0.22);
-      if (p <= 0 || Math.random() > p) {
+      if (p <= 0 || _rand() > p) {
         slotSnaps[role] = (slotSnaps[role] || 0) + 1;
         return;
       }
@@ -1355,7 +1355,7 @@ class GameSimulator {
     trySub("wr2", "WR");
     trySub("te",  "TE");
     // QB only rotates in heavy garbage time — never on fatigue alone.
-    if (garbage === "heavy" && Math.random() < 0.35) {
+    if (garbage === "heavy" && _rand() < 0.35) {
       const exclude = Object.values(this.offR.starters);
       const backup = this._pickBackup(side, "QB", exclude);
       if (backup) {
@@ -1972,7 +1972,7 @@ class GameSimulator {
       sideHint = contextOrWeights && contextOrWeights.sideHint || null;
     }
     const primary = this._creditDefStat("tkl", weights, null, sideHint);
-    if (primary && Math.random() < assistRate) {
+    if (primary && _rand() < assistRate) {
       // Assist roll: credit a different defender at the same weights.
       // Skip the primary so we don't double-bump the same player.
       this._creditDefStat("tkl", weights, primary, sideHint);
@@ -2038,7 +2038,7 @@ class GameSimulator {
     }
     if (!pool.length) return null;
     const total = pool.reduce((a, b) => a + b.w, 0);
-    let r = Math.random() * total;
+    let r = _rand() * total;
     let chosen = pool[pool.length - 1];
     for (const c of pool) { r -= c.w; if (r <= 0) { chosen = c; break; } }
     const p = def.players[chosen.name];
@@ -2073,7 +2073,7 @@ class GameSimulator {
       if (d?.name) candidates.push({ name: d.name, w: baseWeights.DL });
     if (!candidates.length) return null;
     const total = candidates.reduce((s, c) => s + c.w, 0);
-    let r = Math.random() * total;
+    let r = _rand() * total;
     let chosen = candidates[candidates.length - 1];
     for (const c of candidates) { r -= c.w; if (r <= 0) { chosen = c; break; } }
     const p = def.players[chosen.name];
@@ -2148,7 +2148,7 @@ class GameSimulator {
 
     let nTacklers;
     {
-      const r = Math.random();
+      const r = _rand();
       if (gangProbs.length === 3) nTacklers = r < gangProbs[0] ? 1 : r < gangProbs[0] + gangProbs[1] ? 2 : 3;
       else                         nTacklers = r < gangProbs[0] ? 1 : 2;
     }
@@ -2156,13 +2156,13 @@ class GameSimulator {
     const positions = Object.keys(zone);
     const totalW = positions.reduce((s, p) => s + zone[p], 0);
     const sampleTackler = (excludeName) => {
-      let r = Math.random() * totalW;
+      let r = _rand() * totalW;
       let pos = positions[positions.length - 1];
       for (const p of positions) { r -= zone[p]; if (r <= 0) { pos = p; break; } }
       const pool = (tacklerArchByPos?.[pos] || [])
         .map(d => this._playerByName.get(d?.name))
         .filter(p => p && p.name !== excludeName);
-      return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+      return pool.length ? pool[Math.floor(_rand() * pool.length)] : null;
     };
 
     let tackler = sampleTackler(null);
@@ -2207,7 +2207,7 @@ class GameSimulator {
 
     const baseBreak = breakStyle === "POWER" ? 0.04 : 0.02;
     const breakChance = clamp((breakStat - effectiveTck) / 280 + baseBreak + runOverBonus + jukeOutBonus, 0.005, 0.45);
-    if (Math.random() >= breakChance) {
+    if (_rand() >= breakChance) {
       return { brokenTackles: 0, bonusYards: 0, tackler: tackler?.name || null };
     }
 
@@ -2294,7 +2294,7 @@ class GameSimulator {
     else if (agg < 35)  { f.QUICK_GAME *= 1.25; f.SCREEN *= 1.15; f.VERTICAL *= 0.7; }
     // Weighted roll
     let total = 0; for (const v of Object.values(f)) total += v;
-    let r = Math.random() * total;
+    let r = _rand() * total;
     for (const [name, p] of Object.entries(f)) { r -= p; if (r <= 0) return name; }
     return "QUICK_GAME";
   }
@@ -2329,7 +2329,7 @@ class GameSimulator {
       f.C0_BLITZ *= 0.3; f.C1_MAN *= 0.5;
     }
     let total = 0; for (const v of Object.values(f)) total += v;
-    let r = Math.random() * total;
+    let r = _rand() * total;
     for (const [name, p] of Object.entries(f)) { r -= p; if (r <= 0) return name; }
     return "C3_ZONE";
   }
@@ -2344,7 +2344,7 @@ class GameSimulator {
       // showed top sacker at 11.6 vs NFL elite 18-22; ^1.6 was too flat).
       const weights = list.map(p => Math.pow(Math.max(1, p.overall - 40), 2.0));
       const sum = weights.reduce((a, b) => a + b, 0);
-      let r = Math.random() * sum;
+      let r = _rand() * sum;
       for (let i = 0; i < list.length; i++) { r -= weights[i]; if (r <= 0) return list[i]; }
       return list[list.length - 1];
     };
@@ -2532,7 +2532,7 @@ class GameSimulator {
     let total = 0;
     for (const w of Object.values(posWeights)) total += w;
     if (total <= 0) return null;
-    let r = Math.random() * total;
+    let r = _rand() * total;
     let pickedPos = null;
     for (const [pos, w] of Object.entries(posWeights)) {
       r -= w;
@@ -2589,7 +2589,7 @@ class GameSimulator {
       return Math.max(0.2, 2 - (awr - 50) / 25);  // AWR 50→2.0, 70→1.2, 90→0.4
     });
     const sumW = weights.reduce((a, b) => a + b, 0);
-    let rr = Math.random() * sumW;
+    let rr = _rand() * sumW;
     for (let i = 0; i < players.length; i++) {
       rr -= weights[i];
       if (rr <= 0) return players[i].name;
@@ -2726,7 +2726,7 @@ class GameSimulator {
     const tryOnside = (lateGame  && scoreDiff <  0)
                    || (desperate && scoreDiff <= 0 && this.time < 60);
     if (tryOnside) {
-      const recovered = Math.random() < 0.13;     // ~13% under modern rules
+      const recovered = _rand() < 0.13;     // ~13% under modern rules
       const kicker = this[scoringTeamKey];
       const receiver = this[receivingKey];
       if (recovered) {
@@ -2766,9 +2766,9 @@ class GameSimulator {
         // kicks AGAIN (per NFL rule).
         this._score(6, "Kickoff Return Touchdown!");
         const k = this.offR.starters.k, kStats = this.offStats.players[k];
-        if (Math.random() < 0.92) {
+        if (_rand() < 0.92) {
           if (kStats) kStats.xp_att++;
-          if (Math.random() < 0.94) { this._score(1, "Extra Point"); if (kStats) kStats.xp_made++; }
+          if (_rand() < 0.94) { this._score(1, "Extra Point"); if (kStats) kStats.xp_made++; }
         }
         this._kickoffAfterScore(this.poss);
         return;
@@ -2784,7 +2784,7 @@ class GameSimulator {
   //   Returned long-tail ~ 0.3% of kickoffs are returned for a TD
   // The receiving team's KR (or RB1 / WR1 fallback) gets the return.
   _resolveKickoffReturn(kickerKey, receiverKey) {
-    if (Math.random() < 0.72) return { endYL: 25, isTD: false };
+    if (_rand() < 0.72) return { endYL: 25, isTD: false };
     // Returned — pick a returner. The roster's KR-tagged player would
     // be ideal but most rosters don't tag one, so we use RB1 / WR1.
     const receiverR = receiverKey === "home" ? this.homeR : this.awayR;
@@ -2804,18 +2804,18 @@ class GameSimulator {
     // Clamp the SPD mod to ±6 — a SPD-50 fallback returner (rare, fires
     // when no KR is tagged) lands at -6 (mean ~17.5) rather than -9.
     const _krSpdMod = clamp((_krSpd - 80) * 0.30, -6, 6);
-    let ret = Math.max(0, Math.round(18 + Math.random() * 12 + _krSpdMod));
+    let ret = Math.max(0, Math.round(18 + _rand() * 12 + _krSpdMod));
     // Breakaway floor at 0.01 — a SPD 50 player should almost never break away,
     // not 3% per return like the engine-wide minimum.
     const _krBreakawayCh = clamp(0.10 + (_krSpd - 80) / 250 + (_krAgi - 75) / 400, 0.01, 0.30);
-    if (Math.random() < _krBreakawayCh) ret += Math.floor(Math.random() * 20);
+    if (_rand() < _krBreakawayCh) ret += Math.floor(_rand() * 20);
     // Credit KR stats — kr_yds + kr_td fields are referenced in HoF +
     // accolade tracking (play-franchise-season.js HoF, offseason
     // accolade thresholds), so we must update them or career returner
     // leaders go silently unrecorded. TD branch overrides with full
     // return distance (kick at 35 → 100 yards from kick spot).
     const rStats = receiverStats?.players?.[returnerName];
-    if (Math.random() < 0.003) {
+    if (_rand() < 0.003) {
       // Touchdown return — credit FULL return distance, not the partial
       // 18-49 yd `ret` (which represents only the routine-return
       // distribution). 100 - 35 = 65 yds from the kick spot.
@@ -2880,9 +2880,9 @@ class GameSimulator {
     const defStats = this.stats[scoringSide];
     const k = this.defR.starters.k;
     const kStats = defStats?.players?.[k];
-    if (Math.random() < 0.92) {
+    if (_rand() < 0.92) {
       if (kStats) kStats.xp_att++;
-      if (Math.random() < 0.94) {
+      if (_rand() < 0.94) {
         this.score[scoringSide] += 1;
         if (kStats) kStats.xp_made++;
         // poss + pts required so the broadcast quarter-scoreboard
@@ -2892,10 +2892,10 @@ class GameSimulator {
         this._pushVisual({ kind: "score", desc: `${scoringTeam.city} ${scoringTeam.name} — Extra Point (+1)`, poss: scoringSide, pts: 1, scoreType: "Extra Point" });
       } else {
         this._pushVisual({ kind: "fg_miss", desc: `${scoringTeam.city} ${scoringTeam.name} — Extra Point MISSED`,
-          motion: { result: "miss", missType: Math.random() < 0.5 ? "wide_l" : "wide_r", contactT: 0.45, flightT: 0.85 } });
+          motion: { result: "miss", missType: _rand() < 0.5 ? "wide_l" : "wide_r", contactT: 0.45, flightT: 0.85 } });
       }
     } else {
-      if (Math.random() < 0.48) {
+      if (_rand() < 0.48) {
         this.score[scoringSide] += 2;
         this._pushVisual({ kind: "score", desc: `${scoringTeam.city} ${scoringTeam.name} — 2-Point Conversion (+2)`, poss: scoringSide, pts: 2, scoreType: "2-Point Conversion" });
       } else {
@@ -3290,7 +3290,7 @@ class GameSimulator {
         ? (franchise.coaches?.[offTeamId]?.hc?.analyticsAgg ?? 50)
         : 50) / 100;
       let _mffAnalyticsAction = null;
-      if (Math.random() < hcAA) {
+      if (_rand() < hcAA) {
         // The chart's "go threshold" (max ytg that says GO):
         //   own deep ≤30: ≤1   own mid 30-50: ≤2   midfield 50-65: ≤4
         //   opp 65-75: ≤4      opp 75-85 (FG): ≤2  opp 85-95 (RZ): ≤2/4
@@ -3314,7 +3314,7 @@ class GameSimulator {
         else if (q4Late && scoreDiff < -3) _mffAnalyticsAction = "go";
         else _mffAnalyticsAction = "punt";
         // Goal-line override: comfy lead, not late, sometimes bank the 3.
-        if (_mffAnalyticsAction === "go" && isGoalLine && scoreDiff > 7 && !q4Late && Math.random() < 0.30) {
+        if (_mffAnalyticsAction === "go" && isGoalLine && scoreDiff > 7 && !q4Late && _rand() < 0.30) {
           _mffAnalyticsAction = "fg";
         }
       }
@@ -3328,7 +3328,7 @@ class GameSimulator {
         // so even goal-line might kick.
         let goalScoreMod = scoreMod;
         if (q4Late && scoreDiff <= -7) goalScoreMod = Math.max(goalScoreMod, 1.6);
-        action = Math.random() < clamp(goalGo * goTilt * goalScoreMod * commitMod, 0.25, 0.97) ? "go" : "fg";
+        action = _rand() < clamp(goalGo * goTilt * goalScoreMod * commitMod, 0.25, 0.97) ? "go" : "fg";
       } else if (inFGRange) {
         // In FG range (≤57 yd kick). Closer kicks lean FG; longer kicks
         // lean go-for-it on short yardage.
@@ -3344,14 +3344,14 @@ class GameSimulator {
           // Trailing 8+ late: a FG is wasted (still down 5+). Go for it
           // even on moderate yardage in FG range.
           const desperateGo = this.ytg <= 4 ? 0.85 : 0.55;
-          action = Math.random() < desperateGo ? "go" : "fg";
+          action = _rand() < desperateGo ? "go" : "fg";
         } else {
           let goRate;
           if (this.ytg <= 1)      goRate = closeKick ? 0.35 : 0.65;
           else if (this.ytg <= 2) goRate = closeKick ? 0.18 : 0.35;
           else if (this.ytg <= 4) goRate = closeKick ? 0.04 : 0.12;
           else                    goRate = 0;
-          action = Math.random() < clamp(goRate * goTilt * scoreMod * commitMod, 0, 0.92) ? "go" : "fg";
+          action = _rand() < clamp(goRate * goTilt * scoreMod * commitMod, 0, 0.92) ? "go" : "fg";
         }
       } else {
         // Out of FG range. NFL is aggressive on short yardage in plus
@@ -3366,7 +3366,7 @@ class GameSimulator {
         } else if (blowoutDown && this.ytg <= 12) {
           // Down 14+ in Q4 — go for it on anything manageable
           const desperateGo = this.ytg <= 4 ? 0.92 : this.ytg <= 7 ? 0.70 : 0.45;
-          action = Math.random() < desperateGo ? "go" : "punt";
+          action = _rand() < desperateGo ? "go" : "punt";
         } else {
           let goRate;
           if (this.ytg <= 1)      goRate = inOwnDeep ? 0.40 : 0.75;
@@ -3374,7 +3374,7 @@ class GameSimulator {
           else if (this.ytg <= 4) goRate = (toEZ <= 55) ? 0.30 : (inOwnDeep ? 0.04 : 0.12);
           else if (this.ytg <= 7) goRate = (toEZ <= 50) ? 0.10 : 0.03;
           else                    goRate = 0;
-          action = Math.random() < clamp(goRate * goTilt * scoreMod * commitMod, 0, 0.95) ? "go" : "punt";
+          action = _rand() < clamp(goRate * goTilt * scoreMod * commitMod, 0, 0.95) ? "go" : "punt";
         }
       }
       // MFF Slice G: apply analytics-chart override AFTER traditional logic
@@ -3416,7 +3416,7 @@ class GameSimulator {
         const lateGameClose = this.time < 90 && this.quarter >= 4 && Math.abs(offScore - defScore) <= 4;
         const isIcable = lateGameClose && fgWouldTieOrLead && dist >= 30 && this.timeouts[defKey] > 0;
         let isIced = false;
-        if (isIcable && Math.random() < 0.55) {
+        if (isIcable && _rand() < 0.55) {
           this.timeouts[defKey]--;
           isIced = true;
           this.plays.push({
@@ -3475,16 +3475,16 @@ class GameSimulator {
         // own stat columns.
         // Block chance — slightly higher on long attempts
         const blockPct = clamp(0.025 + Math.max(0, dist - 40) * 0.0015, 0.025, 0.06);
-        if (Math.random() < blockPct) {
+        if (_rand() < blockPct) {
           // Blocked! Defender picks up the ball. ~12% chance the recovery
           // becomes a TD return; otherwise the defense gets the ball at the
           // recovery spot (3-15 yards behind the LOS).
-          const isReturnTD = Math.random() < 0.12;
+          const isReturnTD = _rand() < 0.12;
           let recoveryYard;
           if (isReturnTD) recoveryYard = 0;  // they take it all the way
           else {
             // Pick up between -3 and 0 (own end zone is 0 here for offense's POV)
-            const losingYards = Math.floor(Math.random() * 13) - 3;
+            const losingYards = Math.floor(_rand() * 13) - 3;
             recoveryYard = Math.max(0, startYard - losingYards);
           }
           this._pushVisual({
@@ -3508,7 +3508,7 @@ class GameSimulator {
           }
           return { endDrive: true, blockedFG: true, returnedTD: isReturnTD };
         }
-        if (Math.random() < fgPct) {
+        if (_rand() < fgPct) {
           if (kStats) { kStats.fg_made++; if (dist > kStats.fg_long) kStats.fg_long = dist; }
           this._score(3, `${dist}-yd FG`);
           // PATH B Phase 10 — FG motion: holder/longSnapper/missType
@@ -3523,15 +3523,15 @@ class GameSimulator {
         } else {
           // Long missed FGs (>50 yd attempts) can be returned by the defense
           // — the spot is behind the LOS where the defender catches the ball.
-          const isReturnable = dist > 50 && Math.random() < 0.18;
+          const isReturnable = dist > 50 && _rand() < 0.18;
           if (isReturnable) {
-            const isReturnTD = Math.random() < 0.05;
-            const recoveryYard = isReturnTD ? 0 : Math.max(0, startYard - 8 - Math.floor(Math.random() * 12));
+            const isReturnTD = _rand() < 0.05;
+            const recoveryYard = isReturnTD ? 0 : Math.max(0, startYard - 8 - Math.floor(_rand() * 12));
             // PATH B Phase 10 — engine decides miss type so animation
             // doesn't hash. Long misses tend to be "short" (came up
             // short of the uprights); near-distance misses are wide.
-            const _missType = dist >= 50 ? (Math.random() < 0.55 ? "short" : (Math.random() < 0.5 ? "wide_l" : "wide_r"))
-                            : (Math.random() < 0.5 ? "wide_l" : "wide_r");
+            const _missType = dist >= 50 ? (_rand() < 0.55 ? "short" : (_rand() < 0.5 ? "wide_l" : "wide_r"))
+                            : (_rand() < 0.5 ? "wide_l" : "wide_r");
             this._pushVisual({
               kind: "fg_miss",
               desc: isReturnTD
@@ -3553,8 +3553,8 @@ class GameSimulator {
               this._defScoreXP();
             }
           } else {
-            const _missType = dist >= 45 ? (Math.random() < 0.6 ? "short" : (Math.random() < 0.5 ? "wide_l" : "wide_r"))
-                            : (Math.random() < 0.5 ? "wide_l" : "wide_r");
+            const _missType = dist >= 45 ? (_rand() < 0.6 ? "short" : (_rand() < 0.5 ? "wide_l" : "wide_r"))
+                            : (_rand() < 0.5 ? "wide_l" : "wide_r");
             this._pushVisual({
               kind: "fg_miss", desc: `${this.offR.starters.k} misses from ${dist} — no good`,
               startYard, endYard: startYard, fgDist: dist, kicker: this.offR.starters.k,
@@ -3599,13 +3599,13 @@ class GameSimulator {
         if (fakeEligible) {
           const aggTilt = this._aggTilt(this._qbAggression());
           const fakeChance = clamp(0.18 * aggTilt, 0.06, 0.32);
-          if (Math.random() < fakeChance) {
+          if (_rand() < fakeChance) {
             // FAKE PUNT! Decide run (60%) vs pass (40%) — heavier on run since
             // punters aren't really QBs. Run uses SPD+AGI, pass uses AWR.
-            const isPass = Math.random() < 0.40;
+            const isPass = _rand() < 0.40;
             if (isPass) {
               const compPct = clamp(0.42 + (pAwr - 65) / 180, 0.22, 0.78);
-              const isComp = Math.random() < compPct;
+              const isComp = _rand() < compPct;
               const tgtName = this.offR.starters.te || this.offR.starters.rb2 || this.offR.starters.rb;
               const fakeYards = isComp ? clamp(Math.round(normal(11, 5)), -2, 38) : 0;
               const success = isComp && fakeYards >= this.ytg;
@@ -3658,14 +3658,14 @@ class GameSimulator {
         // BLOCKED PUNT — ~1% baseline, +0.5pp on bad punter (KPW<55), -0.3pp
         // on elite (KPW>85). Defense recovers at the kick spot.
         const blockChance = clamp(0.010 + (60 - pKpw) * 0.0005, 0.005, 0.025);
-        if (Math.random() < blockChance) {
+        if (_rand() < blockChance) {
           const punterStats = this.stats[this.poss].players[P];
           if (punterStats) punterStats.punt_att = (punterStats.punt_att || 0) + 1;
           // Credit block to a defender. Use defensive starter slot.
           const blocker = this._creditDefStat("blk_kick", { DL: 0.55, LB: 0.30, S: 0.10, CB: 0.05 });
           // 25% chance the block is returned for a TD (it was caught in the
           // air and ran back); otherwise defense takes over at the kick spot.
-          const isBlockTD = Math.random() < 0.25;
+          const isBlockTD = _rand() < 0.25;
           const _defSideBlk = this.poss === "home" ? "away" : "home";
           this._swingMomentum(_defSideBlk, isBlockTD ? 4 : 3, "BLOCKED PUNT");
           this._pushVisual({
@@ -3692,7 +3692,7 @@ class GameSimulator {
       let returnYards = 0, isTouchback = false, isFairCatch = false, isMuff = false;
       let prBT = 0;
       let muffRecoveredByKicking = false, muffSpotYL = null;
-      if (landYard >= 100 || (touchbackRisk > 0 && Math.random() < touchbackRisk)) {
+      if (landYard >= 100 || (touchbackRisk > 0 && _rand() < touchbackRisk)) {
         isTouchback = true;
       } else {
         // MUFF CHECK — returner fails to secure the punt. NFL ~1-2% per punt
@@ -3709,7 +3709,7 @@ class GameSimulator {
         // NFL ~1-2% muff per non-touchback punt. Elite hands (CAT 80+)
         // muff <0.5%; gloves-of-stone returners (CAT 60) muff ~3%.
         const muffChance = clamp(0.014 + (75 - _retCat) / 500 + _muffWxMod, 0.003, 0.035);
-        if (Math.random() < muffChance) {
+        if (_rand() < muffChance) {
           isMuff = true;
           muffSpotYL = clamp(landYard, 1, 99);
           // Returner credited with a muff (tracked separately from fumble).
@@ -3718,7 +3718,7 @@ class GameSimulator {
             _retSt.players[_muffPRName].muffs = (_retSt.players[_muffPRName].muffs || 0) + 1;
           }
           // ~40% kicking team recovers (gunners closing fast).
-          muffRecoveredByKicking = Math.random() < 0.40;
+          muffRecoveredByKicking = _rand() < 0.40;
           if (muffRecoveredByKicking) {
             // Coverage team recovers — kicking team gets the ball BACK at the
             // muff spot. From engine state: this.poss = punting team; we
@@ -3776,14 +3776,14 @@ class GameSimulator {
         // _prMagBoost is the SPD delta for bucket-magnitude additions —
         // floor at -15 so a slow-returner doesn't get negative bucket adds.
         const _prMagBoost = clamp(_prSpd - 80, -15, 25);
-        const r = Math.random() - fairCatchBonus - _prShift;
+        const r = _rand() - fairCatchBonus - _prShift;
         if (r < 0.18) { isFairCatch = true; }
         else if (r < 0.55) returnYards = rand(0, 6);
         else if (r < 0.85) returnYards = rand(4, 14) + Math.max(0, Math.floor(_prMagBoost / 8));
         else if (r < 0.96) returnYards = rand(12, 28) + Math.max(0, Math.floor(_prMagBoost / 5));
         else                returnYards = rand(30, 70) + Math.max(0, Math.floor(_prMagBoost / 3));
         // Hang-time punters suppress the longest returns.
-        if (returnYards >= 20 && Math.random() < bigReturnSuppress) {
+        if (returnYards >= 20 && _rand() < bigReturnSuppress) {
           returnYards = rand(4, 14);
         }
         // Returner break-tackle in the coverage lane — elite returners juke
@@ -3845,7 +3845,7 @@ class GameSimulator {
             kickStarters.lb3, kickStarters.lb2,
           ].filter(Boolean);
           if (candidates.length) {
-            const tackler = candidates[Math.floor(Math.random() * candidates.length)];
+            const tackler = candidates[Math.floor(_rand() * candidates.length)];
             const ts = this.stats[this.poss].players[tackler];
             if (ts) ts.tkl = (ts.tkl || 0) + 1;
           }
@@ -3932,7 +3932,7 @@ class GameSimulator {
     // ~12pp of pass to bring rush TDs back near NFL pace.
     if (this._inGoalToGo) passProb = Math.max(0.20, passProb - 0.12);
     else if (this._inRedZone) passProb = Math.max(0.25, passProb - 0.06);
-    const playType = Math.random() < passProb ? "pass" : "run";
+    const playType = _rand() < passProb ? "pass" : "run";
 
     // ── PENALTY ROLL ──
     // NFL averages ~12 accepted penalties per game (~6/team) at ~9%/play.
@@ -4022,7 +4022,7 @@ class GameSimulator {
         _cum += rate;
         _penRoll.push({ type, def, cum: _cum });
       }
-      const penR = Math.random();
+      const penR = _rand();
       let pen = null;
       for (const t of _penRoll) {
         if (penR < t.cum) {
@@ -4049,7 +4049,7 @@ class GameSimulator {
         const _deepEligible =
              !_isRedZone
           && (_isLong || _trailingQ4 || _qbArch === "GUNSLINGER" || _qbArch === "DEEP_THROWER" || _qbArch === "GUNSLINGER_VET");
-        const dpiR = Math.random();
+        const dpiR = _rand();
         let dpiYds;
         if      (dpiR < 0.40) dpiYds = rand(4, 10);                                    // underneath / hold
         else if (dpiR < 0.72) dpiYds = rand(10, 20);                                   // intermediate
@@ -4160,7 +4160,7 @@ class GameSimulator {
                       (this.quarter === 2 && inFGRange) ||
                       (this.quarter === 4 && trailingOrTied)
                     );
-      if (canSpike && Math.random() < 0.65) {
+      if (canSpike && _rand() < 0.65) {
         const qbStats = off.players[QB];
         if (qbStats) qbStats.pass_att++;
         off.team.pass_att++;
@@ -4234,11 +4234,11 @@ class GameSimulator {
       const runThreat = clamp((this.offR.rb - 65) / 35, 0, 1);   // 0-1 based on RB room
       const paQbSkill = clamp((qbAwr + qbThr - 140) / 80, 0, 1); // 0-1 based on QB
       const paBaseRate = 0.16 + runThreat * 0.10 - (isThird && this.ytg >= 7 ? 0.10 : 0);
-      const isPlayAction = !isShort && Math.random() < paBaseRate;
+      const isPlayAction = !isShort && _rand() < paBaseRate;
       // FLEA FLICKER — rare trick play, only on PA setups in good run threat.
       // RB takes the fake handoff, then pitches the ball BACK to the QB who
       // throws deep. Big play upside, big-time risk if it breaks down.
-      const isFleaFlicker = isPlayAction && runThreat > 0.35 && (this.ytg >= 6 || !isThird) && Math.random() < 0.06;
+      const isFleaFlicker = isPlayAction && runThreat > 0.35 && (this.ytg >= 6 || !isThird) && _rand() < 0.06;
       if (isPlayAction) {
         paCompMod = 0.025 + paQbSkill * 0.030;     // up to +5.5% comp
         paAirMod  = 1.5  + paQbSkill * 2.5 + runThreat * 1.5;  // up to +5 air yds
@@ -4253,7 +4253,7 @@ class GameSimulator {
       // (Brady takes the sack at archPressureMul 0.01; Lamar bails at 0.10).
       const pressureScrBonus = Math.max(0, pressure) * archPressureMul;
       const scramblePct = (pb.qbScramblePct || 0) + qbScrambleBonus + pressureScrBonus;
-      if (scramblePct > 0 && Math.random() < scramblePct) {
+      if (scramblePct > 0 && _rand() < scramblePct) {
         const lbTk = (this.defR.lb - 65) / 25;
         const qbPlayer = this._playerByName.get(QB);
         // Floor the burst penalty: when a slow QB *chooses* to scramble, it's
@@ -4381,7 +4381,7 @@ class GameSimulator {
       // at upper edge). 0.010 should land all three cleanly in band — about
       // ~0.72 INT/g, multi-INT ~13%, turnovers~0.9-1.0/g.
       const intPct = clamp((0.010 - adv * 0.008 + defIntMod + pressure * 0.006 + ballHawkBonus + qbIntMod + qbIntFromOvr + qbAggIntMod + boxStackIntMod + _weakArmIntRisk - this._clutchMod(this.offR.starters.qb, 0.012)) * dcBallHawkMul * hcGameMgrIntMul, 0.002, 0.05);
-      if (Math.random() < intPct) {
+      if (_rand() < intPct) {
         const targetDepth = clamp(normal(11, 7), 2, 35);
         // Sample the defender who'd be in position to pick. CAT-based drop
         // check: NFL DBs drop ~25-30% of potential picks; ball hawks ~15%,
@@ -4394,7 +4394,7 @@ class GameSimulator {
           // a folder lets it slip. Hands/concentration only — mirrors WR
           // catching, never physical. Subtract so composure lowers the drop.
           const dropChance = clamp(0.55 - (dbCat - 50) * 0.012 - this._clutchMod(wouldCatch, 0.10), 0.05, 0.50);
-          if (Math.random() < dropChance) {
+          if (_rand() < dropChance) {
             // Dropped pick — undo INT credit, give PD instead, treat as incomplete
             if (def.players[wouldCatch]) {
               def.players[wouldCatch].int_made = Math.max(0, (def.players[wouldCatch].int_made || 0) - 1);
@@ -4418,12 +4418,12 @@ class GameSimulator {
         const intBy = wouldCatch;
         // Interception return yardage — bursty distribution. Most are
         // short (0-5), some medium (6-15), occasional house-call (16-50+).
-        const retSeed = Math.random();
+        const retSeed = _rand();
         let retYds;
-        if (retSeed < 0.45)      retYds = Math.floor(Math.random() * 4);            // 0-3
-        else if (retSeed < 0.80) retYds = 4 + Math.floor(Math.random() * 9);         // 4-12
-        else if (retSeed < 0.96) retYds = 13 + Math.floor(Math.random() * 18);       // 13-30
-        else                      retYds = 30 + Math.floor(Math.random() * 50);       // 30-80 (rare big one)
+        if (retSeed < 0.45)      retYds = Math.floor(_rand() * 4);            // 0-3
+        else if (retSeed < 0.80) retYds = 4 + Math.floor(_rand() * 9);         // 4-12
+        else if (retSeed < 0.96) retYds = 13 + Math.floor(_rand() * 18);       // 13-30
+        else                      retYds = 30 + Math.floor(_rand() * 50);       // 30-80 (rare big one)
         // INT spot — approximately where the ball gets picked. Allowed to
         // exceed 100 so we can detect end-zone catches (touchbacks).
         const intSpotYL = clamp(startYard + Math.round(targetDepth / 2), 1, 110);
@@ -4563,7 +4563,7 @@ class GameSimulator {
         if (_mDl) _mDl.pressures         = (_mDl.pressures         || 0) + _mffXp;
         if (_mOl) _mOl.pressures_allowed = (_mOl.pressures_allowed || 0) + _mffXp;
       }
-      if (Math.random() < sackPct) {
+      if (_rand() < sackPct) {
         // THROW ON THE RUN — mobile QBs with high AGI sometimes escape pressure
         // and throw on the move instead of taking the sack. Lower comp / air
         // (it's an off-platform throw), but no sack loss. POCKET QBs never roll.
@@ -4572,10 +4572,10 @@ class GameSimulator {
         // Was 0.35 * archMul (up to 0.45) — let mobile QBs escape too easily.
         // Now most pressure plays still end in a sack even for DT QBs.
         const torChance = clamp(torSkill * 0.22 * archMul, 0, 0.30);
-        if (Math.random() < torChance) {
+        if (_rand() < torChance) {
           // Roll the TOR completion check — meaningfully worse than a pocket throw
           const torComp = clamp(0.40 + (qbAgi - 60) / 200 + (qbThr - 70) / 220 - pressure * 0.05, 0.18, 0.72);
-          const torRoll = Math.random();
+          const torRoll = _rand();
           if (torRoll < torComp) {
             // Completed on the run — shorter / less accurate throw
             const airYds = clamp(normal(7 - pressure * 1.5, 5.5), 1, 35);
@@ -4650,7 +4650,7 @@ class GameSimulator {
                             :                             1.0;
         const awrAssist = clamp((qbAwr - 70) / 80, 0, 0.25);            // small AWR boost
         const evadeChance = clamp((evadeSkill * 0.18 + awrAssist) * archMulEvade, 0, 0.32);
-        if (Math.random() < evadeChance) {
+        if (_rand() < evadeChance) {
           // Escape successful — generate yards, biased by AGI. Most
           // are short (2-6 yds), a few are explosive (Lamar-style).
           const yardsRaw = normal(4 + (qbAgi - 70) / 11, 5);
@@ -4701,10 +4701,10 @@ class GameSimulator {
         const blitzerCount = lbPool.filter(l => l.archetype === "BLITZER").length;
         const lbSackChance = lbPool.length ? Math.min(0.40, 0.18 + blitzerCount * 0.08) : 0;
         let sackedBy = null, sackedByMove = null;
-        if (lbPool.length && Math.random() < lbSackChance) {
+        if (lbPool.length && _rand() < lbSackChance) {
           const weights = lbPool.map(l => l.archetype === "BLITZER" ? 3 : 1);
           const total = weights.reduce((s, w) => s + w, 0);
-          let r = Math.random() * total;
+          let r = _rand() * total;
           let chosen = lbPool[lbPool.length - 1];
           for (let i = 0; i < lbPool.length; i++) { r -= weights[i]; if (r <= 0) { chosen = lbPool[i]; break; } }
           if (def.players[chosen.name]) {
@@ -4746,14 +4746,14 @@ class GameSimulator {
         // blowouts/shutouts under band because fumbles were thin. Strip-sacks
         // are the highest-variance turnover (often returned for TDs).
         const stripChance = clamp(0.13 - (qbAwr - 70) / 400 - this._clutchMod(QB, 0.04), 0.05, 0.22);
-        const isStripSack = Math.random() < stripChance;
+        const isStripSack = _rand() < stripChance;
         let recoveredByDef = false;
         let recoveredBy = null;
         if (isStripSack) {
           off.team.fumbles = (off.team.fumbles || 0) + 1;
           if (qbStats) qbStats.fumbles = (qbStats.fumbles || 0) + 1;
           // ~55% of strip-sacks are recovered by the defense
-          if (Math.random() < 0.55) {
+          if (_rand() < 0.55) {
             recoveredByDef = true;
             off.team.fumbles_lost = (off.team.fumbles_lost || 0) + 1;
             off.team.turnovers = (off.team.turnovers || 0) + 1;
@@ -4766,7 +4766,7 @@ class GameSimulator {
         }
         // Pick a move from the DL's archetype toolkit
         const moves = DL_ARCHETYPES[reps.dlType]?.moves || ["SACK"];
-        const move = moves[Math.floor(Math.random() * moves.length)];
+        const move = moves[Math.floor(_rand() * moves.length)];
         // PATH B Phase 7 — sacker pursuit track. Engine emits a path
         // for the named DL/blitzer to converge on the QB's drop spot.
         // contactT varies by depth (deep drops give longer pursuits).
@@ -4858,16 +4858,16 @@ class GameSimulator {
                             + ((offArch.WR2?.archetype === "POSSESSION") ? 0.012 : 0);
       // Screen passes — about 8% of called passes are screens. High comp rate, modest YAC.
       // Skip on 3rd & long (screens get blown up by overzealous blitzers).
-      const isScreenCall = !(isThird && this.ytg >= 9) && Math.random() < 0.085;
+      const isScreenCall = !(isThird && this.ytg >= 9) && _rand() < 0.085;
       if (isScreenCall) {
         // Screen TARGET — ~70% RB, ~30% WR (wr1 or wr2 50/50). Engine
         // emitted only RB screens before, so every screen looked the
         // same — RB stepping toward QB. Real playbooks include WR/now/
         // tunnel screens and bubble screens off the slot.
-        const _scrPick = Math.random();
+        const _scrPick = _rand();
         const _isWRScreen = _scrPick < 0.30;
         const _scrWrSlot = _isWRScreen
-          ? (Math.random() < 0.5 ? "wr1" : "wr2")
+          ? (_rand() < 0.5 ? "wr1" : "wr2")
           : null;
         const rcvr = _isWRScreen
           ? this.offR.starters[_scrWrSlot]
@@ -4875,11 +4875,11 @@ class GameSimulator {
         const _scrRole = _isWRScreen ? "WR" : "RB";
         this._ensurePlayerStat(this.poss, rcvr, _scrRole);
         const rcvrStats = off.players[rcvr];
-        if (Math.random() < 0.84) {
+        if (_rand() < 0.84) {
           // Completed screen
           const airYds = rand(-1, 1);
           const baseYac = rand(2, 7);
-          const bigYac = Math.random() < 0.16 ? rand(8, 22) : 0;
+          const bigYac = _rand() < 0.16 ? rand(8, 22) : 0;
           let yac = baseYac + bigYac;
           // YAC break-tackle on screens — RB in space with blockers, high break opportunity
           let screenBT = 0;
@@ -5235,7 +5235,7 @@ class GameSimulator {
       const _pressReadCut = clamp(pressure * 0.10, 0, 0.20);
       const defDeepBonus = (defPbCurrent.deepCovMul - 1) * 4.5;   // -2 for prevent, +0.7 for blitz_46
       const _readMod = _qbReadMod - _pressReadCut + paAirMod * 0.02 - defDeepBonus * 0.015;
-      const _readSuccess = Math.random() < clamp(_readBase + _readMod, 0.15, 0.92);
+      const _readSuccess = _rand() < clamp(_readBase + _readMod, 0.15, 0.92);
       let airYds = _readSuccess
         ? clamp(Math.round((_conceptDef?.primaryDepth ?? 8) + normal(0, _conceptDef?.primarySd ?? 3)), -2, 55)
         : clamp(Math.round((_conceptDef?.fallbackDepth ?? 4) + normal(0, _conceptDef?.fallbackSd ?? 2)), -2, 55);
@@ -5312,9 +5312,9 @@ class GameSimulator {
       // of the target (lost separation → few yards). Deep throws, weak arms only.
       if (airYds >= 16 && _qbThr < 80) {
         const _utChance = clamp((airYds - 16) * 0.012 + (80 - _qbThr) * 0.015, 0, 0.45);
-        if (Math.random() < _utChance) {
+        if (_rand() < _utChance) {
           const _utQB = this.offR.starters.qb;
-          if (Math.random() < 0.55) {
+          if (_rand() < 0.55) {
             // PD — defender drives on the short ball and knocks it away
             const _utDB = this._creditDBStat("pd", { CB: 0.5, S: 0.35, LB: 0.15 });
             if (qbStats) qbStats.pass_att++;
@@ -5324,7 +5324,7 @@ class GameSimulator {
           }
           // Contested catch SHORT — receiver fights back to it, hauls it in well
           // short of the intended marker.
-          const _utYds = Math.max(2, Math.round(airYds * (0.40 + Math.random() * 0.25)));
+          const _utYds = Math.max(2, Math.round(airYds * (0.40 + _rand() * 0.25)));
           if (qbStats) { qbStats.pass_att++; qbStats.pass_comp++; qbStats.pass_yds += _utYds; if (_utYds > qbStats.pass_long) qbStats.pass_long = _utYds; }
           if (this._curTb) off.team["pc_" + this._curTb] = (off.team["pc_" + this._curTb] || 0) + 1;   // audit: contested-short still completes (deep)
           const _utRS = off.players[rcvr];
@@ -5335,7 +5335,7 @@ class GameSimulator {
         }
       }
       const compPct = clamp((0.62 + adv * 0.13 + qbDepthSkill + depthCompMod - pressure * 0.10 - shutdownPenalty + possessionBonus + qbCompMod + paCompMod + catCompMod + awrCompMod + cbCoverMod + mismatchBonus + coverLbMod + signalLbMod + physicalJamMod + wxCompMod + archCompMod + rzCompBonus + fatigueCompMod + momCompMod + clutchCompMod + boxStackCompMod + opennessCompMod) * compPbMul * defPbCurrent.passMul * dcCoverSchemeMul, 0.15, 0.95);
-      if (Math.random() < compPct) {
+      if (_rand() < compPct) {
         // Air yards drop when pressure shortens the QB's reads (check-downs / dump-offs)
         // Weaker QBs also throw shorter — they can't push the ball downfield reliably.
         // Composed QBs (high AWR) push the ball further by extending the play
@@ -5388,7 +5388,7 @@ class GameSimulator {
         // pass YPA past NFL. Dialed back closer to NFL baseline.
         let yac = 0;
         if (airYds >= 1) {
-          const r = Math.random();
+          const r = _rand();
           if (r < 0.25) yac = 0;
           else if (r < 0.65) yac = rand(1, Math.max(3, Math.floor(airYds * 0.55)) + 2);
           else if (r < 0.94) yac = rand(3, Math.max(7, Math.floor(airYds * 0.9)) + 3);
@@ -5461,7 +5461,7 @@ class GameSimulator {
         //  ZIP (5-18 yds, tight window): low arc + max velocity — threading the needle
         //  TOUCH (5-18 yds, soft route): higher arc + slower — gentle drop-in
         //  DEEP (≥19 yds): big arc, max distance
-        const throwTypeRoll = Math.random();
+        const throwTypeRoll = _rand();
         let throwType;
         if (airYds <= 4) {
           throwType = "CHECKDOWN";
@@ -5492,7 +5492,7 @@ class GameSimulator {
         // the ball. We mark this as cosmetic since the comp/incomp decision
         // was already made above (this branch is the COMPLETED case).
         const isLeapingCatch = airYds >= 16 && (
-          catchRadius >= 75 || (catchRadius >= 60 && Math.random() < 0.5)
+          catchRadius >= 75 || (catchRadius >= 60 && _rand() < 0.5)
         );
         // POST-CATCH FUMBLE — receiver loses ball during YAC. Higher chance
         // with low CAT (juggled catches), big YAC (defenders punching out),
@@ -5503,13 +5503,13 @@ class GameSimulator {
         const yacFumbleChance = yac > 0
           ? clamp(0.003 + Math.max(0, (yac - 5) / 500) - Math.max(0, (rcvrCatStat - 75) / 1200) - this._clutchMod(rcvr, 0.004), 0.001, 0.012)
           : 0;
-        if (Math.random() < yacFumbleChance) {
+        if (_rand() < yacFumbleChance) {
           // Catch happens at catchYL. Ball comes out somewhere in YAC.
           const catchYL = clamp(startYard + Math.max(1, Math.round(airYds)), 1, 99);
-          const yacToFumble = Math.max(0, Math.floor(yac * (0.30 + Math.random() * 0.55)));
+          const yacToFumble = Math.max(0, Math.floor(yac * (0.30 + _rand() * 0.55)));
           const fumbleAdvance = Math.max(0, Math.round(airYds)) + yacToFumble;
           const fumbleYL = clamp(startYard + fumbleAdvance, 1, 99);
-          const recoveredBy = Math.random() < 0.55 ? "def" : "off";
+          const recoveredBy = _rand() < 0.55 ? "def" : "off";
           const ffBy = this._creditDefStat("ff", { S: 0.35, CB: 0.30, LB: 0.30, DL: 0.05 });
           const ylDesc = (y) => y <= 50 ? `own ${y}` : `opp ${100 - y}`;
           if (recoveredBy === "def") {
@@ -5729,7 +5729,7 @@ class GameSimulator {
                     : rcvrPlayer?.archetype === "DEEP_THREAT" ? 1.25
                     : 1.0;
       const dropBase = clamp((90 - rcvrCat) / 220 + 0.035, 0.02, 0.30) * archMul;
-      const isDrop = Math.random() < dropBase;
+      const isDrop = _rand() < dropBase;
       let pdName = null;
       if (isDrop) {
         if (rcvrStats) rcvrStats.rec_drops = (rcvrStats.rec_drops || 0) + 1;
@@ -5737,7 +5737,7 @@ class GameSimulator {
       } else {
         // 55% of non-drop incompletions are pass deflections (overthroughs,
         // throwways, bad releases account for the other ~45%)
-        pdName = Math.random() < 0.55 ? this._creditDBStat("pd", { CB: 0.55, S: 0.30, LB: 0.15 }) : null;
+        pdName = _rand() < 0.55 ? this._creditDBStat("pd", { CB: 0.55, S: 0.30, LB: 0.15 }) : null;
       }
       // CATCH RADIUS / NEAR-MISS LEAP — for deep throws, the receiver leaps
       // and the ball flies past their fingertips. Cosmetic flag for the animation.
@@ -5771,7 +5771,7 @@ class GameSimulator {
         const wUndertrown = 16 + (pressure > 0 ? 8 : 0) + (qbThrLocal < 70 ? 10 : 0);
         const wOffTarget  = 20;
         const totalW = wThrowaway + wBatted + wOverthrown + wUndertrown + wOffTarget;
-        let pick = Math.random() * totalW;
+        let pick = _rand() * totalW;
         const QB = this.offR.starters.qb;
         if      ((pick -= wThrowaway)  < 0) { incReason = "throwaway"; incDesc = `${QB} throws it away under pressure`; }
         else if ((pick -= wBatted)     < 0) { incReason = "batted"; const dl = this._creditDefStat("pd", { DL: 0.80, LB: 0.20 }); pdName = dl; incDesc = `${QB}'s pass batted down at the line${dl ? ` by ${dl}` : ""}`; }
@@ -5849,7 +5849,7 @@ class GameSimulator {
     // 0.012/carry ≈ 1 fumble per 83 carries, matching NFL average. Fumbles drive
     // game-margin variance (lost lead changes, defensive TDs).
     const fumblePct = clamp((0.012 + gripMod + archFumbleAdd + Math.max(0, pressure) * 0.013 + wxFumMod - this._clutchMod(RB, 0.005)) * optionMul, 0.005, 0.12);
-    if (Math.random() < fumblePct) {
+    if (_rand() < fumblePct) {
       // Scrum-based recovery — the ball bounces in a pile of converging players.
       // Defense has a slight edge in open field (2-4 dive attempts each kick the
       // ball loose until someone secures it). About 58% defense recovery overall.
@@ -5858,13 +5858,13 @@ class GameSimulator {
       let recoveredBy = null;
       let scrumMisses = 0;
       for (let i = 0; i < scrumDives; i++) {
-        if (Math.random() < 0.55) {        // 55% chance someone secures it this dive
-          recoveredBy = Math.random() < 0.58 ? "def" : "off";
+        if (_rand() < 0.55) {        // 55% chance someone secures it this dive
+          recoveredBy = _rand() < 0.58 ? "def" : "off";
           break;
         }
         scrumMisses++;
       }
-      if (!recoveredBy) recoveredBy = Math.random() < 0.58 ? "def" : "off";
+      if (!recoveredBy) recoveredBy = _rand() < 0.58 ? "def" : "off";
       const ffBy = this._creditDefStat("ff", { LB: 0.35, DL: 0.40, S: 0.20, CB: 0.05 });
       // Credit the FUMBLE to the carrier (separate from "lost" — recovered own fumble still counts).
       const carrierFumStats = off.players[RB];
@@ -5949,7 +5949,7 @@ class GameSimulator {
       else if (pb.id === "OPTION")      twoBackPct = 0.22;
       if (this.ytg <= 2) twoBackPct += 0.20;     // power short yardage
       if (startYard >= 95) twoBackPct += 0.15;   // goal line
-      useTwoBack = Math.random() < twoBackPct;
+      useTwoBack = _rand() < twoBackPct;
     }
     // FB lead-block bonus — bumps rush yardage, reduces stuff risk
     const fbBoost = useTwoBack ? 0.9 : 0;
@@ -5980,7 +5980,7 @@ class GameSimulator {
         qbRushPct = Math.max(qbRushPct, _mob * 0.10);
       }
     }
-    let isQBRun = qbRushPct > 0 && Math.random() < qbRushPct;
+    let isQBRun = qbRushPct > 0 && _rand() < qbRushPct;
     // SPEED OPTION — a subset of QB-run calls where the RB trails the QB
     // as a live pitch threat. The QB sprints to the option side and either
     // KEEPS the ball or PITCHES to the trailing back. Option-heavy
@@ -5992,7 +5992,7 @@ class GameSimulator {
       const speedOptPct = pb.id === "OPTION"       ? 0.40
                         : pb.id === "DUAL_THREAT" ? 0.22
                         : 0.10;
-      if (Math.random() < speedOptPct) {
+      if (_rand() < speedOptPct) {
         isSpeedOption = true;
         // Deterministic play-side (matches the animation's optSide).
         const optSide = ((startYard * 19) >>> 0) % 2 === 0 ? 1 : -1;
@@ -6017,7 +6017,7 @@ class GameSimulator {
         // correct commit). For simplicity we just add small noise here.
         defAttacksQbChance += (edgeAwr - 70) / 600;
         defAttacksQbChance = clamp(defAttacksQbChance, 0.20, 0.82);
-        const defAttacksQb = Math.random() < defAttacksQbChance;
+        const defAttacksQb = _rand() < defAttacksQbChance;
         // ── QB READ ACCURACY ──────────────────────────────────────────
         // Sharp QBs (high AWR) make the correct give vs keep most of the
         // time. The CORRECT read is "pitch if defender attacks QB" or
@@ -6027,7 +6027,7 @@ class GameSimulator {
         const _optQbPlayer = this._playerByName?.get?.(QB);
         const _optQbAwr    = _optQbPlayer?.stats?.[3] ?? 70;
         const qbReadAccuracy = clamp((_optQbAwr - 55) / 50, 0.30, 0.94);
-        const goesCorrect = Math.random() < qbReadAccuracy;
+        const goesCorrect = _rand() < qbReadAccuracy;
         const correctRead = defAttacksQb;   // true = correct read says PITCH
         isPitch = goesCorrect ? correctRead : !correctRead;
         optionRead = { defAttacksQb, goesCorrect, optSide };
@@ -6040,14 +6040,14 @@ class GameSimulator {
     // and runs laterally, then pitches to a crossing WR who runs the other way.
     // High variance: bigger gains AND bigger losses if it gets read.
     // Never on two-back — fullbacks don't run reverses.
-    const isReverse = !isQBRun && !useTwoBack && !isSpeedOption && Math.random() < 0.015;
+    const isReverse = !isQBRun && !useTwoBack && !isSpeedOption && _rand() < 0.015;
     // ── RUN-PLAY VARIANTS (counter / stretch / pitch) ──────────────────
     // Pick a runType for the non-reverse, non-QB runs. Distribution favors
     // GROUND_AND_POUND and OPTION schemes for counter / pitch, AIR_RAID
     // teams stick mostly to inside zone.
     let runType = "inside";   // default
     if (!isQBRun && !isReverse && !isSpeedOption) {
-      const r = Math.random();
+      const r = _rand();
       if (pb.id === "GROUND_AND_POUND") {
         if      (r < 0.18) runType = "counter";
         else if (r < 0.36) runType = "stretch";
@@ -6117,7 +6117,7 @@ class GameSimulator {
       // to ~68-70% — lifts rushing VOLUME (not via pass/run ratio, which is fine
       // at ~58% pass) and gives the league true workhorses.
       const _rb2share = Math.max(0.05, Math.min(0.40, 0.34 - _gap * 0.022));
-      if (Math.random() < _rb2share) runner = _rb2name;
+      if (_rand() < _rb2share) runner = _rb2name;
     }
     const carrier = isQBRun ? QB : runner;
     // QB runs break for chunks slightly more often — defense had to honor pass
@@ -6162,7 +6162,7 @@ class GameSimulator {
     const runTrenchYds = trenchYds * (2 - runMul); // runMul<1 (DL wins) → bigger negative
     // REVERSE — big-play upside but bigger variance and a real chance of TFL.
     // The lateral hand-off and direction change make it boom-or-bust.
-    const reverseBonus = isReverse ? (Math.random() < 0.45 ? -5 + Math.random() * 3 : 4 + Math.random() * 10) : 0;
+    const reverseBonus = isReverse ? (_rand() < 0.45 ? -5 + _rand() * 3 : 4 + _rand() * 10) : 0;
     const reverseSdMul = isReverse ? 1.6 : 1.0;
     // Defensive scheme tilt for run defense: 46 blitz stuffs runs, dime
     // gets gashed.
@@ -6308,7 +6308,7 @@ class GameSimulator {
     const _bSd = 3 * (reverseSdMul || 1);
     const _gSd = 9 * (reverseSdMul || 1);
     // Class draw
-    const _cls = Math.random();
+    const _cls = _rand();
     let yards;
     // Class means trimmed — first-pass values landed rush YPC at 4.90 (NFL
     // ~4.4). Lean-forward + broken-tackle add ~0.4 yds on top, so the class
@@ -6362,8 +6362,8 @@ class GameSimulator {
     // Award a pancake block to a random OL on quality runs (≥5 yards, not a QB scramble)
     if (yards >= 5 && !isQBRun) {
       const olArr = this.offOL || [];
-      if (olArr.length && Math.random() < 0.38) {
-        const blocker = olArr[Math.floor(Math.random() * olArr.length)];
+      if (olArr.length && _rand() < 0.38) {
+        const blocker = olArr[Math.floor(_rand() * olArr.length)];
         if (blocker?.name && off.players[blocker.name])
           off.players[blocker.name].pancakes = (off.players[blocker.name].pancakes || 0) + 1;
       }
@@ -6745,9 +6745,9 @@ class GameSimulator {
           this.yardLine = 100;
           this._score(6, "Punt Return Touchdown!");
           const k = this.offR.starters.k, kStats = this.offStats.players[k];
-          if (Math.random() < 0.92) {
+          if (_rand() < 0.92) {
             if (kStats) kStats.xp_att++;
-            if (Math.random() < 0.94) { this._score(1, "Extra Point"); if (kStats) kStats.xp_made++; }
+            if (_rand() < 0.94) { this._score(1, "Extra Point"); if (kStats) kStats.xp_made++; }
           }
           pushDriveSummary("PUNT RETURN TD", { endYL: 100 });
           this.drives.push({ team: start, result: "PUNT-RTN-TD", homeScore: this.score.home, awayScore: this.score.away });
@@ -6925,14 +6925,14 @@ class GameSimulator {
                       : hcStyleXP === "Game Manager"      ? 0.85
                       :                                       1.00;
         twoPtChance = clamp(twoPtChance * this._aggTilt(this._qbAggression()) * hcXpMul, 0, 0.97);
-        if (Math.random() < twoPtChance) {
+        if (_rand() < twoPtChance) {
           // 2-point try
-          if (Math.random() < 0.48) this._score(2, "2-Point Conversion");
+          if (_rand() < 0.48) this._score(2, "2-Point Conversion");
           else this._pushVisual({ kind: "xp_miss", desc: `2-pt conversion fails — no good` });
         } else {
           // Kick XP
           if (kStats) kStats.xp_att++;
-          if (Math.random() < 0.94) { this._score(1, "Extra Point"); if (kStats) kStats.xp_made++; }
+          if (_rand() < 0.94) { this._score(1, "Extra Point"); if (kStats) kStats.xp_made++; }
           else this._pushVisual({ kind: "xp_miss", desc: `Extra point — no good` });
         }
         pushDriveSummary("TOUCHDOWN", { endYL: 100 });
@@ -7064,7 +7064,7 @@ class GameSimulator {
       // the game ends in a tie (no more coin-flip-FG fallback).
       this.plays.push({ kind: "ot", desc: "═══ OVERTIME ═══", quarter: 5, time: 600, homeScore: this.score.home, awayScore: this.score.away });
       this.quarter = 5; this.time = 600;
-      this.poss = Math.random() < 0.5 ? "home" : "away";
+      this.poss = _rand() < 0.5 ? "home" : "away";
       this.yardLine = 25; this.down = 1; this.ytg = 10;
       const otReceiver = this.poss;
       const otKicker = this.poss === "home" ? "away" : "home";

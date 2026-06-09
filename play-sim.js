@@ -177,7 +177,7 @@ class Engagement {
     this.driftPx  = opts.driftPx  != null ? opts.driftPx  : 0.95;
     this.pull     = opts.pull     != null ? opts.pull     : 0.30;
     this.wobble   = opts.wobble   != null ? opts.wobble   : 1.0;
-    this.wobblePhase = Math.random() * Math.PI * 2;
+    this.wobblePhase = _rand() * Math.PI * 2;
     // Accumulated pressure drift (grows along axis toward the QB).
     this.driftX = 0;
     this.driftY = 0;
@@ -336,7 +336,7 @@ class RunBlockEngagement {
     this.dlHomeX = dl.x; this.dlHomeY = dl.y;        // DL's pre-snap anchor
     this.driveX = 0; this.driveY = 0;
     this.startMs = null; this._lastMs = null;
-    this.wobblePhase = Math.random() * Math.PI * 2;
+    this.wobblePhase = _rand() * Math.PI * 2;
   }
   step(nowMs) {
     if (this.startMs == null) this.startMs = nowMs;

@@ -10,8 +10,11 @@
 > **Line numbers are references into large files and WILL drift — grep the
 > function/identifier name to re-locate.**
 >
-> Status: **discovery + foundations.** The final-margin **Blowout Rest** feature
-> shipped as the first stepping stone (see §7). The rest of this is a plan.
+> Status: **Phases 0-2 shipped.** Blowout Rest (final-margin → phase-accurate),
+> the persisted game timeline + situational stats + Drive Chart (Workstream A),
+> and a deterministic seeded game-sim (Workstream B) are all in. Remaining: full
+> franchise-layer determinism, the authority model, and Workstream C (the
+> Coordinator seam + netcode for live head-to-head playcalling).
 
 ---
 
@@ -126,10 +129,11 @@ ephemeral local.
   blowout protects starters far more (injury mul ~0.30, deep wear shed) than a
   late pull-away at the same final margin (~0.71, little shed). The margin
   threshold still gates *whether* rest happens; the timeline scales *how much*.
-- **Situational stats** — clutch (4th-quarter close), garbage-time splits,
-  comeback tracking — the same `g.scoring` walk powers these next.
-- **Watch-the-game / replay** — already present (`replayClips`, quarter scores,
-  scoring summary, momentum/WP); a drive-by-drive recap can build on it.
+- **Situational stats** ✅ — `_classifyGameSituation` (core) flags each game
+  comeback / wire-to-wire / one-score from `g.scoring`; tallied per team on
+  `standings._sit` and surfaced in the recap notes + a standings situational line.
+- **Watch-the-game / replay** ✅ — `replayClips`, quarter scores, scoring summary,
+  momentum/WP, and now a **Drive Chart** (`g.drives` → `_bspnRenderDriveChart`).
 
 Risk: **low.** No engine-math changes; this is logging + a schema. Gate-safe by
 construction (final box score unchanged → `AUDIT.md` bands unaffected).
@@ -137,6 +141,27 @@ construction (final box score unchanged → `AUDIT.md` bands unaffected).
 ---
 
 ## Workstream B — Determinism (the multiplayer prerequisite)
+
+> **Status: shipped (game-sim path).** A module-level swappable RNG lives in
+> `play-data.js` (`_rand` / `_setSimRng` / `_clearSimRng` / `_mulberry32` /
+> `_hashSeed`) — loads first in browser + audit. The engine's `Math.random()`
+> was redirected to `_rand()` across **play-engine.js (142), play-player.js (71),
+> play-sim.js (2), and play-data.js's per-play pickers (5)** — every site in the
+> OUTCOME path (the leak hunt found play-data's `pickPersonnel`/target pickers,
+> not just the engine). `frnSimOnce` derives a per-matchup seed
+> (`_deriveGameSeed` off a per-franchise `rngSeedBase` + season/week/teams),
+> installs it for the sim, and clears it after. Result: **same seed → byte-
+> identical game** (verified: 3 seeds each run twice all match; different seeds
+> differ). Outside a sim `_activeRng` is null → `_rand()` falls through to
+> `Math.random()`, so player generation / draft / FA stay stochastic AND the
+> headless audit (which never seeds) is unaffected — confirmed calibration-
+> neutral via `_sim_audit.js` (flags only the usual 2-season tail noise, which
+> moves with the seed; headline bands all OK).
+>
+> **Remaining (follow-ups):** the franchise layer is still `Math.random` — the
+> two chaotic-chemistry ±2 tweaks in `frnSimOnce` and the post-game injury rolls
+> aren't seeded yet, so a *full* franchise replay isn't byte-identical even
+> though the GAME is. Authority model (server-authoritative) still to decide.
 
 **Goal:** `(seed + inputs) → byte-identical game`, everywhere it matters.
 
@@ -228,8 +253,10 @@ Every change here that touches `play-engine.js` / `play-player.js` must hold the
 - **Phase 1 — Workstream A.** ✅ Timeline already persisted (`g.scoring`);
   phase-accurate Blowout Rest now reads it via `_gameRestFraction`. Remaining:
   clutch / garbage-time stat splits + a drive-by-drive recap (same timeline walk).
-- **Phase 2 — Workstream B.** Seed the engine RNG; store per-game seed; lock in
-  replays. Decide authority = server-authoritative.
+- **Phase 2 — Workstream B.** ✅ Engine RNG seeded (`_rand` + per-matchup seed),
+  same-seed games byte-identical, calibration-neutral. Remaining: seed the
+  franchise-layer randomness (chemistry tweaks, injury rolls) for full replay,
+  and decide authority = server-authoritative.
 - **Phase 3 — Workstream C.1/C.2.** Extract the `Coordinator` seam + make the
   loop yieldable. Ship **single-player interactive playcalling** first (you vs
   the AICoordinator) — fun on its own and de-risks the seam before networking.

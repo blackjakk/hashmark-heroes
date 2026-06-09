@@ -1,3 +1,34 @@
+// ─── Deterministic RNG (Workstream B foundation) ────────────────────────────
+// A module-level swappable RNG. The game engine (play-engine.js / play-player.js)
+// calls `_rand()` instead of Math.random(). While a game sim is running, the
+// caller installs a SEEDED stream via _setSimRng(seed) so the game is fully
+// reproducible (same seed → byte-identical game) — the substrate for replays
+// and head-to-head multiplayer. Outside a sim (player generation, draft, FA, the
+// franchise layer), _activeRng is null and `_rand()` falls through to
+// Math.random(), so non-game randomness stays stochastic. Defined in play-data.js
+// because it loads FIRST in both the browser and the headless audit harness; the
+// audit overrides Math.random and never sets a sim seed, so `_rand()` falls
+// through to its override and the realism bands are unaffected.
+let _activeRng = null;
+function _mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function _setSimRng(seed) { _activeRng = Number.isFinite(seed) ? _mulberry32(seed >>> 0) : null; }
+function _clearSimRng() { _activeRng = null; }
+function _rand() { return _activeRng ? _activeRng() : Math.random(); }
+// Stable 32-bit hash for deriving a per-game seed from matchup inputs.
+function _hashSeed(...nums) {
+  let h = 0x811c9dc5 >>> 0;
+  for (const n of nums) { h ^= (Number(n) | 0); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h >>> 0;
+}
+
 // ─── 32 fictional teams ────────────────────────────────────────────────────
 const TEAMS = [
   { id:1,  city:"New Albion",  name:"Kraken",     conference:"AFC", division:"East",  primary:"#00264D", secondary:"#84B6F4", emoji:"🦑" },
@@ -118,11 +149,11 @@ function packageForPersonnel(p) {
 function pickPersonnel(playbook, situation) {
   const sit = situation || {};
   if (sit.isGoalLine) {
-    const r = Math.random();
+    const r = _rand();
     return r < 0.40 ? "HEAVY" : r < 0.65 ? "JUMBO" : r < 0.85 ? "I_FORM" : "BASE";
   }
   if (sit.isLongYardage) {
-    const r = Math.random();
+    const r = _rand();
     return r < 0.45 ? "SPREAD" : r < 0.65 ? "EMPTY" : "TRIPS";
   }
   // Red zone (inside the 20) tilts toward heavier sets — shorter routes,
@@ -139,7 +170,7 @@ function pickPersonnel(playbook, situation) {
       else reweighted[k] = p;
     }
     const sum = Object.values(reweighted).reduce((a, b) => a + b, 0) || 1;
-    let roll = Math.random() * sum;
+    let roll = _rand() * sum;
     for (const [key, prob] of Object.entries(reweighted)) {
       if (roll < prob) return key;
       roll -= prob;
@@ -147,7 +178,7 @@ function pickPersonnel(playbook, situation) {
     return "BASE";
   }
   const mix = playbook.personnelMix || { TRIPS: 0.40, BASE: 0.20, SPREAD: 0.15, HEAVY: 0.12, JUMBO: 0.05, I_FORM: 0.05, EMPTY: 0.03 };
-  let roll = Math.random();
+  let roll = _rand();
   for (const [key, prob] of Object.entries(mix)) {
     if (roll < prob) return key;
     roll -= prob;
@@ -389,7 +420,7 @@ function pickReceiver(playbook, starters, personnel, coverageMix, touchMul) {
       mix.te  = teTotal * 0.70;
     }
   }
-  let roll = Math.random();
+  let roll = _rand();
   for (const key of ["wr1", "wr2", "wr3", "wr4", "te", "te2", "te3", "rb"]) {
     const prob = mix[key] || 0;
     if (prob <= 0) continue;

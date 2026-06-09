@@ -262,22 +262,22 @@ const CREATIVE_ROOTS = [
 ];
 function pickFirstName() {
   // 18% chance to roll a creative-style name, otherwise pull from the pool
-  if (Math.random() < 0.18) {
-    return CREATIVE_PREFIXES[Math.floor(Math.random() * CREATIVE_PREFIXES.length)]
-         + CREATIVE_ROOTS[Math.floor(Math.random() * CREATIVE_ROOTS.length)];
+  if (_rand() < 0.18) {
+    return CREATIVE_PREFIXES[Math.floor(_rand() * CREATIVE_PREFIXES.length)]
+         + CREATIVE_ROOTS[Math.floor(_rand() * CREATIVE_ROOTS.length)];
   }
-  return FIRST[Math.floor(Math.random() * FIRST.length)];
+  return FIRST[Math.floor(_rand() * FIRST.length)];
 }
 
 // pickLastName() pulls from the pool, with a ~9% chance of producing a
 // hyphenated double-barrel surname (e.g., García-Schmidt, Tanaka-O'Brien).
 function pickLastName() {
-  const a = LAST[Math.floor(Math.random() * LAST.length)];
-  if (Math.random() < 0.09) {
-    let b = LAST[Math.floor(Math.random() * LAST.length)];
+  const a = LAST[Math.floor(_rand() * LAST.length)];
+  if (_rand() < 0.09) {
+    let b = LAST[Math.floor(_rand() * LAST.length)];
     // Avoid identical halves
     let guard = 0;
-    while (b === a && guard++ < 4) b = LAST[Math.floor(Math.random() * LAST.length)];
+    while (b === a && guard++ < 4) b = LAST[Math.floor(_rand() * LAST.length)];
     // Apostrophe-prefix surnames (O'Brien) don't combine cleanly into a hyphen
     if (b.includes("'") || a.includes("'")) return a;
     return `${a}-${b}`;
@@ -463,10 +463,10 @@ function _pickNicknameOrigin(player) {
 // Pull a nickname from a pool, filtering out any in `taken`. Returns null
 // only if the pool is fully exhausted (callers fall through to other pools).
 function pickFromPool(pool, taken) {
-  if (!taken) return pool[Math.floor(Math.random() * pool.length)];
+  if (!taken) return pool[Math.floor(_rand() * pool.length)];
   const available = pool.filter(n => !taken.has(n));
   if (available.length === 0) return null;
-  return available[Math.floor(Math.random() * available.length)];
+  return available[Math.floor(_rand() * available.length)];
 }
 
 function pickCareerNickname(player, taken = null) {
@@ -564,7 +564,7 @@ function pickCareerNickname(player, taken = null) {
   }
   // Truly exhausted — suffix fallback
   for (let n = 2; n < 99; n++) {
-    const base = NICK_HEAVY[Math.floor(Math.random() * NICK_HEAVY.length)];
+    const base = NICK_HEAVY[Math.floor(_rand() * NICK_HEAVY.length)];
     const suffixed = `${base} ${n === 2 ? "II" : n === 3 ? "III" : "IV"}`;
     if (!taken || !taken.has(suffixed)) return suffixed;
   }
@@ -616,7 +616,7 @@ function assignLeagueNicknames(rosters) {
     for (const p of eligible) {
       if (p.nickname) continue;
       // ~70% acquisition — some stars stay nameless
-      if (Math.random() >= 0.70) continue;
+      if (_rand() >= 0.70) continue;
       const nick = pickCareerNickname(p, taken);
       if (!nick) continue;
       p.nickname = nick;
@@ -626,7 +626,7 @@ function assignLeagueNicknames(rosters) {
       // pulled from a restricted iconic pool so the single name carries
       // the right weight. Flag only — never overwrite p.name (would
       // break every name-keyed lookup in the league).
-      if (Math.random() < 0.03 && (p.proBowls || 0) >= 3) {
+      if (_rand() < 0.03 && (p.proBowls || 0) >= 3) {
         const iconic = pickFromPool(NICK_ICONIC, takenIconic);
         if (iconic) {
           p.nickname = iconic;
@@ -642,8 +642,8 @@ function assignLeagueNicknames(rosters) {
 
 const ROSTER_SLOTS = { QB:3, RB:4, WR:6, TE:3, OL:9, DL:7, LB:6, CB:6, S:5, K:1, P:1 };
 
-const rand = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
-const randf = (a, b) => Math.random() * (b - a) + a;
+const rand = (a, b) => Math.floor(_rand() * (b - a + 1)) + a;
+const randf = (a, b) => _rand() * (b - a) + a;
 const randName = () => `${pickFirstName()} ${pickLastName()}`;
 
 // Per-position SPD mapping — real-NFL OL never run 4.40s, CBs are never
@@ -732,11 +732,11 @@ function _applyPositionCaps(pos, stats) {
       const v = stats[i] || 60;
       if (v >= 88) {
         // Two-stage gate: most "elite" rolls land 85-90; the true 93+ tail is rare.
-        const r = Math.random();
-        if      (r < 0.50) stats[i] = 84 + Math.floor(Math.random() * 5);     // 84-88
-        else if (r < 0.85) stats[i] = 88 + Math.floor(Math.random() * 4);     // 88-91
-        else if (r < 0.97) stats[i] = 92 + Math.floor(Math.random() * 3);     // 92-94
-        else               stats[i] = 95 + Math.floor(Math.random() * 5);     // 95-99 (rare)
+        const r = _rand();
+        if      (r < 0.50) stats[i] = 84 + Math.floor(_rand() * 5);     // 84-88
+        else if (r < 0.85) stats[i] = 88 + Math.floor(_rand() * 4);     // 88-91
+        else if (r < 0.97) stats[i] = 92 + Math.floor(_rand() * 3);     // 92-94
+        else               stats[i] = 95 + Math.floor(_rand() * 5);     // 95-99 (rare)
       }
     }
   }
@@ -795,7 +795,7 @@ function statsFor(pos, tier) {
   // — some prospects end at top of tier (peaky), some at bottom (flat).
   // Net effect: bell-curve OVR distribution becomes more bimodal because
   // each tier produces a wider OVR spread.
-  if (Math.random() < 0.50) {
+  if (_rand() < 0.50) {
     const range = r.hi - r.lo;
     const peakLo = r.lo + Math.round(range * 0.7);   // top 30% of tier range
     const valleyHi = r.lo + Math.round(range * 0.3); // bottom 30%
@@ -834,7 +834,7 @@ const PLAYER_FLAVORS = {
 };
 function applyFlavor(stats, pos) {
   // Returns the flavor key (or null) and mutates stats in place
-  const r = Math.random();
+  const r = _rand();
   // Indices: 0=SPD, 1=STR, 2=AGI, 3=AWR, 4=THR, 5=CAT, 6=BLK, 7=PRS, 8=COV, 9=TCK, 10=KPW, 11=TEC
   if (r < 0.45) {
     // RAW_ATHLETE: elite physical tools, poor reads. High TEC — natural physical
@@ -949,7 +949,7 @@ function pickDLArchetype(stats) {
     TECHNICIAN: Math.max(0, awr - 60) * 1.4 + Math.max(0, agi - 55) * 0.5,
   };
   // Add noise so it's not too deterministic
-  for (const k in weights) weights[k] += Math.random() * 8;
+  for (const k in weights) weights[k] += _rand() * 8;
   return Object.keys(weights).reduce((a, b) => weights[a] >= weights[b] ? a : b);
 }
 function pickOLArchetype(stats) {
@@ -961,7 +961,7 @@ function pickOLArchetype(stats) {
     PLUG:       (str > 60 && spd < 60 ? 12 : 4),
     MAULER:     Math.max(0, str - 60) + Math.max(0, blk - 60) * 1.3,
   };
-  for (const k in weights) weights[k] += Math.random() * 7;
+  for (const k in weights) weights[k] += _rand() * 7;
   return Object.keys(weights).reduce((a, b) => weights[a] >= weights[b] ? a : b);
 }
 
@@ -986,7 +986,7 @@ function pickQBArchetype(stats) {
     DUAL_THREAT:    0 + Math.max(0, spd - 75) * 1.2 + Math.max(0, agi - 75) * 0.4,
     FIELD_GENERAL: 10 + Math.max(0, awr - 80) * 0.4,
   };
-  for (const k in w) w[k] += Math.random() * 25;
+  for (const k in w) w[k] += _rand() * 25;
   return Object.keys(w).reduce((a, b) => w[a] >= w[b] ? a : b);
 }
 
@@ -1089,7 +1089,7 @@ function pickRBArchetype(stats) {
     WORKHORSE: 6 + Math.max(0, awr - 60),
     RECEIVING: Math.max(0, cat - 60) * 1.6 + Math.max(0, agi - 55) * 0.5,
   };
-  for (const k in w) w[k] += Math.random() * 6;
+  for (const k in w) w[k] += _rand() * 6;
   return Object.keys(w).reduce((a, b) => w[a] >= w[b] ? a : b);
 }
 function pickWRArchetype(stats) {
@@ -1101,7 +1101,7 @@ function pickWRArchetype(stats) {
     RED_ZONE:     Math.max(0, str - 55) * 1.6 + Math.max(0, cat - 55) * 0.5,
     ROUTE_RUNNER: Math.max(0, awr - 60) * 1.4 + Math.max(0, agi - 55) * 0.5,
   };
-  for (const k in w) w[k] += Math.random() * 6;
+  for (const k in w) w[k] += _rand() * 6;
   return Object.keys(w).reduce((a, b) => w[a] >= w[b] ? a : b);
 }
 function pickTEArchetype(stats) {
@@ -1116,7 +1116,7 @@ function pickTEArchetype(stats) {
     BLOCKING:  Math.max(0, blk - 55) * 1.4 + Math.max(0, str - 55) * 0.5 - Math.max(0, cat - 62) * 0.5,
     HYBRID:    Math.max(0, Math.min(cat, blk) - 58) * 1.7,
   };
-  for (const k in w) w[k] += Math.random() * 5;
+  for (const k in w) w[k] += _rand() * 5;
   return Object.keys(w).reduce((a, b) => w[a] >= w[b] ? a : b);
 }
 function pickLBArchetype(stats) {
@@ -1136,7 +1136,7 @@ function pickLBArchetype(stats) {
     // well-rounded LB lands HYBRID at a real OVR, not just balanced scrubs.
     HYBRID:  10 + Math.max(0, Math.min(cov, Math.min(tck, prs + 8)) - 58) * 1.8,
   };
-  for (const k in w) w[k] += Math.random() * 5;
+  for (const k in w) w[k] += _rand() * 5;
   return Object.keys(w).reduce((a, b) => w[a] >= w[b] ? a : b);
 }
 function pickCBArchetype(stats) {
@@ -1148,7 +1148,7 @@ function pickCBArchetype(stats) {
     SLOT_CB:  Math.max(0, agi - 65) * 1.4 + Math.max(0, spd - 60) * 0.4,
     ZONE:     Math.max(0, awr - 60) * 1.4,
   };
-  for (const k in w) w[k] += Math.random() * 6;
+  for (const k in w) w[k] += _rand() * 6;
   return Object.keys(w).reduce((a, b) => w[a] >= w[b] ? a : b);
 }
 function pickSArchetype(stats) {
@@ -1166,7 +1166,7 @@ function pickSArchetype(stats) {
     // tackling so a well-rounded safety lands HYBRID at a real OVR.
     HYBRID:       10 + Math.max(0, Math.min(cov, tck) - 58) * 1.7,
   };
-  for (const k in w) w[k] += Math.random() * 5;
+  for (const k in w) w[k] += _rand() * 5;
   return Object.keys(w).reduce((a, b) => w[a] >= w[b] ? a : b);
 }
 
@@ -1179,7 +1179,7 @@ function pickKArchetype(stats) {
     CLUTCH:    Math.max(0, awr - 65) * 0.8 + Math.max(0, kpw - 65) * 0.5,
     BALANCED:  6 + Math.max(0, ((kpw + awr) / 2) - 65),
   };
-  for (const k in w) w[k] += Math.random() * 4;
+  for (const k in w) w[k] += _rand() * 4;
   return Object.keys(w).reduce((a, b) => w[a] >= w[b] ? a : b);
 }
 // P archetypes — KPW = punt distance, AWR = directional / hang-time accuracy
@@ -1193,7 +1193,7 @@ function pickPArchetype(stats) {
     ATHLETE:     Math.max(0, spd - 65) * 1.4 + Math.max(0, agi - 65) * 1.1 + Math.max(0, awr - 60) * 0.3,
     BALANCED:    6 + Math.max(0, ((kpw + awr) / 2) - 65),
   };
-  for (const k in w) w[k] += Math.random() * 4;
+  for (const k in w) w[k] += _rand() * 4;
   return Object.keys(w).reduce((a, b) => w[a] >= w[b] ? a : b);
 }
 
@@ -1301,7 +1301,7 @@ function pickRunStyle(pos, archetype) {
   return "smooth";
 }
 function pickCelebStyle() {
-  return CELEB_STYLES[Math.floor(Math.random() * CELEB_STYLES.length)];
+  return CELEB_STYLES[Math.floor(_rand() * CELEB_STYLES.length)];
 }
 
 // Position-realistic height (inches) + weight (lbs). bodyType nudges the
@@ -1321,8 +1321,8 @@ const HW_RANGES = {
 };
 function assignHeightWeight(p) {
   const r = HW_RANGES[p.position] || HW_RANGES.WR;
-  let height = r.h[0] + Math.floor(Math.random() * (r.h[1] - r.h[0] + 1));
-  let weight = r.w[0] + Math.floor(Math.random() * (r.w[1] - r.w[0] + 1));
+  let height = r.h[0] + Math.floor(_rand() * (r.h[1] - r.h[0] + 1));
+  let weight = r.w[0] + Math.floor(_rand() * (r.w[1] - r.w[0] + 1));
   if (p.bodyType === "PLUS_SIZE") { height += 1; weight += 18; }
   else if (p.bodyType === "SLENDER") { weight -= 10; }
   p.height = height;
@@ -1354,11 +1354,11 @@ function genPlayer(pos, tier) {
   // just first+last, depending on how the player "goes by".
   const firstName = pickFirstName();
   const lastName  = pickLastName();
-  const middleName = Math.random() < 0.55 ? pickFirstName() : null;
+  const middleName = _rand() < 0.55 ? pickFirstName() : null;
   let displayName = `${firstName} ${lastName}`;
   if (middleName && !middleName.includes("'") && !firstName.includes("'")
       && !middleName.includes("-") && !firstName.includes("-")) {
-    const roll = Math.random();
+    const roll = _rand();
     if (roll < 0.07) {
       // Initials style: "T.J. Watt" (real NFL: T.J. Watt, A.J. Brown, C.J. Stroud)
       displayName = `${firstName[0]}.${middleName[0]}. ${lastName}`;
@@ -1371,7 +1371,7 @@ function genPlayer(pos, tier) {
     }
   }
   const player = {
-    pid: Math.random().toString(36).slice(2, 10),
+    pid: _rand().toString(36).slice(2, 10),
     name: displayName,
     firstName, middleName, lastName,
     position: pos,
@@ -1384,7 +1384,7 @@ function genPlayer(pos, tier) {
   // Rare durability trait (~3%) — halves per-game injury rate. Brett Favre /
   // Eli Manning / Cal Ripken style. Mostly invisible mechanic; shows as a
   // small flag on the owned-player card.
-  if (Math.random() < 0.03) player.ironman = true;
+  if (_rand() < 0.03) player.ironman = true;
 
   // Personality archetype — drives subtle locker-room dynamics. Most
   // players are "normal" (no flag); the rest fall into 5 archetypes that
@@ -1395,7 +1395,7 @@ function genPlayer(pos, tier) {
   //   showman    8%  : flavor-only for now (playoff scaling not modeled)
   //   coachs_son 4%  : extra TEC growth, max coachability
   //   normal    66%  : no special trait
-  const pr = Math.random();
+  const pr = _rand();
   if      (pr < 0.08) player.personality = "captain";
   else if (pr < 0.10) player.personality = "cancer";
   else if (pr < 0.22) player.personality = "quiet_pro";
@@ -1461,7 +1461,7 @@ function genPlayer(pos, tier) {
   player._awrCeiling = flavor === "HIGH_FOOTBALL_IQ" ? rand(82, 95)
                      : flavor === "RAW_ATHLETE"       ? rand(55, 72)
                      : rand(65, 82);
-  player.coachable = Math.random() < (flavor === "HIGH_FOOTBALL_IQ" ? 0.45 : flavor === "RAW_ATHLETE" ? 0.10 : 0.25);
+  player.coachable = _rand() < (flavor === "HIGH_FOOTBALL_IQ" ? 0.45 : flavor === "RAW_ATHLETE" ? 0.10 : 0.25);
   // Stamina — how many snaps a player can handle before fatigue degrades performance.
   // RAW_ATHLETE: high stamina (physical engine), HIGH_IQ: lower (cerebral, needs rotation).
   player._stamina = flavor === "RAW_ATHLETE"      ? rand(82, 95)
@@ -1501,7 +1501,7 @@ function genPlayer(pos, tier) {
   // overwrite it. Tagged player.collegeNickname=true so the tooltip can
   // surface "earned in college".
   if (player.age <= 23 && player.overall >= 86 && pos !== "K" && pos !== "P"
-      && Math.random() < 0.30) {
+      && _rand() < 0.30) {
     const nick = pickCareerNickname(player);
     if (nick) {
       player.nickname = nick;
@@ -1512,12 +1512,12 @@ function genPlayer(pos, tier) {
   // potential ≠ high drive — that's what creates busts vs overachievers).
   // Server-side in MegaETH port; client only sees scout-tag derivations.
   if (player._drive == null) {
-    const driveRoll = Math.random();
+    const driveRoll = _rand();
     // Mean ~60, sd ~18, clamped 20-99.
-    player._drive = Math.max(20, Math.min(99, Math.round(60 + (driveRoll * 2 - 1) * 35 + (Math.random() - 0.5) * 10)));
+    player._drive = Math.max(20, Math.min(99, Math.round(60 + (driveRoll * 2 - 1) * 35 + (_rand() - 0.5) * 10)));
   }
   if (player._durability == null) {
-    const durRoll = Math.random();
+    const durRoll = _rand();
     player._durability = Math.max(25, Math.min(99, Math.round(65 + (durRoll * 2 - 1) * 30)));
   }
   if (player._clutch == null) {
@@ -1528,14 +1528,14 @@ function genPlayer(pos, tier) {
     // (~80+) and folders (~<25) are the tails; most players sit near neutral.
     // Bell-ish via a 3-roll average, then an asymmetric stretch (choke side
     // widened) and a little jitter.
-    const cRoll = (Math.random() + Math.random() + Math.random()) / 3 - 0.5;   // ~bell around 0, [-0.5,+0.5]
+    const cRoll = (_rand() + _rand() + _rand()) / 3 - 0.5;   // ~bell around 0, [-0.5,+0.5]
     const dev = cRoll >= 0 ? cRoll * 84 : cRoll * 102;                          // negative (choke) side stretched further
-    player._clutch = Math.max(1, Math.min(99, Math.round(50 + dev + (Math.random() - 0.5) * 6)));
+    player._clutch = Math.max(1, Math.min(99, Math.round(50 + dev + (_rand() - 0.5) * 6)));
     // The visible kicker CLUTCH archetype IS "clutch by reputation" — generate
     // it on the high end so the trait keeps meaning what it always has (the
     // engine's old binary archetype FG bonus is now driven by this attribute).
     if (player.archetype === "CLUTCH") {
-      player._clutch = Math.max(player._clutch, 72 + Math.floor(Math.random() * 20));   // 72-91
+      player._clutch = Math.max(player._clutch, 72 + Math.floor(_rand() * 20));   // 72-91
     }
   }
   // Mock the player's career (year-by-year stats + accolades) at gen time
@@ -2003,15 +2003,15 @@ function assignCareerTeams(rosters) {
 }
 
 function mockSeasonStats(pos, ovr, archetype) {
-  const noise = () => (Math.random() - 0.4) * 0.30 + 1;   // 0.85–1.16 typical
+  const noise = () => (_rand() - 0.4) * 0.30 + 1;   // 0.85–1.16 typical
   const r = (n) => Math.round(n);
 
   // --- Games played: scale by ovr tier, clamp [1, 17] ---
   let gp;
-  if (ovr >= 82)      gp = Math.round(14 + Math.random() * 3);
-  else if (ovr >= 72) gp = Math.round(10 + Math.random() * 6);
-  else if (ovr >= 62) gp = Math.round(5  + Math.random() * 7);
-  else                gp = Math.round(1  + Math.random() * 5);
+  if (ovr >= 82)      gp = Math.round(14 + _rand() * 3);
+  else if (ovr >= 72) gp = Math.round(10 + _rand() * 6);
+  else if (ovr >= 62) gp = Math.round(5  + _rand() * 7);
+  else                gp = Math.round(1  + _rand() * 5);
   gp = Math.min(17, Math.max(1, gp));
 
   const gpF = gp / 17;
@@ -2167,7 +2167,7 @@ function mockSeasonStats(pos, ovr, archetype) {
     const ff  = Math.max(0, rc(ffBase  * noise()));
     const pd  = Math.max(0, rc(pdBase  * noise()));
     const fr  = Math.max(0, rc(ffBase * 0.5 * noise()));
-    const def_td = Math.random() < 0.10 ? 1 : 0;
+    const def_td = _rand() < 0.10 ? 1 : 0;
     return { gp, sk, tkl, ff, pd, fr, def_td };
   }
 
@@ -2195,7 +2195,7 @@ function mockSeasonStats(pos, ovr, archetype) {
     const int_made = Math.max(0, rc(intBase * noise()));
     const pd       = Math.max(0, rc((4 + (ovr - 70) * 0.15) * noise()));
     const fr       = Math.max(0, rc(ffBase * 0.5 * noise()));
-    const def_td   = Math.random() < 0.08 ? 1 : 0;
+    const def_td   = _rand() < 0.08 ? 1 : 0;
     return { gp, sk, tkl, ff, int_made, pd, fr, def_td };
   }
 
@@ -2223,7 +2223,7 @@ function mockSeasonStats(pos, ovr, archetype) {
     const pd       = Math.max(0, rc(pdBase  * noise()));
     const tkl      = Math.max(0, rc(tklBase * noise()));
     const ff       = Math.max(0, rc(0.5 * noise()));
-    const def_td   = Math.random() < 0.10 ? 1 : 0;
+    const def_td   = _rand() < 0.10 ? 1 : 0;
     return { gp, int_made, pd, tkl, ff, def_td };
   }
 
@@ -2250,7 +2250,7 @@ function mockSeasonStats(pos, ovr, archetype) {
     const pd       = Math.max(0, rc(pdBase  * noise()));
     const sk       = Math.round(Math.max(0, rc(skBase  * noise())) * 10) / 10;
     const ff       = Math.max(0, rc(0.8 * noise()));
-    const def_td   = Math.random() < 0.10 ? 1 : 0;
+    const def_td   = _rand() < 0.10 ? 1 : 0;
     return { gp, int_made, tkl, pd, sk, ff, def_td };
   }
 
@@ -2265,7 +2265,7 @@ function mockSeasonStats(pos, ovr, archetype) {
     const fgPct = Math.min(0.95, Math.max(0.62, 0.74 + (ovr - 70) * 0.005));
     const fg_att  = Math.max(rc(8), rc((22 + (ovr - 70) * 0.4) * noise()));
     const fg_made = Math.min(fg_att, r(fg_att * fgPct * noise()));
-    const fg_long = Math.max(38, Math.min(60, Math.round(45 + (ovr - 70) * 0.4 + (Math.random() * 6 - 3))));
+    const fg_long = Math.max(38, Math.min(60, Math.round(45 + (ovr - 70) * 0.4 + (_rand() * 6 - 3))));
     const xp_att  = Math.max(rc(12), rc((28 + (ovr - 70) * 0.3) * noise()));
     const xp_made = Math.min(xp_att, r(xp_att * Math.min(0.99, 0.92 + (ovr - 70) * 0.003) * noise()));
     return { gp, fg_made, fg_att, fg_long, xp_made, xp_att };
@@ -2283,22 +2283,22 @@ function mockSeasonStats(pos, ovr, archetype) {
 function generateAccolades(player, season, effOvr, seasonAge) {
   const acc = [];
   // Pro Bowl — needs ~88+ OVR season; some elite hover at 84+
-  if (effOvr >= 92 && Math.random() < 0.80) acc.push("Pro Bowl");
-  else if (effOvr >= 88 && Math.random() < 0.55) acc.push("Pro Bowl");
-  else if (effOvr >= 84 && Math.random() < 0.20) acc.push("Pro Bowl");
+  if (effOvr >= 92 && _rand() < 0.80) acc.push("Pro Bowl");
+  else if (effOvr >= 88 && _rand() < 0.55) acc.push("Pro Bowl");
+  else if (effOvr >= 84 && _rand() < 0.20) acc.push("Pro Bowl");
   // All-Pro — needs Pro Bowl + truly elite
-  if (acc.includes("Pro Bowl") && effOvr >= 93 && Math.random() < 0.35) acc.push("All-Pro");
+  if (acc.includes("Pro Bowl") && effOvr >= 93 && _rand() < 0.35) acc.push("All-Pro");
   // Super Bowl ring — random per season, slightly weighted by OVR
-  if (Math.random() < 0.05 + Math.max(0, (effOvr - 75) / 200)) acc.push("Super Bowl");
+  if (_rand() < 0.05 + Math.max(0, (effOvr - 75) / 200)) acc.push("Super Bowl");
   // MVP — extremely rare, only top QBs/RBs/WRs
-  if (effOvr >= 96 && Math.random() < 0.20 && ["QB","RB","WR"].includes(player.position)) acc.push("MVP");
+  if (effOvr >= 96 && _rand() < 0.20 && ["QB","RB","WR"].includes(player.position)) acc.push("MVP");
   // OPOY / DPOY — slightly less rare than MVP
-  if (effOvr >= 94 && Math.random() < 0.15) {
+  if (effOvr >= 94 && _rand() < 0.15) {
     if (["QB","RB","WR","TE"].includes(player.position)) acc.push("OPOY");
     else if (["DL","LB","CB","S"].includes(player.position)) acc.push("DPOY");
   }
   // Rookie of the Year — first season only
-  if (seasonAge <= 23 && effOvr >= 82 && Math.random() < 0.06) acc.push("ROY");
+  if (seasonAge <= 23 && effOvr >= 82 && _rand() < 0.06) acc.push("ROY");
   return acc;
 }
 
@@ -2372,14 +2372,14 @@ function genRoster(playbook = PLAYBOOKS.BALANCED, overrides = {}, blockNames = n
   // tests / scripted scenarios that need a fixed starter quality).
   function pickTier(depth) {
     if (depth === 0) {
-      const r = Math.random();
+      const r = _rand();
       if (r < 0.12) return "elite";       // ~3-4 at 90+ per position leaguewide
       if (r < 0.65) return "good";        // most starters
       return "average";                    // weak starters (still better than backups)
     }
-    if (depth === 1) return Math.random() < 0.5 ? "good" : "average";
-    if (depth === 2) return Math.random() < 0.5 ? "average" : "poor";
-    return Math.random() < 0.25 ? "average" : "poor";
+    if (depth === 1) return _rand() < 0.5 ? "good" : "average";
+    if (depth === 2) return _rand() < 0.5 ? "average" : "poor";
+    return _rand() < 0.25 ? "average" : "poor";
   }
   for (const [pos, count] of Object.entries(ROSTER_SLOTS)) {
     for (let i = 0; i < count; i++) {

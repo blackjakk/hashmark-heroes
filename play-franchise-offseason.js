@@ -1683,10 +1683,23 @@ function _computeWeeklyGameplan(myId, oppId) {
   const ovrBump = (coachQ >= 0.8 && Math.abs(delta) >= 0.05) ? 1 : 0;
   return { passProbDelta: delta, ovrBump, reason };
 }
+// Per-game seed: stable for a given matchup so re-simming reproduces it
+// (replays / future multiplayer). Lazily mints a per-franchise base the first
+// time, then hashes in season/week/teams/playoff. _hashSeed/_setSimRng live in
+// play-data.js (loaded first).
+function _deriveGameSeed(homeId, awayId, isPlayoff) {
+  if (franchise.rngSeedBase == null) franchise.rngSeedBase = (Math.random() * 0xFFFFFFFF) >>> 0;
+  return _hashSeed(franchise.rngSeedBase, franchise.season || 1, franchise.week || 1, homeId, awayId, isPlayoff ? 1 : 0);
+}
 // `frnSimOnce` returns the simulation result; callers use it to capture
 // season stats + highlights as a side effect. The full game object is
 // available on the returned `.full` for callers that need playoff details.
 function frnSimOnce(homeId, awayId, isPlayoff = false) {
+  // Seed the ENGINE rng for this matchup so the game is reproducible. Only the
+  // engine's _rand() is seeded; the franchise layer's Math.random is untouched.
+  // Cleared right after simulate(); each sim re-seeds at its start, so even a
+  // mid-sim throw can't leak the stream into the next game.
+  if (typeof _setSimRng === "function") _setSimRng(_deriveGameSeed(homeId, awayId, isPlayoff));
   const isRivalry = _areRivals(homeId, awayId);
   // Auto-manage: refresh snap-share contracts based on each team's
   // current policy (defaults to "balanced"). Skips teams set to "ride".
@@ -1781,6 +1794,7 @@ function frnSimOnce(homeId, awayId, isPlayoff = false) {
   if (homeWgp?.ovrBump) sim.homeR.offense += homeWgp.ovrBump;
   if (awayWgp?.ovrBump) sim.awayR.offense += awayWgp.ovrBump;
   const r = sim.simulate();
+  if (typeof _clearSimRng === "function") _clearSimRng();   // engine rng off; franchise layer back to Math.random
   // Stamp gameday context onto the result so callers can persist it
   r.weather = sim.weather;
   r.isRivalry = isRivalry;
