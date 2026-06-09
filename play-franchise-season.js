@@ -263,6 +263,18 @@ function showFranchiseDashboard() {
     // re-seeds via startFrnPlayoffs. This keeps seeding a TRANSITION concern so
     // renderFrnPlayoffs stays a pure read-only render.
     else if ((franchise.phase === "playoffs_pending" || franchise.phase === "playoffs") && !_validBracket) frnTransition("season_recap");
+    // Legacy playoffs_pending with a VALID live bracket slipped both heals
+    // above and used to survive load. The dispatch rendered the bracket, but
+    // tab navigation special-cases only "playoffs" — one tab click later the
+    // Overview fell through to the Week-17 REGULAR dashboard (the reported
+    // "playoffs bounced me back to Week 17" loop). Retire the phase outright.
+    else if (franchise.phase === "playoffs_pending") frnTransition("playoffs");
+    // Same symptom from the other side: a live (un-crowned) valid bracket
+    // with the phase knocked back to "regular" after the season ended is a
+    // playoff run that lost its phase — put it back in the bracket. (Crowned
+    // brackets with a regressed phase route to awards.)
+    else if (franchise.phase === "regular" && (franchise.week || 1) > _fw && _validBracket && !_champCrowned) frnTransition("playoffs");
+    else if (franchise.phase === "regular" && (franchise.week || 1) > _fw && _champCrowned) frnTransition("awards");
   }
   if (!franchise.seasonStats)      franchise.seasonStats = {};
   // One-time repair for saves predating idempotent stat-merge. If the

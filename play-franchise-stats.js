@@ -6970,7 +6970,10 @@ function _frnRenderActiveTab() {
   }
   if (franchise._mustMakeRoom) { delete franchise._mustMakeRoom; if (typeof saveFranchise === "function") saveFranchise(); }
   switch (_frnActiveTab) {
-    case "overview":    return (franchise.phase === "playoffs") ? renderFrnPlayoffs() : renderFrnRegular();
+    // playoffs_pending is a retired phase the load-heal migrates, but if one
+    // ever reaches a tab click un-healed, Overview must NOT fall through to
+    // the Week-17 regular dashboard — route it to the bracket too.
+    case "overview":    return (franchise.phase === "playoffs" || franchise.phase === "playoffs_pending") ? renderFrnPlayoffs() : renderFrnRegular();
     case "roster":      return renderFrnRosterHome();
     case "frontoffice": return renderFrnFrontOfficeHome();
     case "league":      return renderFrnLeagueHome();
