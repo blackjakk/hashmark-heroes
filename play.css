@@ -10070,8 +10070,8 @@
     --bspn-border:    #1f2630;
     --bspn-border-strong: #2c3441;
     --bspn-white:     #e6ebf0;
-    --bspn-gray:      #79858f;
-    --bspn-gray-dim:  #4b545d;
+    --bspn-gray:      #9aa4ae;  /* lifted from #79858f to clear WCAG AA (4.5:1) for secondary text, incl. on tinted score bands */
+    --bspn-gray-dim:  #6e7882;  /* lifted from #4b545d so decorative separators/field marks aren't near-invisible (~2:1) */
     --bspn-gold:      #f5c542;
     --bspn-terminal:  #4be36b;
     --bspn-red:       #ff3939;

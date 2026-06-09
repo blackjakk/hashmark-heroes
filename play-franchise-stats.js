@@ -2784,7 +2784,7 @@ function renderFrnStandings() {
       return `<tr ${isMine ? `style="background:rgba(245,197,66,0.08)"` : ""}>
         <td style="color:var(--blgold);font-weight:900;width:1.5rem">${i + 1}</td>
         <td>
-          <span class="bspnlive-num" style="color:${t.primary};font-weight:700">${t.abbr || t.name.slice(0,3).toUpperCase()}</span>
+          <span class="bspnlive-num" style="color:${_teamInk(t.primary)};font-weight:700">${t.abbr || t.name.slice(0,3).toUpperCase()}</span>
           <span style="color:${isMine ? "var(--blgold)" : "var(--blwhite)"};font-weight:${isMine?900:600};margin-left:.45rem;font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:1px;font-size:.95rem">${t.city} ${t.name}</span>
           ${isMine ? `<span style="color:var(--blgold);font-size:.55rem;letter-spacing:.5px;margin-left:.4rem">YOU</span>` : ""}
           ${clinchPill}
@@ -2833,7 +2833,7 @@ function renderFrnStandings() {
       return `<tr ${isMine ? `style="background:rgba(245,197,66,0.08)"` : ""}>
         <td style="width:2.2rem;text-align:center">${seedTag}</td>
         <td>
-          <span class="bspnlive-num" style="color:${s.team.primary};font-weight:700">${s.team.abbr || s.team.name.slice(0,3).toUpperCase()}</span>
+          <span class="bspnlive-num" style="color:${_teamInk(s.team.primary)};font-weight:700">${s.team.abbr || s.team.name.slice(0,3).toUpperCase()}</span>
           <span style="margin-left:.4rem;color:${isMine?"var(--blgold)":"var(--blwhite)"};font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:1px">${s.team.name}</span>
           ${clinchPill}
         </td>
@@ -2997,7 +2997,7 @@ function renderFrnLeaders(tab) {
       <td style="color:var(--blgold);font-weight:900;width:2rem;text-align:center;font-family:'Bebas Neue','Anton',sans-serif;font-size:1.1rem">${i + 1}</td>
       <td>
         <span style="font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:1px;font-size:1rem;color:${isMine?"var(--blgold)":"var(--blwhite)"}">${_playerLinkSmart(r.name)}</span>
-        <span style="color:${r._team.primary};font-weight:700;margin-left:.45rem;font-size:.7rem">${r._team.abbr || r._team.name.slice(0,3).toUpperCase()}</span>
+        <span style="color:${_teamInk(r._team.primary)};font-weight:700;margin-left:.45rem;font-size:.7rem">${r._team.abbr || r._team.name.slice(0,3).toUpperCase()}</span>
         <span style="color:var(--blgray);font-size:.6rem;margin-left:.4rem">${r.pos}</span>
       </td>
       <td style="text-align:right;font-family:'Anton','Teko','Impact',sans-serif;font-size:1.5rem;line-height:1;font-weight:900;color:var(--blwhite)">${cat.formatVal ? cat.formatVal(_catValue(r)) : _catValue(r)}</td>
@@ -4491,7 +4491,11 @@ function _bspnTeamFromFranchise(team, recordStr) {
     city: team.city,
     abbreviation: _bspnAbbr(team),
     record: recordStr || null,
-    primaryColor: team.primary,
+    // Contrast-safe: lift dark-navy primaries to a readable accent so the box
+    // score's team-colored text (names, abbrevs, group headers) isn't ~1.1:1 on
+    // the dark theme. The bspn theme uses team color as an accent on dark, so a
+    // lighter value reads better everywhere it's used.
+    primaryColor: _teamInk(team.primary),
     secondaryColor: team.secondary,
     asciiMark: null,
   };
@@ -4988,8 +4992,8 @@ function _bspnRenderSummary(s) {
       <table class="bspn-summary-quarters">
         <thead><tr><th></th>${headerCells}<th>TOTAL</th></tr></thead>
         <tbody>
-          <tr><td style="color:${s.awayTeam.primaryColor};font-weight:700">${s.awayTeam.abbreviation}</td>${awayCells}<td class="total">${s.awayScore}</td></tr>
-          <tr><td style="color:${s.homeTeam.primaryColor};font-weight:700">${s.homeTeam.abbreviation}</td>${homeCells}<td class="total">${s.homeScore}</td></tr>
+          <tr><td style="color:${_teamInk(s.awayTeam.primaryColor)};font-weight:700">${s.awayTeam.abbreviation}</td>${awayCells}<td class="total">${s.awayScore}</td></tr>
+          <tr><td style="color:${_teamInk(s.homeTeam.primaryColor)};font-weight:700">${s.homeTeam.abbreviation}</td>${homeCells}<td class="total">${s.homeScore}</td></tr>
         </tbody>
       </table>
     </div>
@@ -5057,7 +5061,7 @@ function _bspnRenderTeamBox(team, groups) {
     ? `<div style="color:var(--bspn-gray);font-size:.7rem;font-style:italic">No per-player stats recorded.</div>`
     : "";
   const rec = team.record ? `<div class="bspn-team-box-record">${_bspnEsc(team.record)}</div>` : "";
-  return `<section class="bspn-panel" style="--team-color:${team.primaryColor}">
+  return `<section class="bspn-panel" style="--team-color:${_teamInk(team.primaryColor)}">
     <div class="bspn-team-box-head">
       <div class="bspn-team-box-name">${_bspnEsc((team.name||"").toUpperCase())}</div>
       ${rec}
@@ -5246,7 +5250,7 @@ function _bspnRenderPage(data) {
     [summary.awayTeam.id]: summary.awayTeam,
     [summary.homeTeam.id]: summary.homeTeam,
   };
-  return `<div class="bspn-root" style="--away-color:${summary.awayTeam.primaryColor};--home-color:${summary.homeTeam.primaryColor}">
+  return `<div class="bspn-root" style="--away-color:${_teamInk(summary.awayTeam.primaryColor)};--home-color:${_teamInk(summary.homeTeam.primaryColor)}">
     ${_bspnRenderHeader()}
     <div class="bspn-subbar">
       <button type="button" class="bspn-back" onclick="showFranchiseDashboard()">‹ Return to Main Screen</button>
@@ -6694,6 +6698,15 @@ function _hhTeamThemeVars(hex) {
     accent = "#" + [mix(r), mix(g), mix(b)].map((v) => v.toString(16).padStart(2, "0")).join("");
   }
   return { team: hex, ink, accent };
+}
+
+// Contrast-safe team color for TEXT on the dark UI. A raw dark-navy team
+// primary renders at ~1.1:1 (effectively invisible) as text; this returns the
+// readable lifted accent (~8:1) the broadcast viewer already uses. Use for team
+// abbreviations / names colored by team — NOT for backgrounds, borders, or
+// --team-color tints, which keep the raw primary.
+function _teamInk(hex) {
+  return (typeof _hhTeamThemeVars === "function") ? _hhTeamThemeVars(hex || "#6d8bff").accent : (hex || "#6d8bff");
 }
 
 function _frnRenderAppShell() {

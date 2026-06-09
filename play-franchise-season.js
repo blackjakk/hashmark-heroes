@@ -4614,7 +4614,7 @@ function _buildGameLogBlock(p) {
   const tmCell = (teamId) => {
     if (!showTM) return "";
     const t = getTeam(teamId);
-    return `<td style="font-weight:800;color:${t?.primary || "var(--gray)"};font-size:.62rem">${t ? _bspnLiveAbbr(t) : "—"}</td>`;
+    return `<td style="font-weight:800;color:${_teamInk(t?.primary) };font-size:.62rem">${t ? _bspnLiveAbbr(t) : "—"}</td>`;
   };
   const tmHeader = showTM ? `<th>TM</th>` : "";
   // Render columns per position
@@ -4640,7 +4640,7 @@ function _buildGameLogBlock(p) {
       return `<tr>
         <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:#ff7070" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
         ${tmCell(teamId)}
-        <td>${myHome ? "vs" : "@"} <span style="color:${opp?.primary}">${(opp?.name||"").slice(0,4)}</span></td>
+        <td>${myHome ? "vs" : "@"} <span style="color:${_teamInk(opp?.primary)}">${(opp?.name||"").slice(0,4)}</span></td>
         <td style="color:${resColor};font-weight:700">${res} ${myScore}-${themScore}</td>
         <td>${cmp}/${att}</td>
         <td>${line.pass_yds||0}</td>
@@ -4676,7 +4676,7 @@ function _buildGameLogBlock(p) {
       return `<tr>
         <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:#ff7070" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
         ${tmCell(teamId)}
-        <td>${myHome ? "vs" : "@"} <span style="color:${opp?.primary}">${(opp?.name||"").slice(0,4)}</span></td>
+        <td>${myHome ? "vs" : "@"} <span style="color:${_teamInk(opp?.primary)}">${(opp?.name||"").slice(0,4)}</span></td>
         <td style="color:${resColor};font-weight:700">${res} ${myScore}-${themScore}</td>
         <td>${car}</td>
         <td>${yds}</td>
@@ -4706,7 +4706,7 @@ function _buildGameLogBlock(p) {
       return `<tr>
         <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:#ff7070" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
         ${tmCell(teamId)}
-        <td>${myHome ? "vs" : "@"} <span style="color:${opp?.primary}">${(opp?.name||"").slice(0,4)}</span></td>
+        <td>${myHome ? "vs" : "@"} <span style="color:${_teamInk(opp?.primary)}">${(opp?.name||"").slice(0,4)}</span></td>
         <td style="color:${resColor};font-weight:700">${res} ${myScore}-${themScore}</td>
         <td>${rec}</td>
         <td>${line.rec_tgt||0}</td>
@@ -4735,7 +4735,7 @@ function _buildGameLogBlock(p) {
       return `<tr>
         <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:#ff7070" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
         ${tmCell(teamId)}
-        <td>${myHome ? "vs" : "@"} <span style="color:${opp?.primary}">${(opp?.name||"").slice(0,4)}</span></td>
+        <td>${myHome ? "vs" : "@"} <span style="color:${_teamInk(opp?.primary)}">${(opp?.name||"").slice(0,4)}</span></td>
         <td style="color:${resColor};font-weight:700">${res} ${myScore}-${themScore}</td>
         <td>${line.tkl||0}</td>
         <td style="color:${miss > 0 ? "#c08080" : "var(--gray)"}">${miss}</td>
@@ -4760,7 +4760,7 @@ function _buildGameLogBlock(p) {
       return `<tr>
         <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:#ff7070" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
         ${tmCell(teamId)}
-        <td>${myHome ? "vs" : "@"} <span style="color:${opp?.primary}">${(opp?.name||"").slice(0,4)}</span></td>
+        <td>${myHome ? "vs" : "@"} <span style="color:${_teamInk(opp?.primary)}">${(opp?.name||"").slice(0,4)}</span></td>
         <td style="color:${resColor};font-weight:700">${res} ${myScore}-${themScore}</td>
         <td>${line.fg_made||0}/${line.fg_att||0}</td>
         <td>${line.fg_long||0}</td>
@@ -4780,7 +4780,7 @@ function _buildGameLogBlock(p) {
       return `<tr>
         <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:#ff7070" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
         ${tmCell(teamId)}
-        <td>${myHome ? "vs" : "@"} <span style="color:${opp?.primary}">${(opp?.name||"").slice(0,4)}</span></td>
+        <td>${myHome ? "vs" : "@"} <span style="color:${_teamInk(opp?.primary)}">${(opp?.name||"").slice(0,4)}</span></td>
         <td style="color:${resColor};font-weight:700">${res} ${myScore}-${themScore}</td>
         <td>${line.pancakes||0}</td>
         <td style="color:${(line.sacks_allowed||0)>0?"#c08080":"inherit"}">${line.sacks_allowed||0}</td>

@@ -754,7 +754,7 @@ function frnOpenApbBox(roundIdx, matchIdx) {
     const team = tId === home.id ? home : tId === away.id ? away : null;
     return `<div class="frn-apb-box-score-row">
       <span class="q">Q${ev.qtr||"?"}</span>
-      <span class="team" style="color:${team?.primary||'var(--blwhite)'}">${team?.confDiv?.slice(0,3).toUpperCase() || "?"}</span>
+      <span class="team" style="color:${_teamInk(team?.primary)}">${team?.confDiv?.slice(0,3).toUpperCase() || "?"}</span>
       <span class="desc">${scoreLabel(ev)}</span>
       <span class="num">${ev.homeScore}-${ev.awayScore}</span>
     </div>`;
@@ -4014,7 +4014,7 @@ function _renderYourRunRecap() {
       <span style="color:${won?"var(--blgold)":"var(--blred)"};font-weight:900;font-size:1rem;font-family:'Bebas Neue','Anton',sans-serif;min-width:1rem">${won?"W":"L"}</span>
       <span style="color:var(--blwhite);font-weight:700;font-variant-numeric:tabular-nums">${myScore}-${themScore}</span>
       <span style="color:var(--blgray)">vs</span>
-      <span style="color:${opp?.primary || "var(--blwhite)"};font-weight:700">${opp?.abbr || opp?.name?.slice(0,3).toUpperCase()}</span>
+      <span style="color:${_teamInk(opp?.primary)};font-weight:700">${opp?.abbr || opp?.name?.slice(0,3).toUpperCase()}</span>
       <span style="color:var(--blgray)">${opp?.name || ""}</span>
       <span style="color:var(--blgray);font-size:.6rem;margin-left:auto">📋 Box</span>
     </button>`;
@@ -4109,14 +4109,14 @@ function _renderRoadToChampionship() {
     if (s.possible.length === 1 && s.possible[0]) {
       const opp = s.possible[0];
       return `${head}<div class="bspnlive-road-team" style="--team-color:${opp.primary}">
-        <span class="abbr" style="color:${opp.primary}">${opp.abbr || opp.name.slice(0,3).toUpperCase()}</span>
+        <span class="abbr" style="color:${_teamInk(opp.primary)}">${opp.abbr || opp.name.slice(0,3).toUpperCase()}</span>
         <span class="name">${opp.name}</span>
       </div>`;
     }
     // Two possible opponents
     return `${head}<div class="bspnlive-road-team possible">
       ${s.possible.filter(Boolean).map(t =>
-        `<span style="color:${t.primary};font-weight:700">${t.abbr || t.name.slice(0,3).toUpperCase()}</span>`
+        `<span style="color:${_teamInk(t.primary)};font-weight:700">${t.abbr || t.name.slice(0,3).toUpperCase()}</span>`
       ).join(`<span style="color:var(--blgray);margin:0 .25rem"> / </span>`)}
     </div>`;
   }).join(`<div class="bspnlive-road-arrow">→</div>`);
@@ -4230,7 +4230,7 @@ function _renderPregamePreview(m, seeds) {
     return `
       <div style="margin-bottom:.5rem">
         <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.25rem">
-          <span style="color:${team.primary};font-weight:900;font-size:.75rem;letter-spacing:.5px">${abbr(team)}</span>
+          <span style="color:${_teamInk(team.primary)};font-weight:900;font-size:.75rem;letter-spacing:.5px">${abbr(team)}</span>
           <span style="color:var(--blgray);font-size:.6rem">${avg.gp ? `${avg.pf.toFixed(1)} PPG · ${avg.pa.toFixed(1)} opp PPG` : "No games"}</span>
           ${streak ? `<span style="color:${streak.startsWith("L") ? "var(--red)" : "var(--green-lt)"};font-size:.6rem;margin-left:auto">${streak}</span>` : ""}
         </div>
@@ -4807,7 +4807,7 @@ function _renderPlayoffGameRecap() {
           const tAbbr = t ? (t.abbr || t.name.slice(0,3).toUpperCase()) : "—";
           return `<div class="frn-prg-scoring-row">
             <span class="q">Q${ev.qtr || "?"}</span>
-            <span class="team" style="color:${t?.primary || 'var(--blwhite)'};font-weight:${isMine?700:400}">${tAbbr}</span>
+            <span class="team" style="color:${_teamInk(t?.primary)};font-weight:${isMine?700:400}">${tAbbr}</span>
             <span class="desc">${scoreLabel(ev)}${ev.clock != null ? ` <span style="color:var(--blgray);font-weight:400;font-size:.55rem">(${fmtClock(ev.clock)})</span>` : ""}</span>
             <span class="score">${ev.homeScore}-${ev.awayScore}</span>
           </div>`;
@@ -4835,7 +4835,7 @@ function _renderPlayoffGameRecap() {
           const col = ev.amount > 0 ? "#86e0a3" : "#ff8a8a";
           return `<div class="frn-prg-scoring-row">
             <span class="q" style="color:${col};font-weight:800">${arrow}${Math.abs(ev.amount).toFixed(0)}</span>
-            <span class="team" style="color:${t?.primary || 'var(--blwhite)'};font-weight:${isMine?700:400}">${tAbbr}</span>
+            <span class="team" style="color:${_teamInk(t?.primary)};font-weight:${isMine?700:400}">${tAbbr}</span>
             <span class="desc">${ev.source || "swing"}</span>
             <span class="score">${ev.homeScore}-${ev.awayScore}</span>
           </div>`;
@@ -4860,7 +4860,7 @@ function _renderPlayoffGameRecap() {
                     : plan.passProbDelta < 0 ? "#e8a000" : "var(--gray)";
       return `<div class="frn-prg-scoring-row">
         <span class="q" style="color:${tiltCol};font-weight:800">${tilt}</span>
-        <span class="team" style="color:${t?.primary || 'var(--blwhite)'};font-weight:${tid===myId?700:400}">${tAbbr}</span>
+        <span class="team" style="color:${_teamInk(t?.primary)};font-weight:${tid===myId?700:400}">${tAbbr}</span>
         <span class="desc">${plan.reason}${plan.ovrBump ? ` <span style="color:var(--gold)">(+${plan.ovrBump})</span>` : ""}</span>
         <span class="score"></span>
       </div>`;
