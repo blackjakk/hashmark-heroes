@@ -15488,7 +15488,18 @@ function _aiTradeNeedBonus(teamId, players) {
   for (const p of players) {
     const same = roster.filter(rp => rp.position === p.position).sort((a,b)=>b.overall-a.overall);
     const bestSame = same[0]?.overall || 50;
-    if (p.overall > bestSame + 3) bonus += (p.overall - bestSame) * 0.5;
+    if (p.overall > bestSame + 3) {
+      // Premium for filling a hole — but BOUNDED so it stays a modifier on
+      // talent, never a driver. Cap the OVR gap (a barren position can't
+      // explode the bonus) and cap the result at ~22% of the player's trade
+      // value. Without this ceiling, the recalibrated (lower) base values let a
+      // desperate team accept a ~50% overpay (e.g. a 2nd for a 3rd-round
+      // player); now the most need adds is a realistic ~20% premium.
+      const gap = Math.min(p.overall - bestSame, 18);
+      const raw = gap * 0.5;
+      const cap = (typeof _playerTradeValue === "function" ? _playerTradeValue(p) : 12) * 0.22;
+      bonus += Math.min(raw, cap);
+    }
   }
   return bonus;
 }
