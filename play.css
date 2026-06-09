@@ -230,6 +230,17 @@
   #playbackControls .speed-control input[type="range"] { accent-color: var(--blgold, #f5c542); }
   #playbackControls #speedLabel { color: var(--blgold, #f5c542); font-family: 'IBM Plex Mono', monospace; letter-spacing: 0; }
 
+  /* ── Consolidate the two live scoreboards into ONE ─────────────────────
+        The broadcast scoreboard (#scoreboard) and the in-field score bug
+        (FieldHUD top corners) both showed score/clock. Pin the broadcast
+        scoreboard so it stays visible while you watch the field, and drop the
+        redundant in-field score/clock bug — FieldHUD keeps only the live
+        situation (down/dist), drive, and camera/replay controls. */
+  .bspnlive-root.v2 #scoreboard { position: sticky; top: 0; z-index: 40; }
+  #field-hud .hud-corner.top-left,
+  #field-hud .hud-corner.top-center,
+  #field-hud .hud-corner.top-right { display: none; }
+
   /* Game layout */
   .game-grid { display: grid; grid-template-columns: minmax(0, 3.2fr) minmax(280px, 1fr); gap: 1rem; }
   @media (max-width: 1400px) { .game-grid { grid-template-columns: 1fr; } }
