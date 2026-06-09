@@ -2873,17 +2873,17 @@ function _psWeeklyFlashRoll() {
     const team = getTeam(tId);
     for (const p of ps) {
       if (!p) continue;
-      const r = Math.random();
+      const r = _frand();
       let kind = null, ovrBoost = 0;
       if (r < PS_FLASH_PROBS.gem) {
         kind = "gem";
-        ovrBoost = 8 + Math.floor(Math.random() * 4);
+        ovrBoost = 8 + Math.floor(_frand() * 4);
       } else if (r < PS_FLASH_PROBS.gem + PS_FLASH_PROBS.wow) {
         kind = "wow";
-        ovrBoost = 3 + Math.floor(Math.random() * 3);
+        ovrBoost = 3 + Math.floor(_frand() * 3);
       } else if (r < PS_FLASH_PROBS.gem + PS_FLASH_PROBS.wow + PS_FLASH_PROBS.small) {
         kind = "small";
-        ovrBoost = Math.random() < 0.5 ? 1 : 0;
+        ovrBoost = _frand() < 0.5 ? 1 : 0;
       }
       if (!kind) continue;
       p.overall = Math.min(99, (p.overall || 50) + ovrBoost);
@@ -2940,7 +2940,7 @@ function _psPoachPass() {
           const topOvr = myStarters[0]?.overall || 50;
           if (topOvr >= 80) continue;
           const chance = 0.04 + Math.max(0, (75 - topOvr)) * 0.005;
-          if (Math.random() >= chance) continue;
+          if (_frand() >= chance) continue;
           // Existing pending alert? Skip dupes.
           if (franchise.psPoachAlerts.some(a => a.playerName === p.name && a.deadlineWeek > franchise.week)) continue;
           franchise.psPoachAlerts.push({
@@ -2960,7 +2960,7 @@ function _psPoachPass() {
         const isGem = (p.overall || 50) >= 78 && (p._psFlashLog || []).some(f =>
           (f.kind === "wow" || f.kind === "gem"));
         if (!isGem) continue;
-        if (Math.random() < 0.25) {
+        if (_frand() < 0.25) {
           _psPromote(ownerId, p, { silent: true });
         }
       }

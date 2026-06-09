@@ -143,6 +143,30 @@ byte-identical; forced-call games stay within sane bounds).
 
 ### D. Determinism completion audit
 *Priority: MEDIUM (prereq for replays-from-seed and any multiplayer).*
+> **DONE** (determinism arc). Added a SECOND swappable RNG (`_frand` /
+> `_setFranchiseRng` / `_clearFranchiseRng` in `play-data.js`), independent of
+> the engine's `_activeRng`, and installed a **per-week franchise seed**
+> (`_deriveWeekSeed` + `_withWeekRng`, salt `0xF1A` off `rngSeedBase`) around
+> the week-resolution body of all three sim entry points (`frnSimWeek`,
+> `frnSimToWeek`, `frnSimSeason`). Drove the conversion **empirically** with a
+> harness (sim a week twice from one snapshot, deep-diff persisted state) +
+> a `Math.random` call-stack profiler — not by guessing. Must-seed sites
+> redirected `Math.random()` → `_frand()`: the two injury rollers
+> (`_rollGameInjuries` contact + `_rollNonContactInjuries`, which the profiler
+> caught — it was 1400+ of the calls) and their type pickers, in-season dev
+> (`_inSeasonAwrGrowth`, rehab-outcome OVR penalty via `_rollRehabOutcome`),
+> yips, chaos-chemistry swings, practice-squad flash/poach, and CPU POTW
+> voting. Cosmetic randomness (AI trash-talk, weekly storylines) intentionally
+> left on `Math.random` — re-rolling it gives no competitive edge.
+> Verified: a full-franchise re-sim of the same week is **byte-identical**
+> across all competitive state (injuries, dev/OVR, morale, scores, standings,
+> practice squads) for 3 consecutive weeks; the profiler went from 1669 →
+> ~60 cosmetic-only `Math.random` calls/week; new franchises still differ
+> (player gen stays stochastic, correctly); realism gate unaffected (14/14).
+> **Remaining (tickets):** seed the cosmetic news/chat too if a *fully*
+> byte-identical save replay is ever wanted; week-by-week vs bulk-sim
+> equivalence is confounded by the save-trim side-effects from §B's
+> still-mutating `_trimFranchiseForStorage` (folded into that ticket).
 
 Engine path is seeded; ~340 franchise-layer `Math.random` calls are not.
 Inventory each call site → classify: must-seed (anything feeding game

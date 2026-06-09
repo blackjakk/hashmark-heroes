@@ -22,6 +22,23 @@ function _mulberry32(seed) {
 function _setSimRng(seed) { _activeRng = Number.isFinite(seed) ? _mulberry32(seed >>> 0) : null; }
 function _clearSimRng() { _activeRng = null; }
 function _rand() { return _activeRng ? _activeRng() : Math.random(); }
+
+// ─── Franchise-layer deterministic RNG (Workstream D) ───────────────────────
+// A SECOND swappable stream, independent of the engine's _activeRng, for the
+// franchise-layer randomness that mutates PERSISTED state during a week sim:
+// post-game injuries, in-season development, morale. The deterministic week-sim
+// entry points (frnSimWeek / frnSimToWeek / frnSimSeason) install a per-week
+// seed via _setFranchiseRng so a re-sim of the same week reproduces the same
+// injuries/dev/morale — the substrate for save replays. Must-seed sites call
+// `_frand()`; when no franchise seed is installed (offseason, draft, FA,
+// cosmetic AI chatter) it falls through to Math.random(), so non-game
+// randomness stays stochastic and player generation across new franchises
+// stays unique. Kept separate from _activeRng so the engine's per-game seed
+// (set/cleared inside frnSimOnce for each matchup) never disturbs this stream.
+let _franchiseRng = null;
+function _setFranchiseRng(seed) { _franchiseRng = Number.isFinite(seed) ? _mulberry32(seed >>> 0) : null; }
+function _clearFranchiseRng() { _franchiseRng = null; }
+function _frand() { return _franchiseRng ? _franchiseRng() : Math.random(); }
 // Stable 32-bit hash for deriving a per-game seed from matchup inputs.
 function _hashSeed(...nums) {
   let h = 0x811c9dc5 >>> 0;

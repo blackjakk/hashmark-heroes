@@ -1691,6 +1691,25 @@ function _deriveGameSeed(homeId, awayId, isPlayoff) {
   if (franchise.rngSeedBase == null) franchise.rngSeedBase = (Math.random() * 0xFFFFFFFF) >>> 0;
   return _hashSeed(franchise.rngSeedBase, franchise.season || 1, franchise.week || 1, homeId, awayId, isPlayoff ? 1 : 0);
 }
+// Per-WEEK franchise-layer seed (Workstream D). Distinct salt from the
+// per-game engine seed so the two streams never collide. Installed around a
+// week's resolution so post-game injuries / in-season dev / morale reproduce
+// on a re-sim — the save-replay substrate. Engine game outcomes are already
+// reproducible via _deriveGameSeed; this covers the franchise-layer rolls.
+function _deriveWeekSeed(week) {
+  if (franchise.rngSeedBase == null) franchise.rngSeedBase = (Math.random() * 0xFFFFFFFF) >>> 0;
+  return _hashSeed(franchise.rngSeedBase, franchise.season || 1, week || franchise.week || 1, 0xF1A);
+}
+// Run `fn` with the franchise RNG seeded to this week, restoring the prior
+// state after (so it composes if ever nested). The engine's per-game
+// _setSimRng/_clearSimRng inside frnSimOnce touch a different stream, so they
+// don't disturb this one across the week's games.
+function _withWeekRng(week, fn) {
+  if (typeof _setFranchiseRng !== "function") return fn();
+  _setFranchiseRng(_deriveWeekSeed(week));
+  try { return fn(); }
+  finally { _clearFranchiseRng(); }
+}
 // `frnSimOnce` returns the simulation result; callers use it to capture
 // season stats + highlights as a side effect. The full game object is
 // available on the returned `.full` for callers that need playoff details.
@@ -1733,8 +1752,8 @@ function frnSimOnce(homeId, awayId, isPlayoff = false) {
   sim.homeR.offense += chemHome.offBonus; sim.homeR.defense += chemHome.defBonus;
   sim.awayR.offense += chemAway.offBonus; sim.awayR.defense += chemAway.defBonus;
   // Chaotic chemistry (all 3 non-neutral, all different groups, 2+ friction years) → ±2 swing
-  if (chemHome.chaotic) { const s = Math.random() < 0.5 ? 2 : -2; sim.homeR.offense += s; sim.homeR.defense += s; }
-  if (chemAway.chaotic) { const s = Math.random() < 0.5 ? 2 : -2; sim.awayR.offense += s; sim.awayR.defense += s; }
+  if (chemHome.chaotic) { const s = _frand() < 0.5 ? 2 : -2; sim.homeR.offense += s; sim.homeR.defense += s; }
+  if (chemAway.chaotic) { const s = _frand() < 0.5 ? 2 : -2; sim.awayR.offense += s; sim.awayR.defense += s; }
   // DC trait boosts (defense rating)
   // Pressure Package: always-on pass rush pressure, regardless of opponent scheme.
   if (dcHome === "Pressure Package") sim.homeR.defense += 1;
@@ -2551,9 +2570,9 @@ function _inSeasonAwrGrowth() {
 
       // Backfill _awrCeiling for any player that predates this system.
       if (p._awrCeiling == null) {
-        p._awrCeiling = p.flavor === "HIGH_FOOTBALL_IQ" ? 82 + Math.floor(Math.random() * 14)
-                      : p.flavor === "RAW_ATHLETE"       ? 55 + Math.floor(Math.random() * 18)
-                      : 65 + Math.floor(Math.random() * 18);
+        p._awrCeiling = p.flavor === "HIGH_FOOTBALL_IQ" ? 82 + Math.floor(_frand() * 14)
+                      : p.flavor === "RAW_ATHLETE"       ? 55 + Math.floor(_frand() * 18)
+                      : 65 + Math.floor(_frand() * 18);
       }
 
       if ((p.stats?.[3] ?? 70) >= p._awrCeiling) continue;
@@ -2562,7 +2581,7 @@ function _inSeasonAwrGrowth() {
       const ocTrait = franchise.coaches?.[t.id]?.oc?.trait;
       const awrBoost = (p.position === "QB" && ocTrait === "QB Whisperer") ? 1.3 : 1.0;
 
-      if (Math.random() >= 0.25 * repRate * sysMul * ageMul * awrBoost * hotSeatMul) continue;
+      if (_frand() >= 0.25 * repRate * sysMul * ageMul * awrBoost * hotSeatMul) continue;
 
       p.stats[3] = Math.min(p._awrCeiling, (p.stats[3] ?? 70) + 1);
 
@@ -3356,7 +3375,7 @@ function _cpuVoteWeeklyPOTW(week) {
     // Floor at 0.1 so a near-zero score still has token weight.
     const scores = list.map(c => Math.max(0.1, c.score || 0));
     const total = scores.reduce((s, v) => s + v, 0);
-    const r = Math.random();
+    const r = _frand();
     let acc = 0;
     for (let i = 0; i < scores.length; i++) {
       acc += scores[i] / total;
@@ -3538,32 +3557,37 @@ function _potwSubmitVotes(week) {
 function frnSimWeek() {
   const w      = franchise.week;
   const wGames = franchise.schedule.filter(g => g.week === w && !g.played);
-  for (const g of wGames) {
-    const r = frnSimOnce(g.homeId, g.awayId);
-    g.homeScore = r.homeScore; g.awayScore = r.awayScore; g.played = true;
-    g.stats = _stripGameStatsForStorage(r.full?.stats);
-    g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
-      g.momentumLog = _extractMomentumLog(r.full?.plays);
-      g.drives = _extractDriveLog(r.full?.plays);
-    // Highlights — top 7 per game saved to franchise.replayClips
-    if (r.full?.plays) {
-      try {
-        const hl = _extractReplayClips(r.full.plays, g.homeId, g.awayId,
-          franchise.season || 1, g.week || w, false);
-        if (hl?.length) _saveReplayClips(hl);
-      } catch (e) { console.warn("[highlights]", e); }
+  // Seed the franchise RNG for this week so injuries / dev / morale reproduce
+  // on a re-sim. Engine game outcomes are already seeded per matchup. The
+  // render + save below stay OUTSIDE the seeded window (cosmetic randomness).
+  _withWeekRng(w, () => {
+    for (const g of wGames) {
+      const r = frnSimOnce(g.homeId, g.awayId);
+      g.homeScore = r.homeScore; g.awayScore = r.awayScore; g.played = true;
+      g.stats = _stripGameStatsForStorage(r.full?.stats);
+      g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
+        g.momentumLog = _extractMomentumLog(r.full?.plays);
+        g.drives = _extractDriveLog(r.full?.plays);
+      // Highlights — top 7 per game saved to franchise.replayClips
+      if (r.full?.plays) {
+        try {
+          const hl = _extractReplayClips(r.full.plays, g.homeId, g.awayId,
+            franchise.season || 1, g.week || w, false);
+          if (hl?.length) _saveReplayClips(hl);
+        } catch (e) { console.warn("[highlights]", e); }
+      }
+      if (r.full?.weather) g.weather = { label: r.full.weather.label, windStrength: r.full.weather.windStrength };
+      if (r.full?.isRivalry) g.isRivalry = true;
+      recordFranchiseResult(g.homeId, g.awayId, r.homeScore, r.awayScore);
     }
-    if (r.full?.weather) g.weather = { label: r.full.weather.label, windStrength: r.full.weather.windStrength };
-    if (r.full?.isRivalry) g.isRivalry = true;
-    recordFranchiseResult(g.homeId, g.awayId, r.homeScore, r.awayScore);
-  }
-  _computeAndStorePOTW(w);
-  _checkWeekComplete();
-  if (franchise.weekPending) {
-    try { _runWeekEndResolution(); } catch(e) { console.error("[frnSimWeek] resolution error (non-fatal):", e); }
-    _bumpWeek();
-    franchise.weekPending = false;
-  }
+    _computeAndStorePOTW(w);
+    _checkWeekComplete();
+    if (franchise.weekPending) {
+      try { _runWeekEndResolution(); } catch(e) { console.error("[frnSimWeek] resolution error (non-fatal):", e); }
+      _bumpWeek();
+      franchise.weekPending = false;
+    }
+  });
   _flushSaveFranchise();
   showFranchiseDashboard();
 }
@@ -3576,25 +3600,28 @@ function frnSimWeek() {
 function frnSimToWeek(targetWeek) {
   const target = Math.min(targetWeek, FRANCHISE_WEEKS);
   for (let w = franchise.week; w <= target; w++) {
-    const wGames = franchise.schedule.filter(g => g.week === w && !g.played);
-    for (const g of wGames) {
-      const r = frnSimOnce(g.homeId, g.awayId);
-      g.homeScore = r.homeScore; g.awayScore = r.awayScore; g.played = true;
-      g.stats = _stripGameStatsForStorage(r.full?.stats);
-      g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
-      g.momentumLog = _extractMomentumLog(r.full?.plays);
-      g.drives = _extractDriveLog(r.full?.plays);
-      if (r.full?.weather) g.weather = { label: r.full.weather.label, windStrength: r.full.weather.windStrength };
-      if (r.full?.isRivalry) g.isRivalry = true;
-      if (r.full?.homeWgp || r.full?.awayWgp) g.gameplan = {
-        home: r.full.homeWgp || null, away: r.full.awayWgp || null,
-      };
-      recordFranchiseResult(g.homeId, g.awayId, r.homeScore, r.awayScore);
-    }
-    _computeAndStorePOTW(w);
-    try { _runWeekEndResolution(); } catch(e) { console.error("[frnSimToWeek] resolution error (non-fatal):", e); }
-    _bumpWeek();
-    franchise.weekPending = false;
+    // Per-week franchise seed (Workstream D). Phase-break stays outside.
+    _withWeekRng(w, () => {
+      const wGames = franchise.schedule.filter(g => g.week === w && !g.played);
+      for (const g of wGames) {
+        const r = frnSimOnce(g.homeId, g.awayId);
+        g.homeScore = r.homeScore; g.awayScore = r.awayScore; g.played = true;
+        g.stats = _stripGameStatsForStorage(r.full?.stats);
+        g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
+        g.momentumLog = _extractMomentumLog(r.full?.plays);
+        g.drives = _extractDriveLog(r.full?.plays);
+        if (r.full?.weather) g.weather = { label: r.full.weather.label, windStrength: r.full.weather.windStrength };
+        if (r.full?.isRivalry) g.isRivalry = true;
+        if (r.full?.homeWgp || r.full?.awayWgp) g.gameplan = {
+          home: r.full.homeWgp || null, away: r.full.awayWgp || null,
+        };
+        recordFranchiseResult(g.homeId, g.awayId, r.homeScore, r.awayScore);
+      }
+      _computeAndStorePOTW(w);
+      try { _runWeekEndResolution(); } catch(e) { console.error("[frnSimToWeek] resolution error (non-fatal):", e); }
+      _bumpWeek();
+      franchise.weekPending = false;
+    });
     if (franchise.phase === "fa_cuts" || franchise.phase === "season_recap" || franchise.phase === "playoffs_pending") break;
   }
   _flushSaveFranchise();
@@ -3754,25 +3781,30 @@ function frnConfirmDraftContinueToSeason() { frnConfirmNewSeason(); }
 // through to the playoffs.
 function frnSimSeason() {
   for (let w = franchise.week; w <= FRANCHISE_WEEKS; w++) {
-    const wGames = franchise.schedule.filter(g => g.week === w && !g.played);
-    for (const g of wGames) {
-      const r = frnSimOnce(g.homeId, g.awayId);
-      g.homeScore = r.homeScore; g.awayScore = r.awayScore; g.played = true;
-      g.stats = _stripGameStatsForStorage(r.full?.stats);
-      g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
-      g.momentumLog = _extractMomentumLog(r.full?.plays);
-      g.drives = _extractDriveLog(r.full?.plays);
-      if (r.full?.weather) g.weather = { label: r.full.weather.label, windStrength: r.full.weather.windStrength };
-      if (r.full?.isRivalry) g.isRivalry = true;
-      if (r.full?.homeWgp || r.full?.awayWgp) g.gameplan = {
-        home: r.full.homeWgp || null, away: r.full.awayWgp || null,
-      };
-      recordFranchiseResult(g.homeId, g.awayId, r.homeScore, r.awayScore);
-    }
-    _computeAndStorePOTW(w);
-    try { _runWeekEndResolution(); } catch(e) { console.error("[frnSimSeason] resolution error (non-fatal):", e); }
-    _bumpWeek();
-    franchise.weekPending = false;
+    // Per-week franchise seed (Workstream D) — same as frnSimWeek, so a fast
+    // full-season sim resolves each week's injuries/dev/morale identically to
+    // simming the weeks one at a time. The phase-break stays outside.
+    _withWeekRng(w, () => {
+      const wGames = franchise.schedule.filter(g => g.week === w && !g.played);
+      for (const g of wGames) {
+        const r = frnSimOnce(g.homeId, g.awayId);
+        g.homeScore = r.homeScore; g.awayScore = r.awayScore; g.played = true;
+        g.stats = _stripGameStatsForStorage(r.full?.stats);
+        g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
+        g.momentumLog = _extractMomentumLog(r.full?.plays);
+        g.drives = _extractDriveLog(r.full?.plays);
+        if (r.full?.weather) g.weather = { label: r.full.weather.label, windStrength: r.full.weather.windStrength };
+        if (r.full?.isRivalry) g.isRivalry = true;
+        if (r.full?.homeWgp || r.full?.awayWgp) g.gameplan = {
+          home: r.full.homeWgp || null, away: r.full.awayWgp || null,
+        };
+        recordFranchiseResult(g.homeId, g.awayId, r.homeScore, r.awayScore);
+      }
+      _computeAndStorePOTW(w);
+      try { _runWeekEndResolution(); } catch(e) { console.error("[frnSimSeason] resolution error (non-fatal):", e); }
+      _bumpWeek();
+      franchise.weekPending = false;
+    });
     if (franchise.phase === "fa_cuts" || franchise.phase === "season_recap" || franchise.phase === "playoffs_pending") break;
   }
   _flushSaveFranchise();

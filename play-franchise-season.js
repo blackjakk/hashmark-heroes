@@ -2358,7 +2358,7 @@ function _pickNonContactInjuryType(position) {
   const weights = _NON_CONTACT_INJURY_WEIGHTS[position];
   if (!weights) return null;
   const total = Object.values(weights).reduce((s, v) => s + v, 0);
-  let r = Math.random() * total;
+  let r = _frand() * total;
   for (const t of INJURY_TYPES) {
     const w = weights[t.label] ?? 0;
     if (w > 0 && (r -= w) < 0) return t;
@@ -2371,12 +2371,12 @@ function _pickInjuryType(position) {
   if (!weights) {
     // Legacy fallback — uniform sample
     const total = INJURY_TYPES.reduce((s,t)=>s+t.w,0);
-    let r = Math.random() * total;
+    let r = _frand() * total;
     for (const t of INJURY_TYPES) { if ((r -= t.w) < 0) return t; }
     return INJURY_TYPES[0];
   }
   const total = Object.values(weights).reduce((s, v) => s + v, 0);
-  let r = Math.random() * total;
+  let r = _frand() * total;
   for (const t of INJURY_TYPES) {
     const w = weights[t.label] ?? 1;
     if ((r -= w) < 0) return t;
@@ -2423,8 +2423,8 @@ function _bumpBodyPart(p, label, amount = 35) {
   const pickSide = (Lkey, Rkey) => {
     const lWear = bw[Lkey] || 0, rWear = bw[Rkey] || 0;
     // 70% chance to re-injure the more-worn side
-    if (lWear !== rWear && Math.random() < 0.70) return lWear > rWear ? Lkey : Rkey;
-    return Math.random() < 0.5 ? Lkey : Rkey;
+    if (lWear !== rWear && _frand() < 0.70) return lWear > rWear ? Lkey : Rkey;
+    return _frand() < 0.5 ? Lkey : Rkey;
   };
   const bump = (key) => { bw[key] = Math.min(100, (bw[key] || 0) + amount); };
   switch (label) {
@@ -2485,7 +2485,7 @@ function _rollRehabOutcome(player) {
   probFull = Math.max(0, Math.min(0.45, probFull));
   probLingering = Math.max(0, probLingering);
   const probCareerAlter = Math.max(0, 1 - probFull - probBetter - probStandard - probLingering);
-  const r = Math.random();
+  const r = _frand();
   let acc = probFull;        if (r < acc) return "full";
   acc += probBetter;         if (r < acc) return "better";
   acc += probStandard;       if (r < acc) return "standard";
@@ -2656,15 +2656,15 @@ function _rollNonContactInjuries(teamId) {
     const stamina = p.stats?.[12] ?? 70;
     const staMul = clamp(1.3 - stamina/100, 0.7, 1.3);
     const rate = baseRate * posMul * ageMul * recMul * staMul;
-    if (Math.random() >= rate) continue;
+    if (_frand() >= rate) continue;
     let t = _pickNonContactInjuryType(p.position);
     if (!t) continue;
     // Early-season bias: ACLs and hamstrings are the dominant early-season
     // non-contact injury types (NFL data shows preseason→W1-4 ACL/hammy
     // spike from unconditioned cuts). 35% chance to override to knee or
     // hamstring in W1-4.
-    if (wk <= 4 && Math.random() < 0.35) {
-      const earlyType = Math.random() < 0.55 ? "hamstring" : "knee";
+    if (wk <= 4 && _frand() < 0.35) {
+      const earlyType = _frand() < 0.55 ? "hamstring" : "knee";
       const found = INJURY_TYPES.find(x => x.label === earlyType);
       if (found) t = found;
     }
@@ -2674,13 +2674,13 @@ function _rollNonContactInjuries(teamId) {
     // per season instead of ~0.6.
     let isCatastrophic = false;
     let careerEnding = false;
-    if (Math.random() < 0.13) {
+    if (_frand() < 0.13) {
       const variant = _CATASTROPHIC_VARIANTS[t.label];
       if (variant) {
         t = { ...t, ...variant };
         isCatastrophic = true;
         const ceAgeMul = age >= 35 ? 2.0 : age >= 32 ? 1.5 : age >= 30 ? 1.2 : 1.0;
-        if (Math.random() < (variant.careerEndingChance || 0) * ceAgeMul) {
+        if (_frand() < (variant.careerEndingChance || 0) * ceAgeMul) {
           careerEnding = true;
           p._retiringFromInjury = true;
           if (!franchise._careerEndingLog) franchise._careerEndingLog = {};
@@ -2696,7 +2696,7 @@ function _rollNonContactInjuries(teamId) {
         }
       }
     }
-    const wks = careerEnding ? 99 : t.min + Math.floor(Math.random() * (t.max - t.min + 1));
+    const wks = careerEnding ? 99 : t.min + Math.floor(_frand() * (t.max - t.min + 1));
     p.injury = {
       label: t.label, weeksRemaining: wks,
       _ovrPenalty: t.ovrPenalty || 0,
@@ -2853,7 +2853,7 @@ function _rollGameInjuries(teamId, gameMargin = 0, restFrac = 0) {
                   : 1.0;
     const restMul = restedSet.has(p) ? restInjuryMul : 1.0;
     const rate = (INJURY_RATE[p.position] || 0.01) * rateMul * recMul * ironmanMul * archMul * foMul * durabilityMul * ageMul * wearMul * restMul;
-    if (Math.random() >= rate) continue;
+    if (_frand() >= rate) continue;
     let t = _pickInjuryType(p.position);
     let isCatastrophic = false;
     let careerEnding = false;
@@ -2884,10 +2884,10 @@ function _rollGameInjuries(teamId, gameMargin = 0, restFrac = 0) {
         // 3rd: 40% chance forced into the catastrophic variant (base);
         // recency-scaled up to ~95% if back-to-back
         const cataChance = clamp(0.40 * recencyMul, 0.40, 0.95);
-        if (Math.random() < cataChance) {
+        if (_frand() < cataChance) {
           t = { ...t, ..._CATASTROPHIC_VARIANTS["concussion"] };
           isCatastrophic = true;
-          if (Math.random() < (t.careerEndingChance || 0) * 1.5 * Math.min(2.5, recencyMul)) {
+          if (_frand() < (t.careerEndingChance || 0) * 1.5 * Math.min(2.5, recencyMul)) {
             careerEnding = true;
           }
         }
@@ -2896,10 +2896,10 @@ function _rollGameInjuries(teamId, gameMargin = 0, restFrac = 0) {
       // the 2nd, the cumulative neuro risk is real. 25% catastrophic
       // upgrade, 5% CE chance even for young players.
       if (p._concussionsThisSeason === 2 && weeksGap <= 3 && !isCatastrophic) {
-        if (Math.random() < 0.25) {
+        if (_frand() < 0.25) {
           t = { ...t, ..._CATASTROPHIC_VARIANTS["concussion"] };
           isCatastrophic = true;
-          if (Math.random() < 0.20) careerEnding = true;
+          if (_frand() < 0.20) careerEnding = true;
         }
       }
       // CTE arc — career-long concussion count drives independent CE
@@ -2908,7 +2908,7 @@ function _rollGameInjuries(teamId, gameMargin = 0, restFrac = 0) {
       const lifetime = (p._concussionsLifetime || 0) + p._concussionsThisSeason;
       if (lifetime >= 4 && !careerEnding) {
         const cteChance = lifetime >= 6 ? 0.30 : 0.15;
-        if (Math.random() < cteChance) {
+        if (_frand() < cteChance) {
           t = { ...t, ..._CATASTROPHIC_VARIANTS["concussion"] };
           isCatastrophic = true;
           careerEnding = true;
@@ -2923,7 +2923,7 @@ function _rollGameInjuries(teamId, gameMargin = 0, restFrac = 0) {
     // forces immediate retirement at season's end.
     // Sports Sci trainer reduces catastrophic-upgrade chance by 35%.
     const catMul = trainer?.trait === "Sports Sci" ? 0.65 : 1.0;
-    if (!isCatastrophic && Math.random() < _CATASTROPHIC_UPGRADE_CHANCE * catMul) {
+    if (!isCatastrophic && _frand() < _CATASTROPHIC_UPGRADE_CHANCE * catMul) {
       const variant = _CATASTROPHIC_VARIANTS[t.label];
       if (variant) {
         t = { ...t, ...variant };
@@ -2934,7 +2934,7 @@ function _rollGameInjuries(teamId, gameMargin = 0, restFrac = 0) {
                        : age >= 32 ? 1.5
                        : age >= 30 ? 1.2
                        : 1.0;
-        if (Math.random() < (variant.careerEndingChance || 0) * ceAgeMul) {
+        if (_frand() < (variant.careerEndingChance || 0) * ceAgeMul) {
           careerEnding = true;
         }
       }
@@ -2946,7 +2946,7 @@ function _rollGameInjuries(teamId, gameMargin = 0, restFrac = 0) {
                          : age >= 30 ? 1.10
                          : 1.0;
     const wks = careerEnding ? 99
-      : Math.ceil((t.min + Math.floor(Math.random() * (t.max - t.min + 1))) * recoveryAgeMul);
+      : Math.ceil((t.min + Math.floor(_frand() * (t.max - t.min + 1))) * recoveryAgeMul);
     p.injury = {
       label: t.label, weeksRemaining: wks,
       _ovrPenalty: t.ovrPenalty || 0,
@@ -3157,7 +3157,7 @@ function _tickYipsForWeek() {
       // Dedup: same kicker can't generate two MISS headlines within 4 weeks,
       // even if the random roll fires repeatedly — keeps the wire from
       // turning into a 7-entry Cody Parkey marathon.
-      if (isMine && Math.random() < 0.20) {
+      if (isMine && _frand() < 0.20) {
         const lastMissWeek = p._yipsLastMissWeek ?? -10;
         if ((franchise.week || 1) - lastMissWeek >= 4) {
           if (typeof _pushNews === "function") {
@@ -3169,7 +3169,7 @@ function _tickYipsForWeek() {
       if (p._yips.weeksRemaining <= 0) {
         const wasSevere = p._yips.severity === "severe";
         // Restore accuracy penalty (~70% chance full, 25% partial, 5% none)
-        const recoveryRoll = Math.random();
+        const recoveryRoll = _frand();
         const restorePct = recoveryRoll < 0.70 ? 1.0
                          : recoveryRoll < 0.95 ? 0.5
                          :                       0.0;
