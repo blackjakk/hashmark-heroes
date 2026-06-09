@@ -133,7 +133,7 @@ function _decorateWireLabel(rawLabel, teamSet, playerSet) {
     // Match the team name only when it's bounded by non-word chars or string
     // start/end. Skip if already inside our chip span.
     const re = new RegExp(`(^|[^A-Za-z>])(${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})(?=[^A-Za-z<]|$)`, "g");
-    out = out.replace(re, (m, pre, hit) => `${pre}<span class="frn-wire-team" style="color:${team.primary}">${hit}</span>`);
+    out = out.replace(re, (m, pre, hit) => `${pre}<span class="frn-wire-team" style="color:${_teamInk(team.primary)}">${hit}</span>`);
   }
   // Player link — same boundary trick. Iterate longest-first.
   const players = [...playerSet].sort((a, b) => b.length - a.length);
@@ -639,7 +639,7 @@ function _renderPSLeagueTab(myId, visitsLeft) {
         <td style="white-space:nowrap">${scoutBtn} ${poachBtn}</td>
       </tr>`;
     }).join("");
-    return `<div class="frn-card-title" style="margin-top:.5rem;color:${t.primary}">${t.city.toUpperCase()} ${t.name.toUpperCase()} · ${ps.length}/${PS_SLOTS}</div>
+    return `<div class="frn-card-title" style="margin-top:.5rem;color:${_teamInk(t.primary)}">${t.city.toUpperCase()} ${t.name.toUpperCase()} · ${ps.length}/${PS_SLOTS}</div>
       <table class="frn-pre-roster-table">
         <thead><tr><th>POS</th><th>Player</th><th>Grade</th><th>Age</th><th>Draft</th><th>Ceiling</th><th>Practice</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
@@ -4506,6 +4506,46 @@ function _bspnFmtRecord(rec) {
   if (rec.confW != null) return `${base} (${rec.confW}-${rec.confL})`;
   return base;
 }
+// Quarter linescore for a played game, with graceful degradation: prefer the
+// scoring timeline; if it was trimmed (storage pressure on CPU games / legacy
+// saves), rebuild exact quarter totals from the drive log's running scores;
+// if neither survives, return null-valued cells so the renderer shows dashes
+// instead of a fake 0-0-0-0 line next to a real total.
+function _bspnQuarterScores(g) {
+  const hasEvents = (g.scoring || []).some(ev => ev.isScore !== false && ev.pts);
+  if (hasEvents) return _bspnQuarterScoresFromScoring(g.scoring);
+  const fromDrives = _bspnQuarterScoresFromDrives(g);
+  if (fromDrives) return fromDrives;
+  return [1, 2, 3, 4].map(q => ({ periodLabel: `Q${q}`, away: null, home: null }));
+}
+function _bspnQuarterScoresFromDrives(g) {
+  const drives = Array.isArray(g.drives) ? g.drives : null;
+  if (!drives || !drives.length) return null;
+  const out = {};
+  const add = (q, dh, da) => {
+    if (!dh && !da) return;
+    out[q] ||= { home: 0, away: 0 };
+    out[q].home += dh; out[q].away += da;
+  };
+  let h = 0, a = 0, lastQ = 1;
+  for (const d of drives) {
+    const q = Math.max(1, Math.min(8, d.qtr || lastQ));
+    add(q, (d.h || 0) - h, (d.a || 0) - a);
+    h = d.h || 0; a = d.a || 0; lastQ = q;
+  }
+  // Residual vs the final score (e.g. a walk-off score after the last
+  // drive summary) lands in the last quarter seen — totals stay exact.
+  add(lastQ, (g.homeScore || 0) - h, (g.awayScore || 0) - a);
+  const maxQ = Math.max(4, ...Object.keys(out).map(Number));
+  const arr = [];
+  for (let q = 1; q <= maxQ; q++) {
+    arr.push({
+      periodLabel: q <= 4 ? `Q${q}` : (q === 5 ? "OT" : `OT${q-4}`),
+      away: out[q]?.away || 0, home: out[q]?.home || 0,
+    });
+  }
+  return arr;
+}
 function _bspnQuarterScoresFromScoring(scoring) {
   const out = {};
   for (const ev of (scoring || [])) {
@@ -4825,7 +4865,7 @@ function _franchiseGameToBSPNData(g, week) {
     status: `WEEK ${week} · FINAL${g.isRivalry?" · RIVALRY":""}`,
     awayTeam: awayT, homeTeam: homeT,
     awayScore: g.awayScore || 0, homeScore: g.homeScore || 0,
-    quarterScores: _bspnQuarterScoresFromScoring(g.scoring),
+    quarterScores: _bspnQuarterScores(g),
     winner: homeWon ? "home" : (g.awayScore > g.homeScore ? "away" : "tie"),
   };
   const leaders = _bspnBuildLeaders(g.stats, awayT, homeT);
@@ -4982,9 +5022,11 @@ function _bspnRenderSummary(s) {
       ${scoreWrap}
     </div>`;
   };
+  // null cells = per-quarter data not retained (trimmed save) — dashes, not
+  // a fake 0-0-0-0 row next to a real total.
   const headerCells = s.quarterScores.map(q => `<th>${q.periodLabel}</th>`).join("");
-  const awayCells = s.quarterScores.map(q => `<td>${q.away ?? 0}</td>`).join("");
-  const homeCells = s.quarterScores.map(q => `<td>${q.home ?? 0}</td>`).join("");
+  const awayCells = s.quarterScores.map(q => `<td>${q.away ?? "–"}</td>`).join("");
+  const homeCells = s.quarterScores.map(q => `<td>${q.home ?? "–"}</td>`).join("");
   return `<section class="bspn-summary">
     ${teamBlock(s.awayTeam, "away")}
     <div class="bspn-summary-center">
@@ -5070,11 +5112,16 @@ function _bspnRenderTeamBox(team, groups) {
     ${empty}
   </section>`;
 }
-function _bspnRenderScoring(plays, teamsById) {
+function _bspnRenderScoring(plays, teamsById, totalPts) {
   if (!plays?.length) {
+    // Points were scored but the timeline is gone (trimmed CPU game / legacy
+    // save) — say so instead of the lie "No scoring events".
+    const msg = (totalPts || 0) > 0
+      ? "Play-by-play timeline wasn't retained for this game — see the Drive Chart."
+      : "No scoring events.";
     return `<section class="bspn-panel">
       <div class="bspn-panel-title">SCORING SUMMARY</div>
-      <div style="color:var(--bspn-gray);font-size:.7rem;font-style:italic">No scoring events.</div>
+      <div style="color:var(--bspn-gray);font-size:.7rem;font-style:italic">${msg}</div>
     </section>`;
   }
   const TYPE_META = {
@@ -5268,7 +5315,7 @@ function _bspnRenderPage(data) {
         <aside>
           ${(leaderGroups || []).map(g => _bspnRenderLeadersGroup(g, teamsById)).join("")}
           ${topPerformers ? _bspnRenderLeadersGroup(topPerformers, teamsById) : ""}
-          ${_bspnRenderScoring(scoringSummary, teamsById)}
+          ${_bspnRenderScoring(scoringSummary, teamsById, (summary.awayScore || 0) + (summary.homeScore || 0))}
           ${_bspnRenderDriveChart(drives)}
           ${_bspnRenderInjuryRecap(injuryRecap)}
           ${_bspnRenderNotes(gameNotes)}
@@ -7583,7 +7630,7 @@ function renderFrnSeasonRecap() {
     const pdiff = (s.pf || 0) - (s.pa || 0);
     return `<tr class="frn-recap-stand-row ${isMine?"mine":""} ${isPlayoff?"playoff":""}">
       <td class="seed">${isPlayoff ? `<span class="seed-pill">${_confSeed[s.id]}</span>` : i+1}</td>
-      <td class="team" style="color:${t.primary}">${isMine?"» ":""}${t.city} ${t.name}</td>
+      <td class="team" style="color:${_teamInk(t.primary)}">${isMine?"» ":""}${t.city} ${t.name}</td>
       <td class="rec">${s.w}-${s.l}${s.t?`-${s.t}`:""}</td>
       <td class="pct">${pct}</td>
       <td class="pf">${s.pf}</td>

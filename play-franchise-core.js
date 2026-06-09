@@ -4017,9 +4017,14 @@ function _trimFranchiseForStorage() {
   const userTeam = franchise.chosenTeamId;
 
   // Drop only play-by-play scoring timelines from old games — keep per-game
-  // player stats (g.stats) so the full game log remains available.
+  // player stats (g.stats) so the full game log remains available. The user's
+  // own games keep their timeline (17/season — a rounding error next to the
+  // 15×17 CPU games); without it their box scores render an all-zero
+  // linescore and an empty scoring summary. CPU recaps fall back to the
+  // drive log instead.
   (franchise.schedule || []).forEach(g => {
-    if (g.played && g.week < curWeek - 1) {
+    if (g.played && g.week < curWeek - 1 &&
+        g.homeId !== userTeam && g.awayId !== userTeam) {
       delete g.scoring;
     }
   });

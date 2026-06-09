@@ -907,17 +907,29 @@
   .frn-off-change.rookie { color: #90ff90; }
 
   /* Floating return button */
+  /* Broadcast-deck style to match #playbackControls — dark gradient panel,
+     gold accent, Bebas type. The old solid-gold pulse read as a legacy
+     artifact next to the reimagined live chrome. */
   .frn-return-btn {
     position: fixed; bottom: 1.2rem; right: 1.2rem; z-index: 1500;
-    background: var(--gold); color: #000; border: none;
-    padding: .5rem 1rem; font-family: inherit; font-size: .82rem; font-weight: 700;
+    background: linear-gradient(180deg, #131b23, #0b1117);
+    color: var(--blgold, #f5c542);
+    border: 1px solid rgba(245,197,66,.5);
+    border-radius: 6px;
+    padding: .55rem 1rem; line-height: 1;
+    font-family: 'Bebas Neue','Anton',sans-serif;
+    font-size: .95rem; letter-spacing: 1.2px;
     cursor: pointer; display: none;
-    animation: frnPulse 1.8s ease-in-out infinite;
+    box-shadow: 0 6px 18px rgba(0,0,0,.45), 0 0 14px rgba(245,197,66,.18),
+                inset 0 1px 0 rgba(255,255,255,.04);
+    transition: background .1s, border-color .1s, box-shadow .1s, transform .06s;
   }
-  @keyframes frnPulse {
-    0%, 100% { box-shadow: 0 0 12px rgba(200,169,0,0.4); }
-    50% { box-shadow: 0 0 28px rgba(200,169,0,0.85); }
+  .frn-return-btn:hover {
+    background: #20303f; border-color: var(--blgold, #f5c542);
+    box-shadow: 0 6px 18px rgba(0,0,0,.45), 0 0 22px rgba(245,197,66,.35),
+                inset 0 1px 0 rgba(255,255,255,.04);
   }
+  .frn-return-btn:active { transform: translateY(1px); }
 
   /* ── Mode tabs (Franchise / Testing) ──────────────────────────────── */
   .mode-tabs {
@@ -3301,12 +3313,15 @@
   .bspnlive-score-name {
     font-family: "Bebas Neue","Anton",sans-serif;
     font-size: 1.65rem; line-height: 1; letter-spacing: 1.5px;
-    color: var(--team-color, var(--blwhite));
+    /* --team-ink-text = contrast-lifted team color (set inline per block).
+       Raw --team-color stays on the mark/tints but is ~1.1:1 as text for
+       dark primaries. */
+    color: var(--team-ink-text, var(--blwhite));
   }
   .bspnlive-score-record { color: var(--blgray); font-size: .72rem; margin-top: .25rem; letter-spacing: 1px; }
   .bspnlive-score-poss {
     display: inline-block; margin-top: .35rem;
-    color: var(--team-color, var(--blgold)); font-size: .55rem; font-weight: 800;
+    color: var(--team-ink-text, var(--blgold)); font-size: .55rem; font-weight: 800;
     letter-spacing: 1px; padding: .12rem .35rem;
     border: 1px solid currentColor;
   }
@@ -3628,7 +3643,7 @@
   }
   .livebio-bar-lbl {
     color: var(--blgray); font-weight: 700;
-    letter-spacing: .5px; min-width: .55rem;
+    letter-spacing: .5px; min-width: 2.7rem; font-size: .5rem;
   }
   .livebio-bar {
     flex: 1; height: 5px; background: rgba(255,255,255,.05);
@@ -4168,10 +4183,12 @@
     transform: translateX(-50%);
     display: flex; align-items: center; gap: 8px;
     width: min(560px, 70%);
-    padding: 5px 10px;
-    background: rgba(0,0,0,0.65);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 18px;
+    padding: 6px 12px;
+    /* deck-matched panel (see #playbackControls) */
+    background: linear-gradient(180deg, rgba(19,27,35,.92), rgba(11,17,23,.92));
+    border: 1px solid var(--blborder, rgba(255,255,255,.12));
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);
     z-index: 5;
     pointer-events: auto;
     font-family: inherit;
@@ -4227,7 +4244,8 @@
   }
   .hud-scrub-time {
     font-variant-numeric: tabular-nums;
-    color: #ccc;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--blgold, #f5c542);
     font-size: .65rem;
     min-width: 48px;
     text-align: right;
@@ -4795,16 +4813,27 @@
     display: block; margin-top: .25rem; color: var(--blgray);
     font-size: .65rem; letter-spacing: 1px;
   }
+  /* Game-progress strip under the field — deck-matched (rounded inset track,
+     Bebas label, mono-gold quarter readout). Green fill = live transport,
+     distinct from the gold per-play scrubber. */
   .bspnlive-progress {
-    height: 6px; background: var(--blbg3); border: 1px solid var(--blborder);
+    height: 7px; background: var(--blbg3); border: 1px solid var(--blborder);
+    border-radius: 4px; overflow: hidden;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.5);
   }
   .bspnlive-progress-fill {
     height: 100%; background: linear-gradient(90deg, var(--blgreen-d), var(--blgreen));
     width: 0%;
   }
   .bspnlive-progress-label {
-    display: flex; justify-content: space-between;
-    color: var(--blgray); font-size: .58rem; letter-spacing: 1px;
+    display: flex; justify-content: space-between; align-items: baseline;
+    color: var(--blgray); font-size: .68rem; letter-spacing: 1.2px;
+    font-family: 'Bebas Neue','Anton',sans-serif;
+  }
+  .bspnlive-progress-label #quarterLabel {
+    color: var(--blgold, #f5c542);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: .6rem; letter-spacing: 0;
   }
 
   /* Side rail content blocks */
@@ -6836,7 +6865,8 @@
   }
   .frn-bt-team.empty { opacity: .35; }
   .frn-bt-team .seed { color: var(--blgray); font-size: .56rem; font-weight: 700; text-align: center; }
-  .frn-bt-team .name { color: var(--team-color, var(--blwhite)); font-weight: 800; }
+  /* Text uses the contrast-lifted ink (set inline); border keeps raw primary. */
+  .frn-bt-team .name { color: var(--team-ink-text, var(--blwhite)); font-weight: 800; }
   .frn-bt-team .score {
     font-family: "IBM Plex Mono","JetBrains Mono",monospace;
     text-align: right; color: var(--blwhite); font-weight: 700;

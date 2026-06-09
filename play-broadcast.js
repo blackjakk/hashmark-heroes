@@ -672,11 +672,15 @@ const BSPNHeader = {
 const BSPNScoreboard = {
   _teamBlock({ team, score, isWinner, otherWon, showPoss, right }) {
     const recHtml = team.record ? `<div class="bspnlive-score-record">(${team.record})</div>` : "";
+    // Contrast-safe team color for TEXT (name / POSS badge) — a raw dark-navy
+    // primary reads ~1.1:1 on the dark scoreboard. Raw primary stays on
+    // --team-color for the ascii mark + tints.
+    const ink = (typeof _teamInk === "function") ? _teamInk(team.primary) : (team.primary || "#eaeef4");
     const possHtml = showPoss
-      ? `<div class="bspnlive-score-poss" style="color:${team.primary};border-color:${team.primary}">● POSS</div>`
+      ? `<div class="bspnlive-score-poss">● POSS</div>`
       : "";
     const muted = !isWinner && otherWon;
-    return `<div class="bspnlive-score-team${right ? " right" : ""}" style="--team-color:${team.primary}">
+    return `<div class="bspnlive-score-team${right ? " right" : ""}" style="--team-color:${team.primary};--team-ink-text:${ink}">
       <pre class="bspnlive-score-mark">${team.asciiMark || ""}</pre>
       <div class="bspnlive-score-team-meta">
         <div class="bspnlive-score-rank"><span class="bspnlive-num">${team.abbr || ""}</span></div>
@@ -1370,18 +1374,18 @@ const LiveBioPanel = {
       </div>
       <div class="livebio-content">
         <div class="livebio-bars">
-          <div class="livebio-bar-row">
-            <span class="livebio-bar-lbl">W</span>
+          <div class="livebio-bar-row" title="Chronic body wear (0-100) — accumulates over the season from hits and workload">
+            <span class="livebio-bar-lbl">WEAR</span>
             <div class="livebio-bar"><div class="livebio-bar-fill" style="width:${wearW}%;background:${wearColor}"></div></div>
             <span class="livebio-bar-val">${r.wear}</span>
           </div>
-          <div class="livebio-bar-row">
-            <span class="livebio-bar-lbl">S</span>
+          <div class="livebio-bar-row" title="Acute stress (0-100) — spikes with recent contact; high stress raises injury risk">
+            <span class="livebio-bar-lbl">STRESS</span>
             <div class="livebio-bar"><div class="livebio-bar-fill" style="width:${stressW}%;background:${stressColor}"></div></div>
             <span class="livebio-bar-val">${r.stress}</span>
           </div>
           <div class="livebio-bar-row" title="In-game fatigue (0-100) — accumulates with workload, recovers on the bench; up to -20% performance when gassed">
-            <span class="livebio-bar-lbl">F</span>
+            <span class="livebio-bar-lbl">FATIGUE</span>
             <div class="livebio-bar"><div class="livebio-bar-fill" style="width:${fatW}%;background:${fatColor}"></div></div>
             <span class="livebio-bar-val">${fatigue}</span>
           </div>

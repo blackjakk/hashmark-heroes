@@ -4377,7 +4377,10 @@ function _renderBracketTree() {
       return `<div class="frn-bt-team empty"><span class="seed"></span><span class="name">TBD</span><span class="score"></span></div>`;
     }
     const t = getTeam(teamId);
-    return `<div class="frn-bt-team ${isWin?"win":""} ${isLoss?"loss":""} ${teamId===myId?"mine":""}" style="--team-color:${t?.primary||'#888'}">
+    // Abbrev TEXT uses the contrast-lifted ink; raw primary stays on
+    // --team-color for the card's border tint.
+    const ink = (typeof _teamInk === "function") ? _teamInk(t?.primary || "#888") : (t?.primary || "#888");
+    return `<div class="frn-bt-team ${isWin?"win":""} ${isLoss?"loss":""} ${teamId===myId?"mine":""}" style="--team-color:${t?.primary||'#888'};--team-ink-text:${ink}">
       <span class="seed">${seedOf(teamId)||"?"}</span>
       <span class="name">${t ? (t.abbr || t.name.slice(0,3).toUpperCase()) : "?"}</span>
       <span class="score">${score != null ? score : ""}</span>
@@ -4404,8 +4407,9 @@ function _renderBracketTree() {
   const byeCard = (teamId) => {
     if (teamId == null) return "";
     const t = getTeam(teamId);
+    const ink = (typeof _teamInk === "function") ? _teamInk(t?.primary || "#888") : (t?.primary || "#888");
     return `<div class="frn-bt-card bye ${teamId===myId?"user-path":""}">
-      <div class="frn-bt-team ${teamId===myId?"mine":""}" style="--team-color:${t?.primary||'#888'}">
+      <div class="frn-bt-team ${teamId===myId?"mine":""}" style="--team-color:${t?.primary||'#888'};--team-ink-text:${ink}">
         <span class="seed">${seedOf(teamId)||1}</span>
         <span class="name">${t ? (t.abbr || t.name.slice(0,3).toUpperCase()) : "?"}</span>
         <span class="score frn-bt-bye-tag">BYE</span>
