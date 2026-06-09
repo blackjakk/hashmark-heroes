@@ -4776,26 +4776,30 @@ function renderFrnStartScreen() {
   const meta = _readSlotsMeta();
   const slots = (meta.slots || []).slice().sort((a,b) => (b.lastSaved||0) - (a.lastSaved||0));
 
+  // Resolve a slot's team accent + a friendly phase label.
+  const _slotAccent = (sm) => {
+    const t = TEAMS.find(t => `${t.city} ${t.name}` === sm.teamName || t.name === sm.teamName);
+    return t?.primary || "var(--blgold, #f5c542)";
+  };
+  const _phaseLabel = (sm) => sm.phase === "preseason" ? "Preseason"
+    : sm.phase === "free_agency" ? "Free Agency"
+    : sm.phase === "regular" ? `Week ${sm.week || "?"}`
+    : sm.phase === "playoffs" ? "Playoffs"
+    : sm.phase === "awards" ? "Awards"
+    : sm.phase === "offseason" ? "Offseason"
+    : sm.phase === "draft" ? "Draft"
+    : sm.phase ? (sm.phase[0].toUpperCase() + sm.phase.slice(1).replace(/_/g, " ")) : "—";
+
   const slotsHtml = slots.length ? slots.map(s => {
     const sm = s.summary || {};
-    const phaseLabel = sm.phase === "preseason" ? "Preseason"
-                     : sm.phase === "free_agency" ? "Free Agency"
-                     : sm.phase === "regular" ? `W${sm.week||"?"}`
-                     : sm.phase === "playoffs" ? "Playoffs"
-                     : sm.phase === "awards" ? "Awards"
-                     : sm.phase === "offseason" ? "Offseason"
-                     : sm.phase || "—";
     const isActive = meta.activeSlotId === s.id;
-    return `<div class="frn-slot ${isActive?"active":""}">
-      <div class="frn-slot-info">
-        <div class="frn-slot-name">${s.name}</div>
-        <div class="frn-slot-summary">
-          ${sm.teamName ? sm.teamName + " · " : ""}Season ${sm.season || 1} · ${phaseLabel}
-          ${sm.record ? " · " + sm.record : ""}
-        </div>
-        <div class="frn-slot-time">${s.lastSaved ? new Date(s.lastSaved).toLocaleString() : ""}</div>
+    return `<div class="fps-slot ${isActive?"active":""}" style="--accent:${_slotAccent(sm)}">
+      <div class="fps-slot-body">
+        <div class="fps-slot-name">${s.name}${isActive ? ` <span class="fps-slot-badge">ACTIVE</span>` : ""}</div>
+        <div class="fps-slot-meta">${sm.teamName ? sm.teamName + " · " : ""}Season ${sm.season || 1} · ${_phaseLabel(sm)}${sm.record ? " · " + sm.record : ""}</div>
+        <div class="fps-slot-time">${s.lastSaved ? new Date(s.lastSaved).toLocaleString() : ""}</div>
       </div>
-      <div class="frn-slot-actions">
+      <div class="fps-slot-actions">
         <button class="btn btn-gold" onclick="frnSwitchSlot(${s.id})">▶ Load</button>
         <div class="frn-slot-menu-wrap">
           <button class="btn btn-outline frn-slot-menu-btn" onclick="_frnToggleSlotMenu(${s.id}, event)" aria-label="More actions">⋯</button>
@@ -4806,41 +4810,60 @@ function renderFrnStartScreen() {
         </div>
       </div>
     </div>`;
-  }).join("") : `<div style="color:var(--gray);font-size:.78rem;padding:.75rem;text-align:center;font-style:italic">
-      No franchises yet. Start a new one below.</div>`;
+  }).join("") : `<div class="fps-empty">No franchises yet — start one below. 👇</div>`;
+
+  // CONTINUE card — the returning-player fast path: jump straight back into the
+  // most-recently-played save (slots are pre-sorted newest-first).
+  const top = slots[0];
+  const continueHtml = top ? (() => {
+    const sm = top.summary || {};
+    return `<button class="fps-continue" style="--accent:${_slotAccent(sm)}" onclick="frnSwitchSlot(${top.id})">
+      <div class="fps-continue-l">
+        <div class="fps-continue-lbl">CONTINUE</div>
+        <div class="fps-continue-team">${sm.teamName || top.name}</div>
+        <div class="fps-continue-meta">Season ${sm.season || 1} · ${_phaseLabel(sm)}${sm.record ? " · " + sm.record : ""}</div>
+      </div>
+      <div class="fps-continue-cta">▶</div>
+    </button>`;
+  })() : "";
 
   $("frnHomeContent").innerHTML = `
-    <div class="frn-welcome">
-      <div class="frn-welcome-title">🏈 HASHMARK HEROES</div>
-      <div class="frn-welcome-sub">American Football Manager</div>
-      <div class="frn-welcome-feats">
-        <div class="frn-welcome-feat"><strong>14</strong> regular-season games</div>
-        <div class="frn-welcome-feat"><strong>8-team</strong> playoff bracket</div>
-        <div class="frn-welcome-feat">Real <strong>MVP awards</strong></div>
-        <div class="frn-welcome-feat">FA bidding wars</div>
-        <div class="frn-welcome-feat">Career stats + HOF</div>
+    <div class="fps-hero">
+      <div class="fps-hero-badge">🏈</div>
+      <div class="fps-hero-title">HASHMARK HEROES</div>
+      <div class="fps-hero-sub">American Football Manager</div>
+      <div class="fps-ticker">
+        <span><b>32</b> teams</span><i></i>
+        <span><b>${FRANCHISE_WEEKS}</b>-game season</span><i></i>
+        <span><b>${PLAYOFF_TEAMS}</b>-team playoffs</span><i></i>
+        <span><b>MVP</b> &amp; award races</span><i></i>
+        <span><b>FA</b> bidding wars</span><i></i>
+        <span>careers &amp; <b>HOF</b></span>
       </div>
     </div>
 
-    <div class="frn-card-title" style="margin-top:1rem">📂 YOUR FRANCHISES (${slots.length})</div>
-    <div class="frn-slots-list">${slotsHtml}</div>
+    ${continueHtml}
 
-    <div style="margin-top:1rem">
-      <button class="frn-start-btn frn-start-new" onclick="frnQuickStart()" style="width:100%">
-        <div class="frn-start-icon">🚀</div>
-        <div class="frn-start-title">QUICK START</div>
-        <div class="frn-start-sub">Random top team · skip preseason · play your first game in 30 seconds</div>
+    <div class="fps-section-title">📂 YOUR FRANCHISES <span>(${slots.length})</span></div>
+    <div class="fps-slots">${slotsHtml}</div>
+
+    <div class="fps-section-title">＋ START A NEW FRANCHISE</div>
+    <div class="fps-starts">
+      <button class="fps-start fps-start-primary" onclick="frnQuickStart()">
+        <div class="fps-start-icon">🚀</div>
+        <div class="fps-start-name">QUICK START</div>
+        <div class="fps-start-desc">Random contender · skip to Week 1 · playing in 30 seconds</div>
       </button>
-      <div class="frn-start-alt-row">
-        <button class="frn-start-alt" onclick="renderFrnStoryPicker()">
-          <div class="frn-start-alt-title">Choose Your Story →</div>
-          <div class="frn-start-alt-sub">3 archetypes: Win Now · Rising · Rebuild</div>
-        </button>
-        <button class="frn-start-alt" onclick="frnStartNew()">
-          <div class="frn-start-alt-title">Browse All 32 Teams →</div>
-          <div class="frn-start-alt-sub">Pick any team — full picker</div>
-        </button>
-      </div>
+      <button class="fps-start" onclick="renderFrnStoryPicker()">
+        <div class="fps-start-icon">🎬</div>
+        <div class="fps-start-name">CHOOSE YOUR STORY</div>
+        <div class="fps-start-desc">3 archetypes — Win Now · Rising · Rebuild</div>
+      </button>
+      <button class="fps-start" onclick="frnStartNew()">
+        <div class="fps-start-icon">📋</div>
+        <div class="fps-start-name">BROWSE ALL 32 TEAMS</div>
+        <div class="fps-start-desc">Pick any team — the full picker</div>
+      </button>
     </div>
   `;
 }
