@@ -2751,14 +2751,17 @@ function _unitStarters(teamId) {
 // per team per game. The caller damps their injury roll via _BLOWOUT_REST_*.
 function _blowoutRestedSet(teamId, margin) {
   const set = new Set();
-  if (!margin || margin < 14) return set;          // 14 = smallest selectable threshold
+  // A manual/AI "rest starters" arm rests BOTH units regardless of margin (the
+  // starters sat the whole game, not just garbage time → a deeper wear shed).
+  const armed = (typeof _restStartersArmed === "function") && _restStartersArmed(teamId);
   const pol = _effectiveRestPolicy(teamId);
-  if (!pol) return set;
-  const restOff = pol.off != null && margin >= pol.off;
-  const restDef = pol.def != null && margin >= pol.def;
+  const restOff = armed || (pol && pol.off != null && margin >= pol.off);
+  const restDef = armed || (pol && pol.def != null && margin >= pol.def);
+  if (!armed && (!margin || margin < 14)) return set;   // 14 = smallest selectable blowout threshold
   if (!restOff && !restDef) return set;
   const { off, def } = _unitStarters(teamId);
-  const shed = margin >= 35 ? 14 : margin >= 28 ? 11 : margin >= 21 ? 8 : 6;  // bigger blowout → more rest
+  const shed = armed ? 16
+             : margin >= 35 ? 14 : margin >= 28 ? 11 : margin >= 21 ? 8 : 6;  // bigger blowout → more rest
   const protect = (arr) => {
     for (const p of arr) {
       if (p.injury && p.injury.weeksRemaining > 0) continue;  // already out

@@ -1613,15 +1613,22 @@ function _autoManageRoster(teamId, opts = {}) {
 //   touches: "get X carries / catches" (pickers bias toward this slot
 //             until target met, then back off)
 // `smart` flag means context-aware routing (respect personnel groupings).
-function _buildSnapMap(teamId) {
+function _buildSnapMap(teamId, opts = {}) {
   const ss = franchise.snapShares?.[teamId];
   if (!ss) return null;
+  const rest = !!opts.restStarters;
   const entryFor = (slotKey) => {
     const sd = ss[slotKey];
     if (!sd) return null;
     const pct = sd.starterPct;
     if (pct == null && !sd.contract) return null;
     const share = (pct != null) ? Math.max(0, Math.min(1, pct / 100)) : 0.70;
+    if (rest) {
+      // Resting starters this game — bench the skill starter to token snaps so
+      // the backup plays (a real on-field cost). Drop any count/touches plan
+      // that would otherwise pull him back onto the field.
+      return { share: Math.min(share, 0.12) };
+    }
     const out = { share };
     if (sd.contract && sd.contract.mode && sd.contract.target != null) {
       out.mode = sd.contract.mode;
@@ -1691,8 +1698,8 @@ function frnSimOnce(homeId, awayId, isPlayoff = false) {
     getTeam(homeId), getTeam(awayId),
     franchise.rosters[homeId], franchise.rosters[awayId],
     { isRivalry, isPlayoff,
-      homeSnaps: _buildSnapMap(homeId),
-      awaySnaps: _buildSnapMap(awayId) }
+      homeSnaps: _buildSnapMap(homeId, { restStarters: typeof _restStartersArmed === "function" && _restStartersArmed(homeId) }),
+      awaySnaps: _buildSnapMap(awayId, { restStarters: typeof _restStartersArmed === "function" && _restStartersArmed(awayId) }) }
   );
   // Coaching trait bumps applied AFTER constructor so they layer on top of HFA.
   const hcHome = franchise.coaches?.[homeId]?.hc?.specialtyTrait;

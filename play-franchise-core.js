@@ -4431,6 +4431,36 @@ function standingsSorted() {
       return (b.detailed?.pointDiff || 0) - (a.detailed?.pointDiff || 0) || b.w - a.w;
     });
 }
+// ── REST STARTERS ────────────────────────────────────────────────────────────
+// Whether a team's starters are being rested for THIS week's game. Two triggers,
+// one mechanic (snap-map bench for the perf cost + wear shed / damped injury via
+// _blowoutRestedSet):
+//   • USER one-week arm — set on the Depth Chart ("Rest Starters This Week").
+//     Keyed to franchise.week so it auto-expires, and consumed when the game is
+//     recorded.
+//   • AI clinched-rest — a great-record team auto-rests in the final week(s) to
+//     save legs for the playoffs (computed live, nothing to store/clear).
+function _aiShouldRestForPlayoffs(teamId) {
+  if (!franchise || teamId === franchise.chosenTeamId) return false;
+  if (franchise.phase !== "regular") return false;
+  const wk = franchise.week || 1;
+  const total = (typeof FRANCHISE_WEEKS === "number") ? FRANCHISE_WEEKS : 17;
+  if (wk < total - 1) return false;            // only the final two weeks
+  const s = franchise.standings?.[teamId];
+  if (!s) return false;
+  const gp = (s.w || 0) + (s.l || 0) + (s.t || 0);
+  if (!gp) return false;
+  const winPct = ((s.w || 0) + 0.5 * (s.t || 0)) / gp;
+  // Final week: a clear playoff team rests. Penultimate week: only the elite
+  // (effectively a locked top seed) rest this early.
+  return wk >= total ? winPct >= 0.70 : winPct >= 0.80;
+}
+function _restStartersArmed(teamId) {
+  if (!franchise) return false;
+  if (franchise.restStartersWeek && franchise.restStartersWeek[teamId] === (franchise.week || 1)) return true;
+  return _aiShouldRestForPlayoffs(teamId);
+}
+
 function recordFranchiseResult(homeId, awayId, homeScore, awayScore) {
   const h = franchise.standings[homeId], a = franchise.standings[awayId];
   if (!h || !a) return;
@@ -4449,6 +4479,12 @@ function recordFranchiseResult(homeId, awayId, homeScore, awayScore) {
   if (typeof _rollNonContactInjuries === "function") {
     _rollNonContactInjuries(homeId);
     _rollNonContactInjuries(awayId);
+  }
+  // Consume a one-week user "rest starters" arm (AI rest is computed live, so
+  // there's nothing to clear for them).
+  if (franchise.restStartersWeek) {
+    delete franchise.restStartersWeek[homeId];
+    delete franchise.restStartersWeek[awayId];
   }
   // News: blowouts and upsets
   const home = getTeam(homeId), away = getTeam(awayId);

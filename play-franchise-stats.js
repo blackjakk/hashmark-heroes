@@ -3831,6 +3831,20 @@ function frnSetRestPolicy(unit, value) {
   renderFrnDepthChart();
 }
 
+// Arm / disarm a one-week "rest starters" for the user's NEXT game. Keyed to
+// the current week so it auto-expires, and consumed when the game is recorded.
+// Benches the skill starters for that game (your offense plays its backups —
+// a real on-field cost) and sheds wear + damps injury rolls for all starters.
+function frnToggleRestStarters() {
+  const myId = franchise.chosenTeamId;
+  const wk = franchise.week || 1;
+  if (!franchise.restStartersWeek) franchise.restStartersWeek = {};
+  if (franchise.restStartersWeek[myId] === wk) delete franchise.restStartersWeek[myId];
+  else franchise.restStartersWeek[myId] = wk;
+  saveFranchise();
+  renderFrnDepthChart();
+}
+
 // Clear manual lock — restore to optimizer-computed value.
 function frnDepthResetSnapShare(slotKey) {
   const myId = franchise.chosenTeamId;
@@ -4307,19 +4321,6 @@ async function renderFrnDepthChart() {
         <span class="frn-dc-ratings">OFF ${rtg.off} · DEF ${rtg.def} · ${roster.length} players</span>
       </div>
       <div style="display:flex;gap:.45rem;align-items:center">
-        ${(() => {
-          const policy = franchise.autoManagePolicy?.[myId] || "balanced";
-          const policyChip = (key, label, tip) => {
-            const isActive = policy === key;
-            return `<button class="btn btn-outline" style="padding:.35rem .6rem;font-size:.6rem;letter-spacing:.5px;${isActive?'background:var(--gold);color:#000;border-color:var(--gold);font-weight:700':''}" onclick="frnSetAutoManagePolicy('${key}')" title="${tip}">${label}</button>`;
-          };
-          return `<div style="display:flex;gap:.25rem;align-items:center;border-right:1px solid rgba(255,255,255,.15);padding-right:.5rem;margin-right:.2rem" title="Auto-manage: how aggressively to rest worn/stressed starters">
-            <span style="font-size:.55rem;color:var(--gray);letter-spacing:1px;font-weight:700">LOAD MGMT</span>
-            ${policyChip("ride",         "Ride",     "Ignore wear — full snap-share, no rest")}
-            ${policyChip("balanced",     "Balanced", "Trim wear≥70 by 15%; rest wear≥85; default")}
-            ${policyChip("playoff_push", "Playoff",  "From W14+: aggressive rest of wear≥60, save legs for January")}
-          </div>`;
-        })()}
         <button class="frn-dc-auto-btn${autoChangedSlots>0?" hot":""}" data-confirm-msg="${autoBtnConfirm.replace(/"/g,"&quot;")}" onclick="(async()=>{ if(await _frnConfirm(this.dataset.confirmMsg)) frnDepthAutoSetOVR(); })()">${autoBtnLabel}</button>
         <button class="btn btn-outline" onclick="showFranchiseDashboard()">← Back</button>
       </div>
@@ -4327,19 +4328,38 @@ async function renderFrnDepthChart() {
     ${strengthStrip}
     ${moodStrip}
     ${(() => {
-      const pol = (typeof _effectiveRestPolicy === "function") ? _effectiveRestPolicy(myId) : { off: 28, def: 28 };
+      // ── WORKLOAD & REST hub ── one prominent card for every "who plays / who
+      // sits" control (was a header chip-set + an easy-to-miss thin strip).
+      const policy = franchise.autoManagePolicy?.[myId] || "balanced";
+      const policyChip = (key, label, tip) => {
+        const on = policy === key;
+        return `<button class="btn btn-outline" style="padding:.26rem .55rem;font-size:.58rem;letter-spacing:.4px;${on?'background:var(--gold);color:#000;border-color:var(--gold);font-weight:700':''}" onclick="frnSetAutoManagePolicy('${key}')" title="${tip}">${label}</button>`;
+      };
+      const restPol = (typeof _effectiveRestPolicy === "function") ? _effectiveRestPolicy(myId) : { off: 28, def: 28 };
       const sel = (unit, val) => {
         const cur = val == null ? "" : String(val);
         const opts = [["", "Never"], ["14", "by 14+"], ["21", "by 21+"], ["28", "by 28+"], ["35", "by 35+"]];
-        return `<select onchange="frnSetRestPolicy('${unit}',this.value)" style="background:var(--bg3);color:var(--white);border:1px solid rgba(255,255,255,.18);border-radius:3px;font-size:.62rem;padding:.18rem .35rem;font-family:inherit;cursor:pointer">
-          ${opts.map(([v, l]) => `<option value="${v}"${v === cur ? " selected" : ""}>${l}</option>`).join("")}
-        </select>`;
+        return `<select onchange="frnSetRestPolicy('${unit}',this.value)" style="background:var(--bg3);color:var(--white);border:1px solid rgba(255,255,255,.18);border-radius:3px;font-size:.6rem;padding:.16rem .3rem;font-family:inherit;cursor:pointer">${opts.map(([v, l]) => `<option value="${v}"${v === cur ? " selected" : ""}>${l}</option>`).join("")}</select>`;
       };
-      return `<div style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin:.45rem 0;padding:.4rem .6rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-left:3px solid #8ab4f8;border-radius:3px">
-        <span style="font-size:.6rem;color:#8ab4f8;letter-spacing:1px;font-weight:800;white-space:nowrap">🛟 BLOWOUT REST</span>
-        <span style="display:flex;align-items:center;gap:.3rem"><span style="font-size:.62rem;color:var(--gray)">Offense</span>${sel("off", pol.off)}</span>
-        <span style="display:flex;align-items:center;gap:.3rem"><span style="font-size:.62rem;color:var(--gray)">Defense</span>${sel("def", pol.def)}</span>
-        <span style="font-size:.58rem;color:var(--gray);flex:1;min-width:12rem">When a game's decided by this margin, your starters sit the rest — they shed wear and dodge injury rolls. Applies whether you're up big or down big.</span>
+      const armed = !!(franchise.restStartersWeek && franchise.restStartersWeek[myId] === (franchise.week || 1));
+      const restBtn = armed
+        ? `<button class="btn" style="background:#8ab4f8;color:#06121f;border:1px solid #8ab4f8;font-weight:800;padding:.3rem .65rem;font-size:.6rem" onclick="frnToggleRestStarters()" title="Starters are resting for this week's game — click to undo">✓ RESTING THIS WEEK · undo</button>`
+        : `<button class="btn btn-outline" style="color:#8ab4f8;border-color:#8ab4f8;padding:.3rem .65rem;font-size:.6rem" onclick="frnToggleRestStarters()" title="Bench your starters for this week's game only — your offense plays its backups (you may lose), but starters shed wear and dodge injury rolls. Reverts after the game.">😴 Rest Starters This Week</button>`;
+      const lbl  = (t) => `<span style="font-size:.55rem;color:var(--gray);letter-spacing:.8px;font-weight:700;white-space:nowrap;text-align:right">${t}</span>`;
+      const hint = (t) => `<span style="font-size:.55rem;color:var(--gray);opacity:.75">${t}</span>`;
+      return `<div style="margin:.5rem 0;border:1px solid var(--blborder);border-left:3px solid #8ab4f8;border-radius:5px;background:rgba(138,180,248,.035);overflow:hidden">
+        <div style="display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap;padding:.34rem .6rem;background:rgba(138,180,248,.09);border-bottom:1px solid var(--blborder)">
+          <span style="font-size:.66rem;color:#8ab4f8;letter-spacing:1.2px;font-weight:800">🛟 WORKLOAD &amp; REST</span>
+          <span style="font-size:.55rem;color:var(--gray)">control who plays and who sits — stay fresh, dodge injuries</span>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:.45rem .8rem;padding:.5rem .65rem;align-items:center">
+          ${lbl("LOAD MGMT")}
+          <div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap">${policyChip("ride", "Ride", "Ignore wear — full snap-share, no rest")}${policyChip("balanced", "Balanced", "Trim wear≥70 by 15%; rest wear≥85; default")}${policyChip("playoff_push", "Playoff", "From W14+: aggressively rest wear≥60 to save legs for January")} ${hint("auto-rest worn / stressed starters over the season")}</div>
+          ${lbl("BLOWOUT REST")}
+          <div style="display:flex;align-items:center;gap:.55rem;flex-wrap:wrap"><span style="display:flex;align-items:center;gap:.25rem"><span style="font-size:.6rem;color:var(--gray)">Off</span>${sel("off", restPol.off)}</span><span style="display:flex;align-items:center;gap:.25rem"><span style="font-size:.6rem;color:var(--gray)">Def</span>${sel("def", restPol.def)}</span> ${hint("sit starters once a game's decided by this margin (up or down)")}</div>
+          ${lbl("THIS WEEK")}
+          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">${restBtn} ${hint(armed ? "starters sit this game · backups play · reverts after" : "bench starters for the next game only — fresh legs, fewer injuries")}</div>
+        </div>
       </div>`;
     })()}
     ${tabsHtml}
