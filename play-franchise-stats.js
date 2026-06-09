@@ -2871,6 +2871,16 @@ function renderFrnStandings() {
           Week ${Math.min(franchise.week, FRANCHISE_WEEKS)} of ${FRANCHISE_WEEKS}${seasonDone ? " · REGULAR SEASON COMPLETE" : ""}
         </span>
       </div>
+      ${(() => {
+        const s = franchise.standings?.[myId]?._sit;
+        if (!s) return "";
+        const parts = [];
+        if (s.cbW)            parts.push(`<b style="color:#86e0a3">${s.cbW}</b> comeback win${s.cbW > 1 ? "s" : ""}`);
+        if (s.wireW)          parts.push(`<b style="color:#8ab4f8">${s.wireW}</b> wire-to-wire`);
+        if (s.oscW || s.oscL) parts.push(`<b style="color:var(--gold-lt)">${s.oscW || 0}-${s.oscL || 0}</b> in one-score games`);
+        if (!parts.length) return "";
+        return `<div style="padding:.4rem 1.4rem;border-bottom:1px solid var(--blborder);font-size:.7rem;color:var(--blgray)">🔥 Your situational record: ${parts.join(" · ")}</div>`;
+      })()}
       <div style="padding:1rem 1.4rem">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin-bottom:.7rem">
           ${renderConferenceOutlook("AFC")}
@@ -4747,6 +4757,15 @@ function _bspnBuildLeaders(stats, awayT, homeT) {
 function _bspnBuildGameNotes(g, week, awayT, homeT, home, away, homeWon, leaders) {
   const notes = [];
   const { topPerformers } = leaders || {};
+  // Situational headline — comeback / wire-to-wire / one-score (from the timeline).
+  const _sit = (typeof _classifyGameSituation === "function")
+    ? _classifyGameSituation(g.homeId, g.awayId, g.homeScore, g.awayScore) : null;
+  if (_sit) {
+    const wT = _sit.winner === "home" ? homeT : awayT;
+    if (_sit.comeback)        notes.push(`Comeback win — ${wT.city} ${wT.name} erased a ${_sit.maxDeficit}-point deficit.`);
+    else if (_sit.wireToWire) notes.push(`Wire-to-wire — ${wT.city} ${wT.name} led from the opening score to the final whistle.`);
+    if (_sit.oneScore)        notes.push(`One-score game — decided by ${_sit.margin}.`);
+  }
   // Conference standings note
   if (home.conference === away.conference) {
     const winner = homeWon ? home : away;

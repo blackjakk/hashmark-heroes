@@ -4503,6 +4503,37 @@ function _gameRestFraction(homeId, awayId, finalHome, finalAway) {
   return decidedQtr <= 4 ? byQtr[decidedQtr] : _restFractionFromMargin(margin);
 }
 
+// Game-level SITUATIONAL classification from the persisted scoring timeline —
+// the team/game layer of "situational stats" (player-level clutch lives
+// separately in clutchRecord). Returns null for ties / no timeline. Powers the
+// recap's situational note + per-team season tallies (comeback / wire-to-wire /
+// one-score record).
+function _classifyGameSituation(homeId, awayId, finalHome, finalAway) {
+  if (finalHome === finalAway) return null;
+  const winner = finalHome > finalAway ? "home" : "away";
+  const margin = Math.abs((finalHome || 0) - (finalAway || 0));
+  const g = (franchise?.schedule || []).find(x => x.played && x.homeId === homeId && x.awayId === awayId);
+  const scoring = (g && Array.isArray(g.scoring)) ? g.scoring : null;
+  let maxDeficit = 0, everBehind = false, ledThroughout = true, sawFirstScore = false;
+  if (scoring) {
+    for (const ev of scoring) {
+      if (!ev || !ev.isScore) continue;
+      const wl = winner === "home" ? (ev.homeScore || 0) - (ev.awayScore || 0)
+                                   : (ev.awayScore || 0) - (ev.homeScore || 0);
+      if (wl < 0) { everBehind = true; if (-wl > maxDeficit) maxDeficit = -wl; }
+      if (wl <= 0) ledThroughout = false;   // relinquished/never held the lead at this score
+      sawFirstScore = true;
+    }
+  }
+  return {
+    winner, margin,
+    comeback: maxDeficit >= 10,                          // overcame a 10+ deficit
+    maxDeficit,
+    wireToWire: sawFirstScore && !everBehind && ledThroughout && margin >= 10,
+    oneScore: margin <= 8,                               // one-score game
+  };
+}
+
 function recordFranchiseResult(homeId, awayId, homeScore, awayScore) {
   const h = franchise.standings[homeId], a = franchise.standings[awayId];
   if (!h || !a) return;
@@ -4511,6 +4542,18 @@ function recordFranchiseResult(homeId, awayId, homeScore, awayScore) {
   if (homeScore > awayScore)      { h.w++; a.l++; }
   else if (awayScore > homeScore) { a.w++; h.l++; }
   else                            { h.t++; a.t++; }
+  // Situational season tallies (comeback / wire-to-wire / one-score) from the
+  // game's scoring timeline — surfaced on the standings situational line.
+  const _sit = _classifyGameSituation(homeId, awayId, homeScore, awayScore);
+  if (_sit) {
+    const wS = _sit.winner === "home" ? h : a;
+    const lS = _sit.winner === "home" ? a : h;
+    wS._sit = wS._sit || { cbW: 0, wireW: 0, oscW: 0, oscL: 0 };
+    lS._sit = lS._sit || { cbW: 0, wireW: 0, oscW: 0, oscL: 0 };
+    if (_sit.comeback)   wS._sit.cbW++;
+    if (_sit.wireToWire) wS._sit.wireW++;
+    if (_sit.oneScore)   { wS._sit.oscW++; lS._sit.oscL++; }
+  }
   // Roll injuries for both teams — contact path (hit-driven) and
   // non-contact path (stress/exertion-driven). Both fire per game.
   // The final margin gates blowout rest; the rest FRACTION (derived from the
