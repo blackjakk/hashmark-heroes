@@ -2705,9 +2705,78 @@ function _rollNonContactInjuries(teamId) {
   }
 }
 
-function _rollGameInjuries(teamId) {
+// ─── BLOWOUT REST — pull starters for garbage time ───────────────────────────
+// A stepping-stone toward a full in-game clock: since the sim resolves a game
+// to a final score (no quarters), we approximate "rest starters once the game
+// is in hand" with the one dimension we have — the final MARGIN. When a game
+// finishes lopsided enough to clear the team's threshold, that unit's starters
+// are treated as having sat the 4th: they shed accumulated wear and take a
+// damped injury roll for the game. Applies whether you're winning OR losing big
+// (garbage time cuts both ways). The per-unit threshold + this wear/injury
+// payoff are forward-compatible: when a real clock lands, only the TRIGGER
+// (final-margin → live game-state) changes; the policy + effect stay identical.
+const _REST_OFF_POS = new Set(["QB", "RB", "WR", "TE", "OL"]);
+const _REST_DEF_POS = new Set(["DL", "LB", "CB", "S"]);
+const _BLOWOUT_REST_INJURY_MUL = 0.4;   // rested starters: 60% less injury exposure that game
+// Team's effective rest policy. Unset teams (AI, and the user until they touch
+// the control) default to resting both units in clear ≥28-pt blowouts, so the
+// behavior is league-wide rather than a player-only edge. { off, def } are the
+// margin thresholds in points, or null = "never rest".
+function _effectiveRestPolicy(teamId) {
+  const set = franchise.restPolicy?.[teamId];
+  if (set) return set;
+  return { off: 28, def: 28 };
+}
+// Starters per unit (top-by-overall using the same per-position starter counts
+// morale uses). Returns { off:[...], def:[...] } of live player objects.
+function _unitStarters(teamId) {
+  const off = [], def = [];
+  if (typeof _starterRankByPos !== "function") return { off, def };
+  const roster = franchise.rosters?.[teamId] || [];
+  const rank = _starterRankByPos(teamId);
+  const counts = (typeof _MORALE_STARTERS !== "undefined") ? _MORALE_STARTERS
+    : { QB: 1, RB: 1, WR: 3, TE: 1, OL: 5, DL: 4, LB: 3, CB: 3, S: 2 };
+  for (const p of roster) {
+    const need = counts[p.position];
+    if (!need) continue;
+    const r = rank.get(p);
+    if (r == null || r >= need) continue;
+    if (_REST_OFF_POS.has(p.position))      off.push(p);
+    else if (_REST_DEF_POS.has(p.position)) def.push(p);
+  }
+  return { off, def };
+}
+// Set of starters rested in a game decided by `margin`. SIDE EFFECT: sheds wear
+// off each rested starter (they sat garbage time) — done here so it fires once
+// per team per game. The caller damps their injury roll via _BLOWOUT_REST_*.
+function _blowoutRestedSet(teamId, margin) {
+  const set = new Set();
+  if (!margin || margin < 14) return set;          // 14 = smallest selectable threshold
+  const pol = _effectiveRestPolicy(teamId);
+  if (!pol) return set;
+  const restOff = pol.off != null && margin >= pol.off;
+  const restDef = pol.def != null && margin >= pol.def;
+  if (!restOff && !restDef) return set;
+  const { off, def } = _unitStarters(teamId);
+  const shed = margin >= 35 ? 14 : margin >= 28 ? 11 : margin >= 21 ? 8 : 6;  // bigger blowout → more rest
+  const protect = (arr) => {
+    for (const p of arr) {
+      if (p.injury && p.injury.weeksRemaining > 0) continue;  // already out
+      set.add(p);
+      if (typeof p._wear === "number") p._wear = Math.max(0, p._wear - shed);
+    }
+  };
+  if (restOff) protect(off);
+  if (restDef) protect(def);
+  return set;
+}
+
+function _rollGameInjuries(teamId, gameMargin = 0) {
   const roster = franchise.rosters[teamId] || [];
   const team = getTeam(teamId);
+  // Blowout rest — starters pulled for garbage time get a damped injury roll
+  // (and shed wear, applied inside the helper). Empty set in a competitive game.
+  const restedSet = _blowoutRestedSet(teamId, gameMargin);
   // Disciplinarian HC culture: −20% injury rate; Players' Coach: +5%
   const cultureTrait = franchise.coaches?.[teamId]?.hc?.cultureTrait
                     || (franchise.coaches?.[teamId]?.hc?.trait === "Hard-Ass" ? "Disciplinarian" : null);
@@ -2758,7 +2827,8 @@ function _rollGameInjuries(teamId) {
                   : wear >= 70 ? 1.35
                   : wear >= 50 ? 1.15
                   : 1.0;
-    const rate = (INJURY_RATE[p.position] || 0.01) * rateMul * recMul * ironmanMul * archMul * foMul * durabilityMul * ageMul * wearMul;
+    const restMul = restedSet.has(p) ? _BLOWOUT_REST_INJURY_MUL : 1.0;
+    const rate = (INJURY_RATE[p.position] || 0.01) * rateMul * recMul * ironmanMul * archMul * foMul * durabilityMul * ageMul * wearMul * restMul;
     if (Math.random() >= rate) continue;
     let t = _pickInjuryType(p.position);
     let isCatastrophic = false;

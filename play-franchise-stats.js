@@ -3814,6 +3814,23 @@ function frnSetAutoManagePolicy(policy) {
   renderFrnDepthChart();
 }
 
+// Set the team's blowout-rest threshold for a unit ("off" | "def"). The value
+// is the point margin at/above which that unit's starters are pulled for
+// garbage time (shed wear + damped injury roll); "" / null = never rest.
+function frnSetRestPolicy(unit, value) {
+  const myId = franchise.chosenTeamId;
+  if (unit !== "off" && unit !== "def") return;
+  if (!franchise.restPolicy) franchise.restPolicy = {};
+  // Seed from the effective policy so the OTHER unit keeps its shown value.
+  const cur = franchise.restPolicy[myId]
+    || ((typeof _effectiveRestPolicy === "function") ? { ..._effectiveRestPolicy(myId) } : { off: 28, def: 28 });
+  const n = (value === "" || value == null) ? null : Number(value);
+  cur[unit] = Number.isFinite(n) ? n : null;
+  franchise.restPolicy[myId] = cur;
+  saveFranchise();
+  renderFrnDepthChart();
+}
+
 // Clear manual lock — restore to optimizer-computed value.
 function frnDepthResetSnapShare(slotKey) {
   const myId = franchise.chosenTeamId;
@@ -4309,6 +4326,22 @@ async function renderFrnDepthChart() {
     </div>
     ${strengthStrip}
     ${moodStrip}
+    ${(() => {
+      const pol = (typeof _effectiveRestPolicy === "function") ? _effectiveRestPolicy(myId) : { off: 28, def: 28 };
+      const sel = (unit, val) => {
+        const cur = val == null ? "" : String(val);
+        const opts = [["", "Never"], ["14", "by 14+"], ["21", "by 21+"], ["28", "by 28+"], ["35", "by 35+"]];
+        return `<select onchange="frnSetRestPolicy('${unit}',this.value)" style="background:var(--bg3);color:var(--white);border:1px solid rgba(255,255,255,.18);border-radius:3px;font-size:.62rem;padding:.18rem .35rem;font-family:inherit;cursor:pointer">
+          ${opts.map(([v, l]) => `<option value="${v}"${v === cur ? " selected" : ""}>${l}</option>`).join("")}
+        </select>`;
+      };
+      return `<div style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin:.45rem 0;padding:.4rem .6rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-left:3px solid #8ab4f8;border-radius:3px">
+        <span style="font-size:.6rem;color:#8ab4f8;letter-spacing:1px;font-weight:800;white-space:nowrap">🛟 BLOWOUT REST</span>
+        <span style="display:flex;align-items:center;gap:.3rem"><span style="font-size:.62rem;color:var(--gray)">Offense</span>${sel("off", pol.off)}</span>
+        <span style="display:flex;align-items:center;gap:.3rem"><span style="font-size:.62rem;color:var(--gray)">Defense</span>${sel("def", pol.def)}</span>
+        <span style="font-size:.58rem;color:var(--gray);flex:1;min-width:12rem">When a game's decided by this margin, your starters sit the rest — they shed wear and dodge injury rolls. Applies whether you're up big or down big.</span>
+      </div>`;
+    })()}
     ${tabsHtml}
     ${_dcActiveUnit === "PKG"
       ? `<div class="frn-dc-hint">View how your defense lines up per personnel package. AVG OVR = strength of the 11 on the field. SCHEME FIT % = how many of those 11 have an archetype that naturally fits the slot (e.g., SLOT_CB at the NB).</div>

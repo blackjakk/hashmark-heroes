@@ -4375,8 +4375,11 @@ function recordFranchiseResult(homeId, awayId, homeScore, awayScore) {
   else                            { h.t++; a.t++; }
   // Roll injuries for both teams — contact path (hit-driven) and
   // non-contact path (stress/exertion-driven). Both fire per game.
-  _rollGameInjuries(homeId);
-  _rollGameInjuries(awayId);
+  // The final margin is passed so a blowout-rest policy can pull starters
+  // for garbage time (shed wear + damped injury roll). See _rollGameInjuries.
+  const _gameMargin = Math.abs(homeScore - awayScore);
+  _rollGameInjuries(homeId, _gameMargin);
+  _rollGameInjuries(awayId, _gameMargin);
   if (typeof _rollNonContactInjuries === "function") {
     _rollNonContactInjuries(homeId);
     _rollNonContactInjuries(awayId);
