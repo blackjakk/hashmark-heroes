@@ -22029,6 +22029,51 @@ function renderFrnScoutingBoard() {
         </div>
       </div>
       ${_renderClassStrengthSummary(eligibleByPos)}
+      ${(() => {
+        // ── YOUR DRAFT CAPITAL ── your owned picks for the next draft + the
+        // prospects you could realistically land at each (matched by projected
+        // round, your positional needs first). Pick slots are PROJECTED from
+        // the current standings (worse record drafts earlier) — exact order
+        // isn't set until the season ends.
+        const myId = franchise.chosenTeamId;
+        const allPicks = franchise.picks || [];
+        if (!allPicks.length) return "";
+        const nextYear = Math.min(...allPicks.map(p => p.year));
+        const mine = allPicks.filter(p => p.currentOwnerId === myId && p.year === nextYear);
+        if (!mine.length) return "";
+        const order = (typeof standingsSorted === "function") ? standingsSorted() : [];
+        const N = order.length || 32;
+        const myRank = order.findIndex(s => s.id === myId);           // 0 = best record
+        const r1Slot = myRank >= 0 ? (N - myRank) : null;             // worst record = #1
+        const NEEDMAP = { qb:"QB", rb:"RB", wr:"WR", ol:"OL", dl:"DL", lb:"LB", cb:"CB", saf:"S" };
+        const needProf = (typeof _teamNeedsProfile === "function") ? _teamNeedsProfile(myId) : { needs: [] };
+        const needPos = new Set((needProf.needs || []).map(u => NEEDMAP[u.key]).filter(Boolean));
+        // Draft-eligible prospects bucketed by projected round (scouted grade).
+        const byRound = {};
+        for (const p of draftEligible) (byRound[_projectedRoundFromGrade(_gradeFor(p))] ||= []).push(p);
+        for (const r in byRound) byRound[r].sort((a, b) =>
+          ((needPos.has(b.position) ? 1 : 0) - (needPos.has(a.position) ? 1 : 0)) || (_gradeFor(b) - _gradeFor(a)));
+        const roundCounts = {};
+        for (const p of mine) roundCounts[p.round] = (roundCounts[p.round] || 0) + 1;
+        const rounds = Object.keys(roundCounts).map(Number).sort((a, b) => a - b);
+        const rowFor = (r) => {
+          const cnt = roundCounts[r];
+          const overall = (r1Slot != null) ? (r1Slot + (r - 1) * N) : null;
+          const chips = (byRound[r] || []).slice(0, 4).map(p => {
+            const need = needPos.has(p.position);
+            return `<span onclick="frnOpenPlayerCard('${_jsStr(p.name)}')" title="${_esc(p.name)} · proj R${r}${need ? " · fills a need" : ""}"
+              style="cursor:pointer;font-size:.62rem;padding:.1rem .4rem;border-radius:3px;border:1px solid ${need ? "var(--gold)" : "var(--blborder)"};background:${need ? "rgba(245,197,66,.08)" : "rgba(255,255,255,.03)"};white-space:nowrap">${need ? "🎯 " : ""}<b style="color:var(--gold-lt)">${_esc(p.position)}</b> ${_esc(p.name)}</span>`;
+          }).join("");
+          return `<div style="display:flex;align-items:flex-start;gap:.55rem;padding:.3rem 0;border-top:1px solid rgba(255,255,255,.05)">
+            <span style="min-width:6.2rem;font-weight:800;color:var(--gold)">R${r}${cnt > 1 ? ` ×${cnt}` : ""}<span style="color:var(--gray);font-weight:400;font-size:.62rem">${overall ? ` · proj #${overall}` : ""}</span></span>
+            <span style="display:flex;gap:.35rem;flex-wrap:wrap;flex:1">${chips || `<span style="color:var(--gray);font-style:italic;font-size:.62rem">— no scouted prospects projected to round ${r} yet —</span>`}</span>
+          </div>`;
+        };
+        return `<div style="margin:.4rem 0;padding:.5rem .7rem;border:1px solid var(--blborder);border-left:3px solid var(--gold);border-radius:5px;background:rgba(245,197,66,.03)">
+          <div style="font-size:.66rem;letter-spacing:.8px;color:var(--gold);font-weight:800;margin-bottom:.2rem">🎯 YOUR DRAFT CAPITAL · ${nextYear} DRAFT${r1Slot != null ? ` · proj #${r1Slot} overall` : ""}${needPos.size ? ` <span style="color:var(--gray);font-weight:400">· needs: ${[...needPos].join(", ")}</span>` : ""}</div>
+          ${rounds.map(rowFor).join("")}
+        </div>`;
+      })()}
       ${st.showMock ? _renderMockDraft(draftEligible, pinSet, reveals, eligibleByPos) : ""}
       ${(() => {
         const cmpNames = _SCOUT_BOARD_STATE.compare || [];
