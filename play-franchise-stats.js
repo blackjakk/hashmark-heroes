@@ -9575,6 +9575,8 @@ function _mffComputeEPA() {
           poss: gameBest.poss, offTid: gameBest.offTid,
           name: gameBest.c.qb || gameBest.c.rc || gameBest.c.ru,
           k: gameBest.c.k, yd: gameBest.c.yd,
+          q: gameBest.c.q, t: gameBest.c.t, hs: gameBest.c.hs, as: gameBest.c.as,
+          d: gameBest.c.d, y: gameBest.c.y,
         });
       }
     }
@@ -10036,12 +10038,24 @@ function mffPlayerOfGameFor(homeId, awayId, week) {
                   : potg.k;
   const sign = potg.wpa >= 0 ? "+" : "";
   const wpaPct = (potg.wpa * 100).toFixed(1);
+  // Situational context — why this play mattered (a 3-yd run can be the play
+  // of the game if it's a 4th-down conversion late in a one-score game).
+  const clock = (potg.q != null && potg.t != null) ? `Q${potg.q} ${Math.floor(potg.t/60)}:${String(potg.t%60).padStart(2,"0")}` : "";
+  const ord = potg.d === 1 ? "1st" : potg.d === 2 ? "2nd" : potg.d === 3 ? "3rd" : potg.d === 4 ? "4th" : (potg.d ? `${potg.d}th` : "");
+  const dd = (potg.d && potg.y != null) ? `${ord} & ${potg.y === 0 ? "goal" : potg.y}` : "";
+  const isCarry = potg.k === "run" || potg.k === "complete";
+  const conv = (potg.d >= 3 && isCarry && potg.yd != null && potg.y != null)
+    ? (potg.yd >= potg.y ? "✓ conversion" : (potg.d === 4 ? "✗ turnover on downs" : "short of the sticks")) : "";
+  const offLead = (potg.poss === "home") ? ((potg.hs || 0) - (potg.as || 0)) : ((potg.as || 0) - (potg.hs || 0));
+  const scoreCtx = (potg.hs != null && potg.as != null) ? (offLead === 0 ? "tie game" : offLead > 0 ? `up ${offLead}` : `down ${-offLead}`) : "";
+  const ctx = [clock, dd, conv, scoreCtx].filter(Boolean).join(" · ");
   return `<div style="margin-top:.4rem;padding:.45rem .6rem;border:1px dashed var(--border);border-radius:6px;background:rgba(245,197,66,0.04)">
     <div style="font-size:.6rem;letter-spacing:.6px;color:var(--gold);font-weight:700">⭐ PLAYER OF THE GAME (BIGGEST WPA SWING)</div>
     <div style="margin-top:.15rem">
       <span style="font-weight:700">${potg.name}</span>
       <span style="opacity:.7"> · ${kindBlurb} · WPA ${sign}${wpaPct}%</span>
     </div>
+    ${ctx ? `<div style="font-size:.6rem;color:var(--gray);margin-top:.12rem">${ctx}</div>` : ""}
   </div>`;
 }
 
@@ -10061,11 +10075,24 @@ function mffSeasonTopSwingsHtml(limit = 10) {
     const sign = p.wpa >= 0 ? "+" : "";
     const wpaPct = (p.wpa * 100).toFixed(1);
     const wpaColor = p.wpa >= 0 ? "var(--green-lt)" : "var(--red)";
-    return `<div style="display:flex;align-items:center;gap:.5rem;padding:.25rem .35rem;border-bottom:1px solid rgba(255,255,255,0.04);font-size:.7rem">
+    // Situational CONTEXT — why a 3-yard run swung the win prob. Down &
+    // distance, whether it converted, and the score state at the snap.
+    const ord = p.d === 1 ? "1st" : p.d === 2 ? "2nd" : p.d === 3 ? "3rd" : p.d === 4 ? "4th" : (p.d ? `${p.d}th` : "");
+    const dd = (p.d && p.y != null) ? `${ord} & ${p.y === 0 ? "goal" : p.y}` : "";
+    const isCarry = p.k === "run" || p.k === "complete";
+    const conv = (p.d >= 3 && isCarry && p.yd != null && p.y != null)
+      ? (p.yd >= p.y ? "✓ conversion" : (p.d === 4 ? "✗ turnover on downs" : "short of the sticks"))
+      : (p.k === "int" ? "✗ takeaway" : "");
+    const offLead = (p.poss === "home") ? ((p.hs || 0) - (p.as || 0)) : ((p.as || 0) - (p.hs || 0));
+    const scoreCtx = offLead === 0 ? "tie game" : offLead > 0 ? `up ${offLead}` : `down ${-offLead}`;
+    const ctx = [dd, conv, scoreCtx].filter(Boolean).join(" · ");
+    return `<div style="display:flex;align-items:center;gap:.5rem;padding:.28rem .35rem;border-bottom:1px solid rgba(255,255,255,0.04);font-size:.7rem">
       <span style="color:var(--gray);width:1.5rem;text-align:right">${i+1}.</span>
       <span style="color:var(--gray);width:3.5rem;font-variant-numeric:tabular-nums">${clock}</span>
-      <span style="flex:1;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
-      <span style="opacity:.7;width:5rem">${kindBlurb} ${p.yd>=0?"+":""}${p.yd}yd</span>
+      <div style="flex:1;min-width:0">
+        <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="font-weight:600">${name}</span> <span style="opacity:.6">· ${kindBlurb} ${p.yd>=0?"+":""}${p.yd}yd</span></div>
+        ${ctx ? `<div style="font-size:.58rem;color:var(--gray)">${ctx}</div>` : ""}
+      </div>
       <span style="font-weight:700;color:${wpaColor};width:4rem;text-align:right;font-variant-numeric:tabular-nums">WPA ${sign}${wpaPct}%</span>
     </div>`;
   }).join("");
