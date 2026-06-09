@@ -6,98 +6,81 @@ Paste this verbatim into the next chat to resume.
 
 ## Repo + state
 
-- Repo: `/home/user/datasciencecoursera/gridiron-chain/`
-- Branch: `claude/charming-brown-b18u2` (pushed, working tree clean as of `ba248ad`)
-- Read `HANDOFF.md` § 3 for full context. Read `REFACTOR_POSITION_CONTRACT.md`
-  for the position-contract refactor's complete execution log.
-- Two skills are at user-level (`~/.claude/skills/`): `stage-gated-refactor`
-  (general methodology) and `teleport-check` (regression gate for this repo).
-  Both trigger automatically on the right phrases.
+- Repo: `/home/user/hashmark-heroes` (vanilla HTML/CSS/JS, no build step).
+- Branch: `claude/youthful-franklin-UasDV` — pushed, working tree clean.
+  As of this writing **`HEAD == origin/branch == origin/main == b543374`**
+  (main was fast-forwarded; everything is recorded).
+- Load order matters (browser globals via `<script>` in `play.html`):
+  `play-data.js` → `play-player.js` → … → `play-engine.js` →
+  `play-franchise-core.js` → `play-franchise-season.js` →
+  `play-franchise-stats.js` → `play-franchise-offseason.js` → …
+  Top-level `const`/`function` are cross-file accessible.
+- Syntax check: `node --check <file>.js`. Realism gate: `node _sim_audit.js [seasons] [seed]`
+  (bands in `AUDIT.md`). Manual verify: `npx http-server -p 5173` + headless
+  Playwright at `/opt/node22/lib/node_modules/playwright`.
+- Older arcs (teleport/position-contract refactor, sprite atlas, broadcast cam)
+  are in `HANDOFF.md` §3–3B. That history is settled — don't redo it.
 
-## What just shipped (last session)
+## What just shipped (this session)
 
-Position-contract refactor, Stages 0-11. Egregious teleport plays:
-**138 → 6 (96% reduction)**. Runs structurally clean (0 / 6 flagged).
-22 commits total: 4 pre-refactor + 11 stage commits + 5 stage docs commits +
-1 trace tool + 1 chore. Stage 8 was superseded by Stage 9 — both kept in
-git history with the supersession recorded in the contract doc.
+A franchise-systems + UI arc. Newest first:
 
-## Detector floor — now DETERMINISTIC (seeded)
+| Commit | What |
+|---|---|
+| `b543374` | **Color contrast.** Team-colored text (abbrevs/names/scores/headers) was raw dark-navy at ~1.1:1 (invisible). Routed box-score color through `_teamInk()` at the source (`_bspnTeamFromFranchise`); wrapped standings/leaders/schedule/recap abbrevs; lifted `--bspn-gray`/`--bspn-gray-dim` for AA. Box-score informational fails 26→0 (8 left are decorative, WCAG-exempt). |
+| `111e1ec` | Live game: consolidate the two scoreboards into one (sticky scoreboard, hide field-HUD top corners). |
+| `41c37e6` | Reimagine the live-game control deck (`#playbackControls` broadcast deck). |
+| `1ffa5e5` | Pre-game "Play Game" screen → broadcast matchup hero (`.frn-hero-vsbanner`/`-side`/`-wpbar`). |
+| `fcee76b` | Reimagine the Play (start) screen (`.fps-*`). |
+| `4678f96` | **Workstream C (start):** run/pass Coordinator seam in the engine (`this._coordinators[this.poss]` in `_play()`, defaults to existing pass-prob roll when unset). |
+| `70f985c` | Scouting: "Your Draft Capital" panel (picks + takeable prospects) in `renderFrnScoutingBoard`. |
+| `9315651` | WPA swings: situational context ("why the play mattered") in `mffSeasonTopSwingsHtml` + `mffPlayerOfGameFor`. |
+| `fe6c40c` | 3 bug fixes: schedule home/away balance (`@`/vs was always away), rested QB still played (now subs at snap-share ≤0.15), apostrophe names couldn't be scouted (`_jsStr` escaper). |
+| `ed3935c` | **Workstream B:** deterministic seeded sim. Module-level swappable RNG in `play-data.js` (`_rand`/`_setSimRng`/`_clearSimRng`/`_mulberry32`/`_hashSeed`); `Math.random()`→`_rand()` across engine/player/sim/data. Same seed → byte-identical game. Calibration-neutral when unseeded. |
+| `7d22982` | Situational stats: comeback / wire-to-wire / one-score tracking (`_classifyGameSituation`, `_sit` on standings). |
+| `91aed23` | Drive-by-drive recap: persist a drive log (`_extractDriveLog` → `g.drives`) + render a Drive Chart (`_bspnRenderDriveChart`). |
+| `c3cc989` | **Workstream A:** phase-accurate Blowout Rest off the game timeline (`_gameRestFraction`, `_restFractionFromMargin`). |
+| `3ed4baa` | Rest Starters button + AI playoff rest (`_aiShouldRestForPlayoffs`) + reimagined Depth Chart WORKLOAD & REST card; configurable thresholds split offense/defense (`_REST_OFF_POS`/`_REST_DEF_POS`, `frnSetRestPolicy`). |
 
-The capture is now seeded (`_teleport_capture.js` overrides `Math.random` with a
-mulberry32 stream in its eval scope only — the shipped engine stays stochastic).
-Same seed → byte-identical battery → reproducible count. One command:
+Design notes for the in-game-clock / multiplayer direction live in
+`INGAME_CLOCK_AND_MULTIPLAYER.md` (`d4164aa`). The engine already has a real
+play-by-play clock (`GameSimulator`); A/B/C reframed around persisting &
+exposing that.
 
-```bash
-cd /home/user/datasciencecoursera/gridiron-chain
-./_teleport_gate.sh          # capture(seed=1337,4 games) → detect → compare baseline
-```
+## What's open / suggested next moves
 
-**Reproducible floor: 11 egregious / 336 plays** on the seed=1337 battery
-(`_teleport_baseline.json`). The gate exits 0 if ≤ baseline, 1 on regression.
+1. **Live-game chrome polish (offered, not started):** restyle the
+   Return-to-Franchise button + play scrubber to match the new control deck.
+   Low risk, finishes the live-game-screen reimagining.
+2. **Workstream C continuation:** the Coordinator seam exists in the engine
+   (`_coordinators[poss]`). Next is the *yieldable* play loop + a single-player
+   playcall UI so a human can call plays instead of auto-rolling pass-prob.
+   This is the larger, multi-session piece toward head-to-head.
+3. **"Playoffs → Week 17 loop" bug — UNREPRODUCED.** User reported the playoff
+   bracket bouncing back to the regular-season dashboard. Full playoff sim in
+   the normal flow lands correctly on awards/champion. Likely a legacy/malformed
+   bracket from an old save. **Awaiting a screenshot or save export to repro.**
+4. Playoff format confirmed correct: **14 teams** (`PLAYOFF_PER_CONF = 7`).
 
-> ⚠️ The old "floor is 6, alarm if >10" was a SINGLE UNSEEDED draw. On identical
-> code the unseeded count ranged **4–13** run-to-run, so that gate would have
-> false-alarmed on its own committed code. 11 is not a regression — it's the same
-> code measured honestly. See `REFACTOR_POSITION_CONTRACT.md` § "Determinism".
+## Verification recipe used this session
 
-## What's open (11 egregious plays on the seed=1337 battery)
+- **WCAG contrast audit (box score):** headless Playwright → `frnQuickStart()` →
+  `frnSimWeek()` → `renderFrnPastGame(week, homeId, awayId)`, then walk
+  `#frnHomeContent *`, **alpha-composite** each element's bg over its ancestors
+  (translucent `meta.bg` like `rgba(...,.12)` must be composited or you get
+  false positives), compute `(L1+0.05)/(L2+0.05)`, flag <4.5 (normal) / <3
+  (large). `_teamInk(hex)` (play-franchise-stats.js ~6708) is the contrast-safe
+  text color — lifts dark primaries to a readable accent; use for TEXT, never
+  backgrounds/borders/`--team-color` tints.
 
-**RE-DIAGNOSED.** The handoff's "TD-celebration `complete/wr1`" hypothesis was
-WRONG — frame-by-frame trace shows none of the flagged plays are TDs and the
-receiver pose is never `celebrate`. The real cause is ONE seam: the
-**tackle-frame snap**. A player (defender at his scrape spot, or carrier at his
-YAC-sim spot) is drawn at position A through the whole pre-tackle phase, then on
-the `tackled`/`hit`/`ragdoll` pose flip snaps in one frame to the engine's
-tackle/rest coordinate (position B) and freezes/ragdolls from there. Spans
-`run/-` (21.8yd, biggest), `complete/wr1`, `complete/rb`, `complete/wr2`.
+## Conventions
 
-Mechanism + recommended fix are in `REFACTOR_POSITION_CONTRACT.md` →
-"What's NOT closed yet — RE-DIAGNOSED". Short version: the primary tackler is
-driven by `play.motion.tracks.tackler` (`play-animation.js` ~2761-2820); the
-pre-tackle branch freezes position while that track advances to the carrier, so
-the release snaps. Fix = sample the continuous track in the pre-tackle branch
-(track-driven sites) and/or ease the ragdoll anchor from last-rendered
-(physics sites). Blast radius = every tackle animation; do it in a dedicated
-session with the gate (baseline 11) as the guard. A correct fix should drop the
-count toward ~1-2.
-
-Trace tool used: `/tmp/trace_play.js` (targets a specific report-play index +
-player; replicates the detector's FIELD_KINDS ordering). Worth promoting into
-the repo next to `_inc_trace.js` if the tackle work resumes.
-
-## Suggested next moves (in priority order)
-
-1. **Finish wiring the gate into CI / pre-commit.** The deterministic gate
-   itself now exists: `_teleport_gate.sh` (seeded capture → detect → compare
-   `_teleport_baseline.json`, exit 1 on regression). What remains is the
-   *trigger*: a pre-commit hook (cheap) and/or a GitHub Action. NOTE the
-   detector hardcodes the Playwright path `/opt/node22/...`; a GH-Actions
-   workflow must install Playwright + browsers and a static server first, so
-   that's a real (small) design step, not a copy-paste.
-2. **Close one or two of the remaining 6 plays** if a user reports
-   them in-game. Use `_inc_trace.js`, follow the source-of-truth pattern
-   from any prior stage as a template.
-3. **TypeScript pass on `play-animation.js`** (10k lines, no types).
-   The Stage 4 `_lastRenderedX` vs `formation.x` family-A bug would be
-   caught statically with distinct `RenderedPosition` / `FormationSlot`
-   types. Long but high-value.
-4. **Sprite / animation polish** continues from the prior session's
-   arc (§ 3A in HANDOFF.md). Independent of the position refactor.
-
-## What NOT to do without checking
-
-- Don't add hardcoded position constants to `play-animation.js`. The
-  Family-A pattern always reappears: whoever adds `dd.x = d.x + ...`
-  re-creates a snap teleport.
-- Don't touch `_wrLastX` updating without re-reading Stage 8 → Stage 9
-  in the contract doc. The route's projection must NOT update
-  `_wrLastX` post-throwPhase.
-- Don't change the engine's `play.motion.tracks` waypoint format
-  (`{ t, dxYd, dyYd }`) without updating `_alignT0` in `play-animation.js`
-  and the renderer's track-sampling sites.
+- Commit messages end with the session URL line; never put the model id in
+  commits/PRs/code. Fast-forward `main` only after the user confirms (they did).
+- Scratch verification scripts (`_c_*.cjs`, screenshots) are throwaway — delete
+  before committing; don't leave untracked files (a Stop hook flags them).
 
 ---
 
-That's it. Ask me what you'd like to pick up. Or just say "run the
-teleport check" to verify the floor.
+That's it. Ask me what you'd like to pick up — or say "restyle the return
+button + scrubber" to finish the live-game chrome, or "continue Workstream C".
