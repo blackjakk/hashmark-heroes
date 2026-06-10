@@ -180,6 +180,37 @@ chatter), must-NOT-seed (player generation entropy across new franchises).
 
 ### E. Performance & memory audit
 *Priority: MEDIUM.*
+> **DONE — numbers recorded** (perf arc; headless Chromium, software raster —
+> GPU clients will beat the raster-bound numbers, the CPU/stall numbers carry).
+> - **Load:** 4.8MB unminified JS; domInteractive ~850ms, DCL ~940ms, full
+>   load 2.7s. **Fixed:** the pixi double-load (vendor 7.4.0 + CDN 7.4.3 both
+>   parsed; effective version silently differed online vs offline; hard-failed
+>   offline). CDN copy removed → load 5.2s→2.7s here, ~1MB less parse, one
+>   pinned local pixi. Live field verified rendering on 7.4.0.
+> - **Sim throughput:** p50 85ms/game in-franchise (12 games/s); 16-game week
+>   1.45s; full `frnSimWeek` wall 3.3s at week-9 state (~1s of that is save).
+> - **Interactive re-sim step:** p50 52ms, max 62ms per call — imperceptible.
+> - **Save stall (TICKET):** week-9 save is 52MB → `JSON.stringify` 1.0s +
+>   `parse` 0.35s + `_flushSaveFranchise` 0.9s **on the main thread every
+>   debounced save**. Fix path: move the mirror+IDB snapshot to a worker
+>   and/or cut the per-clip motion payload (§B ticket — regenerate from seed).
+> - **Live playback frames (TICKET, the big one):** idle + paused = 16.7ms
+>   (60fps); PLAYING p50 ~470ms/frame in software raster. Decomposed: NOT
+>   PIXI (hiding it changes nothing), NOT JS (CPU profile: ~95% native canvas
+>   raster; JS self-time <2%). Root cause: `drawField` repaints the entire
+>   static field (grass, pads, gradients, mowing bands, end-zone art, crowd)
+>   on the 1700×720 canvas from scratch every tick, ×3 stacked canvases.
+>   Fix path: static-layer offscreen cache — render the static field once per
+>   (cameraMode, weather, teams) state, blit per frame, draw only dynamic
+>   layers live.
+> - **Heap:** 12MB after load; 343MB at week 9 with 270 in-memory replay
+>   clips (clips are the live-set driver); post-GC at a low-clip season end
+>   53MB — no leak signature, just big retained clip payloads (§B ticket).
+> - **DOM:** all tabs ≤1,700 nodes — fine.
+> - **Incidental finding → §G ticket:** `frnSimToWeek`/`frnSimSeason` never
+>   extract replay clips (only `frnSimWeek` does) — bulk sims leave the
+>   Replays tab empty; same copied-block divergence family as the week-1
+>   scoring bug. Unify the four sim-persist blocks.
 
 - Targets: initial load (5 script files >400KB each, parse cost), per-frame
   cost in live playback (rAF work, PIXI + canvas double-render), sim

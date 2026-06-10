@@ -138,9 +138,10 @@
      and renders. Pure playback layer; no per-frame inference. -->
 <script src="play-motion.js"></script>
 <!-- PIXI.js WebGL renderer — backs play-field-pixi.js + play-player-pixi.js.
-     Both files were written but were silently no-op'ing because the library
-     wasn't loaded (`typeof PIXI === "undefined"`). Now wired in. -->
-<script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.3/dist/pixi.min.js"></script>
+     Served from vendor/pixi.min.js (7.4.0), loaded once at the top of the
+     script block. A second CDN copy (7.4.3) used to load here too — ~1MB of
+     double parse, an effective version that silently differed online vs
+     offline, and a hard failure in offline/sandboxed runs. Removed. -->
 <script src="play-field-pixi.js"></script>
 <script src="play-engine.js"></script>
 <script src="play-render.js"></script>
