@@ -21,27 +21,17 @@ function absYardToX(absYard) {
   return FIELD.EZ_PX + absYard * FIELD.PX_PER_YARD;
 }
 
-function drawField(ctx, homeTeam, awayTeam, ctx_state) {
+// Static-layer cache (perf audit §E): the field's static art (grass, pads,
+// gradients, mowing bands, end-zone text, yard lines/numbers, midfield logo)
+// is identical frame-to-frame but was re-rasterized on every animation tick —
+// ~95% of live-playback frame cost in the CPU profile. Render it ONCE per
+// (matchup, cameraMode, PIXI-active) state into an offscreen canvas and blit.
+const _fieldStaticCache = { key: null, canvas: null };
+
+function _drawFieldStatic(ctx, homeTeam, awayTeam, _pixiField) {
   const W = FIELD.W, H = FIELD.H;
-  // ── Phase 2A: PIXI field hand-off ──
-  // When the WebGL field is active we render grass + mowing bands via
-  // PIXI on a separate tilted canvas underneath. The canvas2D #field
-  // becomes transparent for those layers but continues to render
-  // everything else (sidelines, end zones, yard lines, players, ball,
-  // LOS, FD line, weather) on top.
-  const _pixiField = (typeof GCField !== "undefined") && GCField.active();
-  if (_pixiField) {
-    // Wipe the canvas2D layer every frame. PIXI handles the grass
-    // underneath, but anything we paint here (ball trail, callout text,
-    // weather streaks) needs a fresh canvas — without this it smears.
-    ctx.clearRect(0, 0, W, H);
-    GCField.draw(homeTeam, awayTeam);
-    // Phase 3.1 — clear the per-frame player drop shadows here so each
-    // drawPlayer call this frame can append fresh shadows.
-    GCField.clearShadows();
-    // Skip the base grass + mowing band fill — PIXI provides those.
-  } else {
-    // Base grass (slightly darker than mowing bands so sidelines read as a deeper green)
+  if (!_pixiField) {
+    // Base grass (slightly darker than mowing bands so sidelines read deeper green)
     ctx.fillStyle = "#1c5e2f";
     ctx.fillRect(0, 0, W, H);
   }
@@ -227,6 +217,29 @@ function drawField(ctx, homeTeam, awayTeam, ctx_state) {
       ctx.restore();
     }
   }
+
+}
+
+function drawField(ctx, homeTeam, awayTeam, ctx_state) {
+  const W = FIELD.W, H = FIELD.H;
+  const _pixiField = (typeof GCField !== "undefined") && GCField.active();
+  // PIXI layers redraw every frame (they own grass/EZ/lines when active);
+  // the canvas2D layer is wiped either way so per-frame paint can't smear.
+  ctx.clearRect(0, 0, W, H);
+  if (_pixiField) {
+    GCField.draw(homeTeam, awayTeam);
+    GCField.clearShadows();
+  }
+  const _camKey = (typeof cameraMode !== "undefined") ? cameraMode : "std";
+  const _fcKey = (homeTeam?.id ?? homeTeam?.name ?? "h") + "|" + (awayTeam?.id ?? awayTeam?.name ?? "a") + "|" + _camKey + "|" + (_pixiField ? 1 : 0);
+  if (_fieldStaticCache.key !== _fcKey || !_fieldStaticCache.canvas) {
+    const off = _fieldStaticCache.canvas || document.createElement("canvas");
+    off.width = W; off.height = H;   // (re)sizing also clears the canvas
+    _drawFieldStatic(off.getContext("2d"), homeTeam, awayTeam, _pixiField);
+    _fieldStaticCache.key = _fcKey;
+    _fieldStaticCache.canvas = off;
+  }
+  ctx.drawImage(_fieldStaticCache.canvas, 0, 0);
 
   // LOS and first down marker — PIXI when active (Phase 2B.2), else canvas2D.
   if (_pixiField) {
