@@ -4155,6 +4155,77 @@
   .bspnlive-field-wrap.broadcast-cam .field-hud {
     z-index: 4;
   }
+
+  /* ── DOM callout layer (V1 step 2) ─────────────────────────────────
+     A 1700×720 design-space div scaled onto the wrap box by
+     _fcSyncScale, replacing the canvas text that drew on
+     #field-uprights/#field. Geometry constants mirror the old canvas
+     drawing. Slots start hidden; the per-frame updaters drive opacity. */
+  .field-callout-layer {
+    position: absolute;
+    left: 0; top: 0;
+    width: 1700px; height: 720px;
+    transform-origin: 0 0;
+    pointer-events: none;
+    z-index: 4;
+    overflow: hidden;
+  }
+  .field-callout-layer > * { position: absolute; opacity: 0; }
+  .fc-banner {
+    left: 0; width: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+  }
+  .fc-banner-sub { font: bold 13px sans-serif; color: #fff; margin-top: 5px; }
+  .fc-chip {
+    top: 92px; height: 28px; line-height: 28px;
+    background: rgba(0,0,0,0.78);
+    color: #fff; font: 900 18px sans-serif;
+    padding: 0 14px; white-space: nowrap;
+  }
+  .fc-chip-off { left: 16px; border-left: 4px solid #ffd54d; }
+  .fc-chip-def { right: 16px; border-right: 4px solid #ff8a4a; }
+  .fc-cadence {
+    left: 0; width: 100%; top: 670px;
+    transform: translateY(-50%);
+    text-align: center;
+    font-family: Impact, "Arial Black", sans-serif;
+    font-weight: 900;
+    -webkit-text-stroke: 3px rgba(0,0,0,0.85);
+    paint-order: stroke fill;
+  }
+  .fc-result-card {
+    left: 50%; top: 32px;
+    transform: translateX(-50%);
+    background: rgba(8, 12, 18, 0.90);
+    border: 1px solid rgba(255,255,255,0.16);
+    border-left: 6px solid currentColor;
+    border-radius: 8px;
+    padding: 12px 36px 10px;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .fc-result-card.big {
+    border-color: currentColor;
+    border-width: 2.5px;
+    border-left-width: 6px;
+    box-shadow: 0 0 22px currentColor;
+  }
+  .fc-result-title { font-weight: 900; font-family: sans-serif; line-height: 1.1; }
+  .fc-result-sub { font: 600 18px sans-serif; color: #e8eaef; margin-top: 6px; }
+
+  /* Weather badge — DOM replacement for the canvas top-right chip. */
+  .field-weather-badge {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: rgba(0,0,0,0.45);
+    color: #f1f1f1;
+    font: bold 13px sans-serif;
+    padding: 4px 10px;
+    pointer-events: none;
+    z-index: 4;
+  }
   /* Push the field-status text past the LIVE pill in broadcast cam */
   .bspnlive-field-wrap.broadcast-cam .bspnlive-field-overlay {
     top: .9rem;

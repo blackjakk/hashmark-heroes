@@ -271,25 +271,13 @@ function drawField(ctx, homeTeam, awayTeam, ctx_state) {
     ctx.moveTo(W - FIELD.EZ_PX, FIELD.TOP); ctx.lineTo(W - FIELD.EZ_PX, FIELD.BOT);
     ctx.stroke();
   }
-  // ── Weather effects: badge + particles ──
+  // ── Weather precip/wind — canvas2D fallback only (V1 step 2). The
+  // live path renders these on the PIXI under-player layer (GCFx) and
+  // the badge is DOM (#fieldWeatherBadge, set by renderGameLayout).
   const wx = (typeof gameResult !== "undefined") ? gameResult?.weather : null;
-  if (wx && wx.label !== "CLEAR") {
+  const _wxPixi = typeof GCFx !== "undefined" && GCFx.weatherHandled && GCFx.weatherHandled();
+  if (wx && wx.label !== "CLEAR" && !_wxPixi) {
     const time = Date.now() / 1000;
-    const icon = wx.label === "WINDY" ? "💨"
-               : wx.label === "RAIN"  ? "🌧"
-               : wx.label === "SNOW"  ? "❄"
-               : wx.label === "HOT"   ? "☀"
-               : "";
-    // Badge top-right
-    ctx.save();
-    ctx.fillStyle = "rgba(0,0,0,0.45)";
-    ctx.fillRect(W - 110, 8, 102, 24);
-    ctx.fillStyle = "#f1f1f1";
-    ctx.font = "bold 13px sans-serif";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText(`${icon} ${wx.label}`, W - 102, 20);
-    ctx.restore();
     // Rain particles — diagonal streaks, fast
     if (wx.label === "RAIN" || wx.label === "SNOW") {
       ctx.save();
@@ -734,19 +722,16 @@ function drawPlayer(ctx, x, y, color, secondary, label, pose, t, facing, style =
   // then runs each queued draw — closer players naturally occlude
   // farther ones on pile-ups.
   if (typeof cameraMode !== "undefined" && cameraMode === "broadcast"
-      && typeof _uprightCtx !== "undefined" && _uprightCtx
       && typeof _spriteQueue !== "undefined") {
     const proj = projectBroadcast(x, y);
     // Phase 3.2 — PIXI player route. When active, render to the WebGL
     // sprite atlas on the dedicated #player-pixi canvas. PIXI handles
     // depth sort via per-sprite zIndex (=screenY) on a sortableChildren
     // container, replacing the canvas2D _spriteQueue's manual sort.
-    // EXCEPT for ragdoll: texture cache key is (pose, tBucket), so the
-    // cached texture from the first ragdoll frame is reused for ALL
-    // subsequent frames — physics rotation/Y offset don't apply on the
-    // GPU sprite. Force ragdoll players through the canvas2D path so
-    // each frame re-renders with the current physics state.
-    if (typeof GCPlayer !== "undefined" && GCPlayer.active() && pose !== "ragdoll") {
+    // Ragdoll included (V1 step 3): GCPlayer strips the physics state
+    // from the texture key and applies rotation/drop on the sprite, so
+    // every tumble frame tracks the integrator.
+    if (typeof GCPlayer !== "undefined" && GCPlayer.active()) {
       const playerKey = `${color}|${label}|${facing > 0 ? "R" : "L"}`;
       // World-coords planted scale (proj.scale ≈ 0.7..1.3 depending on
       // depth). Pass it as the per-sprite scale; the texture was rendered
@@ -756,6 +741,12 @@ function drawPlayer(ctx, x, y, color, secondary, label, pose, t, facing, style =
       const _gpVy = loco && loco.state ? loco.state.vyEMA : 0;
       GCPlayer.render(playerKey, proj.x, proj.y, proj.scale,
         color, secondary, label, pose, t, facing, style, _gpVx, _gpVy);
+      return;
+    }
+    // Canvas2D queue fallback — needs the upright overlay canvas (lazily
+    // created by _frameStartBroadcast only when the PIXI layer is down).
+    if (typeof _uprightCtx === "undefined" || !_uprightCtx) {
+      _drawPlayerImpl(ctx, x, y, color, secondary, label, pose, t, facing, style);
       return;
     }
     const qCtx = _uprightCtx;
@@ -2717,13 +2708,16 @@ function drawBall(ctx, x, y, scale = 1, opts = {}) {
   // Broadcast camera: queue the ball draw to the upright overlay with
   // depth scaling. Sorted alongside player sprites in _frameEndBroadcast.
   if (typeof cameraMode !== "undefined" && cameraMode === "broadcast"
-      && typeof _uprightCtx !== "undefined" && _uprightCtx
       && typeof _spriteQueue !== "undefined") {
     const proj = projectBroadcast(x, y);
     // Phase 3.3 — route ball to PIXI when player atlas is active so the
     // ball depth-sorts WITH PIXI player sprites via shared zIndex.
     if (typeof GCPlayer !== "undefined" && GCPlayer.active()) {
       GCPlayer.renderBall(proj.x, proj.y, scale * proj.scale, opts && opts.angle, opts);
+      return;
+    }
+    if (typeof _uprightCtx === "undefined" || !_uprightCtx) {
+      _drawBallImpl(ctx, x, y, scale, opts);
       return;
     }
     const qCtx = _uprightCtx;

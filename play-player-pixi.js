@@ -62,7 +62,7 @@ const GCPlayer = (() => {
     // Wrap rebuild — destroy + re-create (mirrors play-fx.js pattern).
     if (_app && _attachedTo !== wrap) {
       try { _app.destroy(true, { children: true, texture: false }); } catch (_) {}
-      _app = null; _stage = null; _fxRoot = null;
+      _app = null; _stage = null; _fxRoot = null; _underRoot = null;
       _goalpostG = null; _goalpostKey = "";
       _ballSprite = null;
       _spriteCache.clear();
@@ -76,11 +76,11 @@ const GCPlayer = (() => {
       cv.style.cssText =
         "position:absolute;inset:0;width:100%;height:100%;" +
         "pointer-events:none;z-index:3;";
-      // Insert above #field-uprights so PIXI players occlude the
-      // billboarded canvas2D sprite layer when both are present.
-      const upr = wrap.querySelector("#field-uprights");
-      if (upr && upr.nextSibling) wrap.insertBefore(cv, upr.nextSibling);
-      else wrap.appendChild(cv);
+      // Append to the wrap — explicit z-index:3 stacks it above the
+      // field canvases (z2) and below the DOM callout layer / HUD (z4).
+      // (#field-uprights only exists in the no-PIXI fallback, where this
+      // canvas is never created.)
+      wrap.appendChild(cv);
       _app = new PIXI.Application({
         view: cv,
         width: FIELD.W, height: FIELD.H,
@@ -236,9 +236,22 @@ const GCPlayer = (() => {
       _stage.addChild(sprite);
       _spriteCache.set(slot, sprite);
     }
+    // Ragdoll (V1 step 3): the physics state must NOT bake into the
+    // texture — the cache key is (pose, tBucket), so the first frame's
+    // rotation would freeze for the whole tumble. Strip _ragdoll before
+    // texture render and apply it on the sprite instead: rotation about
+    // the anchor (= the foot, the same pivot the canvas2D path rotated
+    // around) and the integrated drop as a position offset (scaled,
+    // since the canvas2D path translated inside its scale transform).
+    let rd = null;
+    if (pose === "ragdoll" && style && style._ragdoll) {
+      rd = style._ragdoll;
+      style = { ...style, _ragdoll: null };
+    }
     const tex = _getTexture(color, secondary, label, pose, t || 0, facing, style, vx, vy);
     sprite.texture = tex;
-    sprite.position.set(screenX, screenY);
+    sprite.position.set(screenX, screenY + (rd ? (rd.dy || 0) * scale : 0));
+    sprite.rotation = rd ? (rd.rot || 0) : 0;
     sprite.scale.set(scale, scale);
     sprite.zIndex = screenY;        // depth sort: lower-on-screen = closer = on top
     sprite.visible = true;
@@ -312,13 +325,31 @@ const GCPlayer = (() => {
   // (same layering the standalone z-index-4 FX canvas used to give).
   // frameEnd()'s single stage render flushes both layers in one pass.
   let _fxRoot = null;
+  let _underRoot = null;     // sits UNDER the player layer (weather precip)
   function fxStage() {
     if (!ensure()) return null;
     if (!_fxRoot || _fxRoot.destroyed) {
       _fxRoot = new PIXI.Container();
       _app.stage.addChild(_fxRoot);
     }
-    return { app: _app, root: _fxRoot };
+    if (!_underRoot || _underRoot.destroyed) {
+      _underRoot = new PIXI.Container();
+      _app.stage.addChildAt(_underRoot, 0);   // below _stage
+    }
+    return { app: _app, root: _fxRoot, under: _underRoot };
+  }
+
+  // Hide every game object (players, ball, goalposts) and render once.
+  // Used on camera switch to topdown: the canvas stays VISIBLE so the
+  // shared FX/weather layers keep working — only the broadcast-projected
+  // game objects (which would be stale ghosts over the canvas2D topdown
+  // rendering) go away.
+  function hideSprites() {
+    if (!_app || !_stage) return;
+    for (const [, sprite] of _spriteCache) sprite.visible = false;
+    if (_ballSprite) _ballSprite.visible = false;
+    if (_goalpostG) for (const g of _goalpostG) g.visible = false;
+    try { _app.renderer.render(_app.stage); } catch (_) {}
   }
 
   // ── Stadium goalposts (V1 renderer unification) ───────────────────
@@ -402,5 +433,5 @@ const GCPlayer = (() => {
     }
   }
 
-  return { ensure, frameStart, render, renderBall, frameEnd, frameEndBall, active, fxStage, renderGoalposts, _stats };
+  return { ensure, frameStart, render, renderBall, frameEnd, frameEndBall, active, fxStage, renderGoalposts, hideSprites, _stats };
 })();

@@ -83,15 +83,26 @@ Target: **one WebGL stage + DOM HUD.** Steps, each independently shippable:
    FX app + canvas2D goalposts remain as the no-player-PIXI fallback.
    `#field-uprights` itself survives to step 2: pre-snap callouts and
    result cards still draw there (they're step 2's cargo).
-2. **Weather + callouts + result cards → PIXI/DOM** (text cards are better
-   as DOM anyway). This also retires `#field-uprights`: after step 1 the
-   only things still drawn on it are the pre-snap callout banners
-   (`drawPreSnapCallouts`), result cards (`drawResultCard`), and the
-   no-PIXI sprite-queue fallback.
-3. **Ragdolls → GCPlayer textures** (the one pose still on canvas2D).
+2. **Weather + callouts + result cards → PIXI/DOM** — **DONE** (shipped
+   together with step 3; the canvas retirement required it). Pre-snap
+   callouts (HIKE!/MOTION!/AUDIBLE! banners, personnel/def chips, cadence)
+   and result cards are DOM in `#fieldCalloutLayer` — a 1700×720
+   design-space div scaled onto the wrap box, camera-independent, no
+   canvas fallback needed. Weather precip/wind renders on a PIXI layer
+   UNDER the player stage (GCFx, exact port of the canvas math); the
+   weather badge is DOM. `#field-uprights` is out of the layout — only
+   the no-WebGL fallback lazily materializes it.
+3. **Ragdolls → GCPlayer textures** — **DONE.** The physics state is
+   stripped before texture render (the cache key never could carry it)
+   and applied per frame on the sprite: `rotation` about the foot anchor
+   + the integrated drop as a position offset — the same transform the
+   canvas2D path applied around the same pivot. Verified rot/dy integrate
+   frame-over-frame on live tackles.
 4. **Collapse canvases**: static field becomes a PIXI RenderTexture (the
-   §E static cache, GPU-side); delete the `#field` and `#field-uprights`
-   canvases.
+   §E static cache, GPU-side); delete the `#field` canvas. Remaining
+   `#field` cargo after steps 1-3: the static-field blit + dynamic-chalk
+   fallback, topdown sprites, celebrations/confetti-rain overlays
+   (`drawCelebrationOverlay`), cinema view, and run/ball trails.
 Acceptance: pixel-comparable screenshots; the per-frame double composite and
 shadow round-trip disappear from the frame decomposition; uprights occlusion
 verified.

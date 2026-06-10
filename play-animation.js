@@ -1678,35 +1678,29 @@ function buildAnimForPlay(play, prevPlay) {
   // Pre-snap callouts: only AUDIBLE (when relevant) + the "BALL SNAPPED!"
   // flash at the moment of the snap. No SET/DOWN/HUT cadence text.
   function drawPreSnapCallouts(c, t, dur) {
-    // Broadcast camera: route all banners/text to the upright overlay
-    // canvas so they don't tilt with the field plane.
-    if (typeof cameraMode !== "undefined" && cameraMode === "broadcast"
-        && typeof _uprightCtx !== "undefined" && _uprightCtx) {
-      c = _uprightCtx;
-    }
+    // DOM layer (V1 step 2) — banners/chips/cadence render into
+    // #fieldCalloutLayer, identical in every camera mode. The ctx param
+    // is kept for call-site compatibility but unused.
     // Snap flash window — anchored to ~750ms wall time (not a fixed fraction
     // of action), so short plays still get a visible flash.
     const snapFlashWindow = Math.min(0.5, 750 / (dur || 2400));
     if (t > PRE && t < PRE + snapFlashWindow) {
       const flashT = (t - PRE) / snapFlashWindow;
       const fade   = flashT < 0.2 ? flashT / 0.2 : (1 - (flashT - 0.2) / 0.80);
-      c.save();
-      c.textAlign = "center";
-      c.textBaseline = "middle";
-      c.fillStyle = `rgba(0,0,0,${0.62 * fade})`;
-      c.fillRect(0, 24, FIELD.W, 72);
       // Big jagged banner — "HIKE!" reads more cinematic than "BALL SNAPPED!"
-      c.fillStyle = `rgba(240, 204, 48, ${fade})`;
-      c.font = "900 64px Impact, Arial Black, sans-serif";
-      c.fillText("HIKE!", FIELD.W / 2, 60);
-      // Thin outline for legibility against any field
-      c.strokeStyle = `rgba(0,0,0,${0.85 * fade})`;
-      c.lineWidth = 2;
-      c.strokeText("HIKE!", FIELD.W / 2, 60);
-      c.restore();
+      _fcBanner("hike", fade, "HIKE!");
+      _fcHide(_fcEl("fcChipOff"));
+      _fcHide(_fcEl("fcChipDef"));
+      _fcHide(_fcEl("fcCadence"));
       return;
     }
-    if (t > PRE) return;
+    if (t > PRE) {
+      _fcHide(_fcEl("fcBanner"));
+      _fcHide(_fcEl("fcChipOff"));
+      _fcHide(_fcEl("fcChipDef"));
+      _fcHide(_fcEl("fcCadence"));
+      return;
+    }
     const tt = t / PRE;
     // ── PRE-SNAP UI — Madden-style formation + cadence overlay ────
     // Top-left: personnel + formation chip (offense)
@@ -1716,7 +1710,6 @@ function buildAnimForPlay(play, prevPlay) {
     // Faded out at the very end of pre-snap so the snap flash takes over.
     const uiFade = tt < 0.10 ? tt / 0.10 : tt > 0.88 ? (1 - tt) / 0.12 : 1;
     if (uiFade > 0.02) {
-      c.save();
       // Personnel chip (top-left)
       const personnel = play.personnel || "BASE";
       const personnelLabel = personnel === "TRIPS"   ? "11 · TRIPS"
@@ -1727,18 +1720,7 @@ function buildAnimForPlay(play, prevPlay) {
                           : personnel === "I_FORM"   ? "21 · I-FORM"
                           : personnel === "GOAL_LINE" ? "23 · GOAL LINE"
                           : `${personnel}`;
-      const chipPadX = 14, chipPadY = 7;
-      c.font = "900 18px sans-serif";
-      const persW = c.measureText(personnelLabel).width + chipPadX * 2;
-      c.globalAlpha = uiFade * 0.92;
-      c.fillStyle = "rgba(0,0,0,0.78)";
-      c.fillRect(16, 92, persW, 28);
-      c.fillStyle = "#ffd54d";
-      c.fillRect(16, 92, 4, 28);  // accent stripe
-      c.fillStyle = "#fff";
-      c.textAlign = "left";
-      c.textBaseline = "middle";
-      c.fillText(personnelLabel, 28, 106);
+      _fcChip("fcChipOff", personnelLabel, uiFade * 0.92);
       // Defensive package chip (top-right)
       const defPkg = play.defPackage || "BASE_43";
       const defLabel = defPkg === "BASE_43" ? "4-3 BASE"
@@ -1748,65 +1730,37 @@ function buildAnimForPlay(play, prevPlay) {
                      : defPkg === "BLITZ_46" ? "46 BLITZ"
                      : defPkg === "PREVENT" ? "PREVENT"
                      : String(defPkg).replace(/_/g," ");
-      const defW = c.measureText(defLabel).width + chipPadX * 2;
-      c.fillStyle = "rgba(0,0,0,0.78)";
-      c.fillRect(FIELD.W - defW - 16, 92, defW, 28);
-      c.fillStyle = "#ff8a4a";
-      c.fillRect(FIELD.W - 20, 92, 4, 28);
-      c.fillStyle = "#fff";
-      c.textAlign = "right";
-      c.fillText(defLabel, FIELD.W - 28, 106);
+      _fcChip("fcChipDef", defLabel, uiFade * 0.92);
       // Cadence text (bottom-center) — READY → SET → HUT timed across pre-snap
-      const cadenceY = FIELD.H - 50;
       const cadenceLabel = tt < 0.35 ? "READY"
                         : tt < 0.65 ? "SET"
                         : tt < 0.92 ? "HUT"
                         : null;
       if (cadenceLabel) {
-        c.textAlign = "center";
-        c.textBaseline = "middle";
         // Pulse on each cadence beat
         const beatT = cadenceLabel === "READY" ? (tt - 0)    / 0.35
                     : cadenceLabel === "SET"   ? (tt - 0.35) / 0.30
                     :                            (tt - 0.65) / 0.27;
         const beatPulse = Math.min(1, Math.sin(beatT * Math.PI) * 1.2);
-        const cadFade = uiFade * (0.5 + beatPulse * 0.5);
-        c.globalAlpha = cadFade;
-        c.font = `900 ${Math.round(28 + beatPulse * 6)}px Impact, Arial Black, sans-serif`;
-        c.strokeStyle = "rgba(0,0,0,0.85)";
-        c.lineWidth = 3;
-        c.fillStyle = cadenceLabel === "HUT" ? "#ffd54d" : "#fff";
-        c.strokeText(cadenceLabel, FIELD.W / 2, cadenceY);
-        c.fillText(cadenceLabel, FIELD.W / 2, cadenceY);
+        _fcCadence(cadenceLabel, uiFade * (0.5 + beatPulse * 0.5),
+          Math.round(28 + beatPulse * 6));
+      } else {
+        _fcCadence(null);
       }
-      c.restore();
+    } else {
+      _fcHide(_fcEl("fcChipOff"));
+      _fcHide(_fcEl("fcChipDef"));
+      _fcHide(_fcEl("fcCadence"));
     }
-    // MOTION! callout — flashes while the receiver is actually jogging across
+    // MOTION! callout — flashes while the receiver is actually jogging across.
+    // AUDIBLE! — only shown when the QB is actually changing the play.
     if (hasMotion && tt >= 0.40 && tt < 0.78 && !isAudible) {
-      c.save();
-      c.textAlign = "center";
-      c.textBaseline = "middle";
-      c.fillStyle = "rgba(0,0,0,0.45)";
-      c.fillRect(0, 30, FIELD.W, 40);
-      c.fillStyle = "#9bd0ff";
-      c.font = "900 22px sans-serif";
-      c.fillText("MOTION!", FIELD.W / 2, 50);
-      c.restore();
-    }
-    // Audible callout — only shown when the QB is actually changing the play.
-    if (isAudible && tt >= 0.30 && tt < 0.78) {
-      c.save();
-      c.textAlign = "center";
-      c.textBaseline = "middle";
-      c.fillStyle = "rgba(0,0,0,0.55)";
-      c.fillRect(0, 30, FIELD.W, 56);
-      c.fillStyle = "#f0cc30";
-      c.font = "900 28px sans-serif";
-      c.fillText("AUDIBLE!", FIELD.W / 2, 50);
-      c.fillStyle = "#fff";
-      c.font = "bold 13px sans-serif";
-      c.fillText(`${lastNameUpper(offStarters?.qb || "QB")} changes the play at the line`, FIELD.W / 2, 72);
-      c.restore();
+      _fcBanner("motion", 1, "MOTION!");
+    } else if (isAudible && tt >= 0.30 && tt < 0.78) {
+      _fcBanner("audible", 1, "AUDIBLE!",
+        `${lastNameUpper(offStarters?.qb || "QB")} changes the play at the line`);
+    } else {
+      _fcHide(_fcEl("fcBanner"));
     }
   }
 
@@ -9821,86 +9775,118 @@ function drawConfettiRain(ctx, holdT, team) {
   }
 }
 
+// ── DOM callout layer (V1 step 2) ──────────────────────────────────────────
+// Pre-snap callouts + result cards render into #fieldCalloutLayer — a div
+// in FIELD design space (1700×720) scaled onto the wrap box — instead of
+// canvas text on #field-uprights/#field. DOM text is crisper, identical in
+// every camera mode, and needs no canvas fallback.
+function _fcEl(id) { return document.getElementById(id); }
+function _fcSyncScale() {
+  const layer = _fcEl("fieldCalloutLayer");
+  if (!layer || !layer.parentElement) return;
+  const wrap = layer.parentElement;
+  const sx = wrap.clientWidth / FIELD.W;
+  const sy = wrap.clientHeight / FIELD.H;
+  if (sx > 0 && sy > 0) {
+    layer.style.transform = `scale(${sx.toFixed(5)}, ${sy.toFixed(5)})`;
+  }
+}
+function _fcEnsureObserver() {
+  const layer = _fcEl("fieldCalloutLayer");
+  if (!layer) return;
+  if (!layer._fcObserved) {
+    layer._fcObserved = true;
+    if (typeof ResizeObserver !== "undefined") {
+      try {
+        new ResizeObserver(() => _fcSyncScale()).observe(layer.parentElement);
+      } catch (_) {}
+    }
+  }
+  _fcSyncScale();
+}
+function _fcHide(el) {
+  if (el && el.style.opacity !== "0") el.style.opacity = "0";
+}
+function _fcClearAll() {
+  for (const id of ["fcBanner", "fcChipOff", "fcChipDef", "fcCadence", "fcResultCard"]) {
+    _fcHide(_fcEl(id));
+  }
+}
+// Top banner (HIKE!/MOTION!/AUDIBLE!). Geometry + palette restyled only
+// when the kind changes; text + opacity every frame.
+function _fcBanner(kind, opacity, title, sub) {
+  const el = _fcEl("fcBanner");
+  if (!el) return;
+  const t = _fcEl("fcBannerTitle"), s = _fcEl("fcBannerSub");
+  if (el.dataset.kind !== kind) {
+    el.dataset.kind = kind;
+    if (kind === "hike") {
+      el.style.top = "24px"; el.style.height = "72px";
+      el.style.background = "rgba(0,0,0,0.62)";
+      t.style.cssText = "font:900 64px Impact,'Arial Black',sans-serif;color:#f0cc30;" +
+        "-webkit-text-stroke:2px rgba(0,0,0,0.85);paint-order:stroke fill;line-height:1;";
+    } else if (kind === "motion") {
+      el.style.top = "30px"; el.style.height = "40px";
+      el.style.background = "rgba(0,0,0,0.45)";
+      t.style.cssText = "font:900 22px sans-serif;color:#9bd0ff;line-height:1;";
+    } else {  // audible
+      el.style.top = "30px"; el.style.height = "56px";
+      el.style.background = "rgba(0,0,0,0.55)";
+      t.style.cssText = "font:900 28px sans-serif;color:#f0cc30;line-height:1;";
+    }
+  }
+  if (t && t.textContent !== title) t.textContent = title;
+  const subTxt = sub || "";
+  if (s) {
+    if (s.textContent !== subTxt) s.textContent = subTxt;
+    s.style.display = subTxt ? "" : "none";
+  }
+  el.style.opacity = String(opacity);
+}
+function _fcChip(id, text, opacity) {
+  const el = _fcEl(id);
+  if (!el) return;
+  if (el.textContent !== text) el.textContent = text;
+  el.style.opacity = String(opacity);
+}
+function _fcCadence(text, opacity, fontPx) {
+  const el = _fcEl("fcCadence");
+  if (!el) return;
+  if (text == null) { _fcHide(el); return; }
+  if (el.textContent !== text) el.textContent = text;
+  el.style.fontSize = fontPx + "px";
+  el.style.color = text === "HUT" ? "#ffd54d" : "#fff";
+  el.style.opacity = String(opacity);
+}
+
 function drawResultCard(ctx, play, holdT) {
+  // DOM card (V1 step 2) — #fcResultCard in the callout layer, anchored
+  // to the "sky" zone above the field tilt. The ctx param is kept for
+  // call-site compatibility but unused.
   const result = formatPlayResult(play);
-  if (!result) return;
-  // Broadcast cam: route the banner to the flat upright overlay so it
-  // doesn't get perspective-warped with the tilted field plane. Anchored
-  // to the "sky" zone above the field tilt so the action below stays
-  // unobstructed.
-  const isBroadcast = (typeof cameraMode !== "undefined" && cameraMode === "broadcast"
-                       && typeof _uprightCtx !== "undefined" && _uprightCtx);
-  if (isBroadcast) ctx = _uprightCtx;
-  // Card delayed so the post-play scene is visible for ~600ms before the
-  // banner overlays. User feedback: "animation ends abruptly" — old code
-  // popped the card at holdT*5 (full opacity by ~280ms), which cut the
-  // post-tackle moment off. Now holds the action frame alone for 30% of
-  // the hold window, then fades the card in.
+  const card = _fcEl("fcResultCard");
+  if (!card) return;
+  if (!result) { _fcHide(card); return; }
   // Settle beat after the tackle. User: "it ends as soon as theyre on
-  // the ground." Previously card started fading in at 30% of hold (~630
-  // ms in) — right when the ragdoll completed. Pushed to 45% (~1215 ms
-  // in) so there's a real "tackle complete, scrum on the ground" beat
-  // of about a full second before the card overlays.
+  // the ground." Card starts fading in at 45% of hold (~1215 ms in) so
+  // there's a real "tackle complete, scrum on the ground" beat of about
+  // a full second before the banner overlays.
   const fadeIn = Math.max(0, Math.min(1, (holdT - 0.45) / 0.18));
   const fadeOut = holdT > 0.88 ? Math.max(0, 1 - (holdT - 0.88) / 0.12) : 1;
   const opacity = fadeIn * fadeOut;
   const slideY = (1 - fadeIn) * -24;
-
-  const titleSize = result.big ? 52 : 38;
-  const subSize = 18;
-  const padX = 36;
-  ctx.save();
-  ctx.font = `900 ${titleSize}px sans-serif`;
-  const titleW = ctx.measureText(result.title).width;
-  ctx.font = `600 ${subSize}px sans-serif`;
-  const subW = result.sub ? ctx.measureText(result.sub).width : 0;
-  const bannerW = Math.max(titleW, subW) + padX * 2;
-  const bannerH = result.sub ? titleSize + subSize + 28 : titleSize + 24;
-  const bannerX = (FIELD.W - bannerW) / 2;
-  // Broadcast: sit between the LED ad ribbon and the tilted field plane
-  // (the perspective "sky" zone). Out of the action, never clipped by
-  // the scrubber chrome at the bottom of the wrap.
-  const bannerY = isBroadcast
-    ? 32 + slideY
-    : 34 + slideY;
-
-  ctx.globalAlpha = opacity;
-  // Backdrop
-  ctx.fillStyle = "rgba(8, 12, 18, 0.90)";
-  roundedRect(ctx, bannerX, bannerY, bannerW, bannerH, 8);
-  ctx.fill();
-  // Left accent bar
-  ctx.fillStyle = result.color;
-  ctx.fillRect(bannerX, bannerY, 6, bannerH);
-  // Border / glow for big plays
-  if (result.big) {
-    ctx.shadowColor = result.color;
-    ctx.shadowBlur = 22;
-    ctx.strokeStyle = result.color;
-    ctx.lineWidth = 2.5;
-    roundedRect(ctx, bannerX + 1.5, bannerY + 1.5, bannerW - 3, bannerH - 3, 8);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-  } else {
-    ctx.strokeStyle = "rgba(255,255,255,0.16)";
-    ctx.lineWidth = 1;
-    roundedRect(ctx, bannerX + 0.5, bannerY + 0.5, bannerW - 1, bannerH - 1, 8);
-    ctx.stroke();
-  }
-  // Title
-  ctx.fillStyle = result.color;
-  ctx.font = `900 ${titleSize}px sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  const titleCenterY = result.sub ? bannerY + 14 + titleSize / 2 : bannerY + bannerH / 2;
-  ctx.fillText(result.title, bannerX + bannerW / 2, titleCenterY);
-  // Subtitle
-  if (result.sub) {
-    ctx.fillStyle = "#e8eaef";
-    ctx.font = `600 ${subSize}px sans-serif`;
-    ctx.fillText(result.sub, bannerX + bannerW / 2, bannerY + bannerH - subSize / 2 - 10);
-  }
-  ctx.restore();
+  const titleEl = _fcEl("fcResultTitle");
+  const subEl = _fcEl("fcResultSub");
+  if (titleEl.textContent !== result.title) titleEl.textContent = result.title;
+  const sub = result.sub || "";
+  if (subEl.textContent !== sub) subEl.textContent = sub;
+  subEl.style.display = sub ? "" : "none";
+  titleEl.style.fontSize = (result.big ? 52 : 38) + "px";
+  // Accent bar / border / glow run off currentColor in CSS.
+  card.style.color = result.color || "#fff";
+  card.classList.toggle("big", !!result.big);
+  card.style.transform = `translate(-50%, ${slideY.toFixed(1)}px)`;
+  card.style.opacity = String(opacity);
 }
 
 function roundedRect(ctx, x, y, w, h, r) {
@@ -9945,25 +9931,44 @@ function _frameStartBroadcast() {
     }
     return;
   }
-  const upr = document.getElementById("field-uprights");
-  if (!upr) { _uprightCtx = null; return; }
-  _uprightCtx = upr.getContext("2d");
-  _uprightCtx.clearRect(0, 0, upr.width, upr.height);
   // Stadium goalposts at both end zones. When the PIXI player layer is
   // up they live in its depth-sorted stage (players occlude the posts
-  // and vice versa via zIndex); otherwise the canvas2D billboard draws
-  // them behind every sprite as before.
-  try {
-    if (typeof GCPlayer !== "undefined" && GCPlayer.active()) {
-      GCPlayer.renderGoalposts(_stadiumGoalpostGeoms());
-    } else {
-      drawStadiumGoalposts(_uprightCtx);
+  // and vice versa via zIndex) and NO upright overlay canvas exists at
+  // all (V1 step 2 — callouts/cards are DOM now). Only the no-WebGL
+  // fallback materializes the canvas, for billboarded sprites + posts.
+  if (typeof GCPlayer !== "undefined" && GCPlayer.active()) {
+    _uprightCtx = null;
+    try { GCPlayer.renderGoalposts(_stadiumGoalpostGeoms()); } catch (e) { /* defensive */ }
+  } else {
+    const upr = _ensureUprightOverlay();
+    _uprightCtx = upr ? upr.getContext("2d") : null;
+    if (_uprightCtx) {
+      _uprightCtx.clearRect(0, 0, upr.width, upr.height);
+      try { drawStadiumGoalposts(_uprightCtx); } catch (e) { /* defensive */ }
     }
-  } catch (e) { /* defensive */ }
+  }
   _spriteQueue.length = 0;
   // Phase 3.2 — bump the PIXI player frame marker so sprites not
   // refreshed by drawPlayer this frame get hidden at frame end.
   if (typeof GCPlayer !== "undefined") GCPlayer.frameStart();
+}
+
+// Lazy canvas2D billboard overlay — the PIXI path never creates it.
+// Same geometry/stacking the layout-era #field-uprights canvas had.
+function _ensureUprightOverlay() {
+  let upr = document.getElementById("field-uprights");
+  if (upr) return upr;
+  const wrap = document.querySelector(".bspnlive-field-wrap")
+            || document.querySelector(".field-wrap");
+  if (!wrap) return null;
+  upr = document.createElement("canvas");
+  upr.id = "field-uprights";
+  upr.width = FIELD.W;
+  upr.height = FIELD.H;
+  upr.style.cssText =
+    "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3;";
+  wrap.appendChild(upr);
+  return upr;
 }
 
 // Y-shaped stadium goalposts at the back of each end zone, drawn on the
@@ -10120,14 +10125,23 @@ function setCameraMode(mode) {
       canvasPixi.style.transformOrigin = "";
     }
   }
-  // GCPlayer PIXI overlay is only refreshed in broadcast cam (no
-  // frameStart/frameEnd in topdown). Stale sprites from a prior
-  // broadcast session would otherwise stay visible as ghost players
-  // on top of the canvas2D topdown rendering. Toggle display so the
-  // overlay only shows when broadcast is actively rendering it.
+  // The shared GCPlayer canvas stays VISIBLE in topdown — since V1 it
+  // carries the FX + weather layers for both cameras. Only the
+  // broadcast-projected game objects (players/ball/goalposts) get
+  // hidden, else they'd ghost over the canvas2D topdown rendering.
+  // (Older builds display:none'd the whole canvas — undo that too in
+  // case a prior session set it.)
   const pixiPlayer = document.querySelector("canvas.gc-player-pixi");
-  if (pixiPlayer) {
-    pixiPlayer.style.display = (cameraMode === "broadcast") ? "" : "none";
+  if (pixiPlayer && pixiPlayer.style.display === "none") pixiPlayer.style.display = "";
+  if (cameraMode !== "broadcast") {
+    if (typeof GCPlayer !== "undefined" && GCPlayer.hideSprites) GCPlayer.hideSprites();
+    // The lazy no-PIXI billboard overlay isn't cleared per-frame in
+    // topdown (frameStart early-outs) — wipe it on the way out.
+    const uprCv = document.getElementById("field-uprights");
+    if (uprCv) {
+      const uctx = uprCv.getContext("2d");
+      if (uctx) uctx.clearRect(0, 0, uprCv.width, uprCv.height);
+    }
   }
   // Stadium-wall FX (LED ad ribbon, light beams, vignette) only belong in
   // broadcast cam — in top-down they floated as a stray strip over the
@@ -10342,6 +10356,9 @@ function buildJogTransition(prevPlay, nextPlay) {
 
 function startNextPlay() {
   if (!gameResult) return;
+  // Stale DOM callouts/cards from the prior play don't clear themselves
+  // the way canvas pixels did — hide them at every play boundary.
+  if (typeof _fcClearAll === "function") _fcClearAll();
   if (playHead >= gameResult.plays.length) {
     // Interactive playcalling: the plays array is a PARTIAL game paused on
     // the user's next offensive call — show the call panel, not FINAL.
@@ -10664,6 +10681,7 @@ function _scrubTo(ev, track) {
   animState.skipHold = false;
   // Render the new frame immediately so the scrub feels live
   const ctx = $("field").getContext("2d");
+  if (typeof _fcClearAll === "function") _fcClearAll();  // stale hold-card
   _frameStartBroadcast();
   try {
     animState.anim.render(frac, ctx);

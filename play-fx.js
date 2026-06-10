@@ -62,6 +62,7 @@ const GCFx = (() => {
   let _pxFontsHooked = false;   // One-time document.fonts.ready re-raster guard
   let _bigTextStart = 0;
   let _bigTextDur   = 0;
+  let _pxWeather   = null;      // PIXI.Graphics weather precip/wind (V1 step 2)
   let _pxChyron    = null;      // PIXI.Container player-highlight chyron
   let _chyronBg    = null;      // PIXI.Graphics chyron background bar
   let _chyronTitle = null;      // PIXI.Text big name
@@ -82,6 +83,10 @@ const GCFx = (() => {
         if (t && t !== PIXI.Texture.WHITE) { try { t.destroy(true); } catch (_) {} }
       } catch (_) {}
     }
+    // Weather lives in GCPlayer's under-player container (not our root)
+    // in shared mode — destroy it explicitly.
+    try { if (_pxWeather && !_pxWeather.destroyed) _pxWeather.destroy(); } catch (_) {}
+    _pxWeather = null;
     try {
       if (_pxOwnApp) _pxApp.destroy(true, { children: true, texture: true });
       else if (_pxRoot && !_pxRoot.destroyed) _pxRoot.destroy({ children: true, texture: true });
@@ -134,6 +139,22 @@ const GCFx = (() => {
         _pxOwnApp = true;
       }
       _pxAttachedTo = wrap;
+      // ── Weather precip/wind layer (V1 step 2) — replaces drawField's
+      // canvas2D rain/snow/wind. One Graphics redrawn per frame while
+      // weather is active (deterministic time-driven math, no particle
+      // state). In shared mode it parents into GCPlayer's UNDER-player
+      // container so precipitation keeps the same stacking the #field
+      // canvas gave it (above the field art, below the sprites); the
+      // standalone fallback app has no under-player option, so it sits
+      // at the bottom of our root there.
+      try {
+        _pxWeather = new PIXI.Graphics();
+        if (shared && shared.under) shared.under.addChild(_pxWeather);
+        else _pxRoot.addChild(_pxWeather);
+      } catch (e) {
+        console.warn("PIXI weather layer failed:", e);
+        _pxWeather = null;
+      }
       // ── Vignette + atmospheric haze REMOVED — they were flattening the
       // field's vibrant green into a washed-out dim look. Broadcast
       // atmosphere now comes from the LED ribbon, stadium light beams,
@@ -503,6 +524,49 @@ const GCFx = (() => {
     if (_pxLedContainer) _pxLedContainer.visible = _isBroadcast;
     if (_pxLightBeams)   _pxLightBeams.visible   = _isBroadcast;
     if (_pxVignetteSprite) _pxVignetteSprite.visible = _isBroadcast;
+    // Weather precip/wind — exact port of the canvas2D drawField math
+    // (same seeds, cycles, and colors), so the PIXI hand-off is visually
+    // indistinguishable. Badge is DOM (#fieldWeatherBadge).
+    if (_pxWeather && !_pxWeather.destroyed) {
+      const wx = (typeof gameResult !== "undefined" && gameResult) ? gameResult.weather : null;
+      _pxWeather.clear();
+      if (wx && wx.label !== "CLEAR") {
+        const time = Date.now() / 1000;
+        const W = 1700;
+        const TOP = FIELD.TOP, BOT = FIELD.BOT;
+        if (wx.label === "RAIN" || wx.label === "SNOW") {
+          const rain = wx.label === "RAIN";
+          const N = rain ? 180 : 140;
+          const cycle = rain ? 0.7 : 2.5;
+          if (rain) _pxWeather.lineStyle({ width: 0.8, color: 0xb4c8dc, alpha: 0.45 });
+          else _pxWeather.lineStyle(0);
+          for (let wi = 0; wi < N; wi++) {
+            const px = ((wi * 73) % W);
+            const baseY = ((wi * 191) % (BOT - TOP));
+            const fall = ((time / cycle) * (BOT - TOP)) + baseY + (wi % 13) * 18;
+            const py = TOP + (fall % (BOT - TOP));
+            if (rain) {
+              _pxWeather.moveTo(px, py);
+              _pxWeather.lineTo(px + 6, py + 14);
+            } else {
+              const drift = Math.sin(time * 0.6 + wi * 0.5) * 1.4;
+              _pxWeather.beginFill(0xffffff, 0.85);
+              _pxWeather.drawCircle(px + drift, py, 1.3);
+              _pxWeather.endFill();
+            }
+          }
+        } else if (wx.label === "WINDY") {
+          _pxWeather.lineStyle({ width: 1.2, color: 0xdce6f0, alpha: 0.20 });
+          const speed = wx.windStrength * 60;
+          for (let wi = 0; wi < 14; wi++) {
+            const yLine = TOP + 30 + (wi * (BOT - TOP - 60)) / 14;
+            const xStart = ((time * speed * wx.windDir + wi * 87) % (W + 200)) - 100;
+            _pxWeather.moveTo(xStart, yLine);
+            _pxWeather.lineTo(xStart + 24 * wx.windDir, yLine);
+          }
+        }
+      }
+    }
     // Pool: reuse Graphics across frames; index into _pxPool.
     let i = 0;
     for (const p of particles) {
@@ -937,6 +1001,13 @@ const GCFx = (() => {
 
   function clear() { particles.length = 0; }
 
+  // True when the PIXI weather layer will render precip/wind this game —
+  // drawField uses this to skip its canvas2D weather block (kept as the
+  // no-WebGL fallback).
+  function weatherHandled() {
+    return _ensurePixiOverlay() && !!_pxWeather && !_pxWeather.destroyed;
+  }
+
   // Toggle the stadium-wall chrome (LED ribbon / beams / vignette) and
   // re-render once, so a camera-mode switch while the game is PAUSED takes
   // effect immediately instead of waiting for the next play's tick.
@@ -947,5 +1018,5 @@ const GCFx = (() => {
     if (_pxApp) { try { _pxApp.renderer.render(_pxApp.stage); } catch (_) {} }
   }
 
-  return { dust, hitBurst, confetti, shake, flash, celebration, lensFlare, bigText, chyron, tick, draw, clear, setStadiumChrome };
+  return { dust, hitBurst, confetti, shake, flash, celebration, lensFlare, bigText, chyron, tick, draw, clear, setStadiumChrome, weatherHandled };
 })();

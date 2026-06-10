@@ -729,8 +729,23 @@ const AsciiFieldViewer = {
         <canvas id="field-pixi" width="${FIELD.W}" height="${FIELD.H}"
           style="position:absolute;inset:0;width:100%;height:auto;pointer-events:none"></canvas>
         <canvas id="field" width="${FIELD.W}" height="${FIELD.H}"></canvas>
-        <canvas id="field-uprights" width="${FIELD.W}" height="${FIELD.H}"
-          style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></canvas>
+        <!-- #field-uprights (canvas2D billboard overlay) is no longer part
+             of the layout — _frameStartBroadcast materializes it lazily
+             only when the PIXI player layer is unavailable. -->
+        <div class="field-callout-layer" id="fieldCalloutLayer" aria-hidden="true">
+          <div class="fc-banner" id="fcBanner">
+            <div class="fc-banner-title" id="fcBannerTitle"></div>
+            <div class="fc-banner-sub" id="fcBannerSub"></div>
+          </div>
+          <div class="fc-chip fc-chip-off" id="fcChipOff"></div>
+          <div class="fc-chip fc-chip-def" id="fcChipDef"></div>
+          <div class="fc-cadence" id="fcCadence"></div>
+          <div class="fc-result-card" id="fcResultCard">
+            <div class="fc-result-title" id="fcResultTitle"></div>
+            <div class="fc-result-sub" id="fcResultSub"></div>
+          </div>
+        </div>
+        <div class="field-weather-badge" id="fieldWeatherBadge" style="display:none"></div>
         <div class="cinema-callout" id="cinemaCallout"></div>
         <div class="bspnlive-field-overlay field-overlay">
           <div class="field-status" id="fieldStatus">Pre-game</div>
@@ -1679,6 +1694,25 @@ function renderGameLayout() {
   if (typeof _hcDecisionCinema !== "undefined" && _hcDecisionCinema.clear) _hcDecisionCinema.clear();
   if (typeof _momentCinema !== "undefined" && _momentCinema.clear) _momentCinema.clear();
   if (typeof _segmentCinema !== "undefined" && _segmentCinema.clear) _segmentCinema.clear();
+  // Weather badge — static per game, DOM (the canvas badge is gone).
+  const _wxBadge = document.getElementById("fieldWeatherBadge");
+  if (_wxBadge) {
+    const wx = gameResult?.weather;
+    if (wx && wx.label !== "CLEAR") {
+      const icon = wx.label === "WINDY" ? "💨"
+                 : wx.label === "RAIN"  ? "🌧"
+                 : wx.label === "SNOW"  ? "❄"
+                 : wx.label === "HOT"   ? "☀"
+                 : "";
+      _wxBadge.textContent = `${icon} ${wx.label}`;
+      _wxBadge.style.display = "";
+    } else {
+      _wxBadge.style.display = "none";
+    }
+  }
+  // Callout layer scale — keep the 1700×720 design space mapped onto the
+  // wrap box (and tracking it across resizes).
+  if (typeof _fcEnsureObserver === "function") _fcEnsureObserver();
   // Re-apply camera mode — renderGameLayout just rebuilt the field-wrap +
   // canvas, so the perspective CSS we set last time is gone.
   if (typeof setCameraMode === "function" && typeof cameraMode !== "undefined") {

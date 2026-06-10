@@ -1,10 +1,11 @@
 # Next-session pickup message
 
-Paste this verbatim into the next chat to resume. **Next task: V1 step 2 —
-weather/callouts/result cards off the canvases (see `VISUAL_ENGINE.md`).
-V1 step 1 is DONE** (GCFx + goalposts on the shared GCPlayer stage; the
-`.gc-pixi-fx` canvas is gone; the occlusion trap is dead — see the updated
-topology below).
+Paste this verbatim into the next chat to resume. **Next task: V1 step 4 —
+collapse to one WebGL canvas (see `VISUAL_ENGINE.md`). V1 steps 1-3 are
+DONE:** GCFx + goalposts + ragdolls on the shared GCPlayer stage; weather
+on a PIXI under-player layer; callouts/result cards/weather badge are DOM;
+`.gc-pixi-fx` is gone and `#field-uprights` is out of the layout (lazy
+no-WebGL fallback only). See the updated topology below.
 
 ---
 
@@ -61,46 +62,49 @@ parked at ~60% — and the PIXI layer IS the broadcast look (tilt/
 perspective); the canvas path is the flat legacy view (screenshot-proven).
 Direction: finish the migration to **one WebGL stage + DOM HUD**.
 
-**The topology after step 1** (back→front, all inside
+**The topology after steps 1-3** (back→front, all inside
 `.bspnlive-field-wrap`):
 1. `#field-pixi` — WebGL via `GCField` (play-field-pixi.js): tilted grass/
    bands/EZ/yard-lines (memoized on team key but `_app.renderer.render()`
    runs EVERY frame as the cross-tech shadow compositor), `addShadow`/
    `clearShadows` (shadows written from the canvas-side player loop),
    `drawDynamic` (LOS/FD, state-keyed).
-2. `#field` — canvas2D: weather particles/badge, callouts, ragdolls,
-   celebrations/confetti/result cards, `drawField` dynamic part (static art
-   is now blitted from `_fieldStaticCache` — keyed on
-   matchup|cameraMode|pixiActive).
-3. `#field-uprights` — canvas2D overlay, now only: pre-snap callout
-   banners (`drawPreSnapCallouts`), result cards (`drawResultCard`), and
-   the no-PIXI sprite-queue + goalpost fallback. Retires in step 2.
-4. `.gc-player-pixi` — WebGL via `GCPlayer` (play-player-pixi.js): the
-   shared stage. Players/ball as pose-state-cached textures, goalposts as
-   depth-sorted Graphics (`zIndex` = projected base Y — occlusion trap
-   DEAD), and `GCPlayer.fxStage()` hosts GCFx's containers (particles +
-   LED ribbon/beams/badges/flash/chyron) above the player layer; one
-   render per frame in `frameEnd()`. GCFx falls back to its own
-   `.gc-pixi-fx` canvas only when the player layer is off. **Ragdoll pose
-   still bypasses GCPlayer** (canvas2D on layer 2 — under 3/4; step 3).
+2. `#field` — canvas2D: static blit from `_fieldStaticCache` + dynamic
+   chalk fallback, topdown sprites, celebrations/confetti-rain overlays,
+   cinema view, run/ball trails. THE step-4 deletion target.
+3. `.gc-player-pixi` — WebGL via `GCPlayer` (play-player-pixi.js): the
+   shared stage. Bottom-to-top: `under` container (GCFx weather precip),
+   `_stage` (players/ball as pose-state-cached textures + goalposts as
+   depth-sorted Graphics, zIndex = projected screenY; ragdolls apply
+   physics rot/dy ON the sprite about the foot anchor), `fxStage().root`
+   (GCFx particles + LED ribbon/beams/badges/flash/chyron). One render
+   per frame in `frameEnd()`. The canvas stays visible in topdown (FX +
+   weather); `setCameraMode` calls `GCPlayer.hideSprites()` to drop the
+   broadcast-projected objects there.
+4. DOM: `#fieldCalloutLayer` — 1700×720 design-space div scaled onto the
+   wrap box (`_fcSyncScale` + ResizeObserver): HIKE!/MOTION!/AUDIBLE!
+   banners, personnel/def chips, cadence, result card. Plus
+   `#fieldWeatherBadge`. `startNextPlay`/`_scrubTo` call `_fcClearAll()`
+   (DOM doesn't self-clear like canvas pixels).
+   Fallbacks: `#field-uprights` no longer exists in the layout —
+   `_frameStartBroadcast` lazily materializes it ONLY when the player
+   layer is down (billboard sprite queue + canvas goalposts); GCFx then
+   also runs standalone on its own `.gc-pixi-fx` canvas; drawField keeps
+   a canvas weather block gated on `GCFx.weatherHandled()`.
    Flags: `window._useFieldPixi`, `window._usePlayerPixi` (both default
    true; toggling them is how the on/off comparison was shot).
    FX draw order: `_frameEndBroadcast(ctx)` flushes the canvas sprite
    queue → `GCFx.draw` (updates display objects) → `GCPlayer.frameEnd()`
    (the single WebGL render).
 
-**V1 steps (each independently shippable, verify by screenshot comparison):**
-1. **DONE — Particles + uprights → PIXI stage.** GCFx parents onto
-   `GCPlayer.fxStage()`; goalposts are depth-sorted stage children
-   (geometry from `_goalpostGeom` in play-animation.js, drawing in
-   `GCPlayer.renderGoalposts`); `.gc-pixi-fx` canvas eliminated when the
-   player layer is up. Frame p50 383→367ms (headless software raster).
-2. **Weather + callouts + result cards → PIXI or DOM** (text cards better
-   as DOM). Also deletes `#field-uprights` — callouts/cards are the last
-   live-path consumers of `_uprightCtx`.
-3. **Ragdolls → GCPlayer textures** (last canvas-rendered pose).
-4. **Collapse**: static field as a PIXI RenderTexture; delete `#field`;
-   one WebGL canvas + DOM HUD remains.
+**V1 steps (verify by screenshot comparison):**
+1. **DONE — Particles + uprights → PIXI stage** (p50 383→367ms headless).
+2. **DONE — Weather → PIXI under-layer; callouts/cards/badge → DOM.**
+3. **DONE — Ragdolls → GCPlayer** (physics applied on the sprite, never
+   baked into the texture cache).
+4. **Collapse**: static field as a PIXI RenderTexture; move/port the
+   remaining `#field` cargo (celebration overlays, topdown sprites,
+   cinema view, trails); delete `#field`; one WebGL canvas + DOM remains.
 Acceptance: pixel-comparable screenshots; frame decomposition loses the
 double composite + shadow round-trip (probe pattern below); uprights
 occlusion verified; audit gate untouched (no engine files involved).
@@ -145,5 +149,6 @@ bands) + keyboard-only offseason run.
 
 ---
 
-That's it. Say **"start V1 step 2"** (weather + callouts + result cards →
-PIXI/DOM; retire `#field-uprights`).
+That's it. Say **"start V1 step 4"** (collapse to one WebGL canvas:
+static field as a PIXI RenderTexture; port the remaining `#field` cargo;
+delete `#field`).
