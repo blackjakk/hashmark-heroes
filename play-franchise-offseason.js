@@ -13949,14 +13949,14 @@ function _buildOffseasonCapHorizon() {
       : "";
     _capCells.push(`<div style="padding:.42rem .55rem;background:${isNow ? "rgba(245,197,66,.06)" : "rgba(255,255,255,.02)"};border:1px solid ${isNow ? "rgba(245,197,66,.4)" : "var(--blborder)"};border-radius:3px;display:flex;flex-direction:column;gap:.24rem">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
-        <span style="font-size:.48rem;letter-spacing:1px;font-weight:700;color:${isNow ? "var(--gold)" : "var(--gray)"}">${label}</span>
-        <span style="font-size:.46rem;color:var(--gray)">S${_curSeason + yr}</span>
+        <span style="font-size:.54rem;letter-spacing:1px;font-weight:700;color:${isNow ? "var(--gold)" : "var(--gray)"}">${label}</span>
+        <span style="font-size:.52rem;color:var(--gray)">S${_curSeason + yr}</span>
       </div>
-      <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.2rem;letter-spacing:.4px;line-height:1;color:${roomColor}">${roomStr}<span style="font-size:.46rem;color:var(--gray);letter-spacing:.5px"> room</span></div>
+      <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.2rem;letter-spacing:.4px;line-height:1;color:${roomColor}">${roomStr}<span style="font-size:.52rem;color:var(--gray);letter-spacing:.5px"> room</span></div>
       <div style="position:relative;height:7px;background:var(--bg3);border:1px solid var(--blborder);border-radius:2px;overflow:hidden">
         <div style="position:absolute;top:0;left:0;height:100%;width:${pct}%;background:${barColor};transition:width .18s"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.46rem;color:var(--gray)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.52rem;color:var(--gray)">
         <span>$${used.toFixed(0)}M / $${projCap.toFixed(0)}M</span>
         ${expN ? `<span style="color:#8ab4f8;cursor:help" title="${_esc(expTip)}">↘ ${expN} exp</span>` : "<span></span>"}
       </div>
@@ -20371,7 +20371,7 @@ function renderFrnDraftPreshow() {
           const titleText = `#${posRank} ${p.position} in class · #${overallRank} of ${totalClass} overall`;
           return `<div title="${titleText}" style="text-align:center;cursor:help;line-height:1.1">
             <span style="font-family:'Bebas Neue','Anton',sans-serif;font-size:.92rem;color:${isElite ? "#86e0a3" : "var(--white)"};letter-spacing:.3px">${val}${units}</span>
-            <span style="display:block;font-size:.48rem;color:var(--gray);margin-top:.05rem">#${posRank}${p.position} · #${overallRank}</span>
+            <span style="display:block;font-size:.54rem;color:var(--gray);margin-top:.05rem">#${posRank}${p.position} · #${overallRank}</span>
           </div>`;
         };
         // Sub-line content (archetype + comp + knock) — only render

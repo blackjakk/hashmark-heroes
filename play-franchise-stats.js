@@ -4033,7 +4033,7 @@ async function renderFrnDepthChart() {
     if (autoReason && autoReason !== "fresh") {
       const isRest = autoReason.startsWith("REST");
       const color = isRest ? "#e6373a" : "#f0a93a";
-      autoBadge = `<span style="position:absolute;bottom:18px;left:2px;color:${color};font-size:.48rem;letter-spacing:.4px;font-weight:700;text-transform:uppercase;line-height:1;pointer-events:none" title="Auto-manage: ${autoReason}">${isRest ? "REST" : "MGD"}</span>`;
+      autoBadge = `<span style="position:absolute;bottom:18px;left:2px;color:${color};font-size:.54rem;letter-spacing:.4px;font-weight:700;text-transform:uppercase;line-height:1;pointer-events:none" title="Auto-manage: ${autoReason}">${isRest ? "REST" : "MGD"}</span>`;
     }
     const titleParts = [`${pct}% starter`];
     if (plan) titleParts.push(`${plan.mode}: ${plan.target}`);

@@ -3635,6 +3635,12 @@ function _buildVitalsBodyDiagram(p) {
   const stress = p._stress || 0;
   const wear = p._wear || 0;
   const frame = _vitalsBodyFrame(p);
+  // Same measurables the header + combine section quote — one source of
+  // truth for the displayed frame.
+  const cmbHW = (() => {
+    try { const c = combineMeasurables(p); return { h: c.heightIn, w: c.weightLbs }; }
+    catch { return { h: p.height || 73, w: p.weight || 225 }; }
+  })();
   // Scale: each frame multiplier nudges that body part's width
   const sH = frame.shoulderW;
   const sC = frame.chestW;
@@ -3758,10 +3764,16 @@ function _buildVitalsBodyDiagram(p) {
   // Wrapped in <g clip-path="url(#bodyClip)"> so they never escape the
   // body silhouette. Region opacity scales with wear so healthy parts
   // fade into the base color. Career injury count appears in tooltip.
+  // The ACTIVE injury's body part overrides to red regardless of its
+  // chronic wear — that part is hurt NOW.
+  const activePart = (p.injury && p.injury.weeksRemaining > 0 && p.injury.bodyPart) || null;
   const region = (key, label, d) => {
     const v = get(key);
-    const fill = _vitalsColor(v);
-    const op = v < 5 ? 0.18 : v < 30 ? 0.42 : v < 60 ? 0.66 : 0.85;
+    const isActive = key === activePart;
+    const fill = isActive ? "#e6373a" : _vitalsColor(v);
+    // Healthy parts fade almost to nothing so the scan reads clean —
+    // a green-lit torso draws the eye to parts with nothing to say.
+    const op = isActive ? 0.62 : v < 20 ? 0.07 : v < 40 ? 0.30 : v < 60 ? 0.55 : 0.8;
     const careerN = careerCounts[key] || 0;
     const titleStr = careerN
       ? `${label}: ${v.toFixed(0)} · ${_vitalsLabel(v)} · ${careerN} career injur${careerN===1?"y":"ies"}`
@@ -3811,36 +3823,47 @@ function _buildVitalsBodyDiagram(p) {
     ${region("ankleR", "Right ankle / foot",
       `M ${cx + lm.ankle.w + 1} ${lm.ankle.yTop + 6} L ${cx + lm.ankle.w - 4} ${lm.ankle.yTop + 6} L ${cx + 4} ${lm.foot.yBot - 2} L ${cx + lm.foot.w} ${lm.foot.yBot - 2} Z`)}
   `;
-  // Position + H/W chips
+  // Position + H/W chips — mono, cool-toned to match the scan
+  const uid = (p.pid || p.name || "x").toString().replace(/\W/g, "");
   const positionChip = `<g>
-    <rect x="8" y="8" rx="3" ry="3" width="40" height="16" fill="rgba(255,255,255,.10)" stroke="rgba(255,255,255,.15)" stroke-width=".5"/>
-    <text x="28" y="20" fill="rgba(255,255,255,.85)" font-size="9.5" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle" letter-spacing="1" font-weight="700">${p.position || "?"}</text>
+    <rect x="8" y="8" rx="3" ry="3" width="40" height="16" fill="rgba(140,200,160,.10)" stroke="rgba(140,200,160,.22)" stroke-width=".5"/>
+    <text x="28" y="20" fill="rgba(220,240,225,.85)" font-size="9.5" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle" letter-spacing="1" font-weight="700">${p.position || "?"}</text>
   </g>`;
-  const hwText = (p.height && p.weight) ?
-    `${Math.floor(p.height/12)}'${p.height%12}" · ${p.weight} lb` : "";
-  const hwChip = hwText ? `<text x="232" y="20" fill="rgba(255,255,255,.55)" font-size="9" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="end" letter-spacing="1">${hwText}</text>` : "";
+  const hwText = `${Math.floor(cmbHW.h/12)}'${cmbHW.h%12}" · ${cmbHW.w} lb`;
+  const hwChip = `<text x="232" y="20" fill="rgba(220,240,225,.5)" font-size="8.5" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="end" letter-spacing="1">${hwText}</text>`;
   const bgDefs = `
     <defs>
-      <linearGradient id="vit-bg" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%"  stop-color="#1a1410"/>
-        <stop offset="100%" stop-color="#0d0a08"/>
+      <linearGradient id="vit-bg-${uid}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"  stop-color="#101810"/>
+        <stop offset="100%" stop-color="#0a0e0a"/>
       </linearGradient>
-      <radialGradient id="vit-vignette" cx="50%" cy="40%" r="60%">
-        <stop offset="0%" stop-color="rgba(255,235,200,.04)"/>
+      <radialGradient id="vit-vig-${uid}" cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stop-color="rgba(160,230,190,.03)"/>
         <stop offset="100%" stop-color="rgba(0,0,0,.45)"/>
       </radialGradient>
-      <clipPath id="bodyClip-${p.pid||p.name?.replace(/\W/g,"")||"x"}">
+      <linearGradient id="vit-legend-${uid}" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#1ec96b"/><stop offset="40%" stop-color="#d4dc5a"/>
+        <stop offset="70%" stop-color="#f0a93a"/><stop offset="100%" stop-color="#e6373a"/>
+      </linearGradient>
+      <filter id="vit-glow-${uid}" x="-80%" y="-80%" width="260%" height="260%">
+        <feGaussianBlur stdDeviation="4.5"/>
+      </filter>
+      <clipPath id="bodyClip-${uid}">
         <path d="${sil}"/>
         <path d="${armL}"/>
-        <use href="#armR-${p.pid||p.name?.replace(/\W/g,"")||"x"}"/>
+        <use href="#armR-${uid}"/>
       </clipPath>
-      <g id="armR-${p.pid||p.name?.replace(/\W/g,"")||"x"}"><path d="${armL}" transform="${armRTransform}"/></g>
+      <g id="armR-${uid}"><path d="${armL}" transform="${armRTransform}"/></g>
     </defs>
-    <rect x="0" y="0" width="240" height="520" rx="10" fill="url(#vit-bg)"/>
-    <rect x="0" y="0" width="240" height="520" rx="10" fill="url(#vit-vignette)"/>`;
-  // Body BASE — dark anatomical line drawing
+    <rect x="0" y="0" width="240" height="520" rx="10" fill="url(#vit-bg-${uid})"/>
+    <rect x="0" y="0" width="240" height="520" rx="10" fill="url(#vit-vig-${uid})"/>
+    <g stroke="rgba(140,200,160,.055)" stroke-width="1">
+      ${[80, 160, 240, 320, 400, 480].map(y => `<line x1="10" y1="${y}" x2="230" y2="${y}"/>`).join("")}
+      <line x1="120" y1="30" x2="120" y2="490" stroke-dasharray="2 6"/>
+    </g>`;
+  // Body BASE — clinical blueprint line drawing
   const bodyBase = `
-    <g fill="rgba(218,196,162,.06)" stroke="rgba(218,196,162,.45)" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round">
+    <g fill="rgba(150,195,170,.05)" stroke="rgba(150,195,170,.5)" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round">
       <path d="${sil}"/>
       <path d="${armL}"/>
       <path d="${armL}" transform="${armRTransform}"/>
@@ -3883,14 +3906,77 @@ function _buildVitalsBodyDiagram(p) {
         <text x="${x}" y="${y + 2.5}" fill="#fff" font-size="8" font-weight="800" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle">${n}</text>
       </g>`;
     }).join("");
-  // Career-summary line (under footer)
+  // ── HOTSPOT GLOWS — wear ≥ 45 radiates ────────────────────────────
+  const hotspots = Object.entries(bw)
+    .filter(([k, v]) => v >= 45 && _SCAR_ANCHORS[k])
+    .map(([k, v]) => {
+      const [x, y] = _SCAR_ANCHORS[k];
+      return `<circle cx="${x}" cy="${y}" r="${8 + Math.min(100, v) / 18}" fill="${_vitalsColor(v)}" opacity=".32" filter="url(#vit-glow-${uid})"/>`;
+    }).join("");
+  // ── CALLOUT LABELS — top worn parts, named in the margins ─────────
+  // The map should read at a glance without hovering: leader lines from
+  // the part to a short mono label (L KNEE 62) in the side margins.
+  const calloutSrc = Object.entries(bw)
+    .filter(([k, v]) => v >= 30 && _SCAR_ANCHORS[k] && k !== activePart)
+    .sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const calloutSides = { left: [], right: [] };
+  for (const [k, v] of calloutSrc) {
+    const [ax, ay] = _SCAR_ANCHORS[k];
+    (ax <= cx ? calloutSides.left : calloutSides.right).push({ k, v, ax, ay });
+  }
+  const calloutHtml = [];
+  for (const [side, list] of Object.entries(calloutSides)) {
+    list.sort((a, b) => a.ay - b.ay);
+    let lastY = 38;
+    for (const c of list) {
+      const ly = Math.max(c.ay, lastY + 26);
+      lastY = ly;
+      const labelX = side === "left" ? 5 : 235;
+      const elbowX = side === "left" ? 44 : 196;
+      const edgeX = side === "left" ? c.ax - 5 : c.ax + 5;
+      const color = _vitalsColor(c.v);
+      const name = _VITALS_PART_SHORT[c.k] || c.k.toUpperCase();
+      calloutHtml.push(`<g>
+        <polyline points="${edgeX},${c.ay} ${elbowX},${ly}" fill="none" stroke="${color}" stroke-width=".8" opacity=".55"/>
+        <circle cx="${edgeX}" cy="${c.ay}" r="1.7" fill="${color}"/>
+        <text x="${labelX}" y="${ly - 1}" fill="${color}" font-size="8" font-weight="700" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="${side === "left" ? "start" : "end"}" letter-spacing=".4">${name}</text>
+        <text x="${labelX}" y="${ly + 8.5}" fill="rgba(235,245,238,.62)" font-size="8" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="${side === "left" ? "start" : "end"}">${c.v.toFixed(0)} ${_vitalsLabel(c.v).toUpperCase()}</text>
+      </g>`);
+    }
+  }
+  // ── ACTIVE INJURY — pulsing crosshair + top banner ────────────────
+  let activeMarker = "";
+  if (activePart && _SCAR_ANCHORS[activePart]) {
+    const [ax, ay] = _SCAR_ANCHORS[activePart];
+    const lbl = (p.injury.label || "injury").toUpperCase().slice(0, 24);
+    const wk = p.injury._careerEnding ? "CAREER" : p.injury._catastrophic ? "SEASON" : `${p.injury.weeksRemaining}W`;
+    activeMarker = `<g>
+      <line x1="${ax}" y1="40" x2="${ax}" y2="${ay - 14}" stroke="rgba(255,91,91,.35)" stroke-width=".8" stroke-dasharray="3 3"/>
+      <circle cx="${ax}" cy="${ay}" r="9" fill="none" stroke="#ff5b5b" stroke-width="1.4">
+        <animate attributeName="r" values="7;12;7" dur="1.8s" repeatCount="indefinite"/>
+        <animate attributeName="opacity" values=".9;.3;.9" dur="1.8s" repeatCount="indefinite"/>
+      </circle>
+      <line x1="${ax - 14}" y1="${ay}" x2="${ax - 6}" y2="${ay}" stroke="#ff5b5b" stroke-width="1"/>
+      <line x1="${ax + 6}" y1="${ay}" x2="${ax + 14}" y2="${ay}" stroke="#ff5b5b" stroke-width="1"/>
+      <line x1="${ax}" y1="${ay - 14}" x2="${ax}" y2="${ay - 6}" stroke="#ff5b5b" stroke-width="1"/>
+      <line x1="${ax}" y1="${ay + 6}" x2="${ax}" y2="${ay + 14}" stroke="#ff5b5b" stroke-width="1"/>
+      <text x="120" y="36" fill="#ff8585" font-size="9" font-weight="800" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle" letter-spacing="1">⚠ ${lbl} · ${wk}</text>
+    </g>`;
+  }
+  // ── FOOTER — load legend + career summary + acute numbers ─────────
   const totalCareerInjuries = Object.values(careerCounts).reduce((s, n) => s + n, 0);
   const mostInjured = Object.entries(careerCounts).sort((a, b) => b[1] - a[1])[0];
   const careerSummary = totalCareerInjuries > 0
-    ? `<text x="120" y="496" fill="rgba(218,196,162,.5)" font-size="8" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle" letter-spacing="1">${totalCareerInjuries} career injur${totalCareerInjuries===1?"y":"ies"}${mostInjured ? ` · most-hit: ${_VITALS_PART_NAMES?.[mostInjured[0]] || mostInjured[0]} (${mostInjured[1]})` : ""}</text>`
+    ? `<text x="120" y="490" fill="rgba(220,240,225,.5)" font-size="8" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle" letter-spacing=".6">${totalCareerInjuries} career injur${totalCareerInjuries===1?"y":"ies"}${mostInjured ? ` · most-hit: ${_VITALS_PART_NAMES?.[mostInjured[0]] || mostInjured[0]} (${mostInjured[1]})` : ""}</text>`
     : "";
-  return `<svg viewBox="0 0 240 520" width="240" height="460" xmlns="http://www.w3.org/2000/svg"
-    style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.45), inset 0 0 0 1px rgba(218,196,162,.10)">
+  const footer = `
+    <text x="14" y="505" fill="rgba(220,240,225,.45)" font-size="8" font-family="'IBM Plex Mono',ui-monospace,monospace" letter-spacing="1">LOAD</text>
+    <rect x="44" y="499" width="58" height="5" rx="2.5" fill="url(#vit-legend-${uid})"/>
+    <text x="226" y="505" fill="rgba(220,240,225,.7)" font-size="8.5" font-weight="700" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="end" letter-spacing=".8">WEAR ${wear.toFixed(0)} · STRESS ${stress.toFixed(0)}</text>`;
+  // Rendered 1:1 with the viewBox — the old height="460" silently scaled
+  // every in-SVG label to 88% (9.5px → 8.4px, under the legibility floor).
+  return `<svg viewBox="0 0 240 520" width="240" height="520" xmlns="http://www.w3.org/2000/svg"
+    style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.45), inset 0 0 0 1px rgba(150,195,170,.12)">
     ${bgDefs}
     ${positionChip}${hwChip}
     ${bodyBase}
@@ -3898,13 +3984,26 @@ function _buildVitalsBodyDiagram(p) {
       ${regions}
     </g>
     ${innerLines}
+    ${hotspots}
     ${scarMarkers}
+    ${calloutHtml.join("")}
+    ${activeMarker}
     ${careerSummary}
-    <text x="120" y="510" fill="rgba(218,196,162,.65)" font-size="9.5" font-family="'Bebas Neue','Anton',sans-serif" text-anchor="middle" letter-spacing="2" font-weight="600">
-      WEAR ${wear.toFixed(0)}  ·  STRESS ${stress.toFixed(0)}
-    </text>
+    ${footer}
   </svg>`;
 }
+// Short part labels for the diagram's margin callouts.
+const _VITALS_PART_SHORT = {
+  head: "HEAD", neck: "NECK", chest: "CHEST", back: "BACK", groin: "GROIN",
+  shoulderL: "L SHLDR", shoulderR: "R SHLDR",
+  hipL: "L HIP", hipR: "R HIP",
+  hamstringL: "L HAM", hamstringR: "R HAM",
+  kneeL: "L KNEE", kneeR: "R KNEE",
+  calfL: "L CALF", calfR: "R CALF",
+  achillesL: "L ACH", achillesR: "R ACH",
+  ankleL: "L ANKLE", ankleR: "R ANKLE",
+  handL: "L HAND", handR: "R HAND",
+};
 // Pretty part-name labels (used across all vitals sections)
 const _VITALS_PART_NAMES = {
   head: "Head", neck: "Neck", chest: "Chest", back: "Lower back", groin: "Groin",
@@ -4059,11 +4158,13 @@ function _buildVitalsRiskFactors(p) {
     items.push({ color, label: "Age curve", value: `${age}y`, note });
   }
   if (!items.length) return `<div style="color:var(--gray);font-size:.66rem;font-style:italic;padding:.3rem 0">No long-term risk markers</div>`;
-  return items.map(i => `<div style="display:flex;align-items:center;gap:.4rem;font-size:.65rem;padding:.18rem 0">
+  // No min-width on the note — in narrow embeds (scout split, compare
+  // modal) a forced 140px column shoved text past the card border.
+  return items.map(i => `<div style="display:flex;align-items:center;gap:.4rem;font-size:.65rem;padding:.18rem 0;flex-wrap:wrap">
     <span style="color:${i.color};font-weight:700;font-size:.85rem">●</span>
-    <span style="flex:1">${i.label}</span>
+    <span style="flex:1 0 auto">${i.label}</span>
     <span style="color:${i.color};font-weight:700">${i.value}</span>
-    <span style="color:var(--gray);min-width:140px;text-align:right;font-size:.6rem">${i.note}</span>
+    <span style="color:var(--gray);flex:0 1 auto;text-align:right;font-size:.6rem;min-width:0">${i.note}</span>
   </div>`).join("");
 }
 // RECOVERY GUIDANCE — auto-recommendation based on current state
@@ -5119,7 +5220,7 @@ function _buildPlayerDetailPanel(p) {
         })()}
         ${_buildAccoladesBanner(p)}
         <div style="color:var(--gray);font-size:.72rem;margin-top:.2rem">
-          #${jerseyForPlayer(p) || "—"} · ${p.position} · Age ${p.age || "?"}${p.height?` · ${formatHeight(p.height)}, ${p.weight||"?"} lbs`:""}
+          #${jerseyForPlayer(p) || "—"} · ${p.position} · Age ${p.age || "?"} · ${ftIn}, ${cmb.weightLbs} lbs
         </div>
         <div style="color:var(--gray);font-size:.65rem;margin-top:.1rem">${draftStr(p)} · Career ${careerEarningsStr(p)}</div>
         ${p.faStory && !_isOwnedPlayer(p) ? `<div style="margin-top:.2rem;font-size:.62rem;color:var(--gold-lt);font-style:italic">"${p.faStory}"</div>` : ""}
@@ -6429,11 +6530,11 @@ function renderFrnFA(selectedKey) {
         onclick="event.stopPropagation();frnOpenPlayerCard('${ep}','${epid}')" title="View player card">${_escHtml(p.name)}</span>
       <div style="display:flex;flex-direction:column;align-items:center;gap:.03rem">
         ${gradeBadge(p)}
-        ${isStarter?`<span style="font-size:.43rem;color:var(--gold);font-weight:700">START</span>`:""}
+        ${isStarter?`<span style="font-size:.5rem;color:var(--gold);font-weight:700">START</span>`:""}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.03rem;min-width:3.2rem">
         <span style="font-size:.61rem;color:var(--green-lt);font-weight:700">+$${aav.toFixed(1)}M</span>
-        ${hasDead?`<span style="font-size:.49rem;color:var(--red)">☠ $${dPY.toFixed(1)}M dead</span>`:""}
+        ${hasDead?`<span style="font-size:.5rem;color:var(--red)">☠ $${dPY.toFixed(1)}M dead</span>`:""}
       </div>
       ${actionBtn}
     </div>`;
@@ -7582,11 +7683,11 @@ function renderFrnFANegotiations(selectedName) {
       <span style="flex:1;font-size:.66rem;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;${isQueued?"color:#ffaaaa":""}"
         onclick="event.stopPropagation();frnOpenPlayerCard('${ep}','${epid}')">${_escHtml(p.name)}</span>
       <div style="display:flex;flex-direction:column;align-items:center;gap:.03rem">
-        ${gradeBadge(p)}${isStarter?`<span style="font-size:.43rem;color:var(--gold);font-weight:700">START</span>`:""}
+        ${gradeBadge(p)}${isStarter?`<span style="font-size:.5rem;color:var(--gold);font-weight:700">START</span>`:""}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.03rem;min-width:3.2rem">
         <span style="font-size:.61rem;color:var(--green-lt);font-weight:700">+$${aav.toFixed(1)}M</span>
-        ${hasDead?`<span style="font-size:.49rem;color:var(--red)">☠ $${dPY.toFixed(1)}M dead</span>`:""}
+        ${hasDead?`<span style="font-size:.5rem;color:var(--red)">☠ $${dPY.toFixed(1)}M dead</span>`:""}
       </div>
       ${actionBtn}
     </div>`;
