@@ -10,15 +10,21 @@
 // only its own decision prompts and the resolved plays.
 //
 // Run:    node server/h2h-server.js [port]     (default 8787)
+//         H2H_STATIC=1 (or --static) also serves the game files from the
+//         repo root — one process, one origin (see server/README.md).
 // Test:   node server/h2h-probe.js             (two scripted clients, full match)
 //
 // API (all JSON; auth = per-side token issued at create/join):
-//   POST /api/match  {homeTeamId, awayTeamId, clockMs?, defense?}
+//   POST /api/match  {homeTeamId, awayTeamId?, clockMs?, defense?, homeRoster?}
 //        → { matchId, side:"home", token, joinCode }
-//   POST /api/join   {matchId, joinCode}
-//        → { side:"away", token }
+//        homeRoster = bring-your-own (franchise) roster; awayTeamId is only
+//        a fallback — the joiner picks their own seat.
+//   POST /api/join   {matchId, joinCode, awayTeamId?, awayRoster?}
+//        → { side:"away", token }   (finalizes the away seat, starts the match)
 //   GET  /api/events/:matchId?token=T&since=N      SSE stream, event ids = seq
-//        events: hello | decision | waiting | plays | final | ping
+//        events: hello | start | decision | waiting | plays | final | ping
+//        (decision windows for the same snap run in PARALLEL under one
+//        shared clock — defense + offense both get prompts; see step())
 //   POST /api/call   {matchId, token, seq, call}   answer the pending decision
 //        ("call" may be null/"auto" = defer to the AI, same as the [O] key)
 //   GET  /api/state/:matchId?token=T               reconnect snapshot
@@ -104,7 +110,7 @@ function newMatchShell(h) {
     settings: h.settings, tokens: h.tokens, joinCode: h.joinCode,
     joined: !!h.joined, rosters: h.rosters,
     tape: [], status: "lobby",       // lobby | pending | final
-    pending: null,                   // {seq, side, kind, ctx, deadline}
+    outstanding: [],                 // [{seq, side, kind, ctx, deadline, call?}]
     plays: [], score: { home: 0, away: 0 }, result: null,
     events: [], nextEventId: 1,      // replayable SSE log
     streams: { home: null, away: null },
@@ -112,26 +118,63 @@ function newMatchShell(h) {
   };
 }
 
-function createMatch({ homeTeamId, awayTeamId, clockMs, defense }) {
-  const home = eng.getTeam(homeTeamId), away = eng.getTeam(awayTeamId);
-  if (!home || !away || homeTeamId === awayTeamId) throw new Error("bad team ids");
+// A roster supplied by a client (franchise-roster matches) must at least
+// look like a roster the engine can sim. The snapshot becomes part of the
+// match artifact either way, so determinism is unaffected by its origin.
+function validRoster(r) {
+  return Array.isArray(r) && r.length >= 20 && r.length <= 90
+    && r.every(p => p && typeof p === "object"
+        && typeof p.name === "string" && typeof p.position === "string");
+}
+
+function createMatch({ homeTeamId, awayTeamId, clockMs, defense, homeRoster }) {
+  const home = eng.getTeam(homeTeamId);
+  if (!home) throw new Error("bad home team id");
+  if (awayTeamId != null && (!eng.getTeam(awayTeamId) || awayTeamId === homeTeamId)) {
+    throw new Error("bad away team id");
+  }
+  if (homeRoster != null && !validRoster(homeRoster)) throw new Error("bad home roster");
   const m = newMatchShell({
     id: rid(8), seed: (Math.random() * 0xFFFFFFFF) >>> 0,
-    homeTeamId, awayTeamId,
+    homeTeamId,
+    awayTeamId: awayTeamId ?? null,    // finalized at join (the joiner may bring their own team)
     settings: {
       clockMs: Math.max(1000, Math.min(86400000, Number(clockMs) || DEFAULT_CLOCK_MS)),
-      defense: defense !== false,    // defensive shell calls on by default
+      defense: defense !== false,      // defensive shell calls on by default
     },
     tokens: { home: rid(), away: rid() },
     joinCode: rid(4),
-    // Roster snapshots are part of the artifact — generation entropy never
-    // needs to be reproducible because the SNAPSHOT is the source of truth.
     rosters: null,
   });
-  m.rosters = { home: eng.buildRoster(home), away: eng.buildRoster(away) };
+  // Roster snapshots are part of the artifact — generation entropy never
+  // needs to be reproducible because the SNAPSHOT is the source of truth.
+  // The away roster is finalized at join (joiner's franchise roster, or
+  // generated for whichever team they pick).
+  m.rosters = { home: homeRoster || eng.buildRoster(home), away: null };
   matches.set(m.id, m);
   persistHeader(m);
   return m;
+}
+
+// Finalize the away seat (team + roster) and start the match. Pre-join the
+// tape is empty, so rewriting the header is safe and keeps the artifact
+// self-contained.
+function finalizeJoin(m, { awayTeamId, awayRoster }) {
+  if (m.joined) return;
+  if (awayRoster != null && !validRoster(awayRoster)) throw new Error("bad away roster");
+  let awayId = awayTeamId ?? m.awayTeamId;
+  if (awayId == null || !eng.getTeam(awayId) || awayId === m.homeTeamId) {
+    awayId = eng.TEAMS.find(t => t.id !== m.homeTeamId).id;
+  }
+  m.awayTeamId = awayId;
+  m.rosters.away = awayRoster || eng.buildRoster(eng.getTeam(awayId));
+  m.joined = true;
+  persistHeader(m);
+  persistJoin(m);
+  // Tell the host which seat the joiner actually took (they may have
+  // brought their own team/roster) — the client refetches setup on this.
+  pushEvent(m, "both", "start", { homeTeamId: m.homeTeamId, awayTeamId: m.awayTeamId });
+  if (m.status === "lobby") step(m);
 }
 
 // ── the decision loop: tape re-sim (the interactive runner, server-side) ───
@@ -176,11 +219,12 @@ function step(m) {
     ? { home: result.homeScore, away: result.awayScore }
     : { home: sim.score.home, away: sim.score.away };
 
-  // Stream newly resolved plays to both sides.
+  // Stream newly resolved plays to both sides (wire-slimmed; see
+  // slimPlaysForWire).
   if (m.plays.length > prevPlayCount) {
     pushEvent(m, "both", "plays", {
       from: prevPlayCount,
-      plays: m.plays.slice(prevPlayCount),
+      plays: slimPlaysForWire(m, m.plays.slice(prevPlayCount), finished),
       score: m.score,
     });
   }
@@ -188,7 +232,7 @@ function step(m) {
   clearTimeout(m.timer);
   if (finished) {
     m.status = "final";
-    m.pending = null;
+    m.outstanding = [];
     m.result = {
       homeScore: result.homeScore, awayScore: result.awayScore,
       winner: result.winner, plays: result.plays.length,
@@ -199,32 +243,110 @@ function step(m) {
     return;
   }
 
-  // Pause: route the pending decision to its owner, arm the play clock.
-  const seq = m.tape.length;
-  const deadline = Date.now() + m.settings.clockMs;
+  // ── Pause: open the snap's decision window(s) under ONE shared clock. ──
+  // PARALLEL WINDOWS: the defensive shell fires at the snap top, and for
+  // downs 1-3 the very next coordinator ask is guaranteed to be the same
+  // snap's offensive playcall (the engine's seam order: defense → [4th-down
+  // branch, down 4 only] → playcall). The offense's call can't depend on
+  // the defense's (hidden information), so prompt BOTH sides now and feed
+  // the answers to the tape in seam order — one window per snap instead of
+  // two. The offense's pre-snap context is synthesized from the same snap
+  // state (no AI passProb yet — the panel handles its absence). 4th downs
+  // and PATs stay sequential so their prompts carry the real engine context
+  // (fgDist, AI lean). Misprediction is structurally harmless: every seam
+  // validates its answer and treats foreign values as a defer.
   m.status = "pending";
-  m.pending = { seq, side: pendingCtx.side, kind: pendingCtx.kind, ctx: pendingCtx, deadline };
-  pushEvent(m, pendingCtx.side, "decision", { seq, kind: pendingCtx.kind, ctx: pendingCtx, deadline });
-  pushEvent(m, otherSide(pendingCtx.side), "waiting", { seq, deadline });
+  const deadline = Date.now() + m.settings.clockMs;
+  const baseSeq = m.tape.length;
+  m.outstanding = [{ seq: baseSeq, side: pendingCtx.side, kind: pendingCtx.kind, ctx: pendingCtx, deadline }];
+  if (pendingCtx.kind === "defense" && pendingCtx.down < 4) {
+    const offSide = otherSide(pendingCtx.side);
+    m.outstanding.push({
+      seq: baseSeq + 1, side: offSide, kind: "playcall", deadline,
+      ctx: {
+        kind: "playcall", side: offSide, parallel: true,
+        down: pendingCtx.down, ytg: pendingCtx.ytg, yardLine: pendingCtx.yardLine,
+        quarter: pendingCtx.quarter, time: pendingCtx.time, score: pendingCtx.score,
+      },
+    });
+  }
+  for (const side of ["home", "away"]) {
+    const mine = m.outstanding.find(o => o.side === side);
+    if (mine) pushEvent(m, side, "decision", { seq: mine.seq, kind: mine.kind, ctx: mine.ctx, deadline });
+    else pushEvent(m, side, "waiting", { seq: baseSeq, deadline });
+  }
   m.timer = setTimeout(() => {
-    // Clock expired — the AICoordinator answers (a recorded defer), exactly
-    // like the single-player [O] key. AFK degrades to vs-AI gracefully.
-    if (m.status !== "pending" || !m.pending || m.pending.seq !== seq) return;
-    submitCall(m, m.pending.side, seq, null, "timeout");
+    // Clock expired — every unanswered window gets a recorded defer (the
+    // AICoordinator answers, exactly like the single-player [O] key).
+    if (m.status !== "pending" || !m.outstanding.length || m.outstanding[0].seq !== baseSeq) return;
+    for (const o of m.outstanding) if (o.call === undefined) { o.call = null; o.auto = "timeout"; }
+    resolveWindow(m);
   }, m.settings.clockMs + 25);
   m.timer.unref?.();
 }
 
-function submitCall(m, side, seq, call, auto) {
-  if (m.status !== "pending" || !m.pending) return { error: "no pending decision" };
-  if (m.pending.side !== side) return { error: "not your decision" };
-  if (m.pending.seq !== seq) return { error: "stale seq" };
-  const normalized = (call === "auto" || call == null) ? null : call;
-  m.tape.push(normalized);
-  persistCall(m, { i: seq, side, kind: m.pending.kind, call: normalized, ...(auto ? { auto } : {}) });
-  m.pending = null;
+// All windows answered (or expired): commit calls to the tape in seq order
+// and advance. ONE re-sim resolves the whole snap.
+//
+// DURABILITY BOUNDARY: calls are persisted here, at window resolution —
+// atomically, in seq order. A call collected while the opponent is still
+// on the clock is NOT yet durable; a server crash in that gap simply
+// re-opens the window (both prompts re-arm). At-least-once prompting,
+// never a divergent tape.
+function resolveWindow(m) {
+  const batch = m.outstanding.sort((a, b) => a.seq - b.seq);
+  m.outstanding = [];
+  for (const o of batch) {
+    m.tape.push(o.call);
+    persistCall(m, { i: o.seq, side: o.side, kind: o.kind, call: o.call, ...(o.auto ? { auto: o.auto } : {}) });
+  }
   step(m);
+}
+
+function submitCall(m, side, seq, call, auto) {
+  if (m.status !== "pending" || !m.outstanding.length) return { error: "no pending decision" };
+  const o = m.outstanding.find(x => x.side === side);
+  if (!o) return { error: "not your decision" };
+  if (o.seq !== seq) return { error: "stale seq" };
+  if (o.call !== undefined) return { error: "already answered" };
+  o.call = (call === "auto" || call == null) ? null : call;
+  if (auto) o.auto = auto;
+  if (m.outstanding.every(x => x.call !== undefined)) {
+    clearTimeout(m.timer);
+    resolveWindow(m);
+  } else {
+    // You're in; the opponent is still on the (same) clock.
+    pushEvent(m, side, "waiting", { seq, deadline: o.deadline });
+  }
   return { ok: true };
+}
+
+// Wire slimming: statsSnap — the cumulative live box score the engine
+// attaches to every visual (~45KB) — goes over the wire on a CADENCE, not
+// per play: every ~8th carrier, plus score plays (so the box is exact after
+// scores) and the game's final carrier (the FINAL-screen stars read it).
+// The client's stats panels walk BACK to the most recent snapshot
+// (currentStats), so sparser snapshots just mean stats-as-of a few plays
+// ago between refreshes — invisible in practice, ~80% fewer wire bytes.
+const SNAP_CADENCE = 8;
+function slimPlaysForWire(m, slice, finished) {
+  let lastCarrier = -1;
+  if (finished) {
+    for (let i = slice.length - 1; i >= 0; i--) {
+      if (slice[i] && slice[i].statsSnap) { lastCarrier = i; break; }
+    }
+  }
+  return slice.map((p, i) => {
+    if (!p || typeof p !== "object" || !p.statsSnap) return p;
+    m._sinceSnap = (m._sinceSnap || 0) + 1;
+    if (m._sinceSnap >= SNAP_CADENCE || p.kind === "score" || i === lastCarrier) {
+      m._sinceSnap = 0;
+      return p;
+    }
+    const c = { ...p };
+    delete c.statsSnap;
+    return c;
+  });
 }
 
 // ── SSE plumbing ───────────────────────────────────────────────────────────
@@ -293,16 +415,11 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/join") {
-      const { matchId, joinCode } = await readBody(req);
+      const { matchId, joinCode, awayTeamId, awayRoster } = await readBody(req);
       const m = matches.get(matchId);
       if (!m) return json(res, 404, { error: "no such match" });
       if (m.joinCode !== joinCode) return json(res, 403, { error: "bad join code" });
-      if (!m.joined) {
-        m.joined = true;
-        persistJoin(m);
-        // Both seats filled — kick the match off.
-        if (m.status === "lobby") step(m);
-      }
+      if (!m.joined) finalizeJoin(m, { awayTeamId, awayRoster });
       return json(res, 200, { matchId: m.id, side: "away", token: m.tokens.away, settings: m.settings });
     }
 
@@ -344,14 +461,16 @@ const server = http.createServer(async (req, res) => {
       const a = authedMatch(stMatch[1], url.searchParams.get("token"));
       if (a.error) return json(res, 403, a);
       const m = a.m;
+      const mine = m.outstanding.find(o => o.side === a.side && o.call === undefined);
+      const theirs = m.outstanding.find(o => o.side !== a.side && o.call === undefined);
       return json(res, 200, {
         side: a.side, status: m.status, score: m.score,
         playCount: m.plays.length,
         settings: m.settings,
-        pending: (m.pending && m.pending.side === a.side)
-          ? { seq: m.pending.seq, kind: m.pending.kind, ctx: m.pending.ctx, deadline: m.pending.deadline }
+        pending: mine
+          ? { seq: mine.seq, kind: mine.kind, ctx: mine.ctx, deadline: mine.deadline }
           : null,
-        waitingDeadline: (m.pending && m.pending.side !== a.side) ? m.pending.deadline : null,
+        waitingDeadline: (!mine && theirs) ? theirs.deadline : null,
         result: m.result,
         lastEventId: m.nextEventId - 1,
       });
@@ -380,12 +499,49 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { ...artifactOf(a.m), result: a.m.result, hash: artifactHash(a.m) });
     }
 
+    if (req.method === "GET" && url.pathname === "/api/health") {
+      return json(res, 200, { ok: true, h2h: 1 });
+    }
+
+    // Static game files (deployment mode: H2H_STATIC=1 → one process serves
+    // play.html AND the API on the same origin, so the client's server-base
+    // field can stay empty and TLS terminates at one reverse proxy).
+    if (STATIC_ROOT && req.method === "GET" && !url.pathname.startsWith("/api/")) {
+      return serveStatic(url.pathname, res);
+    }
+
     json(res, 404, { error: "not found" });
   } catch (e) {
     console.error("[h2h]", req.method, url.pathname, e.message);
     json(res, 500, { error: "server error" });
   }
 });
+
+// ── static file serving (deployment mode) ──────────────────────────────────
+const STATIC_ROOT = (process.env.H2H_STATIC || process.argv.includes("--static"))
+  ? path.resolve(__dirname, "..") : null;
+const MIME = {
+  ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8", ".json": "application/json",
+  ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml",
+  ".ico": "image/x-icon", ".mp3": "audio/mpeg", ".wav": "audio/wav",
+  ".woff2": "font/woff2", ".map": "application/json", ".md": "text/plain; charset=utf-8",
+};
+function serveStatic(pathname, res) {
+  let rel = decodeURIComponent(pathname);
+  if (rel === "/" || rel === "") rel = "/play.html";
+  const file = path.normalize(path.join(STATIC_ROOT, rel));
+  // Path traversal guard: the resolved file must stay inside the root.
+  if (!file.startsWith(STATIC_ROOT + path.sep)) { res.writeHead(403); return res.end(); }
+  fs.readFile(file, (err, buf) => {
+    if (err) { res.writeHead(404); return res.end("not found"); }
+    res.writeHead(200, {
+      "content-type": MIME[path.extname(file).toLowerCase()] || "application/octet-stream",
+      "cache-control": "no-cache",
+    });
+    res.end(buf);
+  });
+}
 
 function start(port = PORT) {
   loadPersisted();

@@ -92,13 +92,14 @@ const AUTOPILOT = `(side) => {
     document.getElementById("awayTeam").value = "9";
   }, H2H_PORT);
   await A.click("#h2hCreateBtn");
-  await A.waitForSelector("#h2hStatus input.h2h-link", { timeout: 15000 });
-  const link = await A.$eval("#h2hStatus input.h2h-link", el => el.value);
+  // The share link lives in the waiting banner (the home panels are hidden
+  // once the live-game shell takes over).
+  await A.waitForSelector("#ipcPanel input.h2h-link", { timeout: 15000 });
+  const link = await A.$eval("#ipcPanel input.h2h-link", el => el.value);
   check("host created match + share link", /#h2h=[a-f0-9]+\./.test(link));
-  const waitingShown = await A.waitForFunction(
-    () => document.getElementById("ipcPanel")?.textContent.includes("WAITING FOR OPPONENT"),
-    null, { timeout: 10000 }).then(() => true).catch(() => false);
-  check("host parks on the waiting banner pre-join", waitingShown);
+  const waitingShown = await A.evaluate(() =>
+    document.getElementById("ipcPanel")?.textContent.includes("MATCH HOSTED"));
+  check("host parks on the hosted banner pre-join", waitingShown);
 
   // ── Opponent (page B) joins via the share link.
   // NOTE: "networkidle" never fires once the SSE stream opens — use
@@ -154,6 +155,15 @@ const AUTOPILOT = `(side) => {
   });
   check("FINAL screen rendered on host", finalText);
   await (await A.$(".bspnlive-field-wrap"))?.screenshot({ path: "/tmp/h2h_final.png" });
+
+  // The player-facing host modal (footer entry) renders with its controls.
+  const modalOk = await A.evaluate(() => {
+    h2hShowModal();
+    const m = document.getElementById("h2hModal");
+    return !!m && m.style.display !== "none"
+      && !!m.querySelector("#h2hModalTeam") && !!m.querySelector("#h2hModalCreate");
+  });
+  check("host modal renders from the footer entry", modalOk);
 
   check("no page errors on A", errors.A.length === 0, errors.A.slice(0, 2).join(" | "));
   check("no page errors on B", errors.B.length === 0, errors.B.slice(0, 2).join(" | "));

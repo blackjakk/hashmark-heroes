@@ -134,14 +134,26 @@ answered by CLICKING the defense panel, autopilot to FINAL): identical
 34-14 finals both sides, 254 plays streamed to both, FINAL screen
 renders, zero page errors. Local interactive mode regression-checked.
 
+## V4 progress 4: ALL H2H follow-ups shipped
+
+Parallel same-snap windows (one shared clock; tape commits atomically at
+window resolution — that's the durability boundary, a crash mid-window
+re-opens it); wire slimming (statsSnap on a cadence: 7.42→1.88 MB/match);
+player-facing host entry (🌐 footer link → modal; share link lives in the
+waiting banner); franchise-roster matches (BYO rosters both seats, `start`
+event re-syncs the host, snapshots join the artifact); deployment
+readiness (`H2H_STATIC=1` single-process serving + `/api/health`
+same-origin detection + `server/README.md` systemd/Caddy recipe — actual
+box/domain provisioning is the operator's step). All three server probes
++ the two-browser probe ALL PASS; gate green. Details in
+`INGAME_CLOCK_AND_MULTIPLAYER.md` §C.3.
+
 ## NEXT options
-- **H2H follow-ups:** parallel same-snap decision windows (server-side
-  optimization), wire-slim play slices (statsSnap ~45KB/play), host
-  entry outside the dev panel, franchise-roster matches, deploy a real
-  server + TLS.
 - **V5 — realism + polish backlog:** one-score % (~42-43 vs NFL 44-52,
   warn-only), OT % (~3.2 vs 4-10), injury bands in `_brady_audit.js`;
   keyboard-only offseason run.
+- **H2H beyond v1:** matchmaking/accounts, spectators, async-league
+  deadlines (protocol-ready, UX only), chain settlement.
 
 **The topology after V1** (back→front, all inside `.bspnlive-field-wrap`):
 1. `#field-pixi` — WebGL via `GCField`: ALL static field art (grass/bands/
@@ -226,5 +238,6 @@ injury bands) + keyboard-only offseason run.
 
 ---
 
-That's it. Pick an H2H follow-up (parallel windows / wire-slimming /
-deploy), or say **"start V5"** (realism nits + keyboard-only offseason).
+That's it. Say **"start V5"** (realism nits + keyboard-only offseason),
+or pick an H2H beyond-v1 item (matchmaking / spectators / async leagues /
+chain settlement).

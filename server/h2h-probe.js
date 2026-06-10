@@ -160,6 +160,31 @@ function policy(side, kind, ctx) {
   check("artifact hash recomputes identically", localHash === art.hash);
 
   closeH(); closeA();
+
+  // ── Bring-your-own-roster matches (franchise rosters over the wire) ──
+  // Both seats supply custom roster snapshots; the server must sim THOSE
+  // (they land in the artifact) and the joiner's team choice must win.
+  const tagRoster = (teamId, tag) => {
+    const r = JSON.parse(JSON.stringify(eng.buildRoster(eng.getTeam(teamId))));
+    r[0].name = tag + " " + r[0].name;
+    return r;
+  };
+  const myHome = tagRoster(7, "BYO-H");
+  const myAway = tagRoster(11, "BYO-A");
+  const c2 = await post("/api/match", { homeTeamId: 7, clockMs: 60000, homeRoster: myHome });
+  const j2 = await post("/api/join", { matchId: c2.matchId, joinCode: c2.joinCode,
+    awayTeamId: 11, awayRoster: myAway });
+  check("BYO create+join accepted", !c2.error && !j2.error);
+  const setup2 = await get(`/api/setup/${c2.matchId}?token=${c2.token}`);
+  check("server sims the supplied rosters",
+    setup2.awayTeamId === 11
+    && setup2.rosters.home[0].name.startsWith("BYO-H")
+    && setup2.rosters.away[0].name.startsWith("BYO-A"));
+  const st2 = await get(`/api/state/${c2.matchId}?token=${c2.token}`);
+  check("BYO match started", st2.status === "pending");
+  const badRoster = await post("/api/match", { homeTeamId: 7, homeRoster: [{ nope: 1 }] });
+  check("garbage roster rejected", !!badRoster.error);
+
   console.log(failures ? `\n${failures} FAILURE(S)` : "\nALL PASS");
   process.exit(failures ? 1 : 0);
 })().catch(e => { console.error("FATAL", e); process.exit(1); });

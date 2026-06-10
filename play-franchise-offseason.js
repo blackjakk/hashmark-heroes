@@ -4173,9 +4173,13 @@ function _ipcShowPanel() {
       ${coachBtn}`;
   } else {
     badge = "🎙 YOUR CALL";
-    lean = c.passProb >= 0.5
-      ? `OC LEAN · PASS ${Math.round(c.passProb * 100)}%`
-      : `OC LEAN · RUN ${Math.round((1 - c.passProb) * 100)}%`;
+    // Network parallel windows prompt PRE-snap — the AI's passProb doesn't
+    // exist yet (both coordinators are on the same clock).
+    lean = c.passProb == null
+      ? "BOTH COORDINATORS ON THE CLOCK"
+      : c.passProb >= 0.5
+        ? `OC LEAN · PASS ${Math.round(c.passProb * 100)}%`
+        : `OC LEAN · RUN ${Math.round((1 - c.passProb) * 100)}%`;
     btns = `
       <button class="ipc-btn ipc-run" onclick="frnPlaycall('run')" title="Hand it off [R]">🏃 RUN</button>
       <button class="ipc-btn ipc-pass" onclick="frnPlaycall('pass')" title="Drop back [P]">🎯 PASS</button>

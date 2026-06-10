@@ -420,10 +420,37 @@ two headless browsers play a full match through the real UI (button
 click → share link → first prompt answered by clicking the defense
 panel → autopilot to FINAL) with identical finals and zero page errors.
 
-**Still open (follow-ups):** parallel same-snap decision windows,
-wire-payload slimming (plays ship with statsSnap), a host entry outside
-the dev panel, franchise-roster matches, matchmaking/accounts, real
-deployment (domain + TLS), and all chain settlement.
+**Follow-ups (all shipped):**
+- **Parallel same-snap windows** — defense + offense prompt simultaneously
+  under ONE shared clock; answers commit to the tape in seam order in a
+  single re-sim. Works because the engine's seam order makes the next ask
+  after a down-1-3 defense call provably the same snap's playcall, the
+  offense's call can't depend on the defense's (hidden info), and every
+  seam validates its answer (a mispredicted call degrades to a defer,
+  never corrupts). 4th downs/PATs stay sequential so their prompts carry
+  real engine context. Durability boundary: calls persist at window
+  RESOLUTION — a crash mid-window re-opens it (at-least-once prompting,
+  never a divergent tape).
+- **Wire slimming** — statsSnap ships on a cadence (every ~8th carrier +
+  score plays + the final snapshot) instead of per play; the panels walk
+  back to the most recent one. Measured: 7.42 → 1.88 MB per match (4×).
+- **Player-facing host entry** — 🌐 footer link → host modal (team pick,
+  franchise-roster checkbox, server field); the dev-panel controls remain.
+  The share link lives in the waiting banner ("MATCH HOSTED — SEND THE
+  LINK") until the join lands.
+- **Franchise-roster matches** — create accepts `homeRoster`, join accepts
+  `awayTeamId`+`awayRoster` (the joiner picks their own seat; a `start`
+  event tells the host, who refetches setup). Supplied snapshots are
+  validated, persisted in the header, and become part of the artifact —
+  determinism unaffected by roster origin.
+- **Deployment readiness** — `H2H_STATIC=1` serves the game files from the
+  same process/origin (path-traversal guarded); `/api/health` lets the
+  client default its server field to `location.origin`; `server/README.md`
+  has the systemd + Caddy TLS recipe. Actual provisioning (box + domain)
+  is the operator's step.
+
+**Still open:** matchmaking/accounts, spectators, async-league deadlines
+(the protocol already supports them — UX only), chain settlement.
 
 ---
 

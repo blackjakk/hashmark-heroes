@@ -83,9 +83,14 @@ async function playUntil(id, tokens, untilCalls) {
     `status=${after.status}`);
   check("re-sim restored the exact play count", after.playCount === before.playCount,
     `before=${before.playCount} after=${after.playCount}`);
-  check("pending decision re-armed at the same tape position",
-    pendingSeq === (before.pending?.seq ?? -1),
-    `before seq=${before.pending?.seq} after seq=${pendingSeq}`);
+  // With parallel windows the pending seq may legitimately step back to the
+  // window base: calls collected while the opponent was still on the clock
+  // aren't durable until the window RESOLVES (see resolveWindow's durability
+  // boundary) — a crash in that gap re-opens the whole window.
+  const beforeSeq = before.pending?.seq ?? -1;
+  check("pending decision re-armed within the same window",
+    pendingSeq === beforeSeq || pendingSeq === beforeSeq - 1,
+    `before seq=${beforeSeq} after seq=${pendingSeq}`);
 
   // Finish the match across the restart boundary.
   const fin = await playUntil(id, tokens, null);
