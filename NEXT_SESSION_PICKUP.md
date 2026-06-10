@@ -1,10 +1,11 @@
 # Next-session pickup message
 
 Paste this verbatim into the next chat to resume. **V1 (renderer
-unification) is COMPLETE — all 4 steps. Next arc: V3 replay-motion-from-
-seed (~10× save shrink), per `VISUAL_ENGINE.md`.** V2 (perf) was realized
-by step 4: PLAYING p50 367→**83ms** headless software (4.4×; was 470 at
-the start of the audit era).
+unification) and V3 (replay-clip shrink) are COMPLETE. Next arcs: V4
+(netcode design — needs product decisions from the user first) or V5
+(realism nits + keyboard-only offseason run), per `VISUAL_ENGINE.md`.**
+V2 (perf) was realized by V1 step 4: PLAYING p50 367→**83ms** headless
+software (was 470 at the start of the audit era).
 
 ---
 
@@ -62,16 +63,32 @@ and `.gc-pixi-fx` exist only as no-WebGL fallbacks. PLAYING p50 **83ms**
 headless software (was 470 pre-audit, 367 after steps 1-3); 60s soak
 clean; occlusion + ragdoll-physics bugs dead by construction.
 
-## NEXT: V3 — replay motion from seed (~10× save shrink)
+## V3 — replay clip shrink: COMPLETE (measure before building!)
 
-Stop storing `play.motion` (~180KB of waypoints per replay clip); store
-`(seed, week, teams, playIndex)` and re-sim the play on demand. The
-determinism harness + the interactive runner's re-sim machinery already
-prove the pattern (fresh seeded sim + tape replay, byte-identical). Mind:
-`_deriveGameSeed` per game / `_withWeekRng` per week; motion is
-display-only and stripped in outcome-prefix comparisons. After V3: V4
-netcode design (needs product decisions), V5 realism nits + keyboard-only
-offseason.
+The planned re-sim-from-seed machinery was never needed: motion tracks
+were ~3-8KB/clip, not the assumed 180KB. The whale was `statsSnap` (full
+live box score on every stored play, ~45KB × 3) + a duplicated highlight
+play. Fixed by stripping at `_extractReplayClips` + a load-time backfill
+(`_backfillReplayClips`) for existing saves; tracks kept (they ARE the
+replay). Measured: clips 22.9MB → 1.10MB (21×), whole 4-week save
+31.8MB → 9.97MB. Also fixed en route: `frnReplayClip` had NEVER worked —
+`window.gameResult = …` writes don't touch top-level `let` bindings (it
+needed bare assignments) and its synth gameResult lacked
+`homeRatings`/`awayRatings`/`playerLookup` (now built from current
+franchise rosters via `buildRatings`). Replays run slow-mo
+(`speedMul = 0.5`); `_frnEnterLiveGameScreen` restores 1.0 + slider UI.
+
+## NEXT: V4 or V5
+
+- **V4 — C.3 server-authoritative netcode design** per
+  `INGAME_CLOCK_AND_MULTIPLAYER.md`: blocked on product decisions (pacing:
+  snap-clock vs turn-based; hosting) — ASK THE USER before building.
+  The tempo-decision seam can land alongside (same Coordinator-seam
+  pattern as 4th-down/PAT).
+- **V5 — realism + polish backlog**: one-score % (~42-43 vs NFL 44-52,
+  warn-only in the gate today), OT % (~3.2 vs 4-10),
+  injury-rate-by-position bands in `_brady_audit.js`; keyboard-only
+  offseason playthrough (§F's unfinished pass criterion).
 
 **The topology after V1** (back→front, all inside `.bspnlive-field-wrap`):
 1. `#field-pixi` — WebGL via `GCField`: ALL static field art (grass/bands/
@@ -156,5 +173,6 @@ injury bands) + keyboard-only offseason run.
 
 ---
 
-That's it. Say **"start V3"** (replay motion from seed — drop stored
-waypoints, re-sim clips on demand).
+That's it. Say **"start V5"** (realism nits + keyboard-only offseason),
+or **"start V4"** to begin the netcode design discussion (it needs your
+product calls on pacing + hosting before any code).

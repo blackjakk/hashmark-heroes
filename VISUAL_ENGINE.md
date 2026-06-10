@@ -128,10 +128,23 @@ Remaining V2-flavored work, only if someone asks for it: port topdown
 sprites + cinema view off `#field` (then actually delete the node), and a
 true single-canvas merge via in-stage perspective.
 
-### V3. Replay motion from seed (~10× save shrink)
-Stop storing `play.motion` in replay clips; store `(seed, week, teams,
-playIndex)` and re-sim the play on demand (determinism + the interactive
-runner's re-sim machinery already prove the pattern). Plan §B's last ticket.
+### V3. Replay clip shrink — DONE (measurement beat the plan)
+The plan said "stop storing ~180KB of motion waypoints, re-sim from seed."
+Measurement said otherwise: **the waypoints were never the whale** —
+tracks are ~3-8KB/clip, and they ARE the replay (sim-owned choreography).
+The actual 180KB was `statsSnap` — the full live box score the engine
+attaches to every visual event for the in-game stats panels (~45KB/play ×
+3 stored plays) — plus the highlight play duplicated alongside `ctxPlays`.
+Fix: strip `statsSnap` at clip-extraction time, drop the duplicate, keep
+tracks; backfill slims existing saves at load. No re-sim machinery needed
+(which would also have broken on roster drift for past-week clips).
+**Measured (same deterministic 4-week franchise): clips 22.9MB → 1.10MB
+(21×), per-clip 191KB → 9.2KB, whole save 31.8MB → 9.97MB.** Bonus: the
+probe exposed that `frnReplayClip` had never worked — it wrote
+`window.gameResult` instead of the top-level `let` bindings (inert) and
+its synthetic gameResult lacked `homeRatings`/`playerLookup`. Replays now
+actually play, in slow-mo with the film-grain treatment, and live games
+restore normal speed on entry.
 
 ### V4. Workstream C.3 — netcode design, then build
 Server-authoritative live H2H per `INGAME_CLOCK_AND_MULTIPLAYER.md`. Needs

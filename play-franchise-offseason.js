@@ -1991,6 +1991,21 @@ function _scoreHighlight(play, ctx) {
   return { rating: Math.min(10, Math.round(rating * 10) / 10), type };
 }
 
+// V3 — slim a play for clip persistence. The whale was never the motion
+// waypoints (~3-8KB/clip, and they ARE the replay — sim-owned choreography
+// that makes the re-watch identical): it's `statsSnap`, the full live
+// box score (team + every player + fatigue) the engine attaches to EVERY
+// visual event for the in-game stats panels (~45KB/play, ~135KB per
+// 3-play clip). Replays don't need it — currentStats() falls back to
+// zeros when absent. Shallow copy: today's clips alias the live play
+// objects outright, so a copy is strictly safer than the status quo.
+function _slimPlayForClip(p) {
+  if (!p || typeof p !== "object" || !("statsSnap" in p)) return p;
+  const s = { ...p };
+  delete s.statsSnap;
+  return s;
+}
+
 function _extractReplayClips(plays, homeId, awayId, seasonNum, weekNum, isPlayoff) {
   if (!Array.isArray(plays) || !plays.length) return [];
   // Score every play; build a list of scored highlights
@@ -1999,16 +2014,17 @@ function _extractReplayClips(plays, homeId, awayId, seasonNum, weekNum, isPlayof
     const p = plays[i];
     const score = _scoreHighlight(p, p);  // play carries quarter/time
     if (!score) continue;
-    // Build a self-contained record. Keep the full play for replay,
-    // plus 1-2 preceding plays as context (for the lead-up).
+    // Build a self-contained record: the play + 1-2 preceding plays as
+    // context (for the lead-up), slimmed for storage. The highlight play
+    // itself is ctxPlays[last] — no separate `play` copy (it doubled the
+    // stored bytes; frnReplayClip still accepts legacy {play} records).
     const ctxStart = Math.max(0, i - 2);
-    const ctxPlays = plays.slice(ctxStart, i + 1);
+    const ctxPlays = plays.slice(ctxStart, i + 1).map(_slimPlayForClip);
     candidates.push({
       id: `h_${seasonNum}_${weekNum}_${homeId}_${awayId}_${i}`,
       season: seasonNum, week: weekNum, isPlayoff: !!isPlayoff,
       homeId, awayId,
       playIndex: i,
-      play: p,
       ctxPlays,
       type: score.type,
       rating: score.rating,
@@ -2041,14 +2057,15 @@ function _saveReplayClips(highlights) {
   _trimReplayClips();
 }
 
-// Cap highlight storage. Each clip carries full play + context motion tracks
-// (~180KB), so an UNCAPPED current season (16 games × 7 clips × 17 weeks) grew
-// replayClips to ~350MB/season — by far the largest save section and a real
-// storage-integrity risk (it dwarfs everything else and was never trimmed by
-// the storage-pressure path either). Cap EVERY week — current included — at
-// the top 30 by rating; that's well past the week-recap's top 6 and keeps
-// plenty of replay-library variety while bounding growth to ~90MB/season.
-// Earlier seasons additionally cap to the best 200 overall.
+// Cap highlight storage. Pre-V3 a clip was ~180KB (live box-score
+// snapshot on every stored play + a duplicated highlight play), so an
+// UNCAPPED season grew replayClips to ~350MB — by far the largest save
+// section. V3 slims clips at the source (~14KB: 3 context plays incl.
+// motion tracks, no statsSnap, no duplicate), so these caps now bound
+// growth to ~7MB/season. Kept anyway: variety beats hoarding, and the
+// week-recap only ever surfaces the top 6. Cap EVERY week — current
+// included — at the top 30 by rating; earlier seasons additionally cap
+// to the best 200 overall.
 function _trimReplayClips() {
   if (!franchise?.replayClips) return;
   const curSeason = franchise.season;
@@ -2302,31 +2319,49 @@ function renderFrnReplayLib() {
 function frnReplayClip(highlightId) {
   if (!franchise?.replayClips) return;
   const h = franchise.replayClips.find(x => x.id === highlightId);
-  if (!h?.play) { alert("Highlight not found."); return; }
+  // V3 clips carry the highlight play as ctxPlays[last]; legacy clips
+  // may have only a standalone `play`.
+  const synthPlays = h ? (h.ctxPlays?.length ? h.ctxPlays : (h.play ? [h.play] : null)) : null;
+  if (!synthPlays) { alert("Highlight not found."); return; }
   const homeTeam = getTeam(h.homeId);
   const awayTeam = getTeam(h.awayId);
   if (!homeTeam || !awayTeam) { alert("Teams missing."); return; }
+  // Ratings + player lookup — buildAnimForPlay reads
+  // gameResult.homeRatings.starters (jersey numbers, run styles) and the
+  // hover tooltips read playerLookup. Built from the CURRENT franchise
+  // rosters; for older clips the roster may have drifted, which only
+  // degrades cosmetic lookups (the stored plays carry their own names).
+  const _hRoster = franchise?.rosters?.[h.homeId] || [];
+  const _aRoster = franchise?.rosters?.[h.awayId] || [];
+  let homeRatings, awayRatings;
+  try { homeRatings = buildRatings(_hRoster); } catch (_) { homeRatings = { starters: {} }; }
+  try { awayRatings = buildRatings(_aRoster); } catch (_) { awayRatings = { starters: {} }; }
+  const _lookup = new Map();
+  for (const p of _hRoster) _lookup.set(p.name, { ...p, team: "home" });
+  for (const p of _aRoster) _lookup.set(p.name, { ...p, team: "away" });
   // Build a self-contained gameResult-shaped object
-  const synthPlays = (h.ctxPlays?.length ? h.ctxPlays : [h.play]);
   const synth = {
     homeTeam, awayTeam,
     homeScore: h.homeScore, awayScore: h.awayScore,
     plays: synthPlays,
+    homeRatings, awayRatings, playerLookup: _lookup,
     weather: null, isRivalry: false,
   };
-  // Swap in
-  if (typeof gameResult !== "undefined") {
-    // assignment via window so it works across script files (game state
-    // globals are top-level let bindings)
-    window.gameResult = synth;
-  }
+  // Swap in. DIRECT assignments — these globals are top-level `let`
+  // bindings, which share one global scope across script files; the old
+  // `window.X = …` writes here created inert window properties and never
+  // touched the real bindings, so replay-from-dashboard crashed in
+  // renderGameLayout (gameResult still null) and replay-after-a-game
+  // re-ran the stale previous game. (Found by the V3 clip-slimming
+  // probe.)
+  gameResult = synth;
   // Show the live-game shell so playback controls + canvas exist
   if (typeof gameArea !== "undefined") gameArea.classList.remove("empty");
   if (typeof renderGameLayout === "function") renderGameLayout();
-  if (typeof playHead !== "undefined") window.playHead = 0;
-  if (typeof animState !== "undefined") window.animState = null;
-  if (typeof playing !== "undefined") window.playing = true;
-  if (typeof speedMul !== "undefined") window.speedMul = 0.5; // slow-mo for replays
+  playHead = 0;
+  animState = null;
+  playing = true;
+  speedMul = 0.5; // slow-mo for replays
   // Flag the FX layer so film grain / replay treatment kicks in.
   window._replayMode = true;
   if (typeof startNextPlay === "function") startNextPlay();
@@ -3721,6 +3756,13 @@ function _frnEnterLiveGameScreen(homeId, awayId, isPlayoff) {
   $("playbackControls").style.display = "flex";
   // Clear any leftover replay-mode flag from a prior highlight view.
   window._replayMode = false;
+  // Replays run slow-mo (frnReplayClip sets speedMul = 0.5) — restore
+  // normal speed for live games and resync the slider UI.
+  speedMul = 1.0;
+  const _spd = document.getElementById("speedSlider");
+  if (_spd) _spd.value = 5;
+  const _spdLbl = document.getElementById("speedLabel");
+  if (_spdLbl) _spdLbl.textContent = "1.00×";
   franchise.pendingFranchiseGame = { homeId, awayId, isPlayoff };
   saveFranchise();
   // Use franchise rosters for league nickname computation. Once per game —

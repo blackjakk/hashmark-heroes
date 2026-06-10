@@ -3617,6 +3617,24 @@ function _backfillStamina() {
 function _backfillReplayClips() {
   if (!franchise) return;
   if (!Array.isArray(franchise.replayClips)) franchise.replayClips = [];
+  // V3 — slim legacy clips in place. Old clips stored the live box-score
+  // snapshot (statsSnap, ~45KB) on every play AND duplicated the
+  // highlight play next to ctxPlays — ~180KB/clip, the largest section
+  // of a mature save. Strip the snapshots (replay stats panels fall back
+  // to zeros) and drop the duplicate; motion tracks (the actual replay
+  // choreography, ~3-8KB) are kept untouched. Idempotent and cheap on
+  // already-slim saves.
+  for (const h of franchise.replayClips) {
+    if (!h || typeof h !== "object") continue;
+    if (Array.isArray(h.ctxPlays) && h.ctxPlays.length) {
+      for (const p of h.ctxPlays) {
+        if (p && typeof p === "object" && "statsSnap" in p) delete p.statsSnap;
+      }
+      if (h.play) delete h.play;   // duplicate of ctxPlays[last]
+    } else if (h.play && typeof h.play === "object" && "statsSnap" in h.play) {
+      delete h.play.statsSnap;     // legacy single-play clip — keep, slim
+    }
+  }
 }
 
 // Backfill depth chart + snap shares for any team that doesn't have one yet,
