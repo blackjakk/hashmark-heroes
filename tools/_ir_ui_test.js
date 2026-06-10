@@ -51,6 +51,6 @@ const harness=`;(function(){
   process.exit(pass?0:1);
 })();`;
 let bundle=shim;
-for(const f of files) bundle+="\n;// "+f+"\n"+strip(fs.readFileSync(path.join(__dirname,f),"utf8"),f)+"\n";
+for(const f of files) bundle+="\n;// "+f+"\n"+strip(fs.readFileSync(path.join(__dirname, "..", f),"utf8"),f)+"\n";
 bundle+=harness;
 new Function(bundle)();

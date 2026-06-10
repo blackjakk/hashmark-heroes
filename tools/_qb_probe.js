@@ -138,7 +138,7 @@ const audit = `
 
 let bundle = shim + "\n";
 for (const f of files) {
-  let code = fs.readFileSync(path.join(__dirname, f), "utf8");
+  let code = fs.readFileSync(path.join(__dirname, "..", f), "utf8");
   code = stripUiInit(code, f);
   bundle += "\n;//=== " + f + " ===\n" + code + "\n";
 }

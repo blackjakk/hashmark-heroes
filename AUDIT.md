@@ -200,8 +200,8 @@ Three tables:
   Smoke: 72/50/33/20%, all in band. Catches shape bugs a 41.6% aggregate would
   hide.
 
-### 1b. `_qb_probe.js` — QB-archetype isolation probe
-`node _qb_probe.js [games]` (default 300). Builds **one fixed home roster + one
+### 1b. `tools/_qb_probe.js` — QB-archetype isolation probe
+`node tools/_qb_probe.js [games]` (default 300). Builds **one fixed home roster + one
 fixed opponent under a fixed seed**, then swaps ONLY the home QB across hand-built
 profiles (pocket cannon / dual-threat / noodle-arm-quick-legs / balanced),
 dropping all other home QBs so the profile QB always starts. Seeded RNG ⇒ cast,
@@ -210,8 +210,8 @@ opponent, and game conditions are identical across profiles and run-to-run, so
 Reports OVR, archetype, win%, pass line, and QB rush line per profile. This is
 the regression tool for the dual-threat run game.
 
-### 1c. `_arch_probe.js` — positional archetype isolation probe
-`node _arch_probe.js [POS|ALL] [games]` (default ALL 200). For each position it
+### 1c. `tools/_arch_probe.js` — positional archetype isolation probe
+`node tools/_arch_probe.js [POS|ALL] [games]` (default ALL 200). For each position it
 generates one exemplar of every archetype near a common OVR (realistic stat
 profiles via rejection sampling), swaps it/them into a fixed home lineup as the
 starter(s) — with deliberately-weak fixed backups so the exemplar ALWAYS starts,
@@ -223,8 +223,8 @@ if two archetypes produce the same box score, the label is cosmetic. Verdict
 (2026-05): every archetype differentiates except the three HYBRID types
 (TE/LB/S) which were flavor-only and picker-capped to low OVR — since fixed.
 
-### 1d. `_jumbo_probe.js` — 13-personnel matchup probe
-`node _jumbo_probe.js [games]` (default 250). Forces the offense into JUMBO (13
+### 1d. `tools/_jumbo_probe.js` — 13-personnel matchup probe
+`node tools/_jumbo_probe.js [games]` (default 250). Forces the offense into JUMBO (13
 personnel — 1 RB / 3 TE / 1 WR) on every play, pins the defense to each scheme
 (BLITZ_46 / BASE_43 / BASE_34 / NICKEL / DIME / PREVENT) via getter shadow, and
 measures how 13-personnel produces against each. Answers *"what is 13 personnel
@@ -232,8 +232,8 @@ best against?"* Confirms design intent: 13 punishes blitz/heavy fronts via PA
 shots (BLITZ_46 6.81 Y/play, 30 PTS/g — best for offense); least valuable vs
 DIME (6.26, 27.3 PTS/g). Seeded → reproducible.
 
-### 1e. `_ux_snapshot.js` — Playwright visual-verification harness
-`node _ux_snapshot.js [shot|ALL]` (default: all default shots). The UX
+### 1e. `tools/_ux_snapshot.js` — Playwright visual-verification harness
+`node tools/_ux_snapshot.js [shot|ALL]` (default: all default shots). The UX
 counterpart to the audit harnesses — instead of stats, produces directly-
 readable PNG screenshots in `/tmp/ux/` for every major UI state. Backbone of
 the UX retune (banner removal, delete safety, Quick Start flow, nav rail).
@@ -1192,7 +1192,7 @@ claim, since n=1 scatter is large at the legend tier.*
    DUAL_ELITE 2.3→9.8 rush att, 13→48 rush yds (4.9 ypc), and the dual-threat
    went from a clear downgrade (−6 win%, −80 tot yds vs pocket) to producing MORE
    total offense at equal OVR. League rush/g stayed in-band (no inflation).
-   Validate with `node _qb_probe.js`.
+   Validate with `node tools/_qb_probe.js`.
    - **STILL OPEN (judgment call):** QB OVR under-weights mobility — a 96-SPD /
      74-THR "noodle-arm quick-legs" profile rates only 77 (backup tier) because
      THR is 42% of `calcOverall` (spd 9 / agi 13). It now *produces* like a

@@ -97,6 +97,6 @@ const harness = `
 `;
 
 let bundle = shim + extraConsts;
-for (const f of files) bundle += "\n;// ===== " + f + " =====\n" + stripUiInit(fs.readFileSync(path.join(__dirname, f), "utf8"), f) + "\n";
+for (const f of files) bundle += "\n;// ===== " + f + " =====\n" + stripUiInit(fs.readFileSync(path.join(__dirname, "..", f), "utf8"), f) + "\n";
 bundle += harness;
 new Function(bundle)();

@@ -5140,6 +5140,11 @@ function startFranchise(teamId) {
     playoffBracket: null,
     history:        [],
     pendingFranchiseGame: null,
+    // Minted EAGERLY at creation (was lazy in _deriveGameSeed): a save
+    // snapshotted before week 1 would otherwise capture null, and a re-sim
+    // from it would mint a different base — breaking the week-replay
+    // determinism contract for brand-new franchises.
+    rngSeedBase: (Math.random() * 0xFFFFFFFF) >>> 0,
     _offChanges:    null,
     seasonStats:    {},
     seasonHighlights: [],

@@ -172,6 +172,6 @@ const audit = `
 })();
 `;
 let bundle = shim + "\n";
-for (const fl of files) { let code=fs.readFileSync(path.join(__dirname,fl),"utf8"); code=stripUiInit(code,fl); bundle+="\n;//=== "+fl+" ===\n"+code+"\n"; }
+for (const fl of files) { let code=fs.readFileSync(path.join(__dirname, "..", fl),"utf8"); code=stripUiInit(code,fl); bundle+="\n;//=== "+fl+" ===\n"+code+"\n"; }
 bundle += "\n" + audit;
 new Function(bundle)();

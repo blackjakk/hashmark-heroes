@@ -60,7 +60,7 @@ const snap = `
 })();
 `;
 let blob = shim + "\n";
-for (const f of files) blob += "\n;// ==== " + f + " ====\n" + stripUiInit(fs.readFileSync(path.join(__dirname, f), "utf8"), f) + "\n";
+for (const f of files) blob += "\n;// ==== " + f + " ====\n" + stripUiInit(fs.readFileSync(path.join(__dirname, "..", f), "utf8"), f) + "\n";
 blob += snap;
 try { (0, eval)(blob); } catch (e) { console.error("snapshot failed: " + (e && e.stack || e)); process.exit(1); }
 process.stdout.write(JSON.stringify(globalThis.__snap, null, 1));

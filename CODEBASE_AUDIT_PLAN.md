@@ -259,6 +259,52 @@ chatter), must-NOT-seed (player generation entropy across new franchises).
 
 ### G. Code health: duplication, dead code, file layout
 *Priority: LOW-MEDIUM (drag on every future session, not user-facing).*
+> **DONE** (code-health arc). The two hot-list refactors landed:
+> - **One sim factory.** `_frnBuildLiveSim` is now THE construction path for
+>   auto-sims, classic watch, and interactive playcalling; `frnSimOnce`'s
+>   duplicated 90-line modifier stack is gone. Unifying surfaced + fixed two
+>   live-path drifts: live games were missing the weekly-gameplan tilt AND the
+>   Rest-Starters snap maps that auto-sims applied. Chaos rolls stay correct
+>   per path ("roll" on the seeded franchise stream for auto-sims; pre-rolled
+>   fixed values for the interactive runner's deterministic rebuilds).
+> - **One persist path.** `_frnPersistSimmedGame` replaces the thrice-copied
+>   persist block in `frnSimWeek`/`frnSimToWeek`/`frnSimSeason`. Fixed both
+>   known drifts: week-simmed games now store `g.gameplan`, and bulk sims now
+>   extract replay clips (the empty-Replays-after-Sim-Season bug from §E).
+>   The APB tournament path persists a different shape (matchups, not
+>   schedule games) and stays separate by design.
+> - **Eager `rngSeedBase`.** Was minted lazily on first sim — a save
+>   snapshotted before week 1 captured null and re-simmed differently. Now
+>   minted at franchise creation; week-1 re-sims are byte-identical too.
+> - **Scratch quarantine.** Root `_*` files 36 → 18: fifteen one-off probes
+>   (qb/arch/jumbo/ir/cap/clutch-film/formation/trace/phase/ux/morale probes
+>   + the html specimens) moved to `tools/` with their `__dirname` loads
+>   patched; verified they still run. The 18 kept at root are the LIVE gate
+>   + calibration suites (`_audit_*`, `_sim/_brady/_clutch/_mff_*` and the
+>   teleport battery, which `_audit_gate.js` references).
+> - **Dead-code inventory:** 1,522 function definitions, 36 zero-reference
+>   (2.4%) — list captured below; deletion is a ticket (each needs a manual
+>   check for dynamic/console use): drawKickoffFormation, renderRatings,
+>   absSalaryFloor, currentCap, _isPlayerScouted, _schemeMatchupLabel,
+>   _expireScoutingIntel, _resetWeeklyScoutVisits, frnSaveSummary,
+>   frnLoadGame, open/closeFranchiseModal, _maybeEnshrineHOF,
+>   frnFANegotiationOpen, frnFAOpenSelf, frnFACutPlayer, frnTogglePSAutoSpend,
+>   _depthSlotLabel, _fpts, _clockMMSS, _topPerformer, _mini_helmet,
+>   _bsCompRow, mffPlayerOfGame, mffTeamSOS, _weeklyTopTen,
+>   _renderCurrentGameHub, _returnAbility, _teamPicksByYear,
+>   _processPendingCounters, +7 more (re-run the inventory in §G method).
+>
+> **Target file layout (the "where does new code go" rule):**
+> `play-data.js` constants/teams/RNG · `play-player.js` player gen ·
+> `play-engine.js` GameSimulator ONLY (audited — gate every change) ·
+> `play-render/animation/sprites/fx/audio/broadcast` presentation ·
+> `play-franchise-core.js` save/load/slots/schedule/standings/state machine ·
+> `play-franchise-season.js` in-season flows (FA, injuries, preseason) ·
+> `play-franchise-stats.js` dashboard shell + stats surfaces ·
+> `play-franchise-offseason.js` sim entry points, playoffs, offseason, draft ·
+> `tools/` one-off probes · root `_*` = live audit gate + calibration only.
+> New code goes in the right file; moved code moves when touched. Don't
+> big-bang split the offseason monolith.
 
 - **Duplication hot list:** the sim-result-persist block exists ~4× (
   `frnSimWeek` / `frnSimToWeek` / `frnSimSeason` / APB path — one already

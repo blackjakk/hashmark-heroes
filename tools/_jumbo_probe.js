@@ -77,6 +77,6 @@ const audit = `
 })();
 `;
 let bundle = shim + "\n";
-for (const f of files){ let c=fs.readFileSync(path.join(__dirname,f),"utf8"); c=stripUiInit(c,f); bundle+="\n;//=== "+f+" ===\n"+c+"\n"; }
+for (const f of files){ let c=fs.readFileSync(path.join(__dirname, "..", f),"utf8"); c=stripUiInit(c,f); bundle+="\n;//=== "+f+" ===\n"+c+"\n"; }
 bundle += "\n" + audit;
 new Function(bundle)();

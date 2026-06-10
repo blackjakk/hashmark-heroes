@@ -87,6 +87,6 @@ const test = `
 `;
 
 let bundle = shim;
-for (const f of files) bundle += "\n;// ===== " + f + " =====\n" + stripUiInit(fs.readFileSync(path.join(__dirname, f), "utf8"), f) + "\n";
+for (const f of files) bundle += "\n;// ===== " + f + " =====\n" + stripUiInit(fs.readFileSync(path.join(__dirname, "..", f), "utf8"), f) + "\n";
 bundle += test;
 new Function(bundle)();

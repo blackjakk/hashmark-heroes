@@ -1726,92 +1726,11 @@ function frnSimOnce(homeId, awayId, isPlayoff = false) {
     _autoManageRoster(homeId);
     _autoManageRoster(awayId);
   }
-  const sim = new GameSimulator(
-    getTeam(homeId), getTeam(awayId),
-    franchise.rosters[homeId], franchise.rosters[awayId],
-    { isRivalry, isPlayoff,
-      homeSnaps: _buildSnapMap(homeId, { restStarters: typeof _restStartersArmed === "function" && _restStartersArmed(homeId) }),
-      awaySnaps: _buildSnapMap(awayId, { restStarters: typeof _restStartersArmed === "function" && _restStartersArmed(awayId) }) }
-  );
-  // Coaching trait bumps applied AFTER constructor so they layer on top of HFA.
-  const hcHome = franchise.coaches?.[homeId]?.hc?.specialtyTrait;
-  const hcAway = franchise.coaches?.[awayId]?.hc?.specialtyTrait;
-  // HC specialty — Offensive/Defensive Minded = +2 in their phase
-  if (hcHome === "Offensive Minded")  sim.homeR.offense += 2;
-  if (hcHome === "Defensive Minded")  sim.homeR.defense += 2;
-  if (hcAway === "Offensive Minded")  sim.awayR.offense += 2;
-  if (hcAway === "Defensive Minded")  sim.awayR.defense += 2;
-  // Philosophy-axis chemistry: aligned staffs build synergy over time; misaligned
-  // staffs accumulate friction. Both tracked in franchise.coaches[id]._chemistry.
-  const ocHome = franchise.coaches?.[homeId]?.oc?.trait;
-  const ocAway = franchise.coaches?.[awayId]?.oc?.trait;
-  const dcHome = franchise.coaches?.[homeId]?.dc?.trait;
-  const dcAway = franchise.coaches?.[awayId]?.dc?.trait;
-  const chemHome = _computeChemistryBonus(homeId);
-  const chemAway = _computeChemistryBonus(awayId);
-  sim.homeR.offense += chemHome.offBonus; sim.homeR.defense += chemHome.defBonus;
-  sim.awayR.offense += chemAway.offBonus; sim.awayR.defense += chemAway.defBonus;
-  // Chaotic chemistry (all 3 non-neutral, all different groups, 2+ friction years) → ±2 swing
-  if (chemHome.chaotic) { const s = _frand() < 0.5 ? 2 : -2; sim.homeR.offense += s; sim.homeR.defense += s; }
-  if (chemAway.chaotic) { const s = _frand() < 0.5 ? 2 : -2; sim.awayR.offense += s; sim.awayR.defense += s; }
-  // DC trait boosts (defense rating)
-  // Pressure Package: always-on pass rush pressure, regardless of opponent scheme.
-  if (dcHome === "Pressure Package") sim.homeR.defense += 1;
-  if (dcAway === "Pressure Package") sim.awayR.defense += 1;
-  // Run Stopper: peaks vs run-heavy opponents — no bonus against passing teams.
-  if (dcHome === "Run Stopper" && _getTeamOffScheme(awayId) === "SMASHMOUTH") sim.homeR.defense += 1;
-  if (dcAway === "Run Stopper" && _getTeamOffScheme(homeId) === "SMASHMOUTH") sim.awayR.defense += 1;
-  // Ball Hawk: always-on secondary pressure, forces tighter throwing windows.
-  if (dcHome === "Ball Hawk") sim.homeR.defense += 1;
-  if (dcAway === "Ball Hawk") sim.awayR.defense += 1;
-  // Film Mastermind: scheme execution scales with defenders' average TEC.
-  // Rewards teams that pair this trait with a development-focused staff —
-  // the film work only translates if the players have the technique to execute it.
-  const _filmBonus = (teamId) => {
-    const def = (franchise.rosters[teamId] || []).filter(p => ["DL","LB","CB","S"].includes(p.position));
-    if (!def.length) return 0;
-    const top5 = def.map(p => p.stats?.[11] ?? 68).sort((a,b) => b-a).slice(0,5);
-    const avg = top5.reduce((s,v) => s+v, 0) / top5.length;
-    return avg >= 95 ? 3 : avg >= 85 ? 2 : avg >= 75 ? 1 : 0;
-  };
-  if (dcHome === "Film Mastermind") sim.homeR.defense += _filmBonus(homeId);
-  if (dcAway === "Film Mastermind") sim.awayR.defense += _filmBonus(awayId);
-  // Trench General OC running SMASHMOUTH: elite O-line coaching translates directly to run game power.
-  if (ocHome === "Trench General" && _getTeamOffScheme(homeId) === "SMASHMOUTH") sim.homeR.offense += 1;
-  if (ocAway === "Trench General" && _getTeamOffScheme(awayId) === "SMASHMOUTH") sim.awayR.offense += 1;
-  // Red Zone Genius OC running WEST COAST: better TD conversion efficiency — shifts FG drives into TDs.
-  if (ocHome === "Red Zone Genius" && _getTeamOffScheme(homeId) === "WEST COAST") sim.homeR.offense += 1;
-  if (ocAway === "Red Zone Genius" && _getTeamOffScheme(awayId) === "WEST COAST") sim.awayR.offense += 1;
-  // Coaching rating modifiers — tiered: <55=-1, 55-71=0, 72-82=+1, 83+=+2
-  // HC affects both sides; OC affects offense only; DC affects defense only.
-  const _cb = r => r >= 83 ? 2 : r >= 72 ? 1 : r >= 55 ? 0 : -1;
-  const _hc = (id) => franchise.coaches?.[id]?.hc?.rating || 60;
-  const _oc = (id) => franchise.coaches?.[id]?.oc?.rating || 60;
-  const _dc = (id) => franchise.coaches?.[id]?.dc?.rating || 60;
-  sim.homeR.offense += _cb(_hc(homeId)) + _cb(_oc(homeId));
-  sim.homeR.defense += _cb(_hc(homeId)) + _cb(_dc(homeId));
-  sim.awayR.offense += _cb(_hc(awayId)) + _cb(_oc(awayId));
-  sim.awayR.defense += _cb(_hc(awayId)) + _cb(_dc(awayId));
-  // Scheme matchup: OC's offensive scheme vs opponent DC's defensive scheme.
-  // _schemeMatchup returns +ve = offense wins the schematic battle.
-  // Scaled ×0.5 so the max swing (±3-4 OVR) stays comparable to chemistry bonuses.
-  const homeOffScheme = _getTeamOffScheme(homeId);
-  const awayOffScheme = _getTeamOffScheme(awayId);
-  const homeDefScheme = _getTeamDefScheme(homeId);
-  const awayDefScheme = _getTeamDefScheme(awayId);
-  const homeSchemeMod = Math.round(_schemeMatchup(homeOffScheme, awayDefScheme) * 0.5);
-  const awaySchemeMod = Math.round(_schemeMatchup(awayOffScheme, homeDefScheme) * 0.5);
-  sim.homeR.offense += homeSchemeMod;
-  sim.awayR.offense += awaySchemeMod;
-  // Weekly game plan — head coach tilts pass/run based on the opponent's
-  // weak side. Coach OVR determines how well they identify and exploit it.
-  // Returns a passProb delta (-0.10 to +0.10) plus a small rating tweak.
-  const homeWgp = _computeWeeklyGameplan(homeId, awayId);
-  const awayWgp = _computeWeeklyGameplan(awayId, homeId);
-  sim.homeWgp = homeWgp;
-  sim.awayWgp = awayWgp;
-  if (homeWgp?.ovrBump) sim.homeR.offense += homeWgp.ovrBump;
-  if (awayWgp?.ovrBump) sim.awayR.offense += awayWgp.ovrBump;
+  // Single sim factory (shared with the live + interactive paths) — the
+  // coaching/chemistry/scheme/gameplan stack lives ONCE in _frnBuildLiveSim.
+  // "roll" = roll the chaotic-chemistry swing on the seeded franchise stream.
+  const sim = _frnBuildLiveSim(homeId, awayId, isPlayoff, "roll");
+  const homeWgp = sim.homeWgp, awayWgp = sim.awayWgp;
   const r = sim.simulate();
   if (typeof _clearSimRng === "function") _clearSimRng();   // engine rng off; franchise layer back to Math.random
   // Stamp gameday context onto the result so callers can persist it
@@ -3554,6 +3473,34 @@ function _potwSubmitVotes(week) {
   showFranchiseDashboard();
 }
 
+// THE single persist path for an auto-simmed regular-season game (code-health
+// audit §G). Previously copied across frnSimWeek / frnSimToWeek / frnSimSeason
+// and drifted twice: week-simmed games missed g.gameplan, and bulk sims missed
+// replay-clip extraction (an empty Replays tab after Sim-to-Week / Sim Season).
+// All three call this now; the only divergence left is the per-loop pacing.
+function _frnPersistSimmedGame(g, r, w) {
+  g.homeScore = r.homeScore; g.awayScore = r.awayScore; g.played = true;
+  g.stats = _stripGameStatsForStorage(r.full?.stats);
+  g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
+  g.momentumLog = _extractMomentumLog(r.full?.plays);
+  g.drives = _extractDriveLog(r.full?.plays);
+  // Highlights — top 7 per game saved to franchise.replayClips (capped /wk).
+  if (r.full?.plays) {
+    try {
+      const hl = _extractReplayClips(r.full.plays, g.homeId, g.awayId,
+        franchise.season || 1, g.week || w, false);
+      if (hl?.length) _saveReplayClips(hl);
+    } catch (e) { console.warn("[highlights]", e); }
+  }
+  if (r.full?.weather) g.weather = { label: r.full.weather.label, windStrength: r.full.weather.windStrength };
+  if (r.full?.isRivalry) g.isRivalry = true;
+  // Weekly-gameplan reasoning for the recap's "what each HC was trying to do".
+  if (r.full?.homeWgp || r.full?.awayWgp) g.gameplan = {
+    home: r.full.homeWgp || null, away: r.full.awayWgp || null,
+  };
+  recordFranchiseResult(g.homeId, g.awayId, r.homeScore, r.awayScore);
+}
+
 function frnSimWeek() {
   const w      = franchise.week;
   const wGames = franchise.schedule.filter(g => g.week === w && !g.played);
@@ -3562,23 +3509,7 @@ function frnSimWeek() {
   // render + save below stay OUTSIDE the seeded window (cosmetic randomness).
   _withWeekRng(w, () => {
     for (const g of wGames) {
-      const r = frnSimOnce(g.homeId, g.awayId);
-      g.homeScore = r.homeScore; g.awayScore = r.awayScore; g.played = true;
-      g.stats = _stripGameStatsForStorage(r.full?.stats);
-      g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
-        g.momentumLog = _extractMomentumLog(r.full?.plays);
-        g.drives = _extractDriveLog(r.full?.plays);
-      // Highlights — top 7 per game saved to franchise.replayClips
-      if (r.full?.plays) {
-        try {
-          const hl = _extractReplayClips(r.full.plays, g.homeId, g.awayId,
-            franchise.season || 1, g.week || w, false);
-          if (hl?.length) _saveReplayClips(hl);
-        } catch (e) { console.warn("[highlights]", e); }
-      }
-      if (r.full?.weather) g.weather = { label: r.full.weather.label, windStrength: r.full.weather.windStrength };
-      if (r.full?.isRivalry) g.isRivalry = true;
-      recordFranchiseResult(g.homeId, g.awayId, r.homeScore, r.awayScore);
+      _frnPersistSimmedGame(g, frnSimOnce(g.homeId, g.awayId), w);
     }
     _computeAndStorePOTW(w);
     _checkWeekComplete();
@@ -3604,18 +3535,7 @@ function frnSimToWeek(targetWeek) {
     _withWeekRng(w, () => {
       const wGames = franchise.schedule.filter(g => g.week === w && !g.played);
       for (const g of wGames) {
-        const r = frnSimOnce(g.homeId, g.awayId);
-        g.homeScore = r.homeScore; g.awayScore = r.awayScore; g.played = true;
-        g.stats = _stripGameStatsForStorage(r.full?.stats);
-        g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
-        g.momentumLog = _extractMomentumLog(r.full?.plays);
-        g.drives = _extractDriveLog(r.full?.plays);
-        if (r.full?.weather) g.weather = { label: r.full.weather.label, windStrength: r.full.weather.windStrength };
-        if (r.full?.isRivalry) g.isRivalry = true;
-        if (r.full?.homeWgp || r.full?.awayWgp) g.gameplan = {
-          home: r.full.homeWgp || null, away: r.full.awayWgp || null,
-        };
-        recordFranchiseResult(g.homeId, g.awayId, r.homeScore, r.awayScore);
+        _frnPersistSimmedGame(g, frnSimOnce(g.homeId, g.awayId), w);
       }
       _computeAndStorePOTW(w);
       try { _runWeekEndResolution(); } catch(e) { console.error("[frnSimToWeek] resolution error (non-fatal):", e); }
@@ -3787,18 +3707,7 @@ function frnSimSeason() {
     _withWeekRng(w, () => {
       const wGames = franchise.schedule.filter(g => g.week === w && !g.played);
       for (const g of wGames) {
-        const r = frnSimOnce(g.homeId, g.awayId);
-        g.homeScore = r.homeScore; g.awayScore = r.awayScore; g.played = true;
-        g.stats = _stripGameStatsForStorage(r.full?.stats);
-        g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
-        g.momentumLog = _extractMomentumLog(r.full?.plays);
-        g.drives = _extractDriveLog(r.full?.plays);
-        if (r.full?.weather) g.weather = { label: r.full.weather.label, windStrength: r.full.weather.windStrength };
-        if (r.full?.isRivalry) g.isRivalry = true;
-        if (r.full?.homeWgp || r.full?.awayWgp) g.gameplan = {
-          home: r.full.homeWgp || null, away: r.full.awayWgp || null,
-        };
-        recordFranchiseResult(g.homeId, g.awayId, r.homeScore, r.awayScore);
+        _frnPersistSimmedGame(g, frnSimOnce(g.homeId, g.awayId), w);
       }
       _computeAndStorePOTW(w);
       try { _runWeekEndResolution(); } catch(e) { console.error("[frnSimSeason] resolution error (non-fatal):", e); }
@@ -3838,14 +3747,22 @@ function _frnChaosRolls(homeId, awayId) {
   };
 }
 
-// One construction path for every live-game sim so classic watch, interactive
-// playcalling, and auto-sims are driven by identical coaching + scheme +
-// chemistry modifiers. (Mirrors frnSimOnce's modifier stack.)
-// `cloneRosters` hands the sim deep copies — the engine mutates player objects
-// in-game (wear, injuries, ejections, concussion counters), and the
-// interactive runner's throwaway partial re-sims must not stack those onto
-// the real league. Player objects are save-serialized JSON, so a JSON
-// round-trip is a faithful clone.
+// THE single sim factory (code-health audit §G): auto-sims (frnSimOnce),
+// classic watch, and interactive playcalling all build through here, so every
+// path gets identical coaching/chemistry/scheme/gameplan modifiers. The stack
+// previously lived twice (frnSimOnce + a "mirror" here) and had already
+// drifted twice: live games were missing the weekly-gameplan tilt and the
+// Rest-Starters snap maps that auto-sims applied.
+//
+// `chaos`: "roll" → roll the chaotic-chemistry swing here with _frand()
+//   (the seeded franchise stream — auto-sim path, draw order home→away);
+//   or a pre-rolled {home,away} from _frnChaosRolls (live path — the
+//   interactive runner re-builds the sim many times and must not re-roll).
+// `cloneRosters`: hand the sim deep copies — the engine mutates player objects
+//   in-game (wear, injuries, ejections, concussion counters), and the
+//   interactive runner's throwaway partial re-sims must not stack those onto
+//   the real league. Player objects are save-serialized JSON, so a JSON
+//   round-trip is a faithful clone.
 function _frnBuildLiveSim(homeId, awayId, isPlayoff, chaos, cloneRosters) {
   const home       = getTeam(homeId), away = getTeam(awayId);
   const homeRoster = cloneRosters ? JSON.parse(JSON.stringify(franchise.rosters[homeId])) : franchise.rosters[homeId];
@@ -3854,22 +3771,27 @@ function _frnBuildLiveSim(homeId, awayId, isPlayoff, chaos, cloneRosters) {
   const isRivalry = _areRivals(homeId, awayId);
   const sim = new GameSimulator(home, away, homeRoster, awayRoster,
     { isRivalry, isPlayoff,
-      homeSnaps: _buildSnapMap(homeId),
-      awaySnaps: _buildSnapMap(awayId) });
-  // Apply the same coaching + scheme boosts as frnSimOnce so live games
-  // and auto-sims are driven by identical modifiers.
+      homeSnaps: _buildSnapMap(homeId, { restStarters: typeof _restStartersArmed === "function" && _restStartersArmed(homeId) }),
+      awaySnaps: _buildSnapMap(awayId, { restStarters: typeof _restStartersArmed === "function" && _restStartersArmed(awayId) }) });
+  // Coaching trait bumps applied AFTER constructor so they layer on top of HFA.
   const hcHome = franchise.coaches?.[homeId]?.hc?.specialtyTrait;
   const hcAway = franchise.coaches?.[awayId]?.hc?.specialtyTrait;
   if (hcHome === "Offensive Minded") sim.homeR.offense += 2;
   if (hcHome === "Defensive Minded") sim.homeR.defense += 2;
   if (hcAway === "Offensive Minded") sim.awayR.offense += 2;
   if (hcAway === "Defensive Minded") sim.awayR.defense += 2;
+  // Philosophy-axis chemistry + the chaotic ±2 swing (see `chaos` above).
   const chemHome = _computeChemistryBonus(homeId);
   const chemAway = _computeChemistryBonus(awayId);
   sim.homeR.offense += chemHome.offBonus; sim.homeR.defense += chemHome.defBonus;
   sim.awayR.offense += chemAway.offBonus; sim.awayR.defense += chemAway.defBonus;
-  if (chaos?.home) { sim.homeR.offense += chaos.home; sim.homeR.defense += chaos.home; }
-  if (chaos?.away) { sim.awayR.offense += chaos.away; sim.awayR.defense += chaos.away; }
+  if (chaos === "roll") {
+    if (chemHome.chaotic) { const s = _frand() < 0.5 ? 2 : -2; sim.homeR.offense += s; sim.homeR.defense += s; }
+    if (chemAway.chaotic) { const s = _frand() < 0.5 ? 2 : -2; sim.awayR.offense += s; sim.awayR.defense += s; }
+  } else {
+    if (chaos?.home) { sim.homeR.offense += chaos.home; sim.homeR.defense += chaos.home; }
+    if (chaos?.away) { sim.awayR.offense += chaos.away; sim.awayR.defense += chaos.away; }
+  }
   const ocHome = franchise.coaches?.[homeId]?.oc?.trait;
   const ocAway = franchise.coaches?.[awayId]?.oc?.trait;
   const dcHome = franchise.coaches?.[homeId]?.dc?.trait;
@@ -3880,6 +3802,7 @@ function _frnBuildLiveSim(homeId, awayId, isPlayoff, chaos, cloneRosters) {
   if (dcAway === "Run Stopper" && _getTeamOffScheme(homeId) === "SMASHMOUTH") sim.awayR.defense += 1;
   if (dcHome === "Ball Hawk") sim.homeR.defense += 1;
   if (dcAway === "Ball Hawk") sim.awayR.defense += 1;
+  // Film Mastermind: scheme execution scales with defenders' average TEC.
   const _filmBonus = (teamId) => {
     const def = (franchise.rosters[teamId] || []).filter(p => ["DL","LB","CB","S"].includes(p.position));
     if (!def.length) return 0;
@@ -3893,6 +3816,7 @@ function _frnBuildLiveSim(homeId, awayId, isPlayoff, chaos, cloneRosters) {
   if (ocAway === "Trench General" && _getTeamOffScheme(awayId) === "SMASHMOUTH") sim.awayR.offense += 1;
   if (ocHome === "Red Zone Genius" && _getTeamOffScheme(homeId) === "WEST COAST") sim.homeR.offense += 1;
   if (ocAway === "Red Zone Genius" && _getTeamOffScheme(awayId) === "WEST COAST") sim.awayR.offense += 1;
+  // Coaching rating modifiers — tiered: <55=-1, 55-71=0, 72-82=+1, 83+=+2.
   const _cb = r => r >= 83 ? 2 : r >= 72 ? 1 : r >= 55 ? 0 : -1;
   const _hc = (id) => franchise.coaches?.[id]?.hc?.rating || 60;
   const _oc = (id) => franchise.coaches?.[id]?.oc?.rating || 60;
@@ -3901,10 +3825,19 @@ function _frnBuildLiveSim(homeId, awayId, isPlayoff, chaos, cloneRosters) {
   sim.homeR.defense += _cb(_hc(homeId)) + _cb(_dc(homeId));
   sim.awayR.offense += _cb(_hc(awayId)) + _cb(_oc(awayId));
   sim.awayR.defense += _cb(_hc(awayId)) + _cb(_dc(awayId));
+  // Scheme matchup: OC's offensive scheme vs opponent DC's defensive scheme.
   const homeSchemeMod = Math.round(_schemeMatchup(_getTeamOffScheme(homeId), _getTeamDefScheme(awayId)) * 0.5);
   const awaySchemeMod = Math.round(_schemeMatchup(_getTeamOffScheme(awayId), _getTeamDefScheme(homeId)) * 0.5);
   sim.homeR.offense += homeSchemeMod;
   sim.awayR.offense += awaySchemeMod;
+  // Weekly game plan — HC tilts pass/run vs the opponent's weak side. RNG-free
+  // (safe for the interactive runner's deterministic rebuilds).
+  const homeWgp = _computeWeeklyGameplan(homeId, awayId);
+  const awayWgp = _computeWeeklyGameplan(awayId, homeId);
+  sim.homeWgp = homeWgp;
+  sim.awayWgp = awayWgp;
+  if (homeWgp?.ovrBump) sim.homeR.offense += homeWgp.ovrBump;
+  if (awayWgp?.ovrBump) sim.awayR.offense += awayWgp.ovrBump;
   return sim;
 }
 
