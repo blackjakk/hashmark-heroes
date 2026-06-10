@@ -6827,25 +6827,37 @@ function renderFrnAnalytics(defaultTab) {
       </thead><tbody>${rows}</tbody></table>`;
   }
 
-  const tabs = [
-    { id:"mysheet",   label:"MY CAP SHEET" },
-    { id:"value",     label:"💰 VALUE LEDGER" },
-    { id:"horizon",   label:"📅 CAP HORIZON" },
-    { id:"needs",     label:"🎯 POSITION NEEDS" },
-    { id:"caphealth", label:"CAP HEALTH" },
-    { id:"cuts",      label:"CUT LIST" },
-    { id:"timeline",  label:"TIMELINE" },
-    { id:"league",    label:"LEAGUE HEALTH" },
-    { id:"top",       label:"TOP CONTRACTS" },
-    { id:"picks",     label:"DRAFT CAPITAL" },
-    { id:"power",     label:"POWER RANKINGS" },
-    { id:"QB",  label:"QB" }, { id:"RB",  label:"RB" },
-    { id:"WR",  label:"WR" }, { id:"TE",  label:"TE" },
-    { id:"DL",  label:"DL" }, { id:"LB",  label:"LB" }, { id:"CB",  label:"CB" },
+  // Grouped so the ~18 views read as three jobs instead of one junk drawer:
+  // MY CAP (your team's books) · LEAGUE (everyone else) · POSITION MARKETS.
+  const tabGroups = [
+    { group: "MY CAP", tabs: [
+      { id:"mysheet",   label:"My Cap Sheet" },
+      { id:"value",     label:"💰 Value Ledger" },
+      { id:"horizon",   label:"📅 Cap Horizon" },
+      { id:"caphealth", label:"Cap Health" },
+      { id:"cuts",      label:"Cut List" },
+      { id:"timeline",  label:"Timeline" },
+    ]},
+    { group: "LEAGUE", tabs: [
+      { id:"league",    label:"League Health" },
+      { id:"top",       label:"Top Contracts" },
+      { id:"picks",     label:"Draft Capital" },
+      { id:"power",     label:"Power Rankings" },
+    ]},
+    { group: "POSITION MARKETS", tabs: [
+      { id:"needs",     label:"🎯 Needs" },
+      { id:"QB", label:"QB" }, { id:"RB", label:"RB" },
+      { id:"WR", label:"WR" }, { id:"TE", label:"TE" },
+      { id:"DL", label:"DL" }, { id:"LB", label:"LB" }, { id:"CB", label:"CB" },
+    ]},
   ];
+  const tabs = tabGroups.flatMap(g => g.tabs);
 
-  const tabBarHtml = tabs.map(t => `
-    <button class="frn-ana-tab ${t.id===tab?"active":""}" onclick="renderFrnAnalytics('${t.id}')">${t.label}</button>
+  const tabBarHtml = tabGroups.map(g => `
+    <div class="frn-ana-tabgroup">
+      <span class="frn-ana-tabgroup-lbl">${g.group}</span>
+      ${g.tabs.map(t => `<button class="frn-ana-tab ${t.id===tab?"active":""}" onclick="renderFrnAnalytics('${t.id}')">${t.label}</button>`).join("")}
+    </div>
   `).join("");
 
   function draftCapital() {

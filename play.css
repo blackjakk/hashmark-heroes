@@ -1939,7 +1939,16 @@
 
   /* Analytics tabs + table */
   .frn-ana-tabs {
-    display: flex; flex-wrap: wrap; gap: .25rem; margin-bottom: .75rem;
+    display: flex; flex-direction: column; gap: .4rem; margin-bottom: .75rem;
+  }
+  /* Grouped analytics nav: a small section label + its pills on one wrapping row. */
+  .frn-ana-tabgroup {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .25rem;
+  }
+  .frn-ana-tabgroup-lbl {
+    font-size: .54rem; font-weight: 800; letter-spacing: 1px;
+    color: var(--gray); text-transform: uppercase;
+    min-width: 6.5rem; padding-right: .35rem;
   }
   .frn-ana-tab {
     background: var(--bg3); border: 1px solid var(--border); color: var(--gray);
@@ -12902,3 +12911,40 @@
   .frn-hl-moment-eyebrow {
     font-size: .58rem;
   }
+
+/* ── Demoted "abandon franchise" affordance (UX audit) ────────────────────
+   Was a full btn-outline sitting beside Export/Import on the dashboard home,
+   one misclick from a destructive action. Now a quiet, set-apart text link
+   (the type-to-confirm gate in frnAbandon is the real safety; this removes the
+   visual prominence). */
+.frn-footer-spacer { flex: 1; }
+.frn-footer-abandon-link {
+  font-size: .58rem; color: var(--blgray, #98a4b5); cursor: pointer;
+  letter-spacing: .4px; text-decoration: none;
+  border-bottom: 1px dotted transparent; padding: .15rem .1rem;
+  align-self: center; transition: color .12s, border-color .12s;
+}
+.frn-footer-abandon-link:hover,
+.frn-footer-abandon-link:focus-visible {
+  color: #c08080; border-bottom-color: #c08080; outline: none;
+}
+
+/* ── Keyboard focus visibility (UX/a11y audit) ────────────────────────────
+   Many interactive controls (deck buttons, fn-tabs, analytics pills, sub-nav,
+   scout chips, slot menus) styled :hover but had no visible :focus state, so
+   keyboard users couldn't see where they were. One low-specificity fallback
+   ring for anything focusable inside the app that doesn't define its own. */
+#franchiseHome button:focus-visible,
+#franchiseHome a:focus-visible,
+#franchiseHome select:focus-visible,
+#franchiseHome [tabindex]:focus-visible,
+#franchiseHome [role="button"]:focus-visible,
+.frn-ana-tab:focus-visible,
+.frn-subnav-btn:focus-visible,
+.frn-bb-fnkey:focus-visible,
+.ipc-btn:focus-visible,
+#playbackControls .btn:focus-visible {
+  outline: 2px solid var(--blgold, #f5c542);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

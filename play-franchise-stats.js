@@ -6710,7 +6710,8 @@ const _FRN_TABS = [
   { id: "frontoffice", icon: "📑", label: "Front Office" },
   { id: "league",      icon: "🏟", label: "League" },
   { id: "replays",     icon: "📺", label: "Replays" },
-  { id: "tools",       icon: "🛠", label: "Tools" },
+  // The "Tools" tab was retired: its three items (Analytics, Joint Practice,
+  // Future FAs) were all Front Office concerns and now live as FO sub-tabs.
 ];
 
 function frnSetTab(tabId) {
@@ -6798,8 +6799,9 @@ function _frnRenderAppShell() {
   const pendingTrades = (franchise.tradeOffers||[]).filter(o => o.status === "pending").length;
   const pendingJP     = (franchise.jointPracticeOffers||[]).filter(o => o.status === "pending" && o.toTeamId === franchise.chosenTeamId).length;
   const tabBadge = (id) => {
-    const count = (id === "frontoffice") ? pendingTrades
-                : (id === "tools")       ? pendingJP : 0;
+    // Front Office now also surfaces the pending joint-practice count (the old
+    // Tools-tab badge), since Joint Practice moved under Front Office.
+    const count = (id === "frontoffice") ? (pendingTrades + pendingJP) : 0;
     return count ? `<span class="frn-bb-fnkey-badge">${count}</span>` : "";
   };
   // Active holdout demands → persistent ribbon (legacy) preserved.
@@ -6896,9 +6898,14 @@ function _frnRenderAppShell() {
   const footEl = $("frnAppFooter");
   if (footEl) {
     footEl.style.display = "block";
+    // Player-facing copy — no storage-engine jargon. The "idb-only" state
+    // means the mirror was too big for localStorage but the canonical save is
+    // intact, so it's still just "Saved" to the user (tooltip carries the why).
     const saveMsg = (typeof _saveLastError !== "undefined" && _saveLastError)
-      ? (_saveLastError.startsWith("idb-only") ? `ℹ IDB only` : `⚠ ${_saveLastError}`)
-      : `💾 Saved ${(typeof _saveLastSize !== "undefined" && _saveLastSize) ? `· ${(_saveLastSize/1024/1024).toFixed(2)}MB` : ""}`;
+      ? (_saveLastError.startsWith("idb-only")
+          ? `<span title="Save is large — kept in the browser's database. Nothing lost.">✓ Saved</span>`
+          : `⚠ Save issue`)
+      : `✓ Saved`;
     const saveCls = (typeof _saveLastError !== "undefined" && _saveLastError)
       ? (_saveLastError.startsWith("idb-only") ? "warn" : "err") : "";
     const unread  = (franchise.news || []).filter(n => n.season === franchise.season && n.week >= (franchise.week || 0) - 1).length;
@@ -6970,9 +6977,9 @@ function _frnBuildTicker() {
     ? items.join("") + items.join("") + items.join("")
     : `<span><span class="frn-bb-ticker-time">—</span> WIRE QUIET · advance the week to see news</span>`;
   return `
-    <div class="frn-bb-ticker">
+    <div class="frn-bb-ticker" role="region" aria-label="League wire — scores and news">
       <div class="frn-bb-ticker-label">▶ WIRE</div>
-      <div class="frn-bb-ticker-track">
+      <div class="frn-bb-ticker-track" aria-live="polite" aria-atomic="false">
         <div class="frn-bb-ticker-scroll">${trackItems}</div>
       </div>
     </div>`;
@@ -6997,7 +7004,9 @@ function _frnRenderActiveTab() {
     case "frontoffice": return renderFrnFrontOfficeHome();
     case "league":      return renderFrnLeagueHome();
     case "replays":     return (typeof renderFrnReplayLib === "function") ? renderFrnReplayLib() : renderFrnRegular();
-    case "tools":       return _frnRenderTabTools();
+    // "tools" retired → its content lives under Front Office now. Any saved
+    // _frnActiveTab === "tools" (or stale deep-link) lands on Front Office.
+    case "tools":       _frnActiveTab = "frontoffice"; return renderFrnFrontOfficeHome();
     default:            return renderFrnRegular();
   }
 }
@@ -7044,13 +7053,23 @@ const _FRN_FO_TABS = [
   { id: "fa",       label: "Free Agents", fn: () => typeof renderFrnFANegotiations === "function" && renderFrnFANegotiations() },
   { id: "scouting", label: "🎓 College Scout", fn: () => typeof renderFrnScoutingBoard === "function" && renderFrnScoutingBoard() },
   { id: "coaches",  label: "Coaches",     fn: () => typeof renderFrnCoachingStaff  === "function" && renderFrnCoachingStaff() },
-  { id: "cap",      label: "Cap Sheet",   fn: () => typeof renderFrnAnalytics      === "function" && renderFrnAnalytics("mysheet") },
+  { id: "cap",      label: "📊 Analytics",  fn: () => typeof renderFrnAnalytics      === "function" && renderFrnAnalytics("mysheet") },
+  // Absorbed from the retired Tools tab — both are Front Office concerns.
+  { id: "jointpractice", label: "🏟 Joint Practice", fn: () => typeof renderFrnScrimmages === "function" && renderFrnScrimmages() },
+  { id: "futurefas",     label: "📅 Future FAs",     fn: () => typeof renderFrnProjectedFAs === "function" && renderFrnProjectedFAs() },
   { id: "draftlog", label: "📋 Draft Log", fn: () => typeof renderFrnDraftReportCard === "function" && renderFrnDraftReportCard() },
 ];
 function frnSetFOSubTab(id) {
   if (!_FRN_FO_TABS.some(t => t.id === id)) return;
   _frnFOSubTab = id;
   renderFrnFrontOfficeHome();
+}
+// Deep-link the Front Office tab at a specific sub-tab (used by inbox tasks /
+// CTAs that used to jump straight to a now-absorbed Tools screen). Switches the
+// top-level tab AND the FO sub-tab so the sub-nav highlights correctly.
+function frnOpenFO(subTabId) {
+  _frnFOSubTab = (subTabId && _FRN_FO_TABS.some(t => t.id === subTabId)) ? subTabId : _frnFOSubTab;
+  frnSetTab("frontoffice");
 }
 function renderFrnFrontOfficeHome() {
   const el = $("frnHomeContent");
@@ -7512,33 +7531,10 @@ function renderFrnLeagueHome() {
   newEl.insertBefore(sub, newEl.firstChild);
 }
 
-// Tools tab landing — links to existing utility pages (analytics, joint
-// practice, future FAs). Keeps related "front-office adjacent" tools
-// in one spot.
-function _frnRenderTabTools() {
-  const pendingJP = (franchise.jointPracticeOffers||[]).filter(o => o.status === "pending" && o.toTeamId === franchise.chosenTeamId).length;
-  $("frnHomeContent").innerHTML = `
-    <div class="frn-tab-landing">
-      <div class="frn-tab-landing-title">🛠 TOOLS</div>
-      <div class="frn-tab-landing-grid">
-        <button class="frn-tab-tile" onclick="renderFrnAnalytics('mysheet')">
-          <span class="frn-tab-tile-icon">📊</span>
-          <span class="frn-tab-tile-label">Analytics</span>
-          <span class="frn-tab-tile-sub">cap sheet · dead cap · trends</span>
-        </button>
-        <button class="frn-tab-tile" onclick="renderFrnScrimmages()">
-          <span class="frn-tab-tile-icon">🏟</span>
-          <span class="frn-tab-tile-label">Joint Practice${pendingJP?` · <span style="color:#ffc850">${pendingJP} pending</span>`:""}</span>
-          <span class="frn-tab-tile-sub">scout an opponent in shared reps</span>
-        </button>
-        <button class="frn-tab-tile" onclick="renderFrnProjectedFAs()">
-          <span class="frn-tab-tile-icon">📅</span>
-          <span class="frn-tab-tile-label">Future FAs</span>
-          <span class="frn-tab-tile-sub">expiring contracts league-wide</span>
-        </button>
-      </div>
-    </div>`;
-}
+// _frnRenderTabTools retired with the Tools tab — Analytics / Joint Practice /
+// Future FAs are now Front Office sub-tabs. Kept as a thin redirect in case a
+// stale call site survives.
+function _frnRenderTabTools() { frnOpenFO("jointpractice"); }
 
 // ── Season Recap (regular → playoffs transition) ─────────────────────────────
 // Full-screen interstitial shown after the final regular-season game and
@@ -7897,7 +7893,7 @@ function renderFrnRegular() {
           <button class="frn-cap-btn" onclick="renderFrnLeaders()">📈 Leaders</button>
           <button class="frn-cap-btn ${psAlerts?"frn-cap-btn-alert":""}" onclick="renderFrnPracticeSquad()">🏈 Practice Squad${psBadge}</button>
           <button class="frn-cap-btn" onclick="renderFrnCoachingStaff()">🎩 Coaches</button>
-          <button class="frn-cap-btn" onclick="renderFrnProjectedFAs()">📅 Future FAs</button>
+          <button class="frn-cap-btn" onclick="frnOpenFO('futurefas')">📅 Future FAs</button>
           <button class="frn-cap-btn" onclick="renderFrnLegacy()">🏆 Legacy</button>
           <button class="frn-cap-btn" onclick="renderFrnAlumni()">🎓 Alumni</button>
         </div>
@@ -7932,7 +7928,7 @@ function renderFrnRegular() {
   if (pendingJP) pushItem(decisions, {
     icon:"🏟", urgency:"med", label:`${pendingJP} joint practice request${pendingJP>1?"s":""}`,
     sub:"Another owner is waiting on your intensity pick",
-    cta:"Respond", action:"renderFrnScrimmages()",
+    cta:"Respond", action:"frnOpenFO('jointpractice')",
   });
   if (pendingTrades) pushItem(decisions, {
     icon:"🔀", urgency:"med", label:`${pendingTrades} trade offer${pendingTrades>1?"s":""} in your inbox`,
@@ -7983,7 +7979,7 @@ function renderFrnRegular() {
   tasks.push(mkTask("scout",    "🔍","Scout Opponent",    nextGame ? `vs ${oppName0}` : "Bye week",                           `renderFrnPreseason('scout')`));
   tasks.push(mkTask("depth",    "📋","Depth Chart",        "Set your starters",                                                 `renderFrnDepthChart()`, dcAutoChanges > 0, dcAutoChanges, dcAutoExtra));
   tasks.push(mkTask("snaps",    "⚡","Snap Percentages",   snapConflicts ? `⚠ ${snapConflicts} stamina conflict${snapConflicts>1?"s":""}` : "Optimize rotations", `renderFrnSnapShares()`, snapConflicts > 0, snapConflicts));
-  tasks.push(mkTask("practice", "🏟","Joint Practice",     "Scout an opponent in shared reps",                                  `renderFrnScrimmages()`));
+  tasks.push(mkTask("practice", "🏟","Joint Practice",     "Scout an opponent in shared reps",                                  `frnOpenFO('jointpractice')`));
   if (injured.length) tasks.push(mkTask("injuries", "🩹","Injury Report", `${injured.length} player${injured.length>1?"s":""} out`, `renderFrnInjuryReport()`, true, injured.length));
   tasks.push(mkTask("fa","🆓","FA Activity", activeNegs.length ? `${activeNegs.length} active negotiation${activeNegs.length>1?"s":""}` : "Browse free agents", `renderFrnFANegotiations()`, false, activeNegs.length));
   if (week <= TRADE_DEADLINE_WEEK) tasks.push(mkTask("trade","🔀","Trade Window", `Open until Wk ${TRADE_DEADLINE_WEEK}`, `frnOpenTrade()`));
@@ -8934,14 +8930,15 @@ function renderFrnRegular() {
         </div>
         <div class="frn-footer-row">
         <div class="frn-footer-info">${(() => {
-          if (_saveLastError?.startsWith("idb-only")) return `<span style="color:#e8a000">ℹ Save in IndexedDB only (localStorage full). Data is safe.</span>`;
-          if (_saveLastError) return `<span style="color:#ff7070">⚠ Save error: ${_saveLastError}</span>`;
-          const mb = (_saveLastSize / 1024 / 1024).toFixed(2);
-          return `Auto-saved · ${mb}MB · Reload to keep playing`;
+          // Player-facing — no storage-engine jargon (tooltip carries the detail).
+          if (_saveLastError?.startsWith("idb-only")) return `<span title="Save is large — kept in the browser's database. Nothing lost.">✓ Auto-saved</span>`;
+          if (_saveLastError) return `<span style="color:#ff7070">⚠ Save issue — export a backup to be safe</span>`;
+          return `✓ Auto-saved`;
         })()}</div>
         <button class="btn btn-outline" onclick="frnExportSave()" style="font-size:.62rem;color:var(--gray)" title="Download backup .json">⬇ Export</button>
         <button class="btn btn-outline" onclick="frnImportSave()" style="font-size:.62rem;color:var(--gray)" title="Restore from .json">⬆ Import</button>
-        <button class="btn btn-outline frn-abandon-btn" onclick="frnAbandon()">× Abandon</button>
+        <span class="frn-footer-spacer"></span>
+        <a class="frn-footer-abandon-link" onclick="frnAbandon()" title="Permanently delete this franchise" tabindex="0" role="button">abandon franchise</a>
         </div>
       </div>
       ${defRailHtml}
