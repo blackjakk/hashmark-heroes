@@ -226,6 +226,22 @@ chatter), must-NOT-seed (player generation entropy across new franchises).
 
 ### F. UI/UX & accessibility audit — finish the contrast arc, add structure
 *Priority: MEDIUM (large surface, but the worst was fixed this arc).*
+> **DONE** (UX/a11y arc, two commits). Contrast: extended the
+> alpha-compositing WCAG walker to ALL 25 screens (now also composites CSS
+> gradients + parses `color(srgb …)` floats); informational fails **4365 →
+> ~35** (99.2%). Fixed by lifting the modern theme's secondary gray
+> (#7b8798→#a1adbd), routing every remaining raw-team-primary TEXT through
+> `_teamInk`/`_teamInkStrong`/`--*-ink` vars (borders keep raw), and lifting
+> sub-AA accent colors. The ~35 floor is the documented WCAG-exempt set
+> (decorative emoji, placeholders, ASCII field, 7px badges, borderline 3.4–4.4
+> secondary labels). IA quick wins: dissolved the Tools tab into Front Office
+> sub-tabs; grouped the Analytics 18-pill junk drawer into MY CAP / LEAGUE /
+> POSITION MARKETS; demoted the dashboard Abandon button to a quiet link;
+> de-jargoned the "IDB only" save status → "✓ Auto-saved". Keyboard a11y: a
+> `:focus-visible` ring for the hover-only controls + `aria-live` on the WIRE
+> ticker. **Remaining (tickets):** full keyboard-only playthrough of the
+> offseason/draft flows; landmarks/headings; the ~35 borderline floor if a
+> strict AA badge is ever wanted.
 
 - Contrast: extend the alpha-compositing WCAG walker (see
   `NEXT_SESSION_PICKUP.md` recipe) from the box score to **every** screen
