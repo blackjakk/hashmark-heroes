@@ -594,6 +594,17 @@ function drawPlayer(ctx, x, y, color, secondary, label, pose, t, facing, style =
     const _id = (style && style.name) || `${(style && style.role) || "P"}|${label || ""}`;
     _lastGoodPos.set(_id, { x, y });
   }
+  // ── BOUNDS GUARD (V5) ─────────────────────────────────────────────
+  // No body renders beyond the back of either end zone or far past the
+  // sidelines, whatever the choreography upstream computed (user report:
+  // players occasionally sprint into the stadium wall). The teleport
+  // gate's out-of-bounds class flags the CAUSE with a replayable repro;
+  // this clamp removes the on-screen symptom. Cinema never routes
+  // through drawPlayer, so no camera-pan exemption is needed.
+  if (x < 10) x = 10;
+  else if (x > FIELD.W - 10) x = FIELD.W - 10;
+  if (y < FIELD.TOP - 30) y = FIELD.TOP - 30;
+  else if (y > FIELD.BOT + 30) y = FIELD.BOT + 30;
   // ── CONTINUITY GUARD (anti-teleport) ──────────────────────────────
   // First-principles backstop for the whole class of phase-boundary
   // teleports (catch frame, sim re-init, pursuit hand-off, etc.). The
@@ -698,11 +709,13 @@ function drawPlayer(ctx, x, y, color, secondary, label, pose, t, facing, style =
   // (line ~2290); drawBall reads from this either way.
   // World coords: foot at (x, y); ball tucked at chest height where
   // the carrier's hand cradles it. For a 104px PixelLab sprite at
-  // scale 1.0 with feet at (x, y), chest sits around y-50 (visually).
-  // -35 was at knee/hip per user feedback; -50 is chest. Live
-  // override: window.GC_BALL_HAND_Y_OFFSET (default -50).
+  // scale 1.0 with feet at (x, y), chest sits around y-38 (visually).
+  // History: -35 was knee/hip per user feedback; -50 was chest while the
+  // art floated ~12px above its anchor (_SPRITE_FOOT_OFFSET_Y 0.35); the
+  // V5 float fix grounded the art, so chest rebased -50 → -38. Live
+  // override: window.GC_BALL_HAND_Y_OFFSET.
   const _ballHandY = (typeof window !== "undefined" && window.GC_BALL_HAND_Y_OFFSET != null)
-    ? window.GC_BALL_HAND_Y_OFFSET : -50;
+    ? window.GC_BALL_HAND_Y_OFFSET : -38;
   const _ballHandX = (typeof window !== "undefined" && window.GC_BALL_HAND_X_OFFSET != null)
     ? window.GC_BALL_HAND_X_OFFSET : 4;
   drawPlayer._carryHandSink = drawPlayer._carryHandSink || {};

@@ -8251,12 +8251,18 @@ function renderFrnRegular() {
           <div class="frn-hero-narrative">${narrative}</div>
         </div>
         <div class="frn-hero-cta-row">
-          <button class="frn-hero-play-btn" onclick="frnPlayGame(${nextGame.homeId},${nextGame.awayId},false)">
-            ▶ PLAY GAME
-            <span class="frn-hero-play-sub">interactive · live simulation</span>
+          <!-- V5 entry audit: the hero is the actual PLAY experience —
+               interactive playcalling (offense AND defense since the V4
+               seam). The old hero said "PLAY GAME · interactive" but
+               launched the watch-only broadcast, while the real
+               interactive mode hid in a small secondary button with a
+               stale offense-only tooltip. -->
+          <button class="frn-hero-play-btn" onclick="frnPlayGameInteractive(${nextGame.homeId},${nextGame.awayId},false)" title="Interactive playcalling — run/pass, 4th downs, PATs, and the defensive shell are all your calls (defer any with [O], or hand off with Coach Mode)">
+            🎙 CALL THE PLAYS
+            <span class="frn-hero-play-sub">you coach both sides of the ball · live broadcast</span>
           </button>
           <div class="frn-hero-sims">
-            <button class="frn-sim-btn frn-callplays-btn" onclick="frnPlayGameInteractive(${nextGame.homeId},${nextGame.awayId},false)" title="You're the OC — the game pauses at every one of your offensive snaps">🎙 Call the Plays</button>
+            <button class="frn-sim-btn frn-callplays-btn" onclick="frnPlayGame(${nextGame.homeId},${nextGame.awayId},false)" title="Sit back and watch the broadcast — the AI coaches both teams">📺 Watch Game</button>
             <button class="frn-sim-btn" onclick="frnSimGame(${nextGame.homeId},${nextGame.awayId})">⏩ Sim Game</button>
             ${_renderSimForwardPanel()}
           </div>

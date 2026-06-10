@@ -44,9 +44,13 @@ const _SPRITE_FRAME_SIZE = 92;   // PixelLab default; tracks generator output
 const _SPRITE_SCALE = 1.0;
 // Procedural _drawPlayerImpl renders with FEET at the (x, y) point and
 // the body extending up. Our sprite has its visual center near the chest,
-// so we offset the draw downward by half a sprite height to align feet.
-// PixelLab "low top-down" sprites have feet at ~85% Y, so offset = 0.35.
-const _SPRITE_FOOT_OFFSET_Y = 0.35;
+// so we offset the draw downward to align feet with the anchor.
+// MEASURED (V5 float fix): across stance/run/idle/tackled/sack/celebrate
+// frames, the art's lowest non-transparent row sits at ~0.73 of image
+// height — the old 0.85 assumption ("feet at ~85% Y") rendered every
+// sprite ~12px ABOVE its anchor, so bodies floated above their shadows,
+// the LOS chalk, and the ball. offset = 0.73 - 0.5 = 0.23.
+const _SPRITE_FOOT_OFFSET_Y = 0.23;
 
 // Direction order matches PixelLab's rotation set.
 const _DIRECTIONS = [

@@ -125,7 +125,7 @@ const FIELD_KINDS = new Set([
      for (const play of game.plays) {
       const entry = { kind: play.kind, slot: (play.motion && play.motion.targetSlot) || null,
                       concept: play.concept || null, coverage: play.coverage || null,
-                      poss: play.poss, error: null, teleports: [], nonFinite: [] };
+                      poss: play.poss, error: null, teleports: [], nonFinite: [], oob: [] };
       install();
       REC.hits.length = 0;
       REC.nonFinite.clear();
@@ -200,6 +200,24 @@ const FIELD_KINDS = new Set([
               running = pick;
             }
             if (worst) entry.teleports.push(worst);
+            // V5 — OUT-OF-BOUNDS class: any position beyond the back of an
+            // end zone or far past a sideline is the "sprints into the
+            // stadium wall" family (user-reported) — a defect even when
+            // every per-frame step stays under the teleport speed cap.
+            // (The renderer now clamps these visually; this class keeps the
+            // CAUSE visible with a replayable play.)
+            if (!isBall) {
+              let oobWorst = null;
+              for (const h of arr) {
+                const ex = h.x < 5 ? 5 - h.x : h.x > 1695 ? h.x - 1695 : 0;
+                const ey = h.y < 5 ? 5 - h.y : h.y > 715 ? h.y - 715 : 0;
+                const e = Math.max(ex, ey);
+                if (e > 0 && (!oobWorst || e > oobWorst.px)) {
+                  oobWorst = { id, px: Math.round(e), at: [Math.round(h.x), Math.round(h.y)], frame: h.frame };
+                }
+              }
+              if (oobWorst) entry.oob.push(oobWorst);
+            }
           }
           entry.teleports.sort((a, b) => b.dYd - a.dYd);
           entry.nonFinite = [...REC.nonFinite];
@@ -230,6 +248,7 @@ const FIELD_KINDS = new Set([
   const withPlayerTp = report.filter(r => r.playerTp.length);
   const withBallTp   = report.filter(r => r.ballTp.length);
   const withNonFin   = report.filter(r => (r.nonFinite || []).length);
+  const withOob      = report.filter(r => (r.oob || []).length);
   const withErr      = report.filter(r => r.error);
   fs.writeFileSync("/tmp/teleport_report.json", JSON.stringify(report, null, 1));
 
@@ -253,6 +272,7 @@ const FIELD_KINDS = new Set([
   console.log(` EGREGIOUS player teleports (≥${EGREGIOUS_YD}yd/frame): ${withEgregious.length} plays  ← the real signal`);
   console.log(` All player flags (incl. borderline near cap):        ${withPlayerTp.length} plays`);
   console.log(` Non-finite (vanished) player draws: ${withNonFin.length} plays`);
+  console.log(` Out-of-bounds (into-the-wall) draws: ${withOob.length} plays`);
   console.log(` Ball anomalies:   ${withBallTp.length} plays  (>90yps flight cap)`);
   console.log(` Render/build errors: ${withErr.length} plays`);
   if (pageErrors.length) console.log(` Page errors: ${pageErrors.length} (e.g. ${pageErrors[0]})`);
@@ -283,6 +303,14 @@ const FIELD_KINDS = new Set([
     for (const [k, c] of classGroups(withBallTp, r => r.ballTp).slice(0, 8)) {
       const t = c.sample.ballTp[0];
       console.log(`   ${k.padEnd(22)} ×${String(c.n).padStart(3)}  worst ${String(c.worst).padStart(5)}yd`);
+    }
+  }
+  if (withOob.length) {
+    console.log("");
+    console.log(" ⚠ OUT-OF-BOUNDS classes (kind/targetSlot · count · worst overshoot px):");
+    for (const [k, c] of classGroups(withOob, r => r.oob.map(o => ({ ...o, dYd: o.px })))) {
+      const o = c.sample.oob[0];
+      console.log(`   ${k.padEnd(22)} ×${String(c.n).padStart(3)}  worst ${String(c.worst).padStart(5)}px  e.g. ${o.id} at [${o.at}]`);
     }
   }
   if (withErr.length) {

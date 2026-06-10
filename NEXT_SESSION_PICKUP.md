@@ -169,6 +169,32 @@ box/domain provisioning is the operator's step). All three server probes
   errors, zero app fixes needed.
 - Gate re-baselined for the intentional drifts in the same commit.
 
+## Post-V5 user-report fixes (shipped)
+
+- **Floating players (user screenshot)**: every sprite rendered ~12px
+  ABOVE its anchor — `_SPRITE_FOOT_OFFSET_Y` assumed feet at 0.85 of
+  image height; measured art (all poses) has them at ~0.73. Fixed to
+  0.23 (pixel-verified: body-bottom-to-anchor gap 11px → -1px). The
+  carried-ball hand offset rebased with it (-50 → -38, it was tuned
+  against the floating art).
+- **"Runs into the barrier" (user report, sacks)**: could NOT reproduce
+  across sacks / completes / turnover returns with two detector styles.
+  Shipped defense-in-depth: a bounds guard in drawPlayer (nothing
+  renders past the EZ backs / far past the sidelines — kills the visual
+  symptom whatever the cause) + a new OUT-OF-BOUNDS class in
+  `_teleport_detect.js` that flags the CAUSE with a replayable play when
+  it occurs (already caught a minor one: FG-defense FS placed at x=-5).
+  If the user can say which play kind/situation triggers it, capture a
+  battery around that.
+- **Game-entry audit**: the dashboard hero said "▶ PLAY GAME ·
+  interactive" but launched the watch-only broadcast, while real
+  interactive playcalling hid in a small secondary button with a stale
+  offense-only tooltip. Swapped: hero = 🎙 CALL THE PLAYS (both sides of
+  the ball), secondary = 📺 Watch Game, ⏩ Sim unchanged. Proposed (not
+  shipped): a per-game "stop prompting my defense" toggle on the call
+  panel for users who find ~140 prompts heavy (coach mode already
+  covers the full hand-off).
+
 ## NEXT options
 - **H2H beyond v1:** matchmaking/accounts, spectators, async-league
   deadlines (protocol-ready, UX only), chain settlement.
