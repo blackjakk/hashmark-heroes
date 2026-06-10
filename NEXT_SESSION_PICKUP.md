@@ -51,18 +51,15 @@ re-baselined 24.4), Workstream C PAT seam (kick XP / go for 2 prompts, K/G/O
 keys), 43 display sinks escaped at the sink, and the 36 dead functions
 deleted (531 lines, tombstones point at git).
 
-Open items, in rough order:
-1. **Workstream C.3:** server-authoritative netcode for live H2H (needs a
-   server + product decisions — design in `INGAME_CLOCK_AND_MULTIPLAYER.md`);
-   tempo-decision seam if wanted before that.
-2. **Perf pass 2** (plan §E): pre-scaled sprite cache and/or move player
-   shadows off the PIXI stage (~330ms of the remaining software-raster frame).
-3. **Per-clip motion payload** (plan §B): regenerate replay motion from
-   seed+inputs instead of storing ~180KB/clip; would shrink saves ~10×.
-4. Realism nits (plan §C): one-score % ~42-43 vs NFL 44-52; OT % ~3.2 vs
-   4-10; injury-rate-by-position bands for `_brady_audit.js`.
-5. Keyboard-only offseason playthrough (§F pass criterion not yet run).
-6. Playoff format remains 14 teams (`PLAYOFF_PER_CONF = 7`).
+**The roadmap now lives in `VISUAL_ENGINE.md`** (assessment + V1-V5 plan).
+Headline verdict: the sim→motion→playback architecture and the sprite-atlas
+bridge are keepers; the 4-canvas WebGL→2D→2D→WebGL sandwich is a migration
+parked at ~60% and the PIXI layer IS the broadcast look (canvas fallback is
+the flat legacy view) — so the direction is FINISH the migration to one
+WebGL stage + DOM HUD (V1), which also collapses the remaining perf costs
+(V2). Then replay-motion-from-seed (V3, ~10× save shrink), C.3 netcode
+design (V4), realism nits + keyboard-only offseason (V5).
+Playoff format remains 14 teams (`PLAYOFF_PER_CONF = 7`).
 
 ## Verification recipes that paid off this session
 
@@ -89,5 +86,5 @@ Open items, in rough order:
 
 ---
 
-That's it. Say "perf pass 2" (sprites/shadows), "shrink the clips" (motion
-from seed), or "start C.3 netcode design".
+That's it. Say "start V1" (renderer unification, see VISUAL_ENGINE.md),
+"V3 shrink the clips", or "V4 netcode design".
