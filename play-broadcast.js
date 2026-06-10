@@ -751,6 +751,7 @@ const AsciiFieldViewer = {
           <div class="field-status" id="fieldStatus">Pre-game</div>
           <div id="quarterClock">—</div>
         </div>
+        ${FieldHUD.render(state)}
       </div>
       <div id="playCaption" class="bspnlive-play-caption play-caption">Game starting…</div>
       <div class="bspnlive-progress-label">
@@ -1569,7 +1570,9 @@ const BSPNGameScreen = {
       ${MomentumBar.render(state)}
       <div class="bspnlive-body v2">
         ${AsciiFieldViewer.render(state)}
-        ${FieldHUD.render(state)}
+        <!-- FieldHUD renders INSIDE .bspnlive-field-wrap (AsciiFieldViewer)
+             so its inset:0 anchors to the FIELD — at body level its
+             bottom-left situation chip sat on the play caption strip. -->
         <aside class="bspnlive-side right v2">
           <div class="bspnlive-panel">
             <div class="bspnlive-panel-title">⚕ LIVE BIO</div>

@@ -125,7 +125,7 @@ const FIELD_KINDS = new Set([
      for (const play of game.plays) {
       const entry = { kind: play.kind, slot: (play.motion && play.motion.targetSlot) || null,
                       concept: play.concept || null, coverage: play.coverage || null,
-                      poss: play.poss, error: null, teleports: [], nonFinite: [], oob: [] };
+                      poss: play.poss, error: null, teleports: [], nonFinite: [], oob: [], runaway: [] };
       install();
       REC.hits.length = 0;
       REC.nonFinite.clear();
@@ -168,6 +168,14 @@ const FIELD_KINDS = new Set([
           const playerCap = Math.max(MAX_YPS * (dtMs / 1000) * TOLERANCE, 0);
           const ballCap   = 90 * (dtMs / 1000);
           const ABS_FLOOR_YD = 2.0;
+          // Dead-ball spot for the RUNAWAY class = the ball's final draw.
+          let ballEnd = null;
+          {
+            const ballArr = series.get("BALL");
+            if (ballArr && ballArr.length) {
+              ballEnd = ballArr.reduce((a, b) => (b.frame >= a.frame ? b : a));
+            }
+          }
           for (const [id, arr] of series) {
             const isBall = id === "BALL";
             const cap = isBall ? ballCap : playerCap;
@@ -179,6 +187,7 @@ const FIELD_KINDS = new Set([
             for (const h of arr) { const a = byFrame.get(h.frame) || []; a.push(h); byFrame.set(h.frame, a); }
             const frames = [...byFrame.keys()].sort((a, b) => a - b);
             let worst = null, running = null;
+            const chain = [];
             for (let i = 0; i < frames.length; i++) {
               const cands = byFrame.get(frames[i]);
               let pick = cands[0];
@@ -198,8 +207,31 @@ const FIELD_KINDS = new Set([
                 }
               }
               running = pick;
+              chain.push(pick);
             }
             if (worst) entry.teleports.push(worst);
+            // RUNAWAY class (user screenshot: post-sack defender parked at
+            // the far goal line): a player who keeps SPRINTING through the
+            // back stretch of the play and finishes nowhere near the dead
+            // ball. Per-frame steps stay under the speed cap, the position
+            // stays in bounds — both older classes miss it. lateYd = ground
+            // covered after t≈55%; fromBallYd = final distance to the
+            // ball's last draw.
+            if (!isBall && ballEnd && chain.length >= 12) {
+              const p55 = chain[Math.floor(chain.length * 0.55)];
+              const pEnd = chain[chain.length - 1];
+              const lateYd = Math.hypot(pEnd.x - p55.x, pEnd.y - p55.y) / PX_PER_YARD;
+              const fromBallYd = Math.hypot(pEnd.x - ballEnd.x, pEnd.y - ballEnd.y) / PX_PER_YARD;
+              // ≥20yd late: receivers legitimately finish routes ~16-17yd
+              // past the dead ball on long completions, and those sit at
+              // the threshold (wall-clock pose-sim jitter flips them run
+              // to run). The bug family this class exists for (post-sack
+              // hold-base compounding) measured 40-87yd.
+              if (lateYd >= 20 && fromBallYd >= 24) {
+                entry.runaway.push({ id, lateYd: +lateYd.toFixed(1), fromBallYd: +fromBallYd.toFixed(1),
+                                     end: [Math.round(pEnd.x), Math.round(pEnd.y)] });
+              }
+            }
             // V5 — OUT-OF-BOUNDS class: any position beyond the back of an
             // end zone or far past a sideline is the "sprints into the
             // stadium wall" family (user-reported) — a defect even when
@@ -249,6 +281,7 @@ const FIELD_KINDS = new Set([
   const withBallTp   = report.filter(r => r.ballTp.length);
   const withNonFin   = report.filter(r => (r.nonFinite || []).length);
   const withOob      = report.filter(r => (r.oob || []).length);
+  const withRunaway  = report.filter(r => (r.runaway || []).length);
   const withErr      = report.filter(r => r.error);
   fs.writeFileSync("/tmp/teleport_report.json", JSON.stringify(report, null, 1));
 
@@ -273,6 +306,7 @@ const FIELD_KINDS = new Set([
   console.log(` All player flags (incl. borderline near cap):        ${withPlayerTp.length} plays`);
   console.log(` Non-finite (vanished) player draws: ${withNonFin.length} plays`);
   console.log(` Out-of-bounds (into-the-wall) draws: ${withOob.length} plays`);
+  console.log(` Runaway players (sprint late, finish far from dead ball): ${withRunaway.length} plays`);
   console.log(` Ball anomalies:   ${withBallTp.length} plays  (>90yps flight cap)`);
   console.log(` Render/build errors: ${withErr.length} plays`);
   if (pageErrors.length) console.log(` Page errors: ${pageErrors.length} (e.g. ${pageErrors[0]})`);
@@ -311,6 +345,14 @@ const FIELD_KINDS = new Set([
     for (const [k, c] of classGroups(withOob, r => r.oob.map(o => ({ ...o, dYd: o.px })))) {
       const o = c.sample.oob[0];
       console.log(`   ${k.padEnd(22)} ×${String(c.n).padStart(3)}  worst ${String(c.worst).padStart(5)}px  e.g. ${o.id} at [${o.at}]`);
+    }
+  }
+  if (withRunaway.length) {
+    console.log("");
+    console.log(" ⚠ RUNAWAY classes (kind/targetSlot · count · worst late-sprint yd):");
+    for (const [k, c] of classGroups(withRunaway, r => r.runaway.map(o => ({ ...o, dYd: o.lateYd })))) {
+      const o = c.sample.runaway[0];
+      console.log(`   ${k.padEnd(22)} ×${String(c.n).padStart(3)}  worst ${String(c.worst).padStart(5)}yd late  e.g. ${o.id} ends [${o.end}] ${o.fromBallYd}yd from ball`);
     }
   }
   if (withErr.length) {

@@ -53,14 +53,27 @@ else
 fi
 if [ -z "$EGREGIOUS" ]; then echo "✗ could not parse egregious count:"; printf '%s\n' "$OUT"; exit 2; fi
 
+# RUNAWAY class (the post-sack sprint-into-the-wall family): late-play
+# sustained sprint that ends far from the dead ball. Gated like egregious.
+RUNAWAY="$(printf '%s\n' "$OUT" | awk -F': ' '/Runaway players/{print $2}' | grep -oE '^[0-9]+' | head -1)"
+[ -z "$RUNAWAY" ] && RUNAWAY=0
+
 BASE="$(node -e "process.stdout.write(String(require('./_teleport_baseline.json').egregious))")"
+RBASE="$(node -e "process.stdout.write(String(require('./_teleport_baseline.json').runaway ?? 9999))")"
 
 echo ""
 echo "  egregious this run : $EGREGIOUS"
-echo "  baseline           : $BASE   (seed=$SEED, $GAMES games, cam=$CAM)"
+echo "  runaway this run   : $RUNAWAY"
+echo "  baselines          : egregious $BASE · runaway $RBASE   (seed=$SEED, $GAMES games, cam=$CAM)"
+FAIL=0
 if [ "$EGREGIOUS" -gt "$BASE" ]; then
   echo "✗ TELEPORT REGRESSION — $EGREGIOUS > $BASE. Detail → /tmp/teleport_report.json"
-  exit 1
+  FAIL=1
 fi
-echo "✓ teleport gate PASS — $EGREGIOUS ≤ $BASE"
+if [ "$RUNAWAY" -gt "$RBASE" ]; then
+  echo "✗ RUNAWAY REGRESSION — $RUNAWAY > $RBASE. Detail → /tmp/teleport_report.json"
+  FAIL=1
+fi
+[ "$FAIL" -ne 0 ] && exit 1
+echo "✓ teleport gate PASS — egregious $EGREGIOUS ≤ $BASE · runaway $RUNAWAY ≤ $RBASE"
 exit 0

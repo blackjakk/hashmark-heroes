@@ -6308,12 +6308,17 @@ function buildAnimForPlay(play, prevPlay) {
               dd.x = d._sackEng.defenderX;
               dd.y = d._sackEng.defenderY;
             } else {
+              // One-shot hold base — same compounding hazard as the LB
+              // scrape: _lastRenderedX is re-synced to the rendered spot
+              // every frame, so per-frame offsets from it integrate.
+              if (!d._sackHoldBase) d._sackHoldBase = {
+                x: (typeof d._lastRenderedX === "number") ? d._lastRenderedX : d.x,
+                y: (typeof d._lastRenderedY === "number") ? d._lastRenderedY : d.y,
+              };
               const wig = Math.sin(tt * Math.PI * 1.5 + i) * 1.2;
               const fwdProgress = isPrimary ? Math.min(3, tt * 4) : 0;
-              const _dlBaseX2 = (typeof d._lastRenderedX === "number") ? d._lastRenderedX : d.x;
-              const _dlBaseY2 = (typeof d._lastRenderedY === "number") ? d._lastRenderedY : d.y;
-              dd.x = _dlBaseX2 + dir * fwdProgress;
-              dd.y = _dlBaseY2 + wig;
+              dd.x = d._sackHoldBase.x + dir * fwdProgress;
+              dd.y = d._sackHoldBase.y + wig;
             }
             dd.pose = "engage";
             // Hold the engage pose on frame 0 (was wall-clock cycling
@@ -6401,27 +6406,38 @@ function buildAnimForPlay(play, prevPlay) {
               dd.x = d._sackEng.defenderX;
               dd.y = d._sackEng.defenderY;
             } else {
+              // One-shot hold base (see LB scrape) — sway from a frame-
+              // synced base random-walks instead of oscillating.
+              if (!d._sackHoldBase) d._sackHoldBase = {
+                x: (typeof d._lastRenderedX === "number") ? d._lastRenderedX : d.x,
+                y: (typeof d._lastRenderedY === "number") ? d._lastRenderedY : d.y,
+              };
               const wig = Math.sin(tt * Math.PI * 1.2 + i * 0.7) * 1.0;
-              const _dlBaseX3 = (typeof d._lastRenderedX === "number") ? d._lastRenderedX : d.x;
-              const _dlBaseY3 = (typeof d._lastRenderedY === "number") ? d._lastRenderedY : d.y;
-              dd.x = _dlBaseX3 + wig * 0.5;
-              dd.y = _dlBaseY3 + wig;
+              dd.x = d._sackHoldBase.x + wig * 0.5;
+              dd.y = d._sackHoldBase.y + wig;
             }
             dd.pose = "engage";
             dd.t = 0;
           }
         } else if (i >= 4 && i <= 6) {
           // LBs hold their drop depth with a slow scrape — slight
-          // forward drift, gentle sway, frozen pose-frame. Base from
-          // _lastRenderedX so a walked-up blitz LB doesn't snap back
-          // to formation slot at the snap (was a 14yd jump in the
-          // detector's sack/- class).
-          const _lbBaseX = (typeof d._lastRenderedX === "number") ? d._lastRenderedX : d.x;
-          const _lbBaseY = (typeof d._lastRenderedY === "number") ? d._lastRenderedY : d.y;
+          // forward drift, gentle sway, frozen pose-frame. The hold
+          // base is stamped ONCE per play: _lastRenderedX updates to
+          // the just-rendered position every frame (Stage 4 sync), so
+          // reading it as the offset base each frame COMPOUNDED the
+          // "12px total drift" into per-frame integration — defenders
+          // accelerating to ~48yd/s and pinning against the field edge
+          // (the user-reported post-sack runaway; every per-frame step
+          // stayed under the teleport cap, so only the RUNAWAY detector
+          // class sees it).
+          if (!d._sackHoldBase) d._sackHoldBase = {
+            x: (typeof d._lastRenderedX === "number") ? d._lastRenderedX : d.x,
+            y: (typeof d._lastRenderedY === "number") ? d._lastRenderedY : d.y,
+          };
           const lbProg = Math.min(1, tt * 1.2);
           const wigLB = Math.sin(tt * Math.PI * 1.0 + i * 0.5) * 0.8;
-          dd.x = _lbBaseX - dir * lbProg * 12;
-          dd.y = _lbBaseY + wigLB;
+          dd.x = d._sackHoldBase.x - dir * lbProg * 12;
+          dd.y = d._sackHoldBase.y + wigLB;
           dd.pose = "scrape";
           dd.t = 0;
         }
