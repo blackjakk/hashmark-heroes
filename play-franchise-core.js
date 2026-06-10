@@ -3928,48 +3928,68 @@ function _flushSaveFranchise() {
   // Always-on: ask for persistent storage so the IDB store doesn't get evicted.
   _requestPersistentStorage();
 
-  let payload;
-  try { payload = JSON.stringify(franchise); }
-  catch (e) { console.error("[save] JSON serialize failed:", e); _saveLastError = "serialize:" + e.message; return; }
-
   // ── IDB write — canonical store, no practical size limit. ──
-  // _idbPut's actual put() runs in a later microtask (behind _idbOpen's
-  // promise), so passing the live `franchise` would let the deferred
-  // structured-clone observe the in-place localStorage trim below — silently
-  // dropping the trimmed data from the CANONICAL store too. When a trim is
-  // coming, hand IDB a detached snapshot (parsed from the pre-trim payload)
-  // so it always persists the FULL save, exactly as the comments promise.
-  const willTrim = payload.length > 4_000_000;
-  const idbValue = willTrim ? JSON.parse(payload) : franchise;
-  _idbPut(activeId, idbValue).catch(e => console.warn("[IDB save] failed:", e));
+  // Hands IDB the LIVE object: saving no longer mutates `franchise` at all
+  // (the mirror below is built from a detached slim copy), so the deferred
+  // structured-clone inside put() always sees the full, untouched save. This
+  // also kills the old pipeline's worst main-thread stall — a full
+  // JSON.stringify + JSON.parse of a 50MB+ mature save on every flush.
+  _idbPut(activeId, franchise).catch(e => console.warn("[IDB save] failed:", e));
 
   // ── localStorage mirror — fast sync path, ~5MB browser cap. ──
-  // The re-watch payloads (replayClips ~90% of a mature save, plus the EPA
-  // playLog) are the dominant bulk and are pure cosmetic/derived data the
-  // canonical IDB store already holds — exclude them from the mirror WITHOUT
-  // mutating live state (stash + restore), so the running session keeps its
-  // highlights even after a pressure trim and a reload restores everything
-  // from IDB. Proactively when the full payload is large.
-  if (willTrim) {
-    console.warn(`[save] payload ${(payload.length/1024/1024).toFixed(2)}MB — slimming the localStorage mirror (IDB keeps the full save)`);
-    const stash = { replayClips: franchise.replayClips, playLog: franchise.playLog };
-    franchise.replayClips = []; franchise.playLog = {};
-    _trimFranchiseForStorage();
-    try { payload = JSON.stringify(franchise); } catch {}
-    franchise.replayClips = stash.replayClips; franchise.playLog = stash.playLog;
-  }
+  // The mirror's job is instant synchronous boot; the canonical save is IDB
+  // (load() races them and prefers the newer stamp). So the mirror ALWAYS
+  // excludes the re-watch whales — replayClips (~90% of a mature save) and
+  // the EPA playLog — and applies the storage caps to a detached COPY
+  // (_slimFranchiseForMirror), never to live state. Stringify cost is now
+  // proportional to the slim mirror (~4-5MB), not the full save.
+  let payload;
+  try { payload = JSON.stringify(_slimFranchiseForMirror(franchise)); }
+  catch (e) { console.error("[save] mirror serialize failed:", e); _saveLastError = "serialize:" + e.message; return; }
   try {
     localStorage.setItem(_slotDataKey(activeId), payload);
     _saveLastError = null;
     _saveLastSize = payload.length;
   } catch (e) {
-    // Still over quota even slimmed. That's OK — IDB has the canonical save;
+    // Mirror over quota even slimmed. That's OK — IDB has the canonical save;
     // remove the stale localStorage entry so a sync load falls through to IDB.
-    console.warn(`[save] localStorage full (${(payload.length/1024/1024).toFixed(2)}MB) — IDB has the full save; clearing the stale mirror.`);
+    console.warn(`[save] localStorage full (${(payload.length/1024/1024).toFixed(2)}MB mirror) — IDB has the full save; clearing the stale mirror.`);
     try { localStorage.removeItem(_slotDataKey(activeId)); } catch {}
     _saveLastError = `idb-only:${(payload.length/1024/1024).toFixed(2)}MB`;
     _saveLastSize = 0;
   }
+}
+
+// Build the detached, slimmed copy that backs the localStorage mirror.
+// NON-MUTATING by construction (audit §B/§D ticket): the old pipeline ran
+// _trimFranchiseForStorage against the LIVE object under pressure, which
+// (a) raced the deferred IDB clone and (b) made save timing observable in
+// gameplay state (the §D cross-path confound). Shallow-copies the franchise,
+// then replaces only the fields it slims with capped COPIES.
+function _slimFranchiseForMirror(f) {
+  const m = { ...f };
+  // Re-watch whales: IDB-only. An IDB-less reload shows an empty Replays tab
+  // until the IDB read lands (same behavior as the old pressure path).
+  m.replayClips = [];
+  m.playLog = {};
+  // Old CPU-vs-CPU games: drop their heavy per-game blobs (scoring timeline,
+  // box-score stats, momentum log) from the MIRROR only — the user's own
+  // games keep everything (their box scores re-render from these), and IDB
+  // keeps everything for everyone. ~30KB/game × a season of CPU games is
+  // what was pushing the mirror past the localStorage quota by mid-season.
+  const curWeek = f.week || 1, userTeam = f.chosenTeamId;
+  if (Array.isArray(f.schedule)) {
+    m.schedule = f.schedule.map(g =>
+      (g.played && g.week < curWeek - 1 && g.homeId !== userTeam && g.awayId !== userTeam)
+        ? (({ scoring, stats, momentumLog, ...rest }) => rest)(g)
+        : g);
+  }
+  // Feed caps (the hard caps in _pushNews et al. are the primary bound;
+  // these mirror-side caps are the safety net).
+  if (f.news?.length > 150)            m.news            = f.news.slice(-150);
+  if (f.seasonHighlights?.length > 60) m.seasonHighlights = f.seasonHighlights.slice(-60);
+  if (f.chat?.length > 40)             m.chat             = f.chat.slice(-40);
+  return m;
 }
 let _saveLastError = null;
 let _saveLastSize = 0;

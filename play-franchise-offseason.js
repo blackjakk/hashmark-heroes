@@ -15502,6 +15502,13 @@ function _renderHoldoutsBlock() {
 function frnNewSeason() {
   // Before wiping season stats, roll them into each player's career
   _rollSeasonStatsToCareer();
+  // Deliberate once-per-season storage maintenance (audit §B/§D): the old
+  // pipeline ran _trimFranchiseForStorage as a SAVE side-effect under
+  // pressure, mutating live state at unpredictable times. Saving is
+  // non-mutating now (the mirror slims a detached copy), so the
+  // bounded-growth caps (CPU career/injury history, news/highlights/chat,
+  // stale playLog) run here instead — once, at a predictable lifecycle point.
+  try { _trimFranchiseForStorage(); } catch (e) { console.warn("[rollover trim]", e); }
   // Tick front-office tenure + handle contract expiries / retirements.
   // Idempotent — backfills missing roles on legacy saves.
   if (typeof _initFrontOffice === "function") _initFrontOffice();
@@ -21593,7 +21600,7 @@ function _autoSpendScoutCredits(count) {
         const isHiUp  = (c.p?.potential || 65) >= expPot + 4;
         rev.knockNotes[cat] = _buildScoutKnockNote(knockType, isHiUp);
       }
-      if (cat === "film") rev.revealed = rev.revealed || (Math.random() < 0.50);
+      if (cat === "film") rev.revealed = rev.revealed || (_frand() < 0.50);
       revealed.push({ name: c.p.name, pos: c.p.position, cat });
       count--;
     }
@@ -21736,7 +21743,7 @@ function frnSeasonScoutCategory(name, cat) {
     rev.knockNotes[cat] = _buildScoutKnockNote(knockType, isHiUp);
   }
   // Film category triggers a 50% potential reveal — same rule as draft.
-  if (cat === "film") rev.revealed = rev.revealed || (Math.random() < 0.50);
+  if (cat === "film") rev.revealed = rev.revealed || (_frand() < 0.50);
 
   franchise.seasonScoutBank--;
   saveFranchise();
@@ -23681,7 +23688,7 @@ function _assignScoutCategory(name, cat, round) {
     rev.knockNotes[cat] = _buildScoutKnockNote(knockType, isHiUp);
   }
   // Film category triggers the potential-reveal roll (50% odds).
-  if (cat === "film") rev.revealed = rev.revealed || (Math.random() < 0.50);
+  if (cat === "film") rev.revealed = rev.revealed || (_frand() < 0.50);
   return true;
 }
 
