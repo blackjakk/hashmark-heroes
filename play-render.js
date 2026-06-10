@@ -227,19 +227,25 @@ function drawField(ctx, homeTeam, awayTeam, ctx_state) {
   // the canvas2D layer is wiped either way so per-frame paint can't smear.
   ctx.clearRect(0, 0, W, H);
   if (_pixiField) {
+    // V1 step 4 — the PIXI field owns ALL static art now (incl. the
+    // sideline pads, moved into GCField.renderStatic), so there's
+    // nothing left to blit here. GCField.draw/drawDynamic render their
+    // stage only when their keys change; clearShadows is a no-op unless
+    // topdown shadows need erasing.
     GCField.draw(homeTeam, awayTeam);
     GCField.clearShadows();
+  } else {
+    const _camKey = (typeof cameraMode !== "undefined") ? cameraMode : "std";
+    const _fcKey = (homeTeam?.id ?? homeTeam?.name ?? "h") + "|" + (awayTeam?.id ?? awayTeam?.name ?? "a") + "|" + _camKey + "|0";
+    if (_fieldStaticCache.key !== _fcKey || !_fieldStaticCache.canvas) {
+      const off = _fieldStaticCache.canvas || document.createElement("canvas");
+      off.width = W; off.height = H;   // (re)sizing also clears the canvas
+      _drawFieldStatic(off.getContext("2d"), homeTeam, awayTeam, false);
+      _fieldStaticCache.key = _fcKey;
+      _fieldStaticCache.canvas = off;
+    }
+    ctx.drawImage(_fieldStaticCache.canvas, 0, 0);
   }
-  const _camKey = (typeof cameraMode !== "undefined") ? cameraMode : "std";
-  const _fcKey = (homeTeam?.id ?? homeTeam?.name ?? "h") + "|" + (awayTeam?.id ?? awayTeam?.name ?? "a") + "|" + _camKey + "|" + (_pixiField ? 1 : 0);
-  if (_fieldStaticCache.key !== _fcKey || !_fieldStaticCache.canvas) {
-    const off = _fieldStaticCache.canvas || document.createElement("canvas");
-    off.width = W; off.height = H;   // (re)sizing also clears the canvas
-    _drawFieldStatic(off.getContext("2d"), homeTeam, awayTeam, _pixiField);
-    _fieldStaticCache.key = _fcKey;
-    _fieldStaticCache.canvas = off;
-  }
-  ctx.drawImage(_fieldStaticCache.canvas, 0, 0);
 
   // LOS and first down marker — PIXI when active (Phase 2B.2), else canvas2D.
   if (_pixiField) {
@@ -511,6 +517,19 @@ function _locomotionFacing(loco, pose, providedFacing) {
 // doesn't lift off the ground with the body. Mid-fall (rot > ~0.6 rad)
 // we fade the shadow out a bit since the body is no longer planted.
 function _drawPlayerShadow(ctx, x, y, style, pose) {
+  // V1 step 4 — broadcast shadows live on the GCPlayer stage (projected
+  // billboard space), so the GCField stage no longer re-renders every
+  // frame just to composite them. Topdown keeps the GCField path (its
+  // sprites draw on #field ABOVE the player canvas, so a shadow there
+  // would paint over the bodies).
+  if (typeof cameraMode !== "undefined" && cameraMode === "broadcast"
+      && typeof GCPlayer !== "undefined" && GCPlayer.active()) {
+    const bt = (typeof BODY_TYPES !== "undefined")
+      ? (BODY_TYPES[style && style.bodyType] || BODY_TYPES.NORMAL)
+      : { scale: 1, bulk: 1 };
+    GCPlayer.addShadow(x, y, bt.bulk, (bt.scale || 1) * 1.55);
+    return;
+  }
   if (typeof GCField !== "undefined" && GCField.active()) {
     const bt = (typeof BODY_TYPES !== "undefined")
       ? (BODY_TYPES[style && style.bodyType] || BODY_TYPES.NORMAL)
@@ -1694,8 +1713,17 @@ function _drawPlayerImpl(ctx, x, y, color, secondary, label, pose, t, facing, st
   // Phase 3.1 — when PIXI field is active, drop shadow is batched into a
   // single PIXI Graphics by GCField.addShadow (one WebGL draw call for all
   // 22 players instead of 22 canvas2D radial gradients).
+  // (_useFieldPixi === false is the offscreen-texture-render inhibitor —
+  // there the shadow must paint INTO the texture, not onto a live stage.)
+  const _shadowToPlayerPixi = (typeof cameraMode !== "undefined" && cameraMode === "broadcast")
+    && (typeof window === "undefined" || window._useFieldPixi !== false)
+    && typeof GCPlayer !== "undefined" && GCPlayer.active();
   const _shadowToPixi = (typeof GCField !== "undefined") && GCField.active();
-  if (_shadowToPixi) {
+  if (_shadowToPlayerPixi) {
+    // V1 step 4 — broadcast: projected onto the GCPlayer ground layer.
+    const footWorldY = y + (footYLocal + 0.8) * totalScale;
+    GCPlayer.addShadow(x, footWorldY, bt.bulk, totalScale);
+  } else if (_shadowToPixi) {
     // Pass the world-space planted position + bulk/scale; PIXI draws
     // the ellipse in the same coord system as the static field.
     const footWorldY = y + (footYLocal + 0.8) * totalScale;
@@ -2813,21 +2841,33 @@ function _drawBallImpl(ctx, x, y, scale = 1, opts = {}) {
 function drawBallTrail(ctx, fromX, fromY, toX, toY, t, opts = {}) {
   const arcHeight = opts.arcHeight ?? Math.min(140, Math.hypot(toX - fromX, toY - fromY) * 0.22);
   const samples = Math.max(8, Math.floor(t * 24));
-  ctx.save();
-  ctx.shadowColor = "rgba(255,210,80,0.6)";
-  ctx.shadowBlur = 5;
+  // V1 step 4 — broadcast: project each sample onto the GCPlayer ground
+  // layer (the CSS tilt IS projectBroadcast, so projecting the literal
+  // 2D sample points reproduces the canvas look exactly). Keeps #field
+  // untouched during live broadcast frames.
+  const _trailToPixi = (typeof cameraMode !== "undefined" && cameraMode === "broadcast")
+    && typeof GCPlayer !== "undefined" && GCPlayer.active();
+  if (!_trailToPixi) {
+    ctx.save();
+    ctx.shadowColor = "rgba(255,210,80,0.6)";
+    ctx.shadowBlur = 5;
+  }
   for (let i = 1; i < samples; i++) {
     const tt = (i / samples) * t;
     const lx = fromX + (toX - fromX) * tt;
     const ly = fromY + (toY - fromY) * tt - Math.sin(tt * Math.PI) * arcHeight;
     const age = (t - tt) / Math.max(0.001, t);  // 0 = freshest
     const fade = 1 - age;
+    if (_trailToPixi) {
+      GCPlayer.addTrailDot(lx, ly, 2.8, 0xfff0b4, 0.85 * fade);
+      continue;
+    }
     ctx.fillStyle = `rgba(255,240,180,${0.85 * fade})`;
     ctx.beginPath();
     ctx.arc(lx, ly, 2.8, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.restore();
+  if (!_trailToPixi) ctx.restore();
 }
 
 // Run-trail polyline: dotted line from snap point to current carrier
@@ -2836,21 +2876,35 @@ function drawBallTrail(ctx, fromX, fromY, toX, toY, t, opts = {}) {
 function drawRunTrail(ctx, fromX, fromY, toX, toY, t, color = "rgba(245,197,66,0.9)") {
   if (Math.hypot(toX - fromX, toY - fromY) < 12) return; // too short to read
   const samples = 18;
-  ctx.save();
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 4;
+  // V1 step 4 — broadcast: projected dots on the GCPlayer ground layer
+  // (see drawBallTrail).
+  const _trailToPixi = (typeof cameraMode !== "undefined" && cameraMode === "broadcast")
+    && typeof GCPlayer !== "undefined" && GCPlayer.active();
+  let _hex = 0xf5c542;
+  if (_trailToPixi) {
+    const m = /rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(color);
+    if (m) _hex = (parseInt(m[1]) << 16) | (parseInt(m[2]) << 8) | parseInt(m[3]);
+  } else {
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 4;
+  }
   for (let i = 1; i < samples; i++) {
     const tt = (i / samples) * t;
     const lx = fromX + (toX - fromX) * tt;
     const ly = fromY + (toY - fromY) * tt;
     const age = (t - tt) / Math.max(0.001, t);
     const fade = 1 - age;
+    if (_trailToPixi) {
+      GCPlayer.addTrailDot(lx, ly, 3, _hex, 0.85 * fade);
+      continue;
+    }
     ctx.fillStyle = color.replace(/[\d.]+\)$/, `${0.85 * fade})`);
     ctx.beginPath();
     ctx.arc(lx, ly, 3, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.restore();
+  if (!_trailToPixi) ctx.restore();
 }
 
 // ─── Formation & animation ────────────────────────────────────────────────

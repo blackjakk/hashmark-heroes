@@ -28,10 +28,12 @@ const GCField = (() => {
   let _dynG = null;             // PIXI.Graphics — sharp LOS + FD line
   let _shadowG = null;          // PIXI.Graphics — Phase 3.1 per-frame player drop shadows
   let _attachedTo = null;       // Canvas element we attached to
-  let _lastRenderKey = "";      // Cache key: "homeId|awayId" — re-render on team change
-  let _lastDynKey = "";         // Last (los, firstDownAbs, possColor) — skip rerender if same
+  let _lastRenderKey = "";      // Cache key: "homeId|awayId|camera" — re-render on change
+  let _lastDynKey = "";         // Last (los, firstDownAbs, possColor, pulse) — skip rerender if same
   let _lastTeams = null;        // Last {home,away} — for re-render once webfonts load
   let _fontsHooked = false;     // One-time document.fonts.ready re-render guard
+  let _shadowsDirty = false;    // Stage needs a render to show/erase shadow content
+  let _hadShadows = false;      // Whether _shadowG currently holds any ellipses
 
   function _pixiAvailable() {
     return typeof PIXI !== "undefined" && typeof PIXI.Application === "function";
@@ -93,11 +95,15 @@ const GCField = (() => {
   // change). Subsequent calls with the same team key are no-ops.
   function renderStatic(homeTeam, awayTeam) {
     if (!ensure()) return false;
-    const key = `${homeTeam?.id || "?"}|${awayTeam?.id || "?"}`;
-    if (key === _lastRenderKey) {
-      _app.renderer.render(_app.stage);
-      return true;
-    }
+    // Camera is part of the key — the sideline pads differ (top pad only
+    // in topdown; broadcast blends the far edge into the night sky).
+    const _cam = (typeof cameraMode !== "undefined") ? cameraMode : "broadcast";
+    const key = `${homeTeam?.id || "?"}|${awayTeam?.id || "?"}|${_cam}`;
+    // V1 step 4: NO render on a key match. The old unconditional render
+    // here was the per-frame cross-tech shadow compositor (~150ms/frame
+    // software) — shadows live on the GCPlayer stage now, and dynamic
+    // content renders itself only when its own key changes.
+    if (key === _lastRenderKey) return true;
     _lastRenderKey = key;
     _lastTeams = { home: homeTeam, away: awayTeam };
     // Field text (end-zone names, yard numbers, midfield initial) uses the
@@ -120,6 +126,41 @@ const GCField = (() => {
     grass.drawRect(0, 0, FIELD.W, FIELD.H);
     grass.endFill();
     _bg.addChild(grass);
+    // ── Sideline pads (V1 step 4 — moved from the #field static cache so
+    // the canvas2D layer goes fully idle when PIXI is up). Tan strip with
+    // a darkening gradient toward the canvas edge. Bottom pad always; top
+    // pad only in topdown (in broadcast the tilted far edge blends into
+    // the night-sky backdrop — a bright pad would highlight the seam).
+    try {
+      const padH = FIELD.H - FIELD.BOT;
+      const padCv = document.createElement("canvas");
+      padCv.width = 1; padCv.height = padH;
+      const pctx = padCv.getContext("2d");
+      pctx.fillStyle = "#d9cfb9";
+      pctx.fillRect(0, 0, 1, padH);
+      const pgrad = pctx.createLinearGradient(0, 0, 0, padH);
+      pgrad.addColorStop(0, "rgba(0,0,0,0)");
+      pgrad.addColorStop(1, "rgba(0,0,0,0.32)");
+      pctx.fillStyle = pgrad;
+      pctx.fillRect(0, 0, 1, padH);
+      const padTex = PIXI.Texture.from(padCv);
+      const padBot = new PIXI.Sprite(padTex);
+      padBot.position.set(0, FIELD.BOT);
+      padBot.width = FIELD.W;
+      padBot.height = padH;
+      _bg.addChild(padBot);
+      if (_cam !== "broadcast") {
+        // Top pad = same texture flipped vertically (dark edge at the
+        // very top, like the canvas2D version's top gradient). FIELD.TOP
+        // equals the pad height, so no vertical resize is needed — a
+        // scale.y of -1 anchored at y=FIELD.TOP covers 0..FIELD.TOP.
+        const padTop = new PIXI.Sprite(padTex);
+        padTop.scale.y = -1;
+        padTop.position.set(0, FIELD.TOP);
+        padTop.width = FIELD.W;
+        _bg.addChild(padTop);
+      }
+    } catch (e) { console.warn("PIXI sideline pads failed:", e); }
     // ── Mowing band stripes ──
     // Alternating darker/lighter greens every 10 yards. Colors match the
     // canvas2D drawField exactly (#2b7a40 / #1d6232) so the PIXI hand-off
@@ -302,21 +343,40 @@ const GCField = (() => {
     const los   = state?.los;
     const fd    = state?.firstDownAbs;
     const col   = state?.possColor || "#4b9bd5";
-    _lastDynKey = `${los || ""}|${fd || ""}|${col}`;
-    _dynG.clear();
-    if (_dynGlow) _dynGlow.clear();
-    // ── Red-zone goal line pulse — when LOS is within 20 yards of a
-    // goal line, paint the defending goal line in a warm pulsing color.
-    // Broadcast staple ("they're in the red zone!").
+    // Red-zone detection up front — the goal-line pulse animates, so its
+    // phase joins the dirty key (quantized to ~10Hz; the 1.4s sine still
+    // reads as a pulse at that rate).
+    let inRedZone = false;
     if (los != null) {
       const leftGoal  = FIELD.EZ_PX;
       const rightGoal = FIELD.W - FIELD.EZ_PX;
       const dLeft  = los - leftGoal;
       const dRight = rightGoal - los;
       const yardPx = FIELD.PX_PER_YARD || ((rightGoal - leftGoal) / 100);
-      const inRedZone = (dLeft >= 0 && dLeft <= 20 * yardPx) ||
-                        (dRight >= 0 && dRight <= 20 * yardPx);
+      inRedZone = (dLeft >= 0 && dLeft <= 20 * yardPx) ||
+                  (dRight >= 0 && dRight <= 20 * yardPx);
+    }
+    // V1 step 4: render-on-change. Skip the clear + stage render entirely
+    // when nothing on this stage moved — this is what frees the field
+    // stage from re-rendering every frame now that shadows live on the
+    // GCPlayer stage. _shadowsDirty still forces a render (topdown keeps
+    // its shadows here, and an erase needs one final render).
+    const pulseBucket = inRedZone ? Math.floor(performance.now() / 100) : -1;
+    const key = `${los || ""}|${fd || ""}|${col}|${pulseBucket}`;
+    if (key === _lastDynKey && !_shadowsDirty) return true;
+    _lastDynKey = key;
+    _shadowsDirty = false;
+    _dynG.clear();
+    if (_dynGlow) _dynGlow.clear();
+    // ── Red-zone goal line pulse — when LOS is within 20 yards of a
+    // goal line, paint the defending goal line in a warm pulsing color.
+    // Broadcast staple ("they're in the red zone!").
+    if (los != null) {
       if (inRedZone) {
+        const leftGoal  = FIELD.EZ_PX;
+        const rightGoal = FIELD.W - FIELD.EZ_PX;
+        const dLeft  = los - leftGoal;
+        const dRight = rightGoal - los;
         const targetX = dLeft < dRight ? leftGoal : rightGoal;
         // Pulse alpha 0.45..0.95 on a ~1.4s cycle
         const pulse = 0.45 + 0.50 * (0.5 + 0.5 * Math.sin(performance.now() * 0.0045));
@@ -374,10 +434,19 @@ const GCField = (() => {
   // (much cheaper than canvas2D per-player radial gradients).
   function clearShadows() {
     if (!_shadowG) return;
-    _shadowG.clear();
+    // Only clear (and force a render) when there's something to erase —
+    // in broadcast nothing feeds this layer anymore (shadows live on the
+    // GCPlayer stage), so this stays a no-op and the stage stays asleep.
+    if (_hadShadows) {
+      _shadowG.clear();
+      _hadShadows = false;
+      _shadowsDirty = true;
+    }
   }
   function addShadow(x, y, bulk, scale) {
     if (!_shadowG) return;
+    _hadShadows = true;
+    _shadowsDirty = true;
     // Same geometry the canvas2D shadow used:
     //   shR  = 9.0 + bulk * 0.9   (horizontal radius)
     //   shY  = footYLocal + 0.8

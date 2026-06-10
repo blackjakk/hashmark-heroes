@@ -98,19 +98,35 @@ Target: **one WebGL stage + DOM HUD.** Steps, each independently shippable:
    + the integrated drop as a position offset — the same transform the
    canvas2D path applied around the same pivot. Verified rot/dy integrate
    frame-over-frame on live tackles.
-4. **Collapse canvases**: static field becomes a PIXI RenderTexture (the
-   §E static cache, GPU-side); delete the `#field` canvas. Remaining
-   `#field` cargo after steps 1-3: the static-field blit + dynamic-chalk
-   fallback, topdown sprites, celebrations/confetti-rain overlays
-   (`drawCelebrationOverlay`), cinema view, and run/ball trails.
+4. **Collapse** — **DONE in effect** (the goal was the perf + the seam,
+   not the DOM node): the live broadcast frame no longer paints ANY
+   canvas2D and the field stage sleeps. Concretely: all static field art
+   (incl. the sideline pads) lives on GCField, which now renders ONLY on
+   change (team/camera key, chalk-state key, red-zone pulse quantized to
+   10Hz, or dirty topdown shadows) — the per-frame cross-tech shadow
+   compositor is gone because player shadows + run/ball trails moved to
+   a ground layer on the GCPlayer stage, projected per point
+   (`projectBroadcast` IS the CSS tilt, and scaleY(1/cosθ)·cosθ nets
+   1.0, so field-plane shapes map exactly — verified). `#field` in
+   broadcast is clearRect-only. **Measured: PLAYING p50 367→83ms
+   headless software (4.4×), 60s soak clean.**
+   Not done (deliberately): the literal `#field` node stays for topdown
+   sprites, cinema view, celebrations (cinema-only), and the no-WebGL
+   fallback; `#field-pixi` and `.gc-player-pixi` remain two canvases
+   because the field's broadcast tilt is CSS on the field canvas while
+   sprites are billboards — a true single-canvas merge needs in-stage
+   perspective (mesh/projection), which is V2+ work with no perf urgency
+   left.
 Acceptance: pixel-comparable screenshots; the per-frame double composite and
 shadow round-trip disappear from the frame decomposition; uprights occlusion
 verified.
 
-### V2. Perf pass 2 — falls out of V1
-Sprite batching becomes native PIXI; the ~150ms shadow composite and ~180ms
-software sprite cost collapse into one GPU pass. Only do targeted work here
-if V1's numbers say so.
+### V2. Perf pass 2 — LARGELY REALIZED by V1 step 4
+PLAYING p50 went 470 (pre-audit) → 381 (static cache) → 367 (steps 1-3) →
+**83ms** (step 4) in headless software raster; GPU clients sit at 60fps.
+Remaining V2-flavored work, only if someone asks for it: port topdown
+sprites + cinema view off `#field` (then actually delete the node), and a
+true single-canvas merge via in-stage perspective.
 
 ### V3. Replay motion from seed (~10× save shrink)
 Stop storing `play.motion` in replay clips; store `(seed, week, teams,

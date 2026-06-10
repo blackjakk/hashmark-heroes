@@ -62,7 +62,7 @@ const GCPlayer = (() => {
     // Wrap rebuild — destroy + re-create (mirrors play-fx.js pattern).
     if (_app && _attachedTo !== wrap) {
       try { _app.destroy(true, { children: true, texture: false }); } catch (_) {}
-      _app = null; _stage = null; _fxRoot = null; _underRoot = null;
+      _app = null; _stage = null; _fxRoot = null; _underRoot = null; _groundG = null;
       _goalpostG = null; _goalpostKey = "";
       _ballSprite = null;
       _spriteCache.clear();
@@ -207,6 +207,9 @@ const GCPlayer = (() => {
     if (!ensure()) return;
     _frameMarker++;
     _frameIdx = 0;
+    // Fresh ground-decal layer (shadows/trails redraw during the frame).
+    _ensureUnder();
+    groundClear();
     // One-shot cache eviction when the sprite atlas finishes loading.
     // Any texture cached during the load window was drawn via the
     // procedural fallback; once sprites are available we want fresh
@@ -325,18 +328,67 @@ const GCPlayer = (() => {
   // (same layering the standalone z-index-4 FX canvas used to give).
   // frameEnd()'s single stage render flushes both layers in one pass.
   let _fxRoot = null;
-  let _underRoot = null;     // sits UNDER the player layer (weather precip)
+  let _underRoot = null;     // sits UNDER the player layer (ground decals, weather)
+  let _groundG = null;       // per-frame Graphics: shadows + trails (V1 step 4)
+  function _ensureUnder() {
+    if (!_underRoot || _underRoot.destroyed) {
+      _underRoot = new PIXI.Container();
+      _app.stage.addChildAt(_underRoot, 0);   // below _stage
+      // Ground decals at the very bottom of the under layer — weather
+      // precip (added later by GCFx) lands above them, players above all.
+      _groundG = new PIXI.Graphics();
+      _underRoot.addChild(_groundG);
+    }
+    return _underRoot;
+  }
   function fxStage() {
     if (!ensure()) return null;
     if (!_fxRoot || _fxRoot.destroyed) {
       _fxRoot = new PIXI.Container();
       _app.stage.addChild(_fxRoot);
     }
-    if (!_underRoot || _underRoot.destroyed) {
-      _underRoot = new PIXI.Container();
-      _app.stage.addChildAt(_underRoot, 0);   // below _stage
-    }
-    return { app: _app, root: _fxRoot, under: _underRoot };
+    return { app: _app, root: _fxRoot, under: _ensureUnder() };
+  }
+
+  // ── Ground decals (V1 step 4) — player drop shadows + run/ball trails,
+  // drawn in projected billboard space on this (flat) canvas instead of
+  // the tilted GCField stage. That projection is exact, not approximate:
+  // the broadcast CSS pipeline IS projectBroadcast, and its
+  // scaleY(1/cosθ)·rotateX(θ) nets vertical scale 1.0, so a field-plane
+  // ellipse/dot maps to the same shape scaled by the perspective factor.
+  // Moving these here is what lets the GCField stage stop re-rendering
+  // every frame (the old ~150ms cross-tech shadow compositor).
+  function groundClear() {
+    if (_groundG && !_groundG.destroyed) _groundG.clear();
+  }
+  function addShadow(x, y, bulk, scale) {
+    if (!_app || !_groundG || _groundG.destroyed) return;
+    if (typeof projectBroadcast !== "function") return;
+    const proj = projectBroadcast(x, y);
+    // Same two-ellipse penumbra GCField.addShadow drew, × perspective.
+    const totalScale = (scale || 1) * proj.scale;
+    const shR = (9.0 + (bulk || 0) * 0.9) * totalScale;
+    const shY = 2.4 * totalScale * 0.4;
+    const cx = proj.x;
+    const cy = proj.y + shY;
+    _groundG.beginFill(0x000000, 0.38);
+    _groundG.drawEllipse(cx, cy, shR, 2.4 * totalScale);
+    _groundG.endFill();
+    _groundG.beginFill(0x000000, 0.20);
+    _groundG.drawEllipse(cx, cy, shR * 1.35, 2.4 * totalScale * 1.35);
+    _groundG.endFill();
+  }
+  function addTrailDot(x, y, r, color, alpha) {
+    if (!_app || !_groundG || _groundG.destroyed) return;
+    if (typeof projectBroadcast !== "function") return;
+    const proj = projectBroadcast(x, y);
+    // Soft halo first (stands in for the canvas2D shadowBlur glow).
+    _groundG.beginFill(color, alpha * 0.25);
+    _groundG.drawCircle(proj.x, proj.y, r * 1.8 * proj.scale);
+    _groundG.endFill();
+    _groundG.beginFill(color, alpha);
+    _groundG.drawCircle(proj.x, proj.y, r * proj.scale);
+    _groundG.endFill();
   }
 
   // Hide every game object (players, ball, goalposts) and render once.
@@ -349,6 +401,7 @@ const GCPlayer = (() => {
     for (const [, sprite] of _spriteCache) sprite.visible = false;
     if (_ballSprite) _ballSprite.visible = false;
     if (_goalpostG) for (const g of _goalpostG) g.visible = false;
+    groundClear();   // shadows/trails are broadcast-projected too
     try { _app.renderer.render(_app.stage); } catch (_) {}
   }
 
@@ -433,5 +486,5 @@ const GCPlayer = (() => {
     }
   }
 
-  return { ensure, frameStart, render, renderBall, frameEnd, frameEndBall, active, fxStage, renderGoalposts, hideSprites, _stats };
+  return { ensure, frameStart, render, renderBall, frameEnd, frameEndBall, active, fxStage, renderGoalposts, hideSprites, addShadow, addTrailDot, _stats };
 })();

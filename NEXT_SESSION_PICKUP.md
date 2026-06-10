@@ -1,11 +1,10 @@
 # Next-session pickup message
 
-Paste this verbatim into the next chat to resume. **Next task: V1 step 4 —
-collapse to one WebGL canvas (see `VISUAL_ENGINE.md`). V1 steps 1-3 are
-DONE:** GCFx + goalposts + ragdolls on the shared GCPlayer stage; weather
-on a PIXI under-player layer; callouts/result cards/weather badge are DOM;
-`.gc-pixi-fx` is gone and `#field-uprights` is out of the layout (lazy
-no-WebGL fallback only). See the updated topology below.
+Paste this verbatim into the next chat to resume. **V1 (renderer
+unification) is COMPLETE — all 4 steps. Next arc: V3 replay-motion-from-
+seed (~10× save shrink), per `VISUAL_ENGINE.md`.** V2 (perf) was realized
+by step 4: PLAYING p50 367→**83ms** headless software (4.4×; was 470 at
+the start of the audit era).
 
 ---
 
@@ -54,33 +53,48 @@ no-WebGL fallback only). See the updated topology below.
 - **Playoffs → Week 17 bug**: root-caused and fixed (legacy
   `playoffs_pending` heals + tab-route guard).
 
-## NEXT: V1 — renderer unification (`VISUAL_ENGINE.md` has the full plan)
+## V1 — renderer unification: COMPLETE (`VISUAL_ENGINE.md` has the record)
 
-**Verdict recap:** sim-owned motion tracks + sprite-atlas bridge + DOM HUD
-are keepers. The **4-canvas WebGL→2D→2D→WebGL sandwich** is a migration
-parked at ~60% — and the PIXI layer IS the broadcast look (tilt/
-perspective); the canvas path is the flat legacy view (screenshot-proven).
-Direction: finish the migration to **one WebGL stage + DOM HUD**.
+**Where it landed:** live broadcast = `#field-pixi` (sleeping static WebGL
+field) + `.gc-player-pixi` (the one per-frame WebGL render) + DOM
+callouts/HUD; `#field` is clearRect-only in broadcast; `#field-uprights`
+and `.gc-pixi-fx` exist only as no-WebGL fallbacks. PLAYING p50 **83ms**
+headless software (was 470 pre-audit, 367 after steps 1-3); 60s soak
+clean; occlusion + ragdoll-physics bugs dead by construction.
 
-**The topology after steps 1-3** (back→front, all inside
-`.bspnlive-field-wrap`):
-1. `#field-pixi` — WebGL via `GCField` (play-field-pixi.js): tilted grass/
-   bands/EZ/yard-lines (memoized on team key but `_app.renderer.render()`
-   runs EVERY frame as the cross-tech shadow compositor), `addShadow`/
-   `clearShadows` (shadows written from the canvas-side player loop),
-   `drawDynamic` (LOS/FD, state-keyed).
-2. `#field` — canvas2D: static blit from `_fieldStaticCache` + dynamic
-   chalk fallback, topdown sprites, celebrations/confetti-rain overlays,
-   cinema view, run/ball trails. THE step-4 deletion target.
-3. `.gc-player-pixi` — WebGL via `GCPlayer` (play-player-pixi.js): the
-   shared stage. Bottom-to-top: `under` container (GCFx weather precip),
-   `_stage` (players/ball as pose-state-cached textures + goalposts as
-   depth-sorted Graphics, zIndex = projected screenY; ragdolls apply
-   physics rot/dy ON the sprite about the foot anchor), `fxStage().root`
-   (GCFx particles + LED ribbon/beams/badges/flash/chyron). One render
-   per frame in `frameEnd()`. The canvas stays visible in topdown (FX +
-   weather); `setCameraMode` calls `GCPlayer.hideSprites()` to drop the
-   broadcast-projected objects there.
+## NEXT: V3 — replay motion from seed (~10× save shrink)
+
+Stop storing `play.motion` (~180KB of waypoints per replay clip); store
+`(seed, week, teams, playIndex)` and re-sim the play on demand. The
+determinism harness + the interactive runner's re-sim machinery already
+prove the pattern (fresh seeded sim + tape replay, byte-identical). Mind:
+`_deriveGameSeed` per game / `_withWeekRng` per week; motion is
+display-only and stripped in outcome-prefix comparisons. After V3: V4
+netcode design (needs product decisions), V5 realism nits + keyboard-only
+offseason.
+
+**The topology after V1** (back→front, all inside `.bspnlive-field-wrap`):
+1. `#field-pixi` — WebGL via `GCField`: ALL static field art (grass/bands/
+   EZ/yard-lines/numbers/midfield logo AND the sideline pads) + LOS/FD/
+   red-zone chalk. **Renders ONLY on change**: static key is
+   `home|away|camera`, dynamic key is `los|fd|color|pulseBucket`
+   (red-zone pulse quantized to 10Hz), plus `_shadowsDirty` (topdown
+   shadows still live here; in broadcast this stage SLEEPS).
+2. `#field` — canvas2D, broadcast = clearRect only. Still hosts: topdown
+   sprites, cinema view, celebrations (cinema-only), dynamic-chalk +
+   static-blit + weather fallbacks (`_fieldStaticCache` is fallback-only
+   now). Deleting the node outright needs the topdown + cinema ports
+   (V2+, no perf urgency).
+3. `.gc-player-pixi` — WebGL via `GCPlayer`, THE per-frame render.
+   Bottom-to-top: `under` container (ground Graphics: player shadows +
+   run/ball trails, projected per point — `projectBroadcast` IS the CSS
+   tilt and scaleY(1/cosθ)·cosθ = 1, so field-plane shapes map exactly;
+   then GCFx weather precip), `_stage` (players/ball/goalposts,
+   zIndex = projected screenY; ragdolls apply physics rot/dy ON the
+   sprite about the foot anchor), `fxStage().root` (GCFx particles +
+   broadcast chrome). One render per frame in `frameEnd()`. Visible in
+   topdown too (FX/weather); `setCameraMode` calls
+   `GCPlayer.hideSprites()` (also clears the ground layer) there.
 4. DOM: `#fieldCalloutLayer` — 1700×720 design-space div scaled onto the
    wrap box (`_fcSyncScale` + ResizeObserver): HIKE!/MOTION!/AUDIBLE!
    banners, personnel/def chips, cadence, result card. Plus
@@ -97,26 +111,19 @@ Direction: finish the migration to **one WebGL stage + DOM HUD**.
    queue → `GCFx.draw` (updates display objects) → `GCPlayer.frameEnd()`
    (the single WebGL render).
 
-**V1 steps (verify by screenshot comparison):**
-1. **DONE — Particles + uprights → PIXI stage** (p50 383→367ms headless).
-2. **DONE — Weather → PIXI under-layer; callouts/cards/badge → DOM.**
-3. **DONE — Ragdolls → GCPlayer** (physics applied on the sprite, never
-   baked into the texture cache).
-4. **Collapse**: static field as a PIXI RenderTexture; move/port the
-   remaining `#field` cargo (celebration overlays, topdown sprites,
-   cinema view, trails); delete `#field`; one WebGL canvas + DOM remains.
-Acceptance: pixel-comparable screenshots; frame decomposition loses the
-double composite + shadow round-trip (probe pattern below); uprights
-occlusion verified; audit gate untouched (no engine files involved).
+**Shadow-probe gotcha** (cost a debugging detour): pre-step-4 shadows
+composited one frame LATE (stage rendered at frame start), so
+single-frame probe renders never showed them — a before/after pixel diff
+reads "shadows appeared" as a 7% regression. Compare live frames, or
+remember the baseline is shadowless in probes.
 
-**Frame-cost context** (headless software raster, GPU clients far cheaper):
-PLAYING p50 381ms = sprites ~180 + PIXI stage re-render ~150 + rest ~50.
-Idle/paused = 16.7ms. V2 (perf) is expected to mostly fall out of V1.
+**Frame-cost record** (headless software raster, GPU clients far cheaper):
+PLAYING p50 470 (pre-audit) → 381 (static cache) → 367 (V1 steps 1-3) →
+**83ms** (V1 step 4); p95 117, 60s soak stable. Idle/paused = 16.7ms.
 
-**After V1:** V3 replay-motion-from-seed (~10× save shrink — stop storing
-~180KB waypoints/clip, re-sim on demand), V4 C.3 netcode design (+tempo
-seam), V5 realism nits (one-score ~42 vs 44-52, OT ~3.2 vs 4-10, injury
-bands) + keyboard-only offseason run.
+**After V3:** V4 C.3 netcode design (+tempo seam; needs product
+decisions), V5 realism nits (one-score ~42 vs 44-52, OT ~3.2 vs 4-10,
+injury bands) + keyboard-only offseason run.
 
 ## Verification recipes that keep paying off
 
@@ -149,6 +156,5 @@ bands) + keyboard-only offseason run.
 
 ---
 
-That's it. Say **"start V1 step 4"** (collapse to one WebGL canvas:
-static field as a PIXI RenderTexture; port the remaining `#field` cargo;
-delete `#field`).
+That's it. Say **"start V3"** (replay motion from seed — drop stored
+waypoints, re-sim clips on demand).
