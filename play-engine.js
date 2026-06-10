@@ -2813,7 +2813,11 @@ class GameSimulator {
     // Clamp the SPD mod to ±6 — a SPD-50 fallback returner (rare, fires
     // when no KR is tagged) lands at -6 (mean ~17.5) rather than -9.
     const _krSpdMod = clamp((_krSpd - 80) * 0.30, -6, 6);
-    let ret = Math.max(0, Math.round(18 + _rand() * 12 + _krSpdMod));
+    // Base 14+U(0,11) (mean ~19.5): the audit measured the old 18+U(0,12)
+    // (mean ~24) at 28.9 yds/return after breakaway + broken-tackle bonuses —
+    // way over the NFL ~22. This re-centers the routine return at ~20-22
+    // post-bonus while the breakaway tail supplies the long ones.
+    let ret = Math.max(0, Math.round(14 + _rand() * 11 + _krSpdMod));
     // Breakaway floor at 0.01 — a SPD 50 player should almost never break away,
     // not 3% per return like the engine-wide minimum.
     const _krBreakawayCh = clamp(0.10 + (_krSpd - 80) / 250 + (_krAgi - 75) / 400, 0.01, 0.30);
@@ -2824,7 +2828,9 @@ class GameSimulator {
     // leaders go silently unrecorded. TD branch overrides with full
     // return distance (kick at 35 → 100 yards from kick spot).
     const rStats = receiverStats?.players?.[returnerName];
-    if (_rand() < 0.003) {
+    // 0.5% per returned kick (was 0.3%) — with PR TDs now possible too, this
+    // lands the combined return-TD rate inside the NFL ~0.02-0.12/game band.
+    if (_rand() < 0.005) {
       // Touchdown return — credit FULL return distance, not the partial
       // 18-49 yd `ret` (which represents only the routine-return
       // distribution). 100 - 35 = 65 yds from the kick spot.
@@ -3847,8 +3853,12 @@ class GameSimulator {
           }
         }
       }
-      // Final spot after return (or fixed touchback at receiver's 20)
-      const finalLand = isTouchback ? 80 : clamp(landYard - returnYards, 1, 99);
+      // Final spot after return (or fixed touchback at receiver's 20).
+      // Floor 0, NOT 1: the audit found punt-return TDs were structurally
+      // impossible — the old clamp(…, 1, 99) floored the spot above the goal
+      // line, so `isReturnTD = finalLand <= 0` below could never fire even
+      // though the drive loop has a full PUNT-RTN-TD scoring path.
+      const finalLand = isTouchback ? 80 : clamp(landYard - returnYards, 0, 99);
       const effectivePunt = finalLand - startYard;
       // If they brought it all the way back: TD for the receiving team
       const isReturnTD = !isTouchback && finalLand <= 0;
@@ -6986,7 +6996,27 @@ class GameSimulator {
                       : hcStyleXP === "Game Manager"      ? 0.85
                       :                                       1.00;
         twoPtChance = clamp(twoPtChance * this._aggTilt(this._qbAggression()) * hcXpMul, 0, 0.97);
-        if (_rand() < twoPtChance) {
+        // AI decision consumes its usual roll FIRST (unset/deferring
+        // coordinator = byte-identical stream — same contract as the
+        // run/pass + 4th-down seams).
+        let goForTwo = _rand() < twoPtChance;
+        // ── COORDINATOR SEAM (Workstream C) — PAT decision ────────────────
+        // After a TD, an installed coordinator (interactive playcalling /
+        // future H2H) sees the post-TD margin + the AI's intent and can
+        // override with "two" | "kick" (null defers to the AI roll above).
+        {
+          const _cPat = this._coordinators && this._coordinators[this.poss];
+          if (_cPat) {
+            const call = _cPat({
+              kind: "pat",
+              side: this.poss, quarter: this.quarter, time: this.time,
+              score: { home: this.score.home, away: this.score.away },
+              diff, aiAction: goForTwo ? "two" : "kick", twoPtChance,
+            });
+            if (call === "two" || call === "kick") goForTwo = (call === "two");
+          }
+        }
+        if (goForTwo) {
           // 2-point try
           if (_rand() < 0.48) this._score(2, "2-Point Conversion");
           else this._pushVisual({ kind: "xp_miss", desc: `2-pt conversion fails — no good` });

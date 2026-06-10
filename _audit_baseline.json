@@ -160,7 +160,7 @@
       "tier": "full",
       "label": "sim_kr_avg_yds",
       "pattern": "KR avg \\(yds\\)\\s+([0-9.]+)",
-      "value": 28.7,
+      "value": 24.4,
       "tol": 2.5,
       "nfl": [
         20,

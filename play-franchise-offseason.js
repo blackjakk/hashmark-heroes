@@ -4000,7 +4000,9 @@ function _ipcMaybePrompt() {
 function frnPlaycall(call) {
   if (!_ipc || _ipc.status !== "pending") return;
   const kind  = _ipc.pending?.kind || "playcall";
-  const valid = kind === "fourthDown" ? ["go", "fg", "punt"] : ["run", "pass"];
+  const valid = kind === "fourthDown" ? ["go", "fg", "punt"]
+              : kind === "pat"        ? ["kick", "two"]
+              :                         ["run", "pass"];
   _ipc.tape.push(valid.includes(call) ? call : null);
   _ipc.pending = null;
   _ipcHidePanel();
@@ -4062,7 +4064,16 @@ function _ipcShowPanel() {
   const lead = my > opp ? "UP" : my < opp ? "DOWN" : "TIED";
   const coachBtn = `<button class="ipc-btn ipc-coach" onclick="frnPlaycallCoachMode()" title="Hand the rest of the game to your coaches — no more prompts">⏩ COACH MODE</button>`;
   let badge, lean, btns;
-  if (kind === "fourthDown") {
+  if (kind === "pat") {
+    // Post-TD margin is in c.diff (the +6 already applied).
+    badge = "🏈 TOUCHDOWN — POINT(S) AFTER";
+    lean = `COACH SAYS · ${c.aiAction === "two" ? "GO FOR 2" : "KICK THE XP"}`;
+    btns = `
+      <button class="ipc-btn ipc-fg" onclick="frnPlaycall('kick')" title="Kick the extra point [K]">👟 KICK XP</button>
+      <button class="ipc-btn ipc-go" onclick="frnPlaycall('two')" title="Go for two [G]">💪 GO FOR 2</button>
+      <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let your coach decide [O]">🧠 COACH CALL</button>
+      ${coachBtn}`;
+  } else if (kind === "fourthDown") {
     badge = "🎲 4TH DOWN — YOUR CALL";
     lean = `COACH SAYS · ${c.aiAction === "go" ? "GO FOR IT" : c.aiAction === "fg" ? `FG (${c.fgDist} yd)` : "PUNT"}`;
     const fgOk = (c.fgDist || 99) <= 68;
@@ -4087,7 +4098,9 @@ function _ipcShowPanel() {
       ${coachBtn}`;
   }
   el.querySelector("#ipcBadge").textContent = badge;
-  el.querySelector("#ipcSit").textContent  = `${down} & ${dist} · ${spot} · ${qlab} ${mm}:${ss} · ${lead} ${my}-${opp}`;
+  el.querySelector("#ipcSit").textContent  = kind === "pat"
+    ? `AFTER THE TD · ${qlab} ${mm}:${ss} · ${lead} ${my}-${opp}`
+    : `${down} & ${dist} · ${spot} · ${qlab} ${mm}:${ss} · ${lead} ${my}-${opp}`;
   el.querySelector("#ipcLean").textContent = lean;
   el.querySelector("#ipcBtns").innerHTML = btns;
   el.style.display = "flex";
@@ -4107,7 +4120,14 @@ function _ipcInstallKeys() {
     if (!el || el.style.display === "none") return;
     if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
     const k = e.key.toLowerCase();
-    const fourth = _ipc?.pending?.kind === "fourthDown";
+    const kindK = _ipc?.pending?.kind;
+    if (kindK === "pat") {
+      if (k === "k")      { e.preventDefault(); frnPlaycall("kick"); }
+      else if (k === "g") { e.preventDefault(); frnPlaycall("two"); }
+      else if (k === "o") { e.preventDefault(); frnPlaycall("auto"); }
+      return;
+    }
+    const fourth = kindK === "fourthDown";
     if (fourth) {
       if (k === "g")      { e.preventDefault(); frnPlaycall("go"); }
       else if (k === "f") { e.preventDefault(); frnPlaycall("fg"); }
