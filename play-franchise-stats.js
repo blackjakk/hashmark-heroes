@@ -2469,7 +2469,7 @@ function renderFrnPracticeReport(idx) {
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap">
       <div style="font-size:1.05rem;font-weight:900;color:var(--gold)">🏟 PRACTICE REPORT</div>
       ${intensityChip}
-      <div style="color:var(--gray);font-size:.72rem">Wk ${report.week} · vs <b style="color:${oppTeam?.primary||"var(--gold)"}">${oppTeam?.city||""} ${oppTeam?.name||"?"}</b></div>
+      <div style="color:var(--gray);font-size:.72rem">Wk ${report.week} · vs <b style="color:${oppTeam?.primary?_teamInk(oppTeam.primary):"var(--gold)"}">${oppTeam?.city||""} ${oppTeam?.name||"?"}</b></div>
       <button class="btn btn-outline" onclick="renderFrnScrimmages()" style="margin-left:auto">← Back to practices</button>
     </div>
     ${downgradeBanner}
@@ -2598,7 +2598,7 @@ function renderFrnScrimmages() {
     pickerHtml = `<div class="frn-jp-picker">
       <div style="display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap;margin-bottom:.4rem">
         <span style="font-size:.85rem;font-weight:900;color:var(--gold)">PICK INTENSITY</span>
-        <span style="color:var(--gray);font-size:.7rem">vs <b style="color:${picked?.primary||"var(--gold)"}">${picked?.city} ${picked?.name}</b></span>
+        <span style="color:var(--gray);font-size:.7rem">vs <b style="color:${picked?.primary?_teamInk(picked.primary):"var(--gold)"}">${picked?.city} ${picked?.name}</b></span>
         <button class="btn btn-outline" onclick="frnJpCancelPicker()" style="margin-left:auto;font-size:.6rem">Cancel</button>
       </div>
       <div style="font-size:.58rem;color:var(--gray);margin-bottom:.45rem">
@@ -2630,7 +2630,7 @@ function renderFrnScrimmages() {
           const from = getTeam(o.fromTeamId);
           const i = JP_INTENSITIES[o.fromIntensity];
           return `<div class="frn-jp-inbox-row">
-            <span><b style="color:${from?.primary||"var(--gold)"}">${from?.name}</b> requested ${i.icon} <b>${i.label}</b> · Wk ${o.week}</span>
+            <span><b style="color:${from?.primary?_teamInk(from.primary):"var(--gold)"}">${from?.name}</b> requested ${i.icon} <b>${i.label}</b> · Wk ${o.week}</span>
             <span style="margin-left:auto;color:var(--gray);font-size:.58rem">awaiting response</span>
           </div>`;
         }).join("")}
@@ -2654,7 +2654,7 @@ function renderFrnScrimmages() {
            ].filter(Boolean).join(" · ");
            return `<div class="frn-jp-log-row" onclick="renderFrnPracticeReport(${i})">
              <span class="frn-jp-log-wk">W${s.week}</span>
-             <span class="frn-jp-log-opp" style="color:${opp?.primary||"var(--gold)"}">vs ${opp?.name||"?"}</span>
+             <span class="frn-jp-log-opp" style="color:${opp?.primary?_teamInk(opp.primary):"var(--gold)"}">vs ${opp?.name||"?"}</span>
              <span class="frn-jp-log-score">${s.homeScore != null ? `${s.homeScore}-${s.awayScore}` : (s.score || "")}</span>
              <span class="frn-jp-log-meta">${meta}</span>
              <span class="frn-jp-log-arrow">›</span>
@@ -3501,7 +3501,7 @@ function renderFrnAlumni(yearsBackArg) {
     const live = findCurrentPlayer(a.name);
     let locationCell = "";
     if (a.location === "team" && a.currentTeam) {
-      locationCell = `<span style="color:${a.currentTeam.primary};font-weight:700">→ ${a.currentTeam.city} ${a.currentTeam.name}</span>`;
+      locationCell = `<span style="color:${_teamInk(a.currentTeam.primary)};font-weight:700">→ ${a.currentTeam.city} ${a.currentTeam.name}</span>`;
     } else if (a.location === "hof") {
       locationCell = `<span style="color:var(--blgold);font-weight:700">🏛 HALL OF FAME</span>`;
     } else if (a.location === "retired") {
@@ -3574,8 +3574,8 @@ const DEPTH_POS_GROUPS = [
 
 const DEPTH_UNIT_LABELS = {
   OFF: { name:"OFFENSE",        icon:"⚡", color:"var(--gold)" },
-  DEF: { name:"DEFENSE",        icon:"🛡", color:"#7ac8e8" },
-  ST:  { name:"SPECIAL TEAMS",  icon:"🦵", color:"#c08fff" },
+  DEF: { name:"DEFENSE",        icon:"🛡", color:"#8fd4f0" },
+  ST:  { name:"SPECIAL TEAMS",  icon:"🦵", color:"#d2b3ff" },
   PKG: { name:"PACKAGES",       icon:"⛺", color:"#ff9a4d" },
 };
 
@@ -5129,7 +5129,7 @@ function _bspnRenderScoring(plays, teamsById, totalPts) {
   const TYPE_META = {
     TD:  { label:"TD",  color:"#f5c542", bg:"rgba(245,197,66,.13)"  },
     FG:  { label:"FG",  color:"#4dbdbd", bg:"rgba(77,189,189,.12)"  },
-    XP:  { label:"XP",  color:"#888",    bg:"rgba(136,136,136,.08)" },
+    XP:  { label:"XP",  color:"#9aa3ad",  bg:"rgba(136,136,136,.08)" },
     "2PT":{ label:"2PT",color:"#a78bfa", bg:"rgba(167,139,250,.12)" },
     SAF: { label:"SAF", color:"#f87171", bg:"rgba(248,113,113,.12)" },
   };
@@ -5166,12 +5166,12 @@ function _bspnRenderScoring(plays, teamsById, totalPts) {
       const homeAbbr = homeTm?.abbreviation || "HME";
       const scoreHtml = `
         <span class="bspn-sc-away${awayLead?" bspn-sc-lead":""}"
-              style="color:${awayTm?.primaryColor||"var(--bspn-white)"}">
+              style="color:${awayTm ? _teamInkStrong(awayTm.primaryColor) : "var(--bspn-white)"}">
           ${_bspnEsc(awayAbbr)} ${p.awayScore}
         </span>
         <span class="bspn-sc-sep">–</span>
         <span class="bspn-sc-home${homeLead?" bspn-sc-lead":""}"
-              style="color:${homeTm?.primaryColor||"var(--bspn-white)"}">
+              style="color:${homeTm ? _teamInkStrong(homeTm.primaryColor) : "var(--bspn-white)"}">
           ${p.homeScore} ${_bspnEsc(homeAbbr)}
         </span>`;
       const ptsBadge = `<span class="bspn-sc-pts">+${p.pts}</span>`;
@@ -5405,7 +5405,7 @@ function renderFrnSnapShares() {
   const byPid = {};
   for (const p of roster) if (p.pid) byPid[p.pid] = p;
 
-  const staminaCol = (s) => s >= 80 ? "var(--green-lt)" : s >= 65 ? "var(--gold-lt)" : "#ff6b6b";
+  const staminaCol = (s) => s >= 80 ? "var(--green-lt)" : s >= 65 ? "var(--gold-lt)" : "#ff8585";
   const staminaWarn = (pct, stam) => (pct > 80 && stam < 55) || (pct > 65 && stam < 65);
 
   // Rotation backup = best-OVR roster player at this position who isn't
@@ -6741,8 +6741,8 @@ function _hhTeamThemeVars(hex) {
   const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b); // WCAG relative luminance
   const ink = L > 0.5 ? "#0a0d13" : "#ffffff";
   let accent = hex;
-  if (L < 0.30) {
-    const t = Math.min(0.6, (0.30 - L) / 0.30 * 0.6 + 0.18);
+  if (L < 0.35) {
+    const t = Math.min(0.65, (0.35 - L) / 0.35 * 0.65 + 0.20);
     const mix = (ch) => Math.round(ch + (255 - ch) * t);
     accent = "#" + [mix(r), mix(g), mix(b)].map((v) => v.toString(16).padStart(2, "0")).join("");
   }
@@ -6756,6 +6756,23 @@ function _hhTeamThemeVars(hex) {
 // --team-color tints, which keep the raw primary.
 function _teamInk(hex) {
   return (typeof _hhTeamThemeVars === "function") ? _hhTeamThemeVars(hex || "#6d8bff").accent : (hex || "#6d8bff");
+}
+
+// Stronger variant for team-colored text on LIGHTER tinted panels (scoring
+// rows, award tints) where the standard accent lands just under AA: keep
+// lifting toward white until relative luminance reaches ~0.45 (≈4.6:1 there).
+function _teamInkStrong(hex) {
+  let c = _teamInk(hex);
+  for (let i = 0; i < 6; i++) {
+    const m = String(c).replace("#", "");
+    if (m.length < 6) return c;
+    const r = parseInt(m.slice(0,2),16), g = parseInt(m.slice(2,4),16), b = parseInt(m.slice(4,6),16);
+    const lin = (v) => { v/=255; return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); };
+    if (0.2126*lin(r)+0.7152*lin(g)+0.0722*lin(b) >= 0.45) return c;
+    const mix = (ch) => Math.round(ch + (255-ch)*0.22);
+    c = "#" + [mix(r),mix(g),mix(b)].map(v=>v.toString(16).padStart(2,"0")).join("");
+  }
+  return c;
 }
 
 function _frnRenderAppShell() {
@@ -7580,7 +7597,7 @@ function renderFrnSeasonRecap() {
 
   // ── Hero status callout ────────────────────────────────────────────────
   const statusCallout = inPlayoffs
-    ? `<div class="frn-recap-status in" style="--accent:${myTeam.primary||'var(--gold)'}">
+    ? `<div class="frn-recap-status in" style="--accent:${myTeam.primary||'var(--gold)'};--accent-ink:${myTeam.primary?_teamInk(myTeam.primary):'var(--gold)'}">
         <div class="frn-recap-status-lbl">PLAYOFF BOUND</div>
         <div class="frn-recap-status-main">#${seed} seed</div>
         <div class="frn-recap-status-sub">Heading to ${seed === 1 ? "Wild Card weekend with a top seed" : "Wild Card weekend"}</div>
@@ -7593,7 +7610,7 @@ function renderFrnSeasonRecap() {
 
   // ── Your-season summary card ───────────────────────────────────────────
   const yourSeasonHtml = `
-    <div class="frn-recap-card frn-recap-your" style="--accent:${myTeam.primary||'var(--gold)'}">
+    <div class="frn-recap-card frn-recap-your" style="--accent:${myTeam.primary||'var(--gold)'};--accent-ink:${myTeam.primary?_teamInk(myTeam.primary):'var(--gold)'}">
       <div class="frn-recap-team-head">
         <div class="frn-recap-team-name">${myTeam.city.toUpperCase()} ${myTeam.name.toUpperCase()}</div>
         <div class="frn-recap-team-rec">${recStr}</div>
@@ -7660,7 +7677,7 @@ function renderFrnSeasonRecap() {
     return `<div class="frn-recap-award-card${isMine?" mine":""}">
       <div class="lbl">${label}</div>
       <div class="name">${entry.name}</div>
-      <div class="meta">${entry.pos||"?"} · <span style="color:${t?.primary||'var(--gold)'}">${t?.name||"?"}</span></div>
+      <div class="meta">${entry.pos||"?"} · <span style="color:${t?.primary?_teamInk(t.primary):'var(--gold)'}">${t?.name||"?"}</span></div>
       ${statFn ? `<div class="stat">${statFn(entry)}</div>` : ""}
     </div>`;
   };
@@ -7698,13 +7715,13 @@ function renderFrnSeasonRecap() {
     const userMatch = hiMine || loMine;
     return `<div class="frn-recap-bracket-match${userMatch?" mine":""}">
       ${userMatch?`<div class="user-tag">⭐ YOUR MATCHUP</div>`:""}
-      <div class="team" style="--accent:${hi.team.primary}">
+      <div class="team" style="--accent:${hi.team.primary};--accent-ink:${_teamInk(hi.team.primary)}">
         <span class="seed">${highSeedIdx+1}</span>
         <span class="name">${hi.team.abbr || hi.team.name.slice(0,3).toUpperCase()}</span>
         <span class="rec">${hi.w}-${hi.l}</span>
       </div>
       <div class="vs">vs</div>
-      <div class="team" style="--accent:${lo.team.primary}">
+      <div class="team" style="--accent:${lo.team.primary};--accent-ink:${_teamInk(lo.team.primary)}">
         <span class="seed">${lowSeedIdx+1}</span>
         <span class="name">${lo.team.abbr || lo.team.name.slice(0,3).toUpperCase()}</span>
         <span class="rec">${lo.w}-${lo.l}</span>
@@ -8794,7 +8811,7 @@ function renderFrnRegular() {
     return `<div class="frn-leader-row" style="${isMine?"background:rgba(245,197,66,0.08)":""}">
       <span class="frn-leader-cat" style="width:2rem;font-size:.58rem">${label}</span>
       <span class="frn-leader-name">${_playerLinkSmart(entry.name)}
-        <span style="color:${entry.teamPrimary};font-size:.58rem;margin-left:.25rem">${entry.teamAbbr}</span>
+        <span style="color:${_teamInk(entry.teamPrimary)};font-size:.58rem;margin-left:.25rem">${entry.teamAbbr}</span>
       </span>
       <span class="frn-leader-stat" style="font-size:.62rem;color:var(--gray)">${entry.statLine}</span>
     </div>`;
@@ -12559,7 +12576,7 @@ function _renderLeagueCoachesTab(myId) {
     const rec = games ? `${stand.w}-${stand.l}${stand.t?`-${stand.t}`:""}` : "—";
     const pctStr = games ? pct.toFixed(3).replace(/^0/, "") : ".—";
     return `<tr class="${isMine?"frn-me":""}" style="${isMine?"background:rgba(212,175,55,.08)":""}">
-      <td style="padding:.25rem .45rem;color:${t.primary||"var(--gold)"};font-weight:${isMine?900:700};font-size:.7rem">${isMine?"» ":""}${t.city} ${t.name}</td>
+      <td style="padding:.25rem .45rem;color:${t.primary?_teamInk(t.primary):"var(--gold)"};font-weight:${isMine?900:700};font-size:.7rem">${isMine?"» ":""}${t.city} ${t.name}</td>
       <td style="padding:.25rem .45rem;font-size:.7rem;color:var(--blwhite)">${hc?.name || "<i style='color:var(--gray)'>vacant</i>"}</td>
       <td style="padding:.25rem .45rem;text-align:center">${ratingChip(hc?.rating)}</td>
       <td style="padding:.25rem .45rem;text-align:center;font-size:.62rem;color:var(--gray)">${hc?.yearsWithTeam||0}yr</td>
@@ -12649,7 +12666,7 @@ function _renderCoordinatorMarket(myId) {
     const isActive = isActiveTarget(t.id, role);
     return `<div class="frn-poach-row${isActive?" active":""}">
       <div class="frn-poach-meta">
-        <span style="color:${t.primary||"var(--gold)"};font-weight:700;font-size:.66rem">${t.name}</span>
+        <span style="color:${t.primary?_teamInk(t.primary):"var(--gold)"};font-weight:700;font-size:.66rem">${t.name}</span>
         <span style="color:var(--blgray);font-size:.55rem;letter-spacing:.4px">${role.toUpperCase()}</span>
         ${schemeChip}
         ${expiringFlag}${hotChip}

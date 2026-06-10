@@ -5546,7 +5546,7 @@
     background: rgba(255,255,255,.03);
   }
   .frn-snap-injtag {
-    font-size: .48rem; letter-spacing: .5px; color: var(--blgray); font-weight: 700;
+    font-size: .48rem; letter-spacing: .5px; color: var(--gray); font-weight: 700; /* --blgray was 3.25:1 on the tinted row */
     margin-top: .15rem;
   }
   .frn-snap-iron-strip {
@@ -5738,7 +5738,7 @@
   }
   .frn-dc-rank.r1 { color: var(--gold); }
   .frn-dc-rank.r2 { color: var(--blgray); }
-  .frn-dc-rank.rc { color: #7ac8e8; }
+  .frn-dc-rank.rc { color: #8fd4f0; }
   .frn-dc-name {
     font-size: .69rem; font-weight: 700; cursor: pointer; flex-shrink: 0;
     text-decoration: underline; text-decoration-style: dotted;
@@ -5756,17 +5756,17 @@
     border-radius: 2px; flex-shrink: 0; line-height: 1.4;
   }
   .frn-dc-badge.red { background: var(--red); color: #fff; }
-  .frn-dc-badge.exp { border: 1px solid #ff6b6b; color: #ff6b6b; }
+  .frn-dc-badge.exp { border: 1px solid #ff6b6b; color: #ff8585; }
   .frn-dc-badge.blk { color: #e8a000; }
   .frn-dc-badge.pot    { color: var(--blgray); font-size: .44rem; }
-  .frn-dc-badge.cascade { color: #7ac8e8; border: 1px solid rgba(124,200,232,.4); border-radius: 2px; }
+  .frn-dc-badge.cascade { color: #8fd4f0; border: 1px solid rgba(124,200,232,.4); border-radius: 2px; }
   .frn-dc-badge.arch {
     color: var(--blgray); border: 1px solid rgba(255,255,255,.18);
     background: rgba(255,255,255,.04);
     border-radius: 2px; font-style: italic;
   }
   .frn-dc-badge.arch.fit {
-    color: #4caf82; border-color: rgba(76,175,130,.45);
+    color: #5fc795; border-color: rgba(76,175,130,.45); /* lifted #4caf82: 4.22:1 at 7px */
     background: rgba(76,175,130,.10); font-style: normal; font-weight: 700;
   }
   .frn-dc-badge.mood { color: #e8a000; border: 1px solid rgba(232,160,0,.4); }
@@ -5812,7 +5812,7 @@
   .frn-dc-snap-pct { font-size: .44rem; font-weight: 700; line-height: 1; }
   .frn-dc-snap-pct.s { color: var(--gold-lt); }
   .frn-dc-snap-pct.b { color: var(--blgray); }
-  .frn-dc-snap-col.manual .frn-dc-snap-pct.s { color: #7ac8e8; }
+  .frn-dc-snap-col.manual .frn-dc-snap-pct.s { color: #8fd4f0; }
   .frn-dc-snap-bar {
     width: 6px; height: 2.2rem; background: rgba(255,255,255,.08);
     border-radius: 3px; overflow: hidden; position: relative;
@@ -5877,7 +5877,7 @@
     background: linear-gradient(to bottom, rgba(255,154,77,.15), rgba(255,154,77,.03));
     border-color: #ff9a4d; color: var(--text);
   }
-  .frn-dc-pkg-card-name { font-size: .72rem; font-weight: 800; color: #ff9a4d; }
+  .frn-dc-pkg-card-name { font-size: .72rem; font-weight: 800; color: #ffb070; }
   .frn-dc-pkg-card.active .frn-dc-pkg-card-name { color: #ffb878; }
   .frn-dc-pkg-card-ovr { font-size: .6rem; font-weight: 700; letter-spacing: 1px; }
   .frn-dc-pkg-card-fit { font-size: .54rem; font-weight: 700; letter-spacing: 1.5px; }
@@ -5936,7 +5936,7 @@
     margin-top: .1rem; letter-spacing: .5px;
   }
   .frn-dc-pkg-cell-arch.fit {
-    color: #4caf82; font-style: normal; font-weight: 700;
+    color: #5fc795; font-style: normal; font-weight: 700; /* lifted #4caf82 */
   }
   .frn-dc-pkg-cell.arch-fit {
     border-color: rgba(76,175,130,.35);
@@ -6197,7 +6197,7 @@
   }
   .frn-scout-chip.pinned { border-color: var(--gold); color: var(--gold); }
   .frn-scout-chip.pinned.active { background: var(--gold); color: var(--bg); }
-  .frn-scout-chip.pinned.empty { opacity: .55; }
+  .frn-scout-chip.pinned.empty { opacity: .78; }
 
   /* Mobile tap-target floor — WCAG 2.5.5 calls for 44×44 minimum */
   @media (max-width: 640px) {
@@ -6701,7 +6701,7 @@
   .frn-prg-score-side .abbr {
     font-family: "Bebas Neue","Anton",sans-serif;
     font-size: 1.6rem; letter-spacing: 1.5px;
-    color: var(--team-color, var(--blwhite)); font-weight: 900;
+    color: var(--team-ink, var(--team-color, var(--blwhite))); font-weight: 900;
   }
   .frn-prg-score-side .city {
     font-size: .58rem; letter-spacing: 1.5px; color: var(--blgray);
@@ -7082,7 +7082,7 @@
     padding-left: .3rem; font-size: .68rem;
   }
   .frn-pl-otherchip-team .seed { color: var(--blgray); font-size: .55rem; font-weight: 700; }
-  .frn-pl-otherchip-team .abbr { color: var(--team-color); font-weight: 800; }
+  .frn-pl-otherchip-team .abbr { color: var(--team-ink, var(--team-color)); font-weight: 800; }
   .frn-pl-otherchip-team .score {
     font-family: "IBM Plex Mono","JetBrains Mono",monospace;
     color: var(--blwhite); font-weight: 700;
@@ -7452,7 +7452,7 @@
   .bspnlive-awards-hero-name {
     font-family: "Bebas Neue","Anton",sans-serif;
     font-size: 2.4rem; letter-spacing: 2px; line-height: 1.05;
-    color: var(--champ-color);
+    color: var(--champ-ink, var(--champ-color));
     text-shadow: 0 1px 0 rgba(0,0,0,0.6);
     margin: .15rem 0;
   }
@@ -7489,7 +7489,7 @@
     animation: bspnlive-fade-in .6s ease-out;
   }
   .bspnlive-mvp-hero-eyebrow {
-    color: var(--mvp-color); font-size: .68rem;
+    color: var(--mvp-ink, var(--mvp-color)); font-size: .68rem;
     letter-spacing: 2px; font-weight: 800;
   }
   .bspnlive-mvp-hero-name {
@@ -7604,7 +7604,7 @@
   .bspnlive-award-card-label {
     font-family: "Bebas Neue","Anton",sans-serif;
     font-size: .72rem; letter-spacing: 1.5px;
-    color: var(--card-color, var(--blgray));
+    color: var(--card-ink, var(--blwhite));
     font-weight: 700;
   }
   .bspnlive-award-card-name {
@@ -11048,7 +11048,7 @@
     font-size: .58rem; letter-spacing: 3px; font-weight: 800;
     color: var(--gray); margin-bottom: .25rem;
   }
-  .frn-recap-status.in .frn-recap-status-lbl { color: var(--accent, var(--gold)); }
+  .frn-recap-status.in .frn-recap-status-lbl { color: var(--accent-ink, var(--accent, var(--gold))); }
   .frn-recap-status.out .frn-recap-status-lbl { color: #c08080; }
   .frn-recap-status-main {
     font-family: "Bebas Neue","Anton",sans-serif;
@@ -11085,7 +11085,7 @@
   }
   .frn-recap-team-rec {
     font-family: "IBM Plex Mono","JetBrains Mono",monospace;
-    font-size: 1.7rem; font-weight: 900; color: var(--accent, var(--gold));
+    font-size: 1.7rem; font-weight: 900; color: var(--accent-ink, var(--accent, var(--gold)));
   }
   .frn-recap-team-grid {
     display: grid; grid-template-columns: repeat(8, 1fr); gap: .35rem;
@@ -11233,7 +11233,7 @@
     color: var(--gray); font-weight: 700; text-align: center;
   }
   .frn-recap-bracket-match .name {
-    font-weight: 800; color: var(--accent, var(--blwhite));
+    font-weight: 800; color: var(--accent-ink, var(--accent, var(--blwhite)));
   }
   .frn-recap-bracket-match .rec {
     font-family: "IBM Plex Mono","JetBrains Mono",monospace;
@@ -12237,7 +12237,7 @@
     display: flex; align-items: stretch; height: 30px;
   }
   .frn-bb-fnkey {
-    background: transparent; border: none; color: var(--gray);
+    background: transparent; border: none; color: #b3bdca; /* --gray was 3.6:1 on the tinted strip */
     font-family: 'IBM Plex Mono', monospace; padding: 0 .85rem;
     display: flex; align-items: center; gap: .35rem;
     border-right: 1px solid var(--border); cursor: pointer;
@@ -12385,7 +12385,7 @@
     /* neutral-dark elevated surfaces */
     --bg: #0a0d13; --bg2: #10151d; --bg3: #1a212d; --card: #141a24;
     --border: rgba(255,255,255,.08);
-    --white: #f1f4f9; --blwhite: #eaeef4; --gray: #9aa7b8; --blgray: #7b8798;
+    --white: #f1f4f9; --blwhite: #eaeef4; --gray: #9aa7b8; --blgray: #a1adbd; /* lifted #7b8798: was 4.43:1 (AA fail) as the scout/snap/depth secondary text — and those sit on tinted rows that eat another ~0.5 */
     --green: #1f9d63; --green-lt: #3ecf8e; --green-dk: #0f3d27; --red: #f0746d;
     --hh-shadow: 0 8px 24px -12px rgba(0,0,0,.7);
     --hh-inset: inset 0 1px 0 rgba(255,255,255,.05);
@@ -12458,7 +12458,7 @@
   #franchiseHome .frn-hero-play-btn:hover {
     box-shadow: var(--hh-inset), 0 10px 26px -10px var(--team);
   }
-  #franchiseHome .frn-hero-play-sub { text-transform: uppercase; }
+  #franchiseHome .frn-hero-play-sub { text-transform: uppercase; opacity: .85; /* .65 dimmed team-ink to ~3.3:1 on the team gradient */ }
 
   /* ── Buttons ─────────────────────────────────────────────────────────── */
   #franchiseHome .btn,
@@ -12511,7 +12511,8 @@
     border: none; border-right: none; border-radius: 999px;
     font-family: 'Bricolage Grotesque', sans-serif; font-weight: 600;
     font-size: 12.5px; letter-spacing: .2px; text-transform: none;
-    color: var(--gray); padding: .42rem .85rem; gap: .3rem;
+    color: #b3bdca; /* --gray measured 3.6:1 on the team-tinted strip */
+    padding: .42rem .85rem; gap: .3rem;
   }
   #franchiseHome .frn-bb-fnkey-num { display: none; }
   #franchiseHome .frn-bb-fnkey.active {
@@ -12534,7 +12535,12 @@
     background: color-mix(in srgb, var(--team) 22%, var(--bg3)); color: var(--white);
     font-weight: 700; letter-spacing: 1px;
   }
-  #franchiseHome .frn-bb-ticker-time { color: color-mix(in srgb, var(--team) 60%, var(--gray)); }
+  #franchiseHome .frn-bb-ticker-time { color: color-mix(in srgb, var(--team-accent, var(--team)) 60%, var(--gray)); }
+  /* --gold-dim in this theme is color-mix(raw team primary, near-black) — fine
+     for BORDERS, unreadable as TEXT for dark-primary teams (measured 1.1-1.3:1).
+     Text consumers re-mix from the contrast-lifted accent instead. */
+  #franchiseHome .frn-bb-footer-cmd,
+  #franchiseHome .frn-bb-fnkey-num { color: color-mix(in srgb, var(--team-accent, var(--team)) 55%, var(--gray)); }
   #franchiseHome .frn-bb-footer {
     background: var(--bg2); border-top: 1px solid var(--border);
     font-family: 'Bricolage Grotesque', sans-serif;

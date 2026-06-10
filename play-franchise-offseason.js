@@ -1156,7 +1156,7 @@ function _renderApbCrowning(t) {
                   <div class="frn-apb-leader-name">${_apbLink(l.name)}</div>
                   <div class="frn-apb-leader-meta">
                     <span class="pos">${l.pos}</span>
-                    <span class="src" style="color:${src.primary}">${src.abbr}</span>
+                    <span class="src" style="color:${_teamInk(src.primary)}">${src.abbr}</span>
                     <span class="gp">${l.gp}gp</span>
                     ${oc.label?`<span class="outcome ${oc.cls}">${oc.label}</span>`:""}
                   </div>
@@ -1180,7 +1180,7 @@ function _renderApbCrowning(t) {
                   <div class="frn-apb-performer-head">
                     <span class="name">${_apbLink(p.name)}</span>
                     <span class="pos">${p.pos}</span>
-                    <span class="src" style="color:${src.primary}">${src.abbr}</span>
+                    <span class="src" style="color:${_teamInk(src.primary)}">${src.abbr}</span>
                     ${oc.label?`<span class="outcome ${oc.cls}">${oc.label}</span>`:""}
                   </div>
                   <div class="frn-apb-performer-stats">
@@ -2198,8 +2198,8 @@ function _showWeekRecapIfReady() {
         </div>
         <div class="recap-desc">${h.desc || "—"}</div>
         <div class="recap-meta">
-          ${offTeam ? `<span style="color:${offTeam.primary}">${offTeam.abbr}</span>` : ""}
-          ${defTeam ? `<span style="color:var(--blgray)">vs</span> <span style="color:${defTeam.primary}">${defTeam.abbr}</span>` : ""}
+          ${offTeam ? `<span style="color:${_teamInk(offTeam.primary)}">${offTeam.abbr}</span>` : ""}
+          ${defTeam ? `<span style="color:var(--blgray)">vs</span> <span style="color:${_teamInk(defTeam.primary)}">${defTeam.abbr}</span>` : ""}
           ${h.quarter ? ` · Q${h.quarter} ${clockStr}` : ""}
           ${typeof h.homeScore === "number" ? ` · ${h.homeScore}-${h.awayScore}` : ""}
         </div>
@@ -2348,8 +2348,8 @@ function renderFrnReplayLib() {
             </div>
             <div class="frn-rpl-desc">${h.desc || "—"}</div>
             <div class="frn-rpl-meta">
-              ${offTeam ? `<span style="color:${offTeam.primary}">${offTeam.abbr}</span>` : ""}
-              ${defTeam ? `<span style="color:var(--blgray)">vs</span> <span style="color:${defTeam.primary}">${defTeam.abbr}</span>` : ""}
+              ${offTeam ? `<span style="color:${_teamInk(offTeam.primary)}">${offTeam.abbr}</span>` : ""}
+              ${defTeam ? `<span style="color:var(--blgray)">vs</span> <span style="color:${_teamInk(defTeam.primary)}">${defTeam.abbr}</span>` : ""}
               ${h.quarter ? ` · Q${h.quarter} ${clockStr}` : ""}
               ${typeof h.homeScore === "number" ? ` · ${h.homeScore}-${h.awayScore}` : ""}
               · S${h.season} W${h.week}
@@ -4433,9 +4433,9 @@ function _renderRoadToChampionship() {
     const head = `<div class="bspnlive-road-round">${roundNames[s.ri] || `ROUND ${s.ri+1}`}</div>`;
     if (s.kind === "now") {
       if (!s.opp) return `${head}<div class="bspnlive-road-team tbd">TBD</div>`;
-      return `${head}<div class="bspnlive-road-team next" style="--team-color:${s.opp.primary}">
+      return `${head}<div class="bspnlive-road-team next" style="--team-color:${s.opp.primary};--team-ink:${_teamInk(s.opp.primary)}">
         <span class="bspnlive-road-tag">NEXT</span>
-        <span class="abbr" style="color:${s.opp.primary}">${s.opp.abbr || s.opp.name.slice(0,3).toUpperCase()}</span>
+        <span class="abbr" style="color:${_teamInk(s.opp.primary)}">${s.opp.abbr || s.opp.name.slice(0,3).toUpperCase()}</span>
         <span class="name">${s.opp.name}</span>
       </div>`;
     }
@@ -4445,7 +4445,7 @@ function _renderRoadToChampionship() {
     }
     if (s.possible.length === 1 && s.possible[0]) {
       const opp = s.possible[0];
-      return `${head}<div class="bspnlive-road-team" style="--team-color:${opp.primary}">
+      return `${head}<div class="bspnlive-road-team" style="--team-color:${opp.primary};--team-ink:${_teamInk(opp.primary)}">
         <span class="abbr" style="color:${_teamInk(opp.primary)}">${opp.abbr || opp.name.slice(0,3).toUpperCase()}</span>
         <span class="name">${opp.name}</span>
       </div>`;
@@ -4640,9 +4640,9 @@ function _renderPregamePreview(m, seeds) {
           <div style="font-size:.68rem;line-height:1.8;margin-bottom:.5rem">${h2hHtml}</div>
           <div style="font-size:.58rem;letter-spacing:.8px;color:var(--blgray);margin-bottom:.2rem">ROSTER RATINGS</div>
           <div style="font-size:.67rem;color:var(--blwhite)">
-            <span style="color:${away.primary};font-weight:700">${abbr(away)}</span>
+            <span style="color:${_teamInk(away.primary)};font-weight:700">${abbr(away)}</span>
             OFF ${awayRtg.off ?? "—"} / DEF ${awayRtg.def ?? "—"} &nbsp;·&nbsp;
-            <span style="color:${home.primary};font-weight:700">${abbr(home)}</span>
+            <span style="color:${_teamInk(home.primary)};font-weight:700">${abbr(home)}</span>
             OFF ${homeRtg.off ?? "—"} / DEF ${homeRtg.def ?? "—"}
           </div>
         </div>
@@ -4650,11 +4650,11 @@ function _renderPregamePreview(m, seeds) {
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.6rem">
         <div>
-          <div style="font-size:.58rem;letter-spacing:.8px;color:${away.primary};margin-bottom:.2rem">${abbr(away)} SEASON FILM</div>
+          <div style="font-size:.58rem;letter-spacing:.8px;color:${_teamInk(away.primary)};margin-bottom:.2rem">${abbr(away)} SEASON FILM</div>
           ${renderFilm(away)}
         </div>
         <div>
-          <div style="font-size:.58rem;letter-spacing:.8px;color:${home.primary};margin-bottom:.2rem">${abbr(home)} SEASON FILM</div>
+          <div style="font-size:.58rem;letter-spacing:.8px;color:${_teamInk(home.primary)};margin-bottom:.2rem">${abbr(home)} SEASON FILM</div>
           ${renderFilm(home)}
         </div>
       </div>
@@ -4930,12 +4930,12 @@ function _renderOtherMatchups(currentRound) {
       ? `<button class="frn-pl-otherchip-sim" onclick="frnSimPlayoffGame(${m.homeId},${m.awayId})">⏩ Sim</button>`
       : `<button class="frn-pl-otherchip-box" onclick="frnOpenPlayoffBox(${roundIdx},${mi})">📋 Box</button>`;
     return `<div class="frn-pl-otherchip ${played?"played":""}">
-      <div class="frn-pl-otherchip-team ${hWin?"win":""} ${played&&!hWin?"loss":""}" style="--team-color:${home.primary}">
+      <div class="frn-pl-otherchip-team ${hWin?"win":""} ${played&&!hWin?"loss":""}" style="--team-color:${home.primary};--team-ink:${_teamInk(home.primary)}">
         <span class="seed">${hSeed}</span>
         <span class="abbr">${home.abbr || home.name.slice(0,3).toUpperCase()}</span>
         <span class="score">${m.homeScore != null ? m.homeScore : "—"}</span>
       </div>
-      <div class="frn-pl-otherchip-team ${aWin?"win":""} ${played&&!aWin?"loss":""}" style="--team-color:${away.primary}">
+      <div class="frn-pl-otherchip-team ${aWin?"win":""} ${played&&!aWin?"loss":""}" style="--team-color:${away.primary};--team-ink:${_teamInk(away.primary)}">
         <span class="seed">${aSeed}</span>
         <span class="abbr">${away.abbr || away.name.slice(0,3).toUpperCase()}</span>
         <span class="score">${m.awayScore != null ? m.awayScore : "—"}</span>
@@ -5230,10 +5230,10 @@ function _renderPlayoffGameRecap() {
           const wScore = mm.winnerId === mm.homeId ? mm.homeScore : mm.awayScore;
           const lScore = mm.winnerId === mm.homeId ? mm.awayScore : mm.homeScore;
           return `<div class="frn-prg-around-row">
-            <span style="color:${winT?.primary};font-weight:800">${winT?.abbr || winT?.name?.slice(0,3).toUpperCase()}</span>
+            <span style="color:${_teamInk(winT?.primary||"#888")};font-weight:800">${winT?.abbr || winT?.name?.slice(0,3).toUpperCase()}</span>
             <span style="font-family:'IBM Plex Mono','JetBrains Mono',monospace;color:var(--blwhite);font-weight:700">${wScore}</span>
             <span style="color:var(--blgray)">def.</span>
-            <span style="color:${losT?.primary};font-weight:600;opacity:.75">${losT?.abbr || losT?.name?.slice(0,3).toUpperCase()}</span>
+            <span style="color:${_teamInk(losT?.primary||"#888")};font-weight:600;opacity:.75">${losT?.abbr || losT?.name?.slice(0,3).toUpperCase()}</span>
             <span style="font-family:'IBM Plex Mono','JetBrains Mono',monospace;color:var(--blgray);text-decoration:line-through">${lScore}</span>
           </div>`;
         }).join("")}
@@ -5253,13 +5253,13 @@ function _renderPlayoffGameRecap() {
     <header class="frn-prg-hero-banner ${statusClass}" style="--my-color:${myTeam.primary}">
       <div class="frn-prg-round">${roundName}</div>
       <div class="frn-prg-score-row">
-        <div class="frn-prg-score-side mine" style="--team-color:${myTeam.primary}">
+        <div class="frn-prg-score-side mine" style="--team-color:${myTeam.primary};--team-ink:${_teamInk(myTeam.primary)}">
           <div class="abbr">${myTeam.abbr || myTeam.name.slice(0,3).toUpperCase()}</div>
           <div class="city">${myTeam.city.toUpperCase()}</div>
           <div class="score">${myScore}</div>
         </div>
         <div class="frn-prg-score-divider">—</div>
-        <div class="frn-prg-score-side opp" style="--team-color:${oppTeam.primary}">
+        <div class="frn-prg-score-side opp" style="--team-color:${oppTeam.primary};--team-ink:${_teamInk(oppTeam.primary)}">
           <div class="score">${oppScore}</div>
           <div class="city">${oppTeam.city.toUpperCase()}</div>
           <div class="abbr">${oppTeam.abbr || oppTeam.name.slice(0,3).toUpperCase()}</div>
@@ -9526,7 +9526,7 @@ function renderFrnAwards() {
   const sbAwayT = sb ? getTeam(sb.awayId) : null;
   const champRec = latest.championRecord || { w:0, l:0 };
   const championHero = champTeam ? `
-    <div class="bspnlive-awards-hero" style="--champ-color:${champTeam.primary};--champ-2:${champTeam.secondary || '#fff'}">
+    <div class="bspnlive-awards-hero" style="--champ-color:${champTeam.primary};--champ-ink:${_teamInk(champTeam.primary)};--champ-2:${champTeam.secondary || '#fff'}">
       <div class="bspnlive-awards-hero-stripe"></div>
       <div class="bspnlive-awards-hero-body">
         <div class="bspnlive-awards-hero-eyebrow">SEASON ${season} · CHAMPIONS</div>
@@ -9549,7 +9549,7 @@ function renderFrnAwards() {
   const mvp = latest.leagueMVP;
   const mvpTeam = mvp ? getTeam(mvp.teamId) : null;
   const mvpHero = mvp ? `
-    <div class="bspnlive-mvp-hero" style="--mvp-color:${mvpTeam?.primary || '#b07a00'}">
+    <div class="bspnlive-mvp-hero" style="--mvp-color:${mvpTeam?.primary || '#b07a00'};--mvp-ink:${_teamInk(mvpTeam?.primary || '#b07a00')}">
       <div class="bspnlive-mvp-hero-stripe"></div>
       <div class="bspnlive-mvp-hero-body">
         <div class="bspnlive-mvp-hero-eyebrow">👑 LEAGUE MVP · SEASON ${season}</div>
@@ -9566,7 +9566,7 @@ function renderFrnAwards() {
       <div class="bspnlive-award-card-name" style="color:var(--blgray);font-style:italic">— vacant —</div>
     </div>`;
     const t = rec.teamId ? getTeam(rec.teamId) : null;
-    return `<div class="bspnlive-award-card" style="--card-color:${rec.teamPrimary || t?.primary || '#888'}">
+    return `<div class="bspnlive-award-card" style="--card-color:${rec.teamPrimary || t?.primary || '#888'};--card-ink:${_teamInk(rec.teamPrimary || t?.primary || '#888')}">
       <div class="bspnlive-award-card-stripe"></div>
       <div class="bspnlive-award-card-icon">${icon}</div>
       <div class="bspnlive-award-card-label">${label}</div>
@@ -9581,7 +9581,7 @@ function renderFrnAwards() {
       <div class="bspnlive-award-card-icon">🎩</div>
       <div class="bspnlive-award-card-label">COACH OF THE YEAR</div>
       <div class="bspnlive-award-card-name" style="color:var(--blgray);font-style:italic">— vacant —</div>
-    </div>` : `<div class="bspnlive-award-card" style="--card-color:${latest.coy.teamPrimary || '#888'}">
+    </div>` : `<div class="bspnlive-award-card" style="--card-ink:${_teamInk(latest.coy.teamPrimary || '#888')};--card-color:${latest.coy.teamPrimary || '#888'}">
       <div class="bspnlive-award-card-stripe"></div>
       <div class="bspnlive-award-card-icon">🎩</div>
       <div class="bspnlive-award-card-label">COACH OF THE YEAR</div>
@@ -9616,7 +9616,7 @@ function renderFrnAwards() {
       <div class="bspnlive-award-card-name" style="color:var(--blgray);font-style:italic">— no votes cast —</div>
     </div>`;
     const t = rec.teamId ? getTeam(rec.teamId) : null;
-    return `<div class="bspnlive-award-card" style="--card-color:${rec.teamPrimary || t?.primary || '#888'}">
+    return `<div class="bspnlive-award-card" style="--card-color:${rec.teamPrimary || t?.primary || '#888'};--card-ink:${_teamInk(rec.teamPrimary || t?.primary || '#888')}">
       <div class="bspnlive-award-card-stripe"></div>
       <div class="bspnlive-award-card-icon">${icon}</div>
       <div class="bspnlive-award-card-label">${label}</div>
@@ -9645,7 +9645,7 @@ function renderFrnAwards() {
         <td class="bspnlive-allpro-names">${arr.map(r => `
           <span class="bspnlive-allpro-player">
             ${link(r)}
-            <span class="bspnlive-allpro-tm" style="color:${r.teamPrimary}">${r.teamAbbr}</span>
+            <span class="bspnlive-allpro-tm" style="color:${_teamInk(r.teamPrimary)}">${r.teamAbbr}</span>
           </span>`).join("")}</td>
       </tr>`);
     }
@@ -9670,7 +9670,7 @@ function renderFrnAwards() {
       ${cat.leaders.map((r, i) => `
         <div class="bspnlive-leader-row ${i===0?'lead':''}">
           <span class="bspnlive-leader-rank">${i+1}</span>
-          <span class="bspnlive-leader-tm" style="color:${r.teamPrimary}">${r.teamAbbr}</span>
+          <span class="bspnlive-leader-tm" style="color:${_teamInk(r.teamPrimary)}">${r.teamAbbr}</span>
           <span class="bspnlive-leader-name">${link(r)}</span>
           <span class="bspnlive-leader-val">${r.value}</span>
         </div>`).join("")}
