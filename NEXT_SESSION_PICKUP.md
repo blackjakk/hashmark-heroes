@@ -41,25 +41,27 @@ demotion, save-status jargon, Overview header slimming are the open IA items).
 
 ## What's open / suggested next moves
 
-**The 9-workstream `CODEBASE_AUDIT_PLAN.md` is FULLY EXECUTED** (every §
-carries a DONE block with findings + verification; remaining items live as
-tickets inside each §). The highest-value open tickets, in rough order:
+**The audit plan is FULLY EXECUTED and its ticket backlog is now CLOSED OUT
+too** (ticket-closure arc): static-field render cache (470→381ms software;
+sprites ~180ms + PIXI shadow-composite ~150ms are the next perf pass),
+non-mutating save pipeline (flush 1.9s→~110ms; IDB gets the live object; trim
+moved to season rollover), KR-return realism fixed (PR TDs were structurally
+impossible — clamp floored the spot at the 1; ST table now 3/3 in band, KR
+re-baselined 24.4), Workstream C PAT seam (kick XP / go for 2 prompts, K/G/O
+keys), 43 display sinks escaped at the sink, and the 36 dead functions
+deleted (531 lines, tombstones point at git).
 
-1. **Live-playback static-field cache** (plan §E — the big perf ticket):
-   `drawField` repaints the whole 1700×720 static field every tick; render
-   once per (cameraMode, weather, teams) to an offscreen canvas, blit + draw
-   only dynamic layers. ~470ms/frame in software raster today.
-2. **Save-stall worker** (plan §E/§B): 52MB save = ~2s main-thread
-   stringify+flush per week; worker the mirror/IDB snapshot and/or shrink the
-   per-clip motion payload by regenerating from seed (determinism now allows).
-3. **Workstream C next steps:** 2-point/PAT decision seam (same pattern as
-   4th down), tempo, then C.3 server-authoritative netcode for live H2H
-   (design in `INGAME_CLOCK_AND_MULTIPLAYER.md`).
-4. **KR-return realism** (plan §C / AUDIT.md open finding): KR avg ~29 yd
-   (NFL ~22) but ~0.005 return TD/game (NFL ~0.05) — needs a "mostly short,
-   occasional housecall" return model.
-5. Smaller tickets: dead-code deletion list (§G), display-sink escape-at-sink
-   (§A), non-mutating trim (§B), keyboard-only offseason run (§F).
+Open items, in rough order:
+1. **Workstream C.3:** server-authoritative netcode for live H2H (needs a
+   server + product decisions — design in `INGAME_CLOCK_AND_MULTIPLAYER.md`);
+   tempo-decision seam if wanted before that.
+2. **Perf pass 2** (plan §E): pre-scaled sprite cache and/or move player
+   shadows off the PIXI stage (~330ms of the remaining software-raster frame).
+3. **Per-clip motion payload** (plan §B): regenerate replay motion from
+   seed+inputs instead of storing ~180KB/clip; would shrink saves ~10×.
+4. Realism nits (plan §C): one-score % ~42-43 vs NFL 44-52; OT % ~3.2 vs
+   4-10; injury-rate-by-position bands for `_brady_audit.js`.
+5. Keyboard-only offseason playthrough (§F pass criterion not yet run).
 6. Playoff format remains 14 teams (`PLAYOFF_PER_CONF = 7`).
 
 ## Verification recipes that paid off this session
@@ -87,5 +89,5 @@ tickets inside each §). The highest-value open tickets, in rough order:
 
 ---
 
-That's it. Say "do the static-field cache" (top perf ticket), "continue
-Workstream C" (2pt seam / netcode), or pick any ticket above.
+That's it. Say "perf pass 2" (sprites/shadows), "shrink the clips" (motion
+from seed), or "start C.3 netcode design".

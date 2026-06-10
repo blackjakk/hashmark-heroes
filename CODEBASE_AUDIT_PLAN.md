@@ -46,9 +46,9 @@ apostrophe-breaks-scouting class of escaping bugs.*
 > `&quot;`-escape so `onclick="fn('${name}')"` can't break the double-quoted
 > attribute; import path sanitizes tag-like `<`. Verified: 10-screen runtime
 > sweep with hostile `"`/`<img>` names → 0 injected handlers, 0 page errors.
-> **Remaining (ticket):** the 40+ bespoke `>${p.name}<` *display* sinks still
-> rely on the import `<`-backstop + clean generation rather than escaping at
-> the sink — not a live vuln, but finish escape-at-sink for defense in depth.
+> **Remaining: none.** The 43 bespoke `>${p.name}<` display sinks were
+> escaped at the sink in the ticket-closure arc (defense in depth on top of
+> the import backstop).
 
 Single-player game, but data flows through ~143 `innerHTML` sinks and ~600
 inline `onclick` strings: generated player/team names (apostrophes,
@@ -87,10 +87,11 @@ save files (fully attacker-controlled JSON).
 > - Diagnostics now lists `replayClips` + `playLog` (were invisible).
 > Verified headless: round-trip byte-identical, import restores 0-missing
 > pids, forced-trim preserves all user-visible data, migrations idempotent.
-> **Remaining (tickets):** make `_trimFranchiseForStorage` fully non-mutating
-> (it still trims careerHistory on the live object); cut the per-clip payload
-> (regenerate motion from `seed`+inputs per workstream B rather than storing
-> ~180KB of waypoint tracks per highlight); de-jargon the "IDB only" save UI.
+> **Remaining:** cut the per-clip payload (regenerate motion from
+> `seed`+inputs rather than storing ~180KB of waypoint tracks per highlight).
+> CLOSED since: saving is now fully non-mutating (`_slimFranchiseForMirror`
+> slims a detached copy; the bounded-growth trim runs once per season at
+> rollover); the save-status UI was de-jargoned in §F.
 
 The repair/migration block in `showFranchiseDashboard` is ~200 lines of
 one-shot heals; `_trimFranchiseForStorage` deletes data under pressure (one
@@ -125,10 +126,15 @@ bug fixed this arc: trimmed scoring → zeroed linescores); save is dual-written
 >   coordinator produces a byte-identical seeded game to none — baselined as a
 >   **hard gate** (value 1, tol 0), so any engine edit that breaks the seam
 >   fails CI. Verified PASS at 2 and 8 seasons.
-> Gate: 14/14 metrics within tolerance (2 informational NFL-band warns: KR
-> avg, one-score %). **Remaining (tickets):** the KR-return realism fix;
-> injury-rate-by-position bands (the injury data lives in `_brady_audit.js`,
-> the better home for it); time-of-possession spread.
+> Gate: 14/14 metrics within tolerance. **KR-return realism FIXED** in the
+> ticket-closure arc: punt-return TDs were structurally impossible (return
+> spot floored at the 1 by a clamp — the scoring path existed but was
+> unreachable); KR base re-centered 18+U(0,12)→14+U(0,11); KR TD tail
+> 0.3%→0.5%. At the gate seed, 6 seasons: ST table 3/3 in band (KR 24.4,
+> return TDs 0.020/game); sim_kr_avg_yds re-baselined 28.7→24.4.
+> **Remaining (tickets):** injury-rate-by-position bands (belongs in
+> `_brady_audit.js`); time-of-possession spread; one-score % sits ~42-43 vs
+> NFL 44-52 (mild, stable — a competitiveness tuning item).
 
 `_sim_audit.js` + `AUDIT.md` bands already cover the headline distributions.
 Known soft spots to add bands for: special teams (KR/PR yardage + TD rates,
@@ -190,19 +196,20 @@ chatter), must-NOT-seed (player generation entropy across new franchises).
 > - **Sim throughput:** p50 85ms/game in-franchise (12 games/s); 16-game week
 >   1.45s; full `frnSimWeek` wall 3.3s at week-9 state (~1s of that is save).
 > - **Interactive re-sim step:** p50 52ms, max 62ms per call — imperceptible.
-> - **Save stall (TICKET):** week-9 save is 52MB → `JSON.stringify` 1.0s +
->   `parse` 0.35s + `_flushSaveFranchise` 0.9s **on the main thread every
->   debounced save**. Fix path: move the mirror+IDB snapshot to a worker
->   and/or cut the per-clip motion payload (§B ticket — regenerate from seed).
-> - **Live playback frames (TICKET, the big one):** idle + paused = 16.7ms
->   (60fps); PLAYING p50 ~470ms/frame in software raster. Decomposed: NOT
->   PIXI (hiding it changes nothing), NOT JS (CPU profile: ~95% native canvas
->   raster; JS self-time <2%). Root cause: `drawField` repaints the entire
->   static field (grass, pads, gradients, mowing bands, end-zone art, crowd)
->   on the 1700×720 canvas from scratch every tick, ×3 stacked canvases.
->   Fix path: static-layer offscreen cache — render the static field once per
->   (cameraMode, weather, teams) state, blit per frame, draw only dynamic
->   layers live.
+> - **Save stall — FIXED** (ticket-closure arc): the pipeline no longer
+>   stringifies/parses the full save at all. IDB takes the live object (safe:
+>   saving is non-mutating now); the mirror stringifies a detached slim copy.
+>   `_flushSaveFranchise` 1.9s → ~110ms at the same week-9 state. The slim
+>   mirror (~8MB mid-season; rosters alone 4.5MB) can exceed a 5MB quota →
+>   IDB-only boot, the documented graceful path.
+> - **Live playback frames — static cache LANDED** (ticket-closure arc):
+>   `drawField`'s static art now renders once per (matchup, camera, PIXI)
+>   state to an offscreen canvas and blits (`_drawFieldStatic` +
+>   `_fieldStaticCache`). PLAYING p50 470→381ms in software raster.
+>   Post-fix decomposition (next perf pass): player-sprite drawing ~180ms,
+>   PIXI stage re-render (per-frame shadow composite; GPU-trivial on real
+>   clients) ~150ms, rest ~50ms. Remaining ticket: pre-scaled sprite cache
+>   and/or shadows off the PIXI stage.
 > - **Heap:** 12MB after load; 343MB at week 9 with 270 in-memory replay
 >   clips (clips are the live-set driver); post-GC at a low-clip season end
 >   53MB — no leak signature, just big retained clip payloads (§B ticket).
@@ -282,17 +289,11 @@ chatter), must-NOT-seed (player generation entropy across new franchises).
 >   patched; verified they still run. The 18 kept at root are the LIVE gate
 >   + calibration suites (`_audit_*`, `_sim/_brady/_clutch/_mff_*` and the
 >   teleport battery, which `_audit_gate.js` references).
-> - **Dead-code inventory:** 1,522 function definitions, 36 zero-reference
->   (2.4%) — list captured below; deletion is a ticket (each needs a manual
->   check for dynamic/console use): drawKickoffFormation, renderRatings,
->   absSalaryFloor, currentCap, _isPlayerScouted, _schemeMatchupLabel,
->   _expireScoutingIntel, _resetWeeklyScoutVisits, frnSaveSummary,
->   frnLoadGame, open/closeFranchiseModal, _maybeEnshrineHOF,
->   frnFANegotiationOpen, frnFAOpenSelf, frnFACutPlayer, frnTogglePSAutoSpend,
->   _depthSlotLabel, _fpts, _clockMMSS, _topPerformer, _mini_helmet,
->   _bsCompRow, mffPlayerOfGame, mffTeamSOS, _weeklyTopTen,
->   _renderCurrentGameHub, _returnAbility, _teamPicksByYear,
->   _processPendingCounters, +7 more (re-run the inventory in §G method).
+> - **Dead-code inventory → DELETED** (ticket-closure arc): the 36
+>   zero-reference functions (531 lines) removed after re-verifying against
+>   the full corpus (code + html + tools/ + audit suites + career/) and
+>   checking for dynamic `window[...]` invocation. One-line tombstones point
+>   at git history; 19/19 screens + box score verified rendering after.
 >
 > **Target file layout (the "where does new code go" rule):**
 > `play-data.js` constants/teams/RNG · `play-player.js` player gen ·
