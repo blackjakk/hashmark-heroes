@@ -3589,248 +3589,76 @@ function _vitalsLabel(wearVal) {
   if (wearVal < 85) return "Stressed";
   return                  "Critical";
 }
-// Position-shaped body parameters. Each position gets a unique frame
-// profile — OL/DL bulky, WR/CB lean, QB tall, RB compact muscular.
-// Then height/weight of the SPECIFIC player nudges from the position
-// baseline. This is what makes a 6'7"/325 lb OL look different from a
-// 5'10"/195 lb CB on the same body diagram.
-const _VITALS_BODY_PROFILES = {
-  // shoulderWidth: 0.7-1.3 multiplier on the half-body width
-  // chestWidth, hipWidth, thighWidth: same scale
-  // headRadius: usually 28 base
-  QB: { shoulderW: 1.02, chestW: 0.95, hipW: 0.92, thighW: 0.94, heightStretch: 1.04 },
-  RB: { shoulderW: 1.00, chestW: 1.00, hipW: 1.04, thighW: 1.12, heightStretch: 0.95 },
-  WR: { shoulderW: 0.92, chestW: 0.90, hipW: 0.88, thighW: 0.90, heightStretch: 1.02 },
-  TE: { shoulderW: 1.10, chestW: 1.05, hipW: 1.00, thighW: 1.02, heightStretch: 1.03 },
-  OL: { shoulderW: 1.30, chestW: 1.28, hipW: 1.20, thighW: 1.22, heightStretch: 1.05 },
-  DL: { shoulderW: 1.25, chestW: 1.20, hipW: 1.12, thighW: 1.18, heightStretch: 1.02 },
-  LB: { shoulderW: 1.10, chestW: 1.08, hipW: 1.04, thighW: 1.10, heightStretch: 1.00 },
-  CB: { shoulderW: 0.88, chestW: 0.88, hipW: 0.86, thighW: 0.92, heightStretch: 1.00 },
-  S:  { shoulderW: 1.00, chestW: 0.98, hipW: 0.96, thighW: 1.00, heightStretch: 1.00 },
-  K:  { shoulderW: 0.90, chestW: 0.92, hipW: 0.90, thighW: 0.95, heightStretch: 0.98 },
-  P:  { shoulderW: 0.92, chestW: 0.92, hipW: 0.90, thighW: 0.95, heightStretch: 1.00 },
+// Trainer's-scan body map built on the game's own player art: the
+// PixelLab idle mannequin (sprites/idle/south.png, 104×104 frame,
+// figure bbox x38-68 / y28-77) rendered pixelated inside the SVG,
+// with wear glows, margin callouts, career scar markers, and the
+// active-injury crosshair anchored to the sprite's body landmarks.
+//
+// Landmarks are in FRAME coordinates (the PNG's 104-space);
+// _vitSpriteGeom maps them into the 240×520 panel. "Left" = image
+// left (viewer's left) — same convention as the old silhouette and
+// every other vitals surface.
+const _VIT_SPRITE_URL = "sprites/idle/south.png";
+const _VIT_SPRITE_FRAME = 104;
+const _VIT_SPRITE_ANCHORS = {
+  head:        [53, 34],   neck:        [53, 43.5],
+  shoulderL:   [45, 46],   shoulderR:   [61, 46],
+  chest:       [53, 50.5], back:        [53, 55.5],
+  groin:       [53, 60],
+  hipL:        [48.5, 58.5], hipR:      [57.5, 58.5],
+  handL:       [40.5, 61], handR:       [65.5, 61],
+  hamstringL:  [49, 64],   hamstringR:  [57, 64],
+  kneeL:       [49, 67.5], kneeR:       [57, 67.5],
+  calfL:       [49, 70.5], calfR:       [57, 70.5],
+  achillesL:   [49, 73],   achillesR:   [57, 73],
+  ankleL:      [48, 74.5], ankleR:      [58, 74.5],
 };
-function _vitalsBodyFrame(p) {
-  const profile = _VITALS_BODY_PROFILES[p.position] || _VITALS_BODY_PROFILES.WR;
-  // Player-specific nudges from height/weight. NFL average ~225 lbs.
-  const wDelta = ((p.weight || 225) - 225) / 100;  // -0.4 → +1.0
-  const widthBase = 1.0 + wDelta * 0.12;            // each 100lb up = +12% width
-  const hDelta = ((p.height || 73) - 73) / 10;     // 67-79 → -0.6 → 0.6
+// Figure rows in the art: helmet top y≈28, feet y≈77 (49px tall).
+// s=6.4 spans the figure across panel y 95-409 while keeping the
+// fists (the widest row) inside the canvas with room for labels.
+function _vitSpriteGeom() {
+  const s = 6.4;
   return {
-    shoulderW: profile.shoulderW * widthBase,
-    chestW:    profile.chestW    * widthBase,
-    hipW:      profile.hipW      * widthBase,
-    thighW:    profile.thighW    * widthBase * (1 + Math.max(0, wDelta * 0.05)),
-    yStretch:  profile.heightStretch * (1 + hDelta * 0.02),
+    s,
+    ix: 120 - 53 * s,   // figure centerline → panel cx
+    iy: 95 - 28 * s,    // helmet top → panel y 95
+    size: _VIT_SPRITE_FRAME * s,
   };
 }
-// Vitruvian-inspired anatomical body diagram. Single smooth-curve
-// silhouette path defines the body shape; color regions overlay inside
-// via clipPath so they stay within anatomy. Internal muscle lines add
-// the "drawn" anatomical feel (collarbone, pec divide, abs, quads, etc.).
-// Position frame scales body proportions; line-art aesthetic throughout.
+
 function _buildVitalsBodyDiagram(p) {
   const bw = p._bodyWear || {};
   const get = (k) => bw[k] || 0;
   const stress = p._stress || 0;
   const wear = p._wear || 0;
-  const frame = _vitalsBodyFrame(p);
   // Same measurables the header + combine section quote — one source of
   // truth for the displayed frame.
   const cmbHW = (() => {
     try { const c = combineMeasurables(p); return { h: c.heightIn, w: c.weightLbs }; }
     catch { return { h: p.height || 73, w: p.weight || 225 }; }
   })();
-  // Scale: each frame multiplier nudges that body part's width
-  const sH = frame.shoulderW;
-  const sC = frame.chestW;
-  const sP = frame.hipW;
-  const sT = frame.thighW;
-  // Body landmarks (240x520 canvas, body centered at cx=120)
-  // These are the natural-proportion anchor points; widths scaled per frame.
-  const lm = {
-    cx: 120,
-    head: { cy: 56, rx: 20, ry: 26 },
-    neck: { top: 80, bot: 102, wTop: 13, wBot: 16 },
-    shoulder: { y: 116, w: 50 * sH },
-    chest: { yTop: 122, yBot: 196, wTop: 38 * sC, wBot: 30 * sC, midY: 158 },
-    waist: { y: 218, w: 26 * sC },
-    hip: { yTop: 232, yBot: 270, w: 38 * sP },
-    crotch: { y: 268, w: 4 },
-    thigh: { yTop: 268, yBot: 348, wTop: 24 * sT, wBot: 18 * sT, inset: 4 },
-    knee:  { yTop: 348, yBot: 372, w: 16 * sT },
-    calf:  { yTop: 372, yBot: 446, wTop: 19 * sT, wBot: 13 * sT },
-    ankle: { yTop: 446, yBot: 462, w: 11 },
-    foot:  { yTop: 462, yBot: 486, w: 17 },
-    arm: { shoulderY: 122, elbowY: 226, wristY: 308, handY: 336,
-           shoulderW: 14, upperArmW: 12 * sH, forearmW: 10 * sH, handW: 11 },
-  };
-  const cx = lm.cx;
-  // ── SILHOUETTE PATH: single smooth-curve body outline ─────────────
-  // Goes CLOCKWISE from top of head, down right side, across feet,
-  // back up left side. Uses cubic beziers for organic curves.
-  // Naming: each `C x1 y1, x2 y2, x y` is a curve with two control points.
-  const sil = `
-    M ${cx} ${lm.head.cy - lm.head.ry}
-    C ${cx + lm.head.rx*0.9} ${lm.head.cy - lm.head.ry}, ${cx + lm.head.rx} ${lm.head.cy - lm.head.ry*0.4}, ${cx + lm.head.rx} ${lm.head.cy}
-    C ${cx + lm.head.rx} ${lm.head.cy + lm.head.ry*0.7}, ${cx + lm.head.rx*0.7} ${lm.head.cy + lm.head.ry}, ${cx + lm.neck.wTop} ${lm.neck.top}
-    L ${cx + lm.neck.wBot} ${lm.neck.bot}
-    C ${cx + lm.shoulder.w*0.5} ${lm.neck.bot + 4}, ${cx + lm.shoulder.w*0.85} ${lm.shoulder.y - 6}, ${cx + lm.shoulder.w} ${lm.shoulder.y + 6}
-    C ${cx + lm.shoulder.w + 2} ${lm.shoulder.y + 18}, ${cx + lm.arm.upperArmW + lm.chest.wTop*0.6} ${lm.shoulder.y + 24}, ${cx + lm.chest.wTop} ${lm.chest.yTop + 4}
-    C ${cx + lm.chest.wTop + 2} ${lm.chest.midY}, ${cx + lm.chest.wBot + 2} ${lm.chest.yBot - 4}, ${cx + lm.chest.wBot} ${lm.chest.yBot}
-    C ${cx + lm.waist.w + 2} ${lm.waist.y - 4}, ${cx + lm.waist.w} ${lm.waist.y}, ${cx + lm.waist.w} ${lm.waist.y + 4}
-    C ${cx + lm.hip.w*0.85} ${lm.hip.yTop}, ${cx + lm.hip.w} ${lm.hip.yTop + 8}, ${cx + lm.hip.w - 2} ${lm.hip.yBot - 8}
-    C ${cx + lm.hip.w - 6} ${lm.hip.yBot}, ${cx + lm.thigh.wTop + 4} ${lm.thigh.yTop + 2}, ${cx + lm.thigh.wTop} ${lm.thigh.yTop + 8}
-    C ${cx + lm.thigh.wBot + 4} ${lm.thigh.yBot - 20}, ${cx + lm.thigh.wBot + 2} ${lm.thigh.yBot - 4}, ${cx + lm.knee.w + 2} ${lm.knee.yTop}
-    C ${cx + lm.knee.w} ${lm.knee.yTop + 6}, ${cx + lm.knee.w} ${lm.knee.yBot - 6}, ${cx + lm.knee.w} ${lm.knee.yBot}
-    C ${cx + lm.calf.wTop} ${lm.calf.yTop + 4}, ${cx + lm.calf.wTop + 2} ${lm.calf.yTop + 30}, ${cx + lm.calf.wTop} ${lm.calf.yTop + 40}
-    C ${cx + lm.calf.wBot + 1} ${lm.calf.yBot - 12}, ${cx + lm.calf.wBot} ${lm.calf.yBot - 4}, ${cx + lm.ankle.w + 3} ${lm.ankle.yTop}
-    C ${cx + lm.ankle.w + 1} ${lm.ankle.yTop + 8}, ${cx + lm.ankle.w} ${lm.ankle.yBot - 4}, ${cx + lm.ankle.w} ${lm.ankle.yBot}
-    C ${cx + lm.foot.w} ${lm.foot.yBot - 16}, ${cx + lm.foot.w + 1} ${lm.foot.yBot - 4}, ${cx + lm.foot.w + 1} ${lm.foot.yBot}
-    L ${cx + 1} ${lm.foot.yBot}
-    L ${cx + 1} ${lm.crotch.y}
-    L ${cx - 1} ${lm.crotch.y}
-    L ${cx - 1} ${lm.foot.yBot}
-    L ${cx - lm.foot.w - 1} ${lm.foot.yBot}
-    C ${cx - lm.foot.w - 1} ${lm.foot.yBot - 4}, ${cx - lm.foot.w} ${lm.foot.yBot - 16}, ${cx - lm.ankle.w} ${lm.ankle.yBot}
-    C ${cx - lm.ankle.w} ${lm.ankle.yBot - 4}, ${cx - lm.ankle.w - 1} ${lm.ankle.yTop + 8}, ${cx - lm.ankle.w - 3} ${lm.ankle.yTop}
-    C ${cx - lm.calf.wBot} ${lm.calf.yBot - 4}, ${cx - lm.calf.wBot - 1} ${lm.calf.yBot - 12}, ${cx - lm.calf.wTop} ${lm.calf.yTop + 40}
-    C ${cx - lm.calf.wTop - 2} ${lm.calf.yTop + 30}, ${cx - lm.calf.wTop} ${lm.calf.yTop + 4}, ${cx - lm.knee.w} ${lm.knee.yBot}
-    C ${cx - lm.knee.w} ${lm.knee.yBot - 6}, ${cx - lm.knee.w} ${lm.knee.yTop + 6}, ${cx - lm.knee.w - 2} ${lm.knee.yTop}
-    C ${cx - lm.thigh.wBot - 2} ${lm.thigh.yBot - 4}, ${cx - lm.thigh.wBot - 4} ${lm.thigh.yBot - 20}, ${cx - lm.thigh.wTop} ${lm.thigh.yTop + 8}
-    C ${cx - lm.thigh.wTop - 4} ${lm.thigh.yTop + 2}, ${cx - lm.hip.w + 6} ${lm.hip.yBot}, ${cx - lm.hip.w + 2} ${lm.hip.yBot - 8}
-    C ${cx - lm.hip.w} ${lm.hip.yTop + 8}, ${cx - lm.hip.w*0.85} ${lm.hip.yTop}, ${cx - lm.waist.w} ${lm.waist.y + 4}
-    C ${cx - lm.waist.w} ${lm.waist.y}, ${cx - lm.waist.w - 2} ${lm.waist.y - 4}, ${cx - lm.chest.wBot} ${lm.chest.yBot}
-    C ${cx - lm.chest.wBot - 2} ${lm.chest.yBot - 4}, ${cx - lm.chest.wTop - 2} ${lm.chest.midY}, ${cx - lm.chest.wTop} ${lm.chest.yTop + 4}
-    C ${cx - lm.arm.upperArmW - lm.chest.wTop*0.6} ${lm.shoulder.y + 24}, ${cx - lm.shoulder.w - 2} ${lm.shoulder.y + 18}, ${cx - lm.shoulder.w} ${lm.shoulder.y + 6}
-    C ${cx - lm.shoulder.w*0.85} ${lm.shoulder.y - 6}, ${cx - lm.shoulder.w*0.5} ${lm.neck.bot + 4}, ${cx - lm.neck.wBot} ${lm.neck.bot}
-    L ${cx - lm.neck.wTop} ${lm.neck.top}
-    C ${cx - lm.head.rx*0.7} ${lm.head.cy + lm.head.ry}, ${cx - lm.head.rx} ${lm.head.cy + lm.head.ry*0.7}, ${cx - lm.head.rx} ${lm.head.cy}
-    C ${cx - lm.head.rx} ${lm.head.cy - lm.head.ry*0.4}, ${cx - lm.head.rx*0.9} ${lm.head.cy - lm.head.ry}, ${cx} ${lm.head.cy - lm.head.ry}
-    Z`;
-  // Arm silhouettes (separate hanging shapes — outside the central torso path)
-  const armL = `
-    M ${cx - lm.shoulder.w} ${lm.shoulder.y + 6}
-    C ${cx - lm.shoulder.w - 2} ${lm.shoulder.y + 30}, ${cx - lm.shoulder.w - 4} ${lm.arm.elbowY - 10}, ${cx - lm.shoulder.w - 2} ${lm.arm.elbowY}
-    C ${cx - lm.shoulder.w - 6} ${lm.arm.elbowY + 18}, ${cx - lm.shoulder.w - 8} ${lm.arm.wristY - 20}, ${cx - lm.shoulder.w - 6} ${lm.arm.wristY}
-    C ${cx - lm.shoulder.w - 12} ${lm.arm.handY - 6}, ${cx - lm.shoulder.w - 10} ${lm.arm.handY + 6}, ${cx - lm.shoulder.w - 4} ${lm.arm.handY + 4}
-    C ${cx - lm.shoulder.w + lm.arm.handW - 4} ${lm.arm.handY + 4}, ${cx - lm.shoulder.w + lm.arm.handW - 2} ${lm.arm.handY - 6}, ${cx - lm.shoulder.w + lm.arm.forearmW - 2} ${lm.arm.wristY}
-    C ${cx - lm.shoulder.w + lm.arm.forearmW + 4} ${lm.arm.wristY - 20}, ${cx - lm.shoulder.w + lm.arm.upperArmW + 4} ${lm.arm.elbowY + 18}, ${cx - lm.shoulder.w + lm.arm.upperArmW} ${lm.arm.elbowY}
-    C ${cx - lm.shoulder.w + lm.arm.upperArmW + 2} ${lm.arm.elbowY - 10}, ${cx - lm.shoulder.w + lm.arm.upperArmW} ${lm.shoulder.y + 30}, ${cx - lm.shoulder.w + lm.arm.upperArmW} ${lm.shoulder.y + 14}
-    Z`;
-  // Mirror arm: substitute (cx - X) with (cx + X) by transforming
-  const armR = armL.replace(/\$\{cx - ([^\}]+)\}/g, (_, expr) => `\${cx + ${expr}}`);
-  // Actually since armL is already evaluated, just do string-replace on
-  // the result. Use the cx position numerically.
-  const armRTransform = `scale(-1,1) translate(${-2*cx}, 0)`;
-  // ── INNER ANATOMICAL DETAIL LINES ─────────────────────────────────
-  // Subtle line-art for muscle/bone divides — gives the "drawn" feel.
-  const innerLines = `
-    <g stroke="rgba(255,255,255,.16)" stroke-width="0.7" fill="none" stroke-linecap="round">
-      <!-- collarbone -->
-      <path d="M ${cx - lm.chest.wTop*0.85} ${lm.chest.yTop + 6} Q ${cx} ${lm.chest.yTop + 2}, ${cx + lm.chest.wTop*0.85} ${lm.chest.yTop + 6}"/>
-      <!-- sternum -->
-      <path d="M ${cx} ${lm.chest.yTop + 8} L ${cx} ${lm.chest.yBot - 4}"/>
-      <!-- pec divides (subtle) -->
-      <path d="M ${cx - lm.chest.wTop*0.6} ${lm.chest.midY - 10} Q ${cx - lm.chest.wTop*0.15} ${lm.chest.midY - 6}, ${cx - 4} ${lm.chest.midY}"/>
-      <path d="M ${cx + lm.chest.wTop*0.6} ${lm.chest.midY - 10} Q ${cx + lm.chest.wTop*0.15} ${lm.chest.midY - 6}, ${cx + 4} ${lm.chest.midY}"/>
-      <!-- abs divides (3 horizontal hints) -->
-      <path d="M ${cx - 12} ${lm.chest.yBot - 24} L ${cx + 12} ${lm.chest.yBot - 24}"/>
-      <path d="M ${cx - 14} ${lm.chest.yBot - 8} L ${cx + 14} ${lm.chest.yBot - 8}"/>
-      <path d="M ${cx - 14} ${lm.waist.y - 8} L ${cx + 14} ${lm.waist.y - 8}"/>
-      <!-- hip / groin V -->
-      <path d="M ${cx - lm.hip.w*0.6} ${lm.hip.yTop + 12} Q ${cx} ${lm.crotch.y - 4}, ${cx + lm.hip.w*0.6} ${lm.hip.yTop + 12}"/>
-      <!-- quad inseams -->
-      <path d="M ${cx - lm.thigh.wTop*0.4} ${lm.thigh.yTop + 8} L ${cx - lm.knee.w*0.5} ${lm.thigh.yBot - 10}"/>
-      <path d="M ${cx + lm.thigh.wTop*0.4} ${lm.thigh.yTop + 8} L ${cx + lm.knee.w*0.5} ${lm.thigh.yBot - 10}"/>
-      <!-- knee cap circles -->
-      <circle cx="${cx - lm.knee.w*0.3}" cy="${(lm.knee.yTop + lm.knee.yBot)/2}" r="4"/>
-      <circle cx="${cx + lm.knee.w*0.3}" cy="${(lm.knee.yTop + lm.knee.yBot)/2}" r="4"/>
-      <!-- calf muscle hint -->
-      <path d="M ${cx - lm.calf.wTop*0.6} ${lm.calf.yTop + 14} Q ${cx - lm.calf.wTop*0.85} ${lm.calf.yTop + 26}, ${cx - lm.calf.wTop*0.5} ${lm.calf.yTop + 38}"/>
-      <path d="M ${cx + lm.calf.wTop*0.6} ${lm.calf.yTop + 14} Q ${cx + lm.calf.wTop*0.85} ${lm.calf.yTop + 26}, ${cx + lm.calf.wTop*0.5} ${lm.calf.yTop + 38}"/>
-      <!-- shoulder deltoid divide -->
-      <path d="M ${cx - lm.shoulder.w*0.5} ${lm.shoulder.y + 6} Q ${cx - lm.shoulder.w*0.85} ${lm.shoulder.y + 18}, ${cx - lm.shoulder.w*0.7} ${lm.shoulder.y + 30}"/>
-      <path d="M ${cx + lm.shoulder.w*0.5} ${lm.shoulder.y + 6} Q ${cx + lm.shoulder.w*0.85} ${lm.shoulder.y + 18}, ${cx + lm.shoulder.w*0.7} ${lm.shoulder.y + 30}"/>
-    </g>`;
-  // Career injury counts per body part (lifetime — drives the scar
-  // markers on the diagram + tooltips).
+  const { s, ix, iy, size } = _vitSpriteGeom();
+  const A = {};
+  for (const [k, [fx, fy]] of Object.entries(_VIT_SPRITE_ANCHORS)) {
+    A[k] = [fx * s + ix, fy * s + iy];
+  }
+  // Career injury counts per body part (lifetime — drives scar markers
+  // + tooltip lines).
   const careerCounts = {};
   for (const h of (p.injuryHistory || [])) {
     if (h.bodyPart) careerCounts[h.bodyPart] = (careerCounts[h.bodyPart] || 0) + 1;
   }
-  // ── COLOR REGIONS — overlay paths INSIDE the body, clipped to it ──
-  // Each region is a path roughly matching that body part's position.
-  // Wrapped in <g clip-path="url(#bodyClip)"> so they never escape the
-  // body silhouette. Region opacity scales with wear so healthy parts
-  // fade into the base color. Career injury count appears in tooltip.
-  // The ACTIVE injury's body part overrides to red regardless of its
-  // chronic wear — that part is hurt NOW.
-  const activePart = (p.injury && p.injury.weeksRemaining > 0 && p.injury.bodyPart) || null;
-  const region = (key, label, d) => {
-    const v = get(key);
-    const isActive = key === activePart;
-    const fill = isActive ? "#e6373a" : _vitalsColor(v);
-    // Healthy parts fade almost to nothing so the scan reads clean —
-    // a green-lit torso draws the eye to parts with nothing to say.
-    const op = isActive ? 0.62 : v < 20 ? 0.07 : v < 40 ? 0.30 : v < 60 ? 0.55 : 0.8;
-    const careerN = careerCounts[key] || 0;
-    const titleStr = careerN
-      ? `${label}: ${v.toFixed(0)} · ${_vitalsLabel(v)} · ${careerN} career injur${careerN===1?"y":"ies"}`
-      : `${label}: ${v.toFixed(0)} · ${_vitalsLabel(v)}`;
-    return `<path d="${d}" fill="${fill}" fill-opacity="${op}" data-vitals-part="${key}">
-      <title>${titleStr}</title></path>`;
-  };
-  const regions = `
-    ${region("head", "Head", `M ${cx} ${lm.head.cy - lm.head.ry} a ${lm.head.rx} ${lm.head.ry} 0 1 1 0 ${lm.head.ry*2} a ${lm.head.rx} ${lm.head.ry} 0 1 1 0 -${lm.head.ry*2} Z`)}
-    ${region("neck", "Neck", `M ${cx - lm.neck.wTop} ${lm.neck.top} L ${cx + lm.neck.wTop} ${lm.neck.top} L ${cx + lm.neck.wBot} ${lm.neck.bot} L ${cx - lm.neck.wBot} ${lm.neck.bot} Z`)}
-    ${region("shoulderL", "Left shoulder",
-      `M ${cx - lm.neck.wBot} ${lm.neck.bot} L ${cx - lm.shoulder.w} ${lm.shoulder.y + 6} L ${cx - lm.shoulder.w + lm.arm.upperArmW} ${lm.shoulder.y + 24} L ${cx - lm.chest.wTop + 4} ${lm.chest.yTop + 8} Z`)}
-    ${region("shoulderR", "Right shoulder",
-      `M ${cx + lm.neck.wBot} ${lm.neck.bot} L ${cx + lm.shoulder.w} ${lm.shoulder.y + 6} L ${cx + lm.shoulder.w - lm.arm.upperArmW} ${lm.shoulder.y + 24} L ${cx + lm.chest.wTop - 4} ${lm.chest.yTop + 8} Z`)}
-    ${region("chest", "Chest / pec",
-      `M ${cx - lm.chest.wTop + 4} ${lm.chest.yTop + 8} L ${cx + lm.chest.wTop - 4} ${lm.chest.yTop + 8} L ${cx + lm.chest.wBot - 2} ${lm.chest.yBot - 18} L ${cx - lm.chest.wBot + 2} ${lm.chest.yBot - 18} Z`)}
-    ${region("back", "Lower back / core",
-      `M ${cx - lm.chest.wBot + 2} ${lm.chest.yBot - 18} L ${cx + lm.chest.wBot - 2} ${lm.chest.yBot - 18} L ${cx + lm.waist.w} ${lm.waist.y} L ${cx - lm.waist.w} ${lm.waist.y} Z`)}
-    ${region("handL", "Left hand / wrist",
-      `M ${cx - lm.shoulder.w - 10} ${lm.arm.wristY - 6} L ${cx - lm.shoulder.w + lm.arm.handW - 4} ${lm.arm.wristY - 6} L ${cx - lm.shoulder.w + lm.arm.handW - 2} ${lm.arm.handY + 6} L ${cx - lm.shoulder.w - 8} ${lm.arm.handY + 6} Z`)}
-    ${region("handR", "Right hand / wrist",
-      `M ${cx + lm.shoulder.w + 10} ${lm.arm.wristY - 6} L ${cx + lm.shoulder.w - lm.arm.handW + 4} ${lm.arm.wristY - 6} L ${cx + lm.shoulder.w - lm.arm.handW + 2} ${lm.arm.handY + 6} L ${cx + lm.shoulder.w + 8} ${lm.arm.handY + 6} Z`)}
-    ${region("hipL", "Left hip",
-      `M ${cx - lm.waist.w} ${lm.waist.y} L ${cx - lm.hip.w + 2} ${lm.hip.yTop + 6} L ${cx - 8} ${lm.hip.yBot - 4} L ${cx - 4} ${lm.waist.y + 4} Z`)}
-    ${region("hipR", "Right hip",
-      `M ${cx + lm.waist.w} ${lm.waist.y} L ${cx + lm.hip.w - 2} ${lm.hip.yTop + 6} L ${cx + 8} ${lm.hip.yBot - 4} L ${cx + 4} ${lm.waist.y + 4} Z`)}
-    ${region("groin", "Groin",
-      `M ${cx - 6} ${lm.hip.yTop + 4} L ${cx + 6} ${lm.hip.yTop + 4} L ${cx + 4} ${lm.crotch.y} L ${cx - 4} ${lm.crotch.y} Z`)}
-    ${region("hamstringL", "Left hamstring / thigh",
-      `M ${cx - lm.thigh.wTop} ${lm.thigh.yTop + 6} L ${cx - 4} ${lm.thigh.yTop + 6} L ${cx - lm.knee.w*0.6} ${lm.thigh.yBot - 6} L ${cx - lm.thigh.wBot - 2} ${lm.thigh.yBot - 6} Z`)}
-    ${region("hamstringR", "Right hamstring / thigh",
-      `M ${cx + lm.thigh.wTop} ${lm.thigh.yTop + 6} L ${cx + 4} ${lm.thigh.yTop + 6} L ${cx + lm.knee.w*0.6} ${lm.thigh.yBot - 6} L ${cx + lm.thigh.wBot + 2} ${lm.thigh.yBot - 6} Z`)}
-    ${region("kneeL", "Left knee",
-      `M ${cx - lm.thigh.wBot - 2} ${lm.knee.yTop} L ${cx - lm.knee.w*0.4} ${lm.knee.yTop} L ${cx - lm.knee.w*0.4} ${lm.knee.yBot} L ${cx - lm.knee.w - 2} ${lm.knee.yBot} Z`)}
-    ${region("kneeR", "Right knee",
-      `M ${cx + lm.thigh.wBot + 2} ${lm.knee.yTop} L ${cx + lm.knee.w*0.4} ${lm.knee.yTop} L ${cx + lm.knee.w*0.4} ${lm.knee.yBot} L ${cx + lm.knee.w + 2} ${lm.knee.yBot} Z`)}
-    ${region("calfL", "Left calf",
-      `M ${cx - lm.knee.w - 2} ${lm.calf.yTop} L ${cx - lm.knee.w*0.5} ${lm.calf.yTop} L ${cx - lm.calf.wBot*0.5} ${lm.calf.yBot - 4} L ${cx - lm.calf.wTop} ${lm.calf.yBot - 4} Z`)}
-    ${region("calfR", "Right calf",
-      `M ${cx + lm.knee.w + 2} ${lm.calf.yTop} L ${cx + lm.knee.w*0.5} ${lm.calf.yTop} L ${cx + lm.calf.wBot*0.5} ${lm.calf.yBot - 4} L ${cx + lm.calf.wTop} ${lm.calf.yBot - 4} Z`)}
-    ${region("achillesL", "Left achilles",
-      `M ${cx - lm.calf.wTop + 2} ${lm.calf.yBot - 4} L ${cx - lm.calf.wBot*0.5 - 1} ${lm.calf.yBot - 4} L ${cx - lm.ankle.w + 2} ${lm.ankle.yTop + 6} L ${cx - lm.ankle.w - 1} ${lm.ankle.yTop + 6} Z`)}
-    ${region("achillesR", "Right achilles",
-      `M ${cx + lm.calf.wTop - 2} ${lm.calf.yBot - 4} L ${cx + lm.calf.wBot*0.5 + 1} ${lm.calf.yBot - 4} L ${cx + lm.ankle.w - 2} ${lm.ankle.yTop + 6} L ${cx + lm.ankle.w + 1} ${lm.ankle.yTop + 6} Z`)}
-    ${region("ankleL", "Left ankle / foot",
-      `M ${cx - lm.ankle.w - 1} ${lm.ankle.yTop + 6} L ${cx - lm.ankle.w + 4} ${lm.ankle.yTop + 6} L ${cx - 4} ${lm.foot.yBot - 2} L ${cx - lm.foot.w} ${lm.foot.yBot - 2} Z`)}
-    ${region("ankleR", "Right ankle / foot",
-      `M ${cx + lm.ankle.w + 1} ${lm.ankle.yTop + 6} L ${cx + lm.ankle.w - 4} ${lm.ankle.yTop + 6} L ${cx + 4} ${lm.foot.yBot - 2} L ${cx + lm.foot.w} ${lm.foot.yBot - 2} Z`)}
-  `;
-  // Position + H/W chips — mono, cool-toned to match the scan
+  const activePart = (p.injury && p.injury.weeksRemaining > 0 && p.injury.bodyPart && A[p.injury.bodyPart])
+    ? p.injury.bodyPart : null;
   const uid = (p.pid || p.name || "x").toString().replace(/\W/g, "");
+
+  // ── Chrome: chips, defs, grid ─────────────────────────────────────
   const positionChip = `<g>
     <rect x="8" y="8" rx="3" ry="3" width="40" height="16" fill="rgba(140,200,160,.10)" stroke="rgba(140,200,160,.22)" stroke-width=".5"/>
     <text x="28" y="20" fill="rgba(220,240,225,.85)" font-size="9.5" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle" letter-spacing="1" font-weight="700">${p.position || "?"}</text>
   </g>`;
-  const hwText = `${Math.floor(cmbHW.h/12)}'${cmbHW.h%12}" · ${cmbHW.w} lb`;
-  const hwChip = `<text x="232" y="20" fill="rgba(220,240,225,.5)" font-size="8.5" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="end" letter-spacing="1">${hwText}</text>`;
+  const hwChip = `<text x="232" y="20" fill="rgba(220,240,225,.5)" font-size="8.5" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="end" letter-spacing="1">${Math.floor(cmbHW.h/12)}'${cmbHW.h%12}" · ${cmbHW.w} lb</text>`;
   const bgDefs = `
     <defs>
       <linearGradient id="vit-bg-${uid}" x1="0" y1="0" x2="0" y2="1">
@@ -3846,14 +3674,8 @@ function _buildVitalsBodyDiagram(p) {
         <stop offset="70%" stop-color="#f0a93a"/><stop offset="100%" stop-color="#e6373a"/>
       </linearGradient>
       <filter id="vit-glow-${uid}" x="-80%" y="-80%" width="260%" height="260%">
-        <feGaussianBlur stdDeviation="4.5"/>
+        <feGaussianBlur stdDeviation="5"/>
       </filter>
-      <clipPath id="bodyClip-${uid}">
-        <path d="${sil}"/>
-        <path d="${armL}"/>
-        <use href="#armR-${uid}"/>
-      </clipPath>
-      <g id="armR-${uid}"><path d="${armL}" transform="${armRTransform}"/></g>
     </defs>
     <rect x="0" y="0" width="240" height="520" rx="10" fill="url(#vit-bg-${uid})"/>
     <rect x="0" y="0" width="240" height="520" rx="10" fill="url(#vit-vig-${uid})"/>
@@ -3861,110 +3683,106 @@ function _buildVitalsBodyDiagram(p) {
       ${[80, 160, 240, 320, 400, 480].map(y => `<line x1="10" y1="${y}" x2="230" y2="${y}"/>`).join("")}
       <line x1="120" y1="30" x2="120" y2="490" stroke-dasharray="2 6"/>
     </g>`;
-  // Body BASE — clinical blueprint line drawing
-  const bodyBase = `
-    <g fill="rgba(150,195,170,.05)" stroke="rgba(150,195,170,.5)" stroke-width="1.1" stroke-linejoin="round" stroke-linecap="round">
-      <path d="${sil}"/>
-      <path d="${armL}"/>
-      <path d="${armL}" transform="${armRTransform}"/>
-    </g>`;
-  // ── CAREER SCAR MARKERS ─────────────────────────────────────────
-  // Small numbered dots on body parts injured 2+ times in career.
-  // Tells the chronic-injury story visually — "this RB has hurt his
-  // L knee 3 times, R hamstring 2 times". Anchor points roughly match
-  // the body landmark coords.
-  const _SCAR_ANCHORS = {
-    head:        [cx, lm.head.cy - 4],
-    neck:        [cx, (lm.neck.top + lm.neck.bot)/2],
-    chest:       [cx, lm.chest.midY],
-    back:        [cx, lm.waist.y + 4],
-    groin:       [cx, lm.crotch.y - 4],
-    shoulderL:   [cx - lm.shoulder.w*0.6, lm.shoulder.y + 18],
-    shoulderR:   [cx + lm.shoulder.w*0.6, lm.shoulder.y + 18],
-    hipL:        [cx - lm.hip.w*0.55, lm.hip.yBot - 12],
-    hipR:        [cx + lm.hip.w*0.55, lm.hip.yBot - 12],
-    hamstringL:  [cx - lm.thigh.wTop*0.5, (lm.thigh.yTop + lm.thigh.yBot)/2],
-    hamstringR:  [cx + lm.thigh.wTop*0.5, (lm.thigh.yTop + lm.thigh.yBot)/2],
-    kneeL:       [cx - lm.knee.w*0.3, (lm.knee.yTop + lm.knee.yBot)/2],
-    kneeR:       [cx + lm.knee.w*0.3, (lm.knee.yTop + lm.knee.yBot)/2],
-    calfL:       [cx - lm.calf.wTop*0.5, lm.calf.yTop + 30],
-    calfR:       [cx + lm.calf.wTop*0.5, lm.calf.yTop + 30],
-    achillesL:   [cx - lm.ankle.w*0.5, (lm.calf.yBot + lm.ankle.yTop)/2],
-    achillesR:   [cx + lm.ankle.w*0.5, (lm.calf.yBot + lm.ankle.yTop)/2],
-    ankleL:      [cx - lm.ankle.w*0.4, lm.ankle.yBot + 4],
-    ankleR:      [cx + lm.ankle.w*0.4, lm.ankle.yBot + 4],
-    handL:       [cx - lm.shoulder.w - 2, lm.arm.handY],
-    handR:       [cx + lm.shoulder.w + 2, lm.arm.handY],
+
+  // ── The player art ────────────────────────────────────────────────
+  const sprite = `
+    <ellipse cx="120" cy="${77 * s + iy + 4}" rx="58" ry="9" fill="rgba(0,0,0,.4)"/>
+    <image href="${_VIT_SPRITE_URL}" x="${ix}" y="${iy}" width="${size}" height="${size}"
+      opacity=".95" preserveAspectRatio="xMidYMid meet" style="image-rendering:pixelated"/>`;
+
+  // ── Wear glows — translucent heat halos on the worn parts ────────
+  const glowFor = (k, v, isActive) => {
+    const [x, y] = A[k];
+    const color = isActive ? "#e6373a" : _vitalsColor(v);
+    const r = 11 + Math.min(100, isActive ? Math.max(v, 55) : v) / 8;
+    const op = isActive ? 0.55 : v < 30 ? 0.30 : v < 60 ? 0.42 : 0.55;
+    return `<circle cx="${x}" cy="${y}" r="${r.toFixed(1)}" fill="${color}" opacity="${op}" filter="url(#vit-glow-${uid})"/>`;
   };
+  const glows = Object.entries(bw)
+    // ≥30 = the concern band. Lower wear glowed green on the white kit
+    // and read as smudges, not signal.
+    .filter(([k, v]) => v >= 30 && A[k] && k !== activePart)
+    .map(([k, v]) => glowFor(k, v, false)).join("")
+    + (activePart ? glowFor(activePart, get(activePart), true) : "");
+
+  // ── Hover targets — invisible circles carrying the tooltips ──────
+  const hits = Object.keys(A).map(k => {
+    const v = get(k);
+    const careerN = careerCounts[k] || 0;
+    const title = `${_VITALS_PART_NAMES[k] || k}: ${v.toFixed(0)} · ${_vitalsLabel(v)}${careerN ? ` · ${careerN} career injur${careerN === 1 ? "y" : "ies"}` : ""}`;
+    return `<circle cx="${A[k][0]}" cy="${A[k][1]}" r="11" fill="transparent" data-vitals-part="${k}"><title>${title}</title></circle>`;
+  }).join("");
+
+  // ── Career scar markers — numbered dots on parts hit 2+ times ────
   const scarMarkers = Object.entries(careerCounts)
-    .filter(([k, n]) => n >= 2 && _SCAR_ANCHORS[k])
+    .filter(([k, n]) => n >= 2 && A[k])
     .map(([k, n]) => {
-      const [x, y] = _SCAR_ANCHORS[k];
+      const [x, y] = A[k];
       const fill = n >= 4 ? "#e6373a" : n >= 3 ? "#ed6a3a" : "#f0a93a";
       return `<g>
         <circle cx="${x}" cy="${y}" r="6" fill="${fill}" stroke="rgba(0,0,0,.6)" stroke-width="0.8"/>
         <text x="${x}" y="${y + 2.5}" fill="#fff" font-size="8" font-weight="800" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle">${n}</text>
       </g>`;
     }).join("");
-  // ── HOTSPOT GLOWS — wear ≥ 45 radiates ────────────────────────────
-  const hotspots = Object.entries(bw)
-    .filter(([k, v]) => v >= 45 && _SCAR_ANCHORS[k])
-    .map(([k, v]) => {
-      const [x, y] = _SCAR_ANCHORS[k];
-      return `<circle cx="${x}" cy="${y}" r="${8 + Math.min(100, v) / 18}" fill="${_vitalsColor(v)}" opacity=".32" filter="url(#vit-glow-${uid})"/>`;
-    }).join("");
-  // ── CALLOUT LABELS — top worn parts, named in the margins ─────────
-  // The map should read at a glance without hovering: leader lines from
-  // the part to a short mono label (L KNEE 62) in the side margins.
+
+  // ── Callout labels — top worn parts named in the margins ─────────
+  // Chip-backed so they stay legible even where the figure's fists
+  // reach toward the panel edges.
   const calloutSrc = Object.entries(bw)
-    .filter(([k, v]) => v >= 30 && _SCAR_ANCHORS[k] && k !== activePart)
+    .filter(([k, v]) => v >= 30 && A[k] && k !== activePart)
     .sort((a, b) => b[1] - a[1]).slice(0, 4);
   const calloutSides = { left: [], right: [] };
   for (const [k, v] of calloutSrc) {
-    const [ax, ay] = _SCAR_ANCHORS[k];
-    (ax <= cx ? calloutSides.left : calloutSides.right).push({ k, v, ax, ay });
+    const [ax, ay] = A[k];
+    (ax <= 120 ? calloutSides.left : calloutSides.right).push({ k, v, ax, ay });
   }
   const calloutHtml = [];
   for (const [side, list] of Object.entries(calloutSides)) {
     list.sort((a, b) => a.ay - b.ay);
-    let lastY = 38;
+    let lastY = 50;
     for (const c of list) {
-      const ly = Math.max(c.ay, lastY + 26);
+      const ly = Math.max(c.ay, lastY + 28);
       lastY = ly;
-      const labelX = side === "left" ? 5 : 235;
-      const elbowX = side === "left" ? 44 : 196;
-      const edgeX = side === "left" ? c.ax - 5 : c.ax + 5;
       const color = _vitalsColor(c.v);
       const name = _VITALS_PART_SHORT[c.k] || c.k.toUpperCase();
+      const sub = `${c.v.toFixed(0)} ${_vitalsLabel(c.v).toUpperCase()}`;
+      const chipW = Math.max(name.length, sub.length) * 5 + 8;
+      const chipX = side === "left" ? 3 : 237 - chipW;
+      const textX = side === "left" ? 7 : 233;
+      const elbowX = side === "left" ? chipX + chipW + 2 : chipX - 2;
+      const edgeX = side === "left" ? c.ax - 7 : c.ax + 7;
       calloutHtml.push(`<g>
         <polyline points="${edgeX},${c.ay} ${elbowX},${ly}" fill="none" stroke="${color}" stroke-width=".8" opacity=".55"/>
         <circle cx="${edgeX}" cy="${c.ay}" r="1.7" fill="${color}"/>
-        <text x="${labelX}" y="${ly - 1}" fill="${color}" font-size="8" font-weight="700" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="${side === "left" ? "start" : "end"}" letter-spacing=".4">${name}</text>
-        <text x="${labelX}" y="${ly + 8.5}" fill="rgba(235,245,238,.62)" font-size="8" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="${side === "left" ? "start" : "end"}">${c.v.toFixed(0)} ${_vitalsLabel(c.v).toUpperCase()}</text>
+        <rect x="${chipX}" y="${ly - 9}" width="${chipW}" height="21" rx="3" fill="rgba(8,12,9,.78)" stroke="${color}" stroke-opacity=".35" stroke-width=".6"/>
+        <text x="${textX}" y="${ly - 1}" fill="${color}" font-size="8" font-weight="700" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="${side === "left" ? "start" : "end"}" letter-spacing=".4">${name}</text>
+        <text x="${textX}" y="${ly + 8.5}" fill="rgba(235,245,238,.62)" font-size="8" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="${side === "left" ? "start" : "end"}">${sub}</text>
       </g>`);
     }
   }
-  // ── ACTIVE INJURY — pulsing crosshair + top banner ────────────────
+
+  // ── Active injury — pulsing crosshair + top banner ────────────────
   let activeMarker = "";
-  if (activePart && _SCAR_ANCHORS[activePart]) {
-    const [ax, ay] = _SCAR_ANCHORS[activePart];
+  if (activePart) {
+    const [ax, ay] = A[activePart];
     const lbl = (p.injury.label || "injury").toUpperCase().slice(0, 24);
     const wk = p.injury._careerEnding ? "CAREER" : p.injury._catastrophic ? "SEASON" : `${p.injury.weeksRemaining}W`;
     activeMarker = `<g>
-      <line x1="${ax}" y1="40" x2="${ax}" y2="${ay - 14}" stroke="rgba(255,91,91,.35)" stroke-width=".8" stroke-dasharray="3 3"/>
+      <line x1="${ax}" y1="40" x2="${ax}" y2="${ay - 15}" stroke="rgba(255,91,91,.35)" stroke-width=".8" stroke-dasharray="3 3"/>
       <circle cx="${ax}" cy="${ay}" r="9" fill="none" stroke="#ff5b5b" stroke-width="1.4">
         <animate attributeName="r" values="7;12;7" dur="1.8s" repeatCount="indefinite"/>
         <animate attributeName="opacity" values=".9;.3;.9" dur="1.8s" repeatCount="indefinite"/>
       </circle>
-      <line x1="${ax - 14}" y1="${ay}" x2="${ax - 6}" y2="${ay}" stroke="#ff5b5b" stroke-width="1"/>
-      <line x1="${ax + 6}" y1="${ay}" x2="${ax + 14}" y2="${ay}" stroke="#ff5b5b" stroke-width="1"/>
-      <line x1="${ax}" y1="${ay - 14}" x2="${ax}" y2="${ay - 6}" stroke="#ff5b5b" stroke-width="1"/>
-      <line x1="${ax}" y1="${ay + 6}" x2="${ax}" y2="${ay + 14}" stroke="#ff5b5b" stroke-width="1"/>
+      <line x1="${ax - 15}" y1="${ay}" x2="${ax - 6}" y2="${ay}" stroke="#ff5b5b" stroke-width="1"/>
+      <line x1="${ax + 6}" y1="${ay}" x2="${ax + 15}" y2="${ay}" stroke="#ff5b5b" stroke-width="1"/>
+      <line x1="${ax}" y1="${ay - 15}" x2="${ax}" y2="${ay - 6}" stroke="#ff5b5b" stroke-width="1"/>
+      <line x1="${ax}" y1="${ay + 6}" x2="${ax}" y2="${ay + 15}" stroke="#ff5b5b" stroke-width="1"/>
       <text x="120" y="36" fill="#ff8585" font-size="9" font-weight="800" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle" letter-spacing="1">⚠ ${lbl} · ${wk}</text>
     </g>`;
   }
-  // ── FOOTER — load legend + career summary + acute numbers ─────────
-  const totalCareerInjuries = Object.values(careerCounts).reduce((s, n) => s + n, 0);
+
+  // ── Footer — load legend + career summary + acute numbers ─────────
+  const totalCareerInjuries = Object.values(careerCounts).reduce((sum, n) => sum + n, 0);
   const mostInjured = Object.entries(careerCounts).sort((a, b) => b[1] - a[1])[0];
   const careerSummary = totalCareerInjuries > 0
     ? `<text x="120" y="490" fill="rgba(220,240,225,.5)" font-size="8" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle" letter-spacing=".6">${totalCareerInjuries} career injur${totalCareerInjuries===1?"y":"ies"}${mostInjured ? ` · most-hit: ${_VITALS_PART_NAMES?.[mostInjured[0]] || mostInjured[0]} (${mostInjured[1]})` : ""}</text>`
@@ -3973,18 +3791,13 @@ function _buildVitalsBodyDiagram(p) {
     <text x="14" y="505" fill="rgba(220,240,225,.45)" font-size="8" font-family="'IBM Plex Mono',ui-monospace,monospace" letter-spacing="1">LOAD</text>
     <rect x="44" y="499" width="58" height="5" rx="2.5" fill="url(#vit-legend-${uid})"/>
     <text x="226" y="505" fill="rgba(220,240,225,.7)" font-size="8.5" font-weight="700" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="end" letter-spacing=".8">WEAR ${wear.toFixed(0)} · STRESS ${stress.toFixed(0)}</text>`;
-  // Rendered 1:1 with the viewBox — the old height="460" silently scaled
-  // every in-SVG label to 88% (9.5px → 8.4px, under the legibility floor).
   return `<svg viewBox="0 0 240 520" width="240" height="520" xmlns="http://www.w3.org/2000/svg"
     style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.45), inset 0 0 0 1px rgba(150,195,170,.12)">
     ${bgDefs}
     ${positionChip}${hwChip}
-    ${bodyBase}
-    <g>
-      ${regions}
-    </g>
-    ${innerLines}
-    ${hotspots}
+    ${sprite}
+    ${glows}
+    ${hits}
     ${scarMarkers}
     ${calloutHtml.join("")}
     ${activeMarker}
