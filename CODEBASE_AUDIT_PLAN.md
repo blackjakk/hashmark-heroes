@@ -326,6 +326,24 @@ chatter), must-NOT-seed (player generation entropy across new franchises).
 ### H. Error handling & state-machine audit
 *Priority: LOW (foundations are good: render boundaries, warn-only phase
 graph, `_phaseHistory` forensics).*
+> **DONE** (final audit arc) — clean bill, one forensics improvement.
+> - **Catch sweep:** 117 catch blocks classified — 46 empty / 29 log-only /
+>   41 fallback / 1 rethrow. The 3 engine empties are all the documented
+>   `combineMeasurables` pattern (sane default initialized BEFORE the try —
+>   can't hide outcome drift). The 10 save-path empties are localStorage
+>   private-mode guards and cleanup paths, each with a safe fallback chain.
+>   The franchise-layer empties are hover-tips, focus(), portraits, AI
+>   housekeeping. **No outcome-eating swallow found.** Game-result paths
+>   (`markGamePlayed`/`recordFranchiseResult`/`_runWeekEndResolution`) all
+>   log-and-continue explicitly. Added a `console.warn` to the one silent
+>   spot worth tracing (corrupt legacy-save migration skip).
+> - **Phase fuzz:** all 12 phases force-rendered with synthesized state →
+>   12/12 navigable (non-empty content + escape affordance, no error
+>   screen). The matrix shows the §B heals firing live (`playoffs_pending →
+>   playoffs`, bare `draft → draft_grade`). 20 bursts × 10 random
+>   transitions (legal + illegal + a bogus phase): 0 unrenderable states,
+>   0 throws, 0 page errors — the warn-only edge map + render boundaries
+>   hold under abuse.
 
 - Sweep every `catch` that swallows (`catch {}` / log-only) and classify:
   fine / should-surface-banner / should-rethrow. The engine has ~95 catches
@@ -338,15 +356,23 @@ graph, `_phaseHistory` forensics).*
 
 ### I. Dependency & deploy audit
 *Priority: LOW (small surface).*
-
-- `play.html` loads **both** `vendor/pixi.min.js` and a pixi CDN copy
-  (versions may differ — measured: the CDN load 404s/cert-fails in sandboxes
-  and double-loads in prod). Pick one, pin it, subresource-integrity it.
-- Hardhat/contracts/career dirs: confirm what's live vs vestigial; the
-  `.env.example` suggests chain integration — document its status.
-- Pages deploy: what actually ships (everything — including 80KB docs and
-  scratch probes); add a deploy manifest or accept and document it.
-- **Pass:** single pinned pixi; deploy contents intentional.
+> **DONE** (pixi fix landed in §E; inventory completed in the final arc).
+> - **pixi:** single pinned local copy (`vendor/pixi.min.js`, 7.4.0); the CDN
+>   7.4.3 double-load removed in §E. Same-origin vendored file → SRI N/A.
+> - **Runtime deps: zero.** The game is genuinely vanilla — `package.json`'s
+>   deps (hardhat/ethers/openzeppelin) belong entirely to the OPTIONAL
+>   MegaETH on-chain layer (`contracts/` + `scripts/` + `hardhat.config.js`
+>   + `.env.example`), which the game never loads. Status: dormant by
+>   design, documented in package.json's description.
+> - **`career/` is LIVE** — consumed by `_brady_audit.js` (the calibration
+>   gate) and `career-lab.html` (dev tool). Not vestigial; keep.
+> - **`src/` (24KB)** holds legacy Vite-era contract artifacts; `index.html`
+>   already documents it as not wired for static hosting and redirects the
+>   bare URL to `play.html`. Vestigial but inert and tiny — left in place.
+> - **Pages deploy:** ships the repo as-is (docs, tools/, audit suites
+>   included) — accepted and documented as intentional; everything is
+>   static, nothing secret, and `tools/` quarantine (§G) keeps the root
+>   clean. `.nojekyll` present.
 
 ---
 

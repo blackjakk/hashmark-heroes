@@ -3828,7 +3828,11 @@ function _migrateLegacySave() {
     });
     meta.activeSlotId = id;
     _writeSlotsMeta(meta);
-  } catch {}
+  } catch (e) {
+    // Corrupt pre-slots legacy save — nothing actionable for the user (they
+    // land on a clean start screen), but leave a trace for save forensics.
+    console.warn("[migrate] legacy save unreadable — skipping migration:", e?.message);
+  }
 }
 
 let _saveFranchiseTimer = null;
