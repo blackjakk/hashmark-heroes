@@ -1,7 +1,10 @@
 # Next-session pickup message
 
-Paste this verbatim into the next chat to resume. **Next task: V1 step 1 —
-renderer unification (see `VISUAL_ENGINE.md`).**
+Paste this verbatim into the next chat to resume. **Next task: V1 step 2 —
+weather/callouts/result cards off the canvases (see `VISUAL_ENGINE.md`).
+V1 step 1 is DONE** (GCFx + goalposts on the shared GCPlayer stage; the
+`.gc-pixi-fx` canvas is gone; the occlusion trap is dead — see the updated
+topology below).
 
 ---
 
@@ -58,7 +61,8 @@ parked at ~60% — and the PIXI layer IS the broadcast look (tilt/
 perspective); the canvas path is the flat legacy view (screenshot-proven).
 Direction: finish the migration to **one WebGL stage + DOM HUD**.
 
-**The topology today** (back→front, all inside `.bspnlive-field-wrap`):
+**The topology after step 1** (back→front, all inside
+`.bspnlive-field-wrap`):
 1. `#field-pixi` — WebGL via `GCField` (play-field-pixi.js): tilted grass/
    bands/EZ/yard-lines (memoized on team key but `_app.renderer.render()`
    runs EVERY frame as the cross-tech shadow compositor), `addShadow`/
@@ -68,24 +72,32 @@ Direction: finish the migration to **one WebGL stage + DOM HUD**.
    celebrations/confetti/result cards, `drawField` dynamic part (static art
    is now blitted from `_fieldStaticCache` — keyed on
    matchup|cameraMode|pixiActive).
-3. `#field-uprights` — canvas2D overlay: goalposts + `GCFx` particles
-   (GCFx's header says it was DESIGNED to re-point at a PIXI
-   ParticleContainer without touching callers).
-4. `.gc-player-pixi` — WebGL via `GCPlayer` (play-player-pixi.js):
-   players/ball as pose-state-cached textures (sourced from
-   `_drawPlayerImpl`), `frameStart`/`frameEnd` lifecycle from the tick.
-   **Z-ORDER TRAP: mounts ABOVE the uprights overlay** (inserted after it),
-   so goalposts can't occlude players. **Ragdoll pose bypasses GCPlayer**
-   (canvas2D fallback on layer 2 — under layers 3/4!).
+3. `#field-uprights` — canvas2D overlay, now only: pre-snap callout
+   banners (`drawPreSnapCallouts`), result cards (`drawResultCard`), and
+   the no-PIXI sprite-queue + goalpost fallback. Retires in step 2.
+4. `.gc-player-pixi` — WebGL via `GCPlayer` (play-player-pixi.js): the
+   shared stage. Players/ball as pose-state-cached textures, goalposts as
+   depth-sorted Graphics (`zIndex` = projected base Y — occlusion trap
+   DEAD), and `GCPlayer.fxStage()` hosts GCFx's containers (particles +
+   LED ribbon/beams/badges/flash/chyron) above the player layer; one
+   render per frame in `frameEnd()`. GCFx falls back to its own
+   `.gc-pixi-fx` canvas only when the player layer is off. **Ragdoll pose
+   still bypasses GCPlayer** (canvas2D on layer 2 — under 3/4; step 3).
    Flags: `window._useFieldPixi`, `window._usePlayerPixi` (both default
    true; toggling them is how the on/off comparison was shot).
+   FX draw order: `_frameEndBroadcast(ctx)` flushes the canvas sprite
+   queue → `GCFx.draw` (updates display objects) → `GCPlayer.frameEnd()`
+   (the single WebGL render).
 
 **V1 steps (each independently shippable, verify by screenshot comparison):**
-1. **Particles + uprights → PIXI stage** (re-point GCFx; uprights become
-   stage children with explicit zIndex — kills the occlusion trap by
-   construction). Then `#field-uprights` canvas can go.
+1. **DONE — Particles + uprights → PIXI stage.** GCFx parents onto
+   `GCPlayer.fxStage()`; goalposts are depth-sorted stage children
+   (geometry from `_goalpostGeom` in play-animation.js, drawing in
+   `GCPlayer.renderGoalposts`); `.gc-pixi-fx` canvas eliminated when the
+   player layer is up. Frame p50 383→367ms (headless software raster).
 2. **Weather + callouts + result cards → PIXI or DOM** (text cards better
-   as DOM).
+   as DOM). Also deletes `#field-uprights` — callouts/cards are the last
+   live-path consumers of `_uprightCtx`.
 3. **Ragdolls → GCPlayer textures** (last canvas-rendered pose).
 4. **Collapse**: static field as a PIXI RenderTexture; delete `#field`;
    one WebGL canvas + DOM HUD remains.
@@ -133,4 +145,5 @@ bands) + keyboard-only offseason run.
 
 ---
 
-That's it. Say **"start V1 step 1"** (GCFx + uprights onto the PIXI stage).
+That's it. Say **"start V1 step 2"** (weather + callouts + result cards →
+PIXI/DOM; retire `#field-uprights`).

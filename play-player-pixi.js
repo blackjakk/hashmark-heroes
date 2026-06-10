@@ -62,7 +62,9 @@ const GCPlayer = (() => {
     // Wrap rebuild — destroy + re-create (mirrors play-fx.js pattern).
     if (_app && _attachedTo !== wrap) {
       try { _app.destroy(true, { children: true, texture: false }); } catch (_) {}
-      _app = null; _stage = null;
+      _app = null; _stage = null; _fxRoot = null;
+      _goalpostG = null; _goalpostKey = "";
+      _ballSprite = null;
       _spriteCache.clear();
       // Textures stay cached across wrap rebuilds (they're not bound
       // to the destroyed Application's renderer in PIXI 7).
@@ -303,6 +305,88 @@ const GCPlayer = (() => {
     return !!_app;
   }
 
+  // ── Shared FX layer (V1 renderer unification) ─────────────────────
+  // GCFx parents its particle/chrome containers here instead of owning
+  // a separate PIXI Application + canvas. The root sits on _app.stage
+  // AFTER _stage, so FX always composites above players/ball/goalposts
+  // (same layering the standalone z-index-4 FX canvas used to give).
+  // frameEnd()'s single stage render flushes both layers in one pass.
+  let _fxRoot = null;
+  function fxStage() {
+    if (!ensure()) return null;
+    if (!_fxRoot || _fxRoot.destroyed) {
+      _fxRoot = new PIXI.Container();
+      _app.stage.addChild(_fxRoot);
+    }
+    return { app: _app, root: _fxRoot };
+  }
+
+  // ── Stadium goalposts (V1 renderer unification) ───────────────────
+  // The posts live IN the sortable player stage with zIndex = projected
+  // base screenY — the same key player sprites sort on — so a player in
+  // front of the post plane occludes the post and a player behind it is
+  // occluded, by construction. (On the old #field-uprights canvas the
+  // posts were always behind every PIXI sprite regardless of depth.)
+  // Geometry comes from play-animation's _goalpostGeom (projection
+  // lives there); we only rebuild the Graphics when it changes (resize/
+  // camera). Pass null/empty to hide (topdown camera).
+  let _goalpostG = null;       // PIXI.Graphics[] — one per end zone
+  let _goalpostKey = "";
+  function renderGoalposts(geoms) {
+    if (!_app || !_stage) return;
+    if (!geoms || !geoms.length) {
+      if (_goalpostG) for (const g of _goalpostG) g.visible = false;
+      _goalpostKey = "";
+      return;
+    }
+    const key = geoms.map(g =>
+      `${g.baseC.x.toFixed(1)},${g.baseC.y.toFixed(1)},${g.s.toFixed(3)}`).join("|");
+    if (key === _goalpostKey && _goalpostG) {
+      for (const g of _goalpostG) g.visible = true;
+      return;
+    }
+    _goalpostKey = key;
+    if (_goalpostG) for (const g of _goalpostG) { try { g.destroy(); } catch (_) {} }
+    _goalpostG = [];
+    for (const geom of geoms) {
+      const { baseC, baseL, baseR, s, crossbarH, uprightH } = geom;
+      const crossbarL_y = baseL.y - crossbarH;
+      const crossbarR_y = baseR.y - crossbarH;
+      const crossbarC_y = baseC.y - crossbarH;
+      const g = new PIXI.Graphics();
+      // Thin dark stroke first (silhouette / depth), then yellow on top —
+      // identical strokes to the canvas2D _drawOneGoalpost.
+      const drawStrokes = (color, alpha, widthMul) => {
+        const cap = { cap: PIXI.LINE_CAP.ROUND, join: PIXI.LINE_JOIN.ROUND };
+        // Support pole
+        g.lineStyle({ width: Math.max(2, 4.5 * s * widthMul), color, alpha, ...cap });
+        g.moveTo(baseC.x, baseC.y);
+        g.lineTo(baseC.x, crossbarC_y);
+        // Crossbar + two vertical uprights
+        g.lineStyle({ width: Math.max(2, 3.8 * s * widthMul), color, alpha, ...cap });
+        g.moveTo(baseL.x, crossbarL_y);
+        g.lineTo(baseR.x, crossbarR_y);
+        g.moveTo(baseL.x, crossbarL_y);
+        g.lineTo(baseL.x, crossbarL_y - uprightH);
+        g.moveTo(baseR.x, crossbarR_y);
+        g.lineTo(baseR.x, crossbarR_y - uprightH);
+      };
+      drawStrokes(0x000000, 0.55, 1.45);
+      drawStrokes(0xffe048, 1.0, 1.0);
+      // Flag/wind sock at the top of each upright.
+      const flagH = Math.max(4, 8 * s);
+      const flagW = Math.max(6, 12 * s);
+      g.lineStyle(0);
+      g.beginFill(0xff7a3a, 1);
+      g.drawRect(baseL.x, crossbarL_y - uprightH - flagH, flagW, flagH);
+      g.drawRect(baseR.x - flagW, crossbarR_y - uprightH - flagH, flagW, flagH);
+      g.endFill();
+      g.zIndex = baseC.y;   // depth-sort against player sprites
+      _stage.addChild(g);
+      _goalpostG.push(g);
+    }
+  }
+
   function _stats() {
     return {
       textures: _texCache.size,
@@ -318,5 +402,5 @@ const GCPlayer = (() => {
     }
   }
 
-  return { ensure, frameStart, render, renderBall, frameEnd, frameEndBall, active, _stats };
+  return { ensure, frameStart, render, renderBall, frameEnd, frameEndBall, active, fxStage, renderGoalposts, _stats };
 })();

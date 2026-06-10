@@ -9939,15 +9939,27 @@ function _frameStartBroadcast() {
   if (cameraMode !== "broadcast") {
     _uprightCtx = null;
     _spriteQueue.length = 0;
+    // PIXI goalposts are broadcast-only — hide them in topdown.
+    if (typeof GCPlayer !== "undefined" && GCPlayer.renderGoalposts) {
+      GCPlayer.renderGoalposts(null);
+    }
     return;
   }
   const upr = document.getElementById("field-uprights");
   if (!upr) { _uprightCtx = null; return; }
   _uprightCtx = upr.getContext("2d");
   _uprightCtx.clearRect(0, 0, upr.width, upr.height);
-  // Stadium goalposts at both end zones — drawn behind sprites so a
-  // player crossing in front of one occludes it correctly.
-  try { drawStadiumGoalposts(_uprightCtx); } catch (e) { /* defensive */ }
+  // Stadium goalposts at both end zones. When the PIXI player layer is
+  // up they live in its depth-sorted stage (players occlude the posts
+  // and vice versa via zIndex); otherwise the canvas2D billboard draws
+  // them behind every sprite as before.
+  try {
+    if (typeof GCPlayer !== "undefined" && GCPlayer.active()) {
+      GCPlayer.renderGoalposts(_stadiumGoalpostGeoms());
+    } else {
+      drawStadiumGoalposts(_uprightCtx);
+    }
+  } catch (e) { /* defensive */ }
   _spriteQueue.length = 0;
   // Phase 3.2 — bump the PIXI player frame marker so sprites not
   // refreshed by drawPlayer this frame get hidden at frame end.
@@ -9967,19 +9979,35 @@ function drawStadiumGoalposts(ctx) {
   _drawOneGoalpost(ctx, -8, yMid);
   _drawOneGoalpost(ctx, FIELD.W + 8, yMid);
 }
-function _drawOneGoalpost(ctx, fieldX, fieldYMid) {
+// Projected goalpost geometry — single source of truth shared by the
+// canvas2D billboard (_drawOneGoalpost) and the PIXI stage children
+// (GCPlayer.renderGoalposts).
+function _goalpostGeom(fieldX, fieldYMid) {
   const PXY = 15; // FIELD.PX_PER_YARD
   const halfLat = 3 * PXY;  // crossbar half-width: ~3yd from center each side
   const baseC = projectBroadcast(fieldX, fieldYMid);
   const baseL = projectBroadcast(fieldX, fieldYMid - halfLat);
   const baseR = projectBroadcast(fieldX, fieldYMid + halfLat);
-  if (!baseC || baseC.scale <= 0) return;
+  if (!baseC || baseC.scale <= 0) return null;
   const s = baseC.scale;
   const sinθ = Math.sin(BROADCAST_TILT_DEG * Math.PI / 180);
   // Vertical pixel heights for crossbar + uprights at this perspective scale.
   // 3yd crossbar height, 12yd upright extension above the crossbar.
-  const crossbarH = 3 * PXY * sinθ * s;
-  const uprightH  = 12 * PXY * sinθ * s;
+  return {
+    baseC, baseL, baseR, s,
+    crossbarH: 3 * PXY * sinθ * s,
+    uprightH: 12 * PXY * sinθ * s,
+  };
+}
+function _stadiumGoalpostGeoms() {
+  if (cameraMode !== "broadcast") return null;
+  const yMid = (FIELD.TOP + FIELD.BOT) / 2;
+  return [_goalpostGeom(-8, yMid), _goalpostGeom(FIELD.W + 8, yMid)].filter(Boolean);
+}
+function _drawOneGoalpost(ctx, fieldX, fieldYMid) {
+  const geom = _goalpostGeom(fieldX, fieldYMid);
+  if (!geom) return;
+  const { baseC, baseL, baseR, s, crossbarH, uprightH } = geom;
   const crossbarL_y = baseL.y - crossbarH;
   const crossbarR_y = baseR.y - crossbarH;
   const crossbarC_y = baseC.y - crossbarH;
@@ -10025,7 +10053,7 @@ function _drawOneGoalpost(ctx, fieldX, fieldYMid) {
 // Called by the tick loop after render(). Sorts queued sprite draws
 // by depth (smaller projected Y = further away = drawn first) so
 // closer players occlude farther ones on pile-ups.
-function _frameEndBroadcast() {
+function _frameEndBroadcast(fxCtx) {
   if (cameraMode === "broadcast" && _uprightCtx && _spriteQueue.length) {
     _spriteQueue.sort((a, b) => a.screenY - b.screenY);
     for (const item of _spriteQueue) {
@@ -10033,6 +10061,16 @@ function _frameEndBroadcast() {
     }
   }
   _spriteQueue.length = 0;
+  // FX particles paint here: after the canvas2D sprite flush (the
+  // canvas fallback keeps particles above the sprites) and before the
+  // GCPlayer stage render below (the shared-stage path needs this
+  // frame's particle state in the buffer before the single render).
+  // GCFx ignores the ctx when it renders via PIXI; the 2D ctx is only
+  // the no-WebGL fallback target (upright overlay in broadcast, the
+  // field canvas in topdown).
+  if (typeof GCFx !== "undefined") {
+    try { GCFx.draw(_uprightCtx || fxCtx); } catch (e) { console.error("fx draw err", e); }
+  }
   // Phase 3.2 — flush PIXI player layer: hide stale sprites + render
   // the WebGL stage. Runs even when canvas2D _spriteQueue is empty
   // (which happens when ALL players route to PIXI).
@@ -10629,7 +10667,7 @@ function _scrubTo(ev, track) {
   _frameStartBroadcast();
   try {
     animState.anim.render(frac, ctx);
-    _frameEndBroadcast();
+    _frameEndBroadcast(ctx);
   } catch (e) { console.error("Scrub render error", e); }
   _updateScrubberUI(frac);
 }
@@ -10695,14 +10733,9 @@ function tick(now) {
   _frameStartBroadcast();
   try {
     animState.anim.render(t, ctx);
-    _frameEndBroadcast();
-    // Particles draw on top of the upright sprites overlay (broadcast cam)
-    // or on the field canvas itself (topdown). _uprightCtx is set by
-    // _frameStartBroadcast in broadcast mode; null in topdown.
-    if (typeof GCFx !== "undefined") {
-      const fxCtx = (typeof _uprightCtx !== "undefined" && _uprightCtx) ? _uprightCtx : ctx;
-      GCFx.draw(fxCtx);
-    }
+    // Particles render inside _frameEndBroadcast — after the sprite
+    // flush, before the single WebGL stage render.
+    _frameEndBroadcast(ctx);
   } catch (e) {
     console.error('Render error on play', animState.play, e);
   }

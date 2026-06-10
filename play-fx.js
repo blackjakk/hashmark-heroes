@@ -1,20 +1,24 @@
 // ─── Visual FX layer ──────────────────────────────────────────────────────
-// Particle effects + screen shake on top of the existing canvas renderer.
-// Pure canvas2D for now — no PIXI dependency. Designed so the API can be
-// re-pointed to a PIXI ParticleContainer later without touching callers.
+// Particle effects + broadcast chrome (LED ribbon, light beams, badges,
+// flash, chyron) + screen shake. Renders via PIXI onto the SHARED GCPlayer
+// stage (V1 renderer unification) — our containers sit above the player
+// layer and GCPlayer.frameEnd()'s single render flushes everything in one
+// WebGL pass. When the player layer is off/unavailable we fall back to a
+// standalone PIXI overlay canvas, and below that to pure canvas2D.
 //
 // API:
 //   GCFx.dust(x, y, dir)            — kick-up dust at a player position
-//                                     (x,y in #field-uprights canvas coords)
+//                                     (x,y in FIELD-space overlay coords)
 //   GCFx.hitBurst(x, y, color)      — collision debris on big hits
 //   GCFx.confetti(x, y, color, n)   — touchdown confetti burst
 //   GCFx.shake(strength=10, ms=400) — broadcast-wrap screen shake
 //   GCFx.tick(dtMs)                 — advance particles each frame
-//   GCFx.draw(ctx)                  — render to a 2D context
+//   GCFx.draw(ctx)                  — update display objects (PIXI) or
+//                                     render to the 2D ctx (fallback)
 //
-// Called from play-animation.js' tick loop (after _frameStartBroadcast and
-// before _frameEndBroadcast) so particles render on the upright overlay
-// canvas with the rest of the broadcast-cam sprites.
+// Called from _frameEndBroadcast — after the canvas2D sprite flush, before
+// GCPlayer.frameEnd()'s stage render — so this frame's particle state is
+// in the buffer when the single render happens.
 
 const GCFx = (() => {
   const particles = [];
@@ -28,9 +32,12 @@ const GCFx = (() => {
   // When PIXI is available we render particles via WebGL Graphics + a
   // BlurFilter "bloom-lite" pass. Particle data + update logic stay in
   // canvas2D so the caller API is unchanged; only the draw step swaps.
-  // PIXI canvas gets attached as a child of the field-wrap once and
-  // re-attached on wrap rebuilds (renderGameLayout reassembles innerHTML).
-  let _pxApp = null;            // PIXI.Application
+  // Display objects live in _pxRoot — parented to the shared GCPlayer
+  // stage when available, else to a standalone overlay app re-attached
+  // on wrap rebuilds (renderGameLayout reassembles innerHTML).
+  let _pxApp = null;            // PIXI.Application (shared GCPlayer app, or our own)
+  let _pxOwnApp = false;        // true when we created _pxApp + its canvas (fallback)
+  let _pxRoot = null;           // PIXI.Container all GCFx display objects live in
   let _pxParticles = null;      // PIXI.Container holding particle Graphics
   let _pxPool = [];             // recycled Graphics instances
   let _pxAttachedTo = null;     // wrap element we attached to (for invalidation)
@@ -64,32 +71,68 @@ const GCFx = (() => {
   function _pixiAvailable() {
     return typeof PIXI !== "undefined" && typeof PIXI.Application === "function";
   }
+  function _teardownPixi() {
+    // The flash sprite may still hold the shared PIXI.Texture.WHITE —
+    // detach it first so the recursive texture:true destroy below can't
+    // kill a singleton texture other PIXI consumers rely on.
+    if (_pxFlashSprite && !_pxFlashSprite.destroyed) {
+      try {
+        const t = _pxFlashSprite.texture;
+        _pxFlashSprite.destroy({ texture: false });
+        if (t && t !== PIXI.Texture.WHITE) { try { t.destroy(true); } catch (_) {} }
+      } catch (_) {}
+    }
+    try {
+      if (_pxOwnApp) _pxApp.destroy(true, { children: true, texture: true });
+      else if (_pxRoot && !_pxRoot.destroyed) _pxRoot.destroy({ children: true, texture: true });
+    } catch (_) {}
+    _pxApp = null; _pxRoot = null; _pxOwnApp = false;
+    _pxParticles = null; _pxPool.length = 0;
+    _pxFlashSprite = null;
+  }
   function _ensurePixiOverlay() {
     if (!_pixiAvailable()) return false;
     const wrap = document.querySelector(".bspnlive-field-wrap.broadcast-cam")
               || document.querySelector(".bspnlive-field-wrap")
               || document.querySelector(".field-wrap");
     if (!wrap) return false;
-    // Wrap was rebuilt — our canvas got detached. Destroy and recreate.
-    if (_pxApp && _pxAttachedTo !== wrap) {
-      try { _pxApp.destroy(true, { children: true, texture: true }); } catch (_) {}
-      _pxApp = null; _pxParticles = null; _pxPool.length = 0;
+    // Wrap was rebuilt — our display tree got detached (own canvas
+    // orphaned, or the shared GCPlayer app was destroyed with the old
+    // wrap and our root with it). Tear down and recreate.
+    if (_pxApp && (_pxAttachedTo !== wrap || !_pxRoot || _pxRoot.destroyed)) {
+      _teardownPixi();
     }
     if (_pxApp) return true;
     try {
-      _pxApp = new PIXI.Application({
-        width: 1700, height: 720,
-        backgroundAlpha: 0,
-        antialias: true,
-        autoStart: false,            // we drive renders from the game tick
-        preserveDrawingBuffer: true, // lets headless screenshots capture WebGL
-      });
-      const view = _pxApp.view;
-      view.className = "gc-pixi-fx";
-      view.style.cssText =
-        "position:absolute;inset:0;width:100%;height:100%;" +
-        "pointer-events:none;z-index:4;";
-      wrap.appendChild(view);
+      // Preferred home (V1 renderer unification): a container above the
+      // player layer on the GCPlayer application's stage — one WebGL
+      // context + one canvas, flushed by GCPlayer.frameEnd()'s render.
+      const shared = (typeof GCPlayer !== "undefined" && GCPlayer.fxStage)
+        ? GCPlayer.fxStage() : null;
+      if (shared) {
+        _pxApp = shared.app;
+        _pxRoot = new PIXI.Container();
+        shared.root.addChild(_pxRoot);
+        _pxOwnApp = false;
+      } else {
+        // Player layer off/unavailable — standalone overlay app + canvas.
+        _pxApp = new PIXI.Application({
+          width: 1700, height: 720,
+          backgroundAlpha: 0,
+          antialias: true,
+          autoStart: false,            // we drive renders from the game tick
+          preserveDrawingBuffer: true, // lets headless screenshots capture WebGL
+        });
+        const view = _pxApp.view;
+        view.className = "gc-pixi-fx";
+        view.style.cssText =
+          "position:absolute;inset:0;width:100%;height:100%;" +
+          "pointer-events:none;z-index:4;";
+        wrap.appendChild(view);
+        _pxRoot = new PIXI.Container();
+        _pxApp.stage.addChild(_pxRoot);
+        _pxOwnApp = true;
+      }
       _pxAttachedTo = wrap;
       // ── Vignette + atmospheric haze REMOVED — they were flattening the
       // field's vibrant green into a washed-out dim look. Broadcast
@@ -122,7 +165,7 @@ const GCFx = (() => {
           s.alpha = 0.55;
           _pxLightBeams.addChild(s);
         }
-        _pxApp.stage.addChild(_pxLightBeams);
+        _pxRoot.addChild(_pxLightBeams);
       } catch (e) {
         console.warn("PIXI light beams failed:", e);
         _pxLightBeams = null;
@@ -152,7 +195,7 @@ const GCFx = (() => {
           g.position.set(i * stride, yPos);
           _pxLedContainer.addChild(g);
         }
-        _pxApp.stage.addChild(_pxLedContainer);
+        _pxRoot.addChild(_pxLedContainer);
       } catch (e) {
         console.warn("PIXI LED ribbon failed:", e);
         _pxLedContainer = null;
@@ -163,7 +206,7 @@ const GCFx = (() => {
       blur.blur = 2.4;
       blur.quality = 2;
       _pxParticles.filters = [blur];
-      _pxApp.stage.addChild(_pxParticles);
+      _pxRoot.addChild(_pxParticles);
       // ── Film grain noise overlay (replay mode only) — generated on a
       // canvas2D ImageData (fast, ~1ms) and loaded as a PIXI texture,
       // then tiled across the FX canvas. Visible only when
@@ -188,7 +231,7 @@ const GCFx = (() => {
         const tile = new PIXI.TilingSprite(grainTex, 1700, 720);
         tile.alpha = 0;
         _pxGrainSprite = tile;
-        _pxApp.stage.addChild(_pxGrainSprite);
+        _pxRoot.addChild(_pxGrainSprite);
       } catch (e) {
         console.warn("PIXI grain failed:", e);
         _pxGrainSprite = null;
@@ -223,7 +266,7 @@ const GCFx = (() => {
         _pxLensFlare.position.set(850, 360);
         _pxLensFlare.alpha = 0;
         _pxLensFlare.blendMode = PIXI.BLEND_MODES.ADD;
-        _pxApp.stage.addChild(_pxLensFlare);
+        _pxRoot.addChild(_pxLensFlare);
       } catch (e) {
         console.warn("PIXI lens flare failed:", e);
         _pxLensFlare = null;
@@ -242,7 +285,7 @@ const GCFx = (() => {
         const slineTex = PIXI.Texture.from(slineCanvas);
         _pxScanlines = new PIXI.TilingSprite(slineTex, 1700, 720);
         _pxScanlines.alpha = 0;
-        _pxApp.stage.addChild(_pxScanlines);
+        _pxRoot.addChild(_pxScanlines);
       } catch (e) {
         console.warn("PIXI scanlines failed:", e);
         _pxScanlines = null;
@@ -274,7 +317,7 @@ const GCFx = (() => {
         liveText.position.set(34, 7);
         _pxLiveBadge.addChild(liveText);
         _pxLiveText = liveText;
-        _pxApp.stage.addChild(_pxLiveBadge);
+        _pxRoot.addChild(_pxLiveBadge);
       } catch (e) {
         console.warn("PIXI live badge failed:", e);
         _pxLiveBadge = null;
@@ -293,7 +336,7 @@ const GCFx = (() => {
         _pxReplayBadge.anchor.set(1, 0);                 // right-top aligned
         _pxReplayBadge.position.set(1700 - 28, 24);
         _pxReplayBadge.alpha = 0;
-        _pxApp.stage.addChild(_pxReplayBadge);
+        _pxRoot.addChild(_pxReplayBadge);
       } catch (e) {
         console.warn("PIXI replay badge failed:", e);
         _pxReplayBadge = null;
@@ -331,7 +374,7 @@ const GCFx = (() => {
         _pxBigText.anchor.set(0.5);
         _pxBigText.position.set(850, 220);
         _pxBigText.alpha = 0;
-        _pxApp.stage.addChild(_pxBigText);
+        _pxRoot.addChild(_pxBigText);
       } catch (e) {
         console.warn("PIXI big text failed:", e);
         _pxBigText = null;
@@ -367,7 +410,7 @@ const GCFx = (() => {
         _chyronSub.position.set(24, 60);
         _pxChyron.addChild(_chyronSub);
         _pxChyron.alpha = 0;
-        _pxApp.stage.addChild(_pxChyron);
+        _pxRoot.addChild(_pxChyron);
       } catch (e) {
         console.warn("PIXI chyron failed:", e);
         _pxChyron = null;
@@ -380,7 +423,7 @@ const GCFx = (() => {
         _pxFlashSprite.width  = 1700;
         _pxFlashSprite.height = 720;
         _pxFlashSprite.alpha  = 0;
-        _pxApp.stage.addChild(_pxFlashSprite);
+        _pxRoot.addChild(_pxFlashSprite);
       } catch (e) {
         console.warn("PIXI flash sprite failed:", e);
         _pxFlashSprite = null;
@@ -655,7 +698,10 @@ const GCFx = (() => {
         _pxLiveDot.alpha = blink;
       }
     }
-    _pxApp.renderer.render(_pxApp.stage);
+    // Shared-stage mode: GCPlayer.frameEnd() renders the whole stage
+    // right after this call — rendering here too would double the
+    // per-frame WebGL pass. Standalone app drives its own render.
+    if (_pxOwnApp) _pxApp.renderer.render(_pxApp.stage);
     return true;
   }
 
@@ -869,7 +915,7 @@ const GCFx = (() => {
     // Prefer PIXI WebGL rendering with bloom; transparent fallback to
     // canvas2D if PIXI failed to init or isn't attached yet.
     if (_drawPixi()) return;
-    if (!particles.length) return;
+    if (!ctx || !particles.length) return;
     ctx.save();
     for (const p of particles) {
       const alpha = Math.max(0, 1 - p.life / p.ttl);

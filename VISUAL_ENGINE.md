@@ -74,11 +74,20 @@ migration**, not unwind it.
 
 ### V1. Finish the renderer unification (the big one, ~2-3 sessions)
 Target: **one WebGL stage + DOM HUD.** Steps, each independently shippable:
-1. **Particles + uprights → PIXI** (`GCFx` was designed for this re-point;
-   uprights become stage children with correct z so the occlusion-order trap
-   dies by construction).
+1. **Particles + uprights → PIXI** — **DONE.** GCFx's containers now parent
+   onto the GCPlayer application's stage (one WebGL context; the separate
+   z-index-4 `.gc-pixi-fx` canvas is gone when the player layer is up) and
+   the goalposts are depth-sorted stage children (`zIndex` = projected base
+   Y, the same key player sprites sort on) — the occlusion-order trap died
+   by construction; verified by a player-behind-the-post scene. Standalone
+   FX app + canvas2D goalposts remain as the no-player-PIXI fallback.
+   `#field-uprights` itself survives to step 2: pre-snap callouts and
+   result cards still draw there (they're step 2's cargo).
 2. **Weather + callouts + result cards → PIXI/DOM** (text cards are better
-   as DOM anyway).
+   as DOM anyway). This also retires `#field-uprights`: after step 1 the
+   only things still drawn on it are the pre-snap callout banners
+   (`drawPreSnapCallouts`), result cards (`drawResultCard`), and the
+   no-PIXI sprite-queue fallback.
 3. **Ragdolls → GCPlayer textures** (the one pose still on canvas2D).
 4. **Collapse canvases**: static field becomes a PIXI RenderTexture (the
    §E static cache, GPU-side); delete the `#field` and `#field-uprights`
