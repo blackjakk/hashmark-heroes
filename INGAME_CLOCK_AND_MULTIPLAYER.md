@@ -10,11 +10,15 @@
 > **Line numbers are references into large files and WILL drift — grep the
 > function/identifier name to re-locate.**
 >
-> Status: **Phases 0-2 shipped.** Blowout Rest (final-margin → phase-accurate),
-> the persisted game timeline + situational stats + Drive Chart (Workstream A),
-> and a deterministic seeded game-sim (Workstream B) are all in. Remaining: full
-> franchise-layer determinism, the authority model, and Workstream C (the
-> Coordinator seam + netcode for live head-to-head playcalling).
+> Status: **Phases 0-3 shipped, plus the defensive seam.** Blowout Rest,
+> the persisted timeline + situational stats + Drive Chart (Workstream A),
+> deterministic seeded game-sim AND franchise-layer determinism (Workstream
+> B), single-player interactive playcalling with FOUR decision seams —
+> run/pass, 4th-down, PAT, and the **defensive coverage-shell call** (you
+> are OC and DC). The **pacing model is decided** (§Pacing, below):
+> simultaneous hidden calls, server-anchored play-clock deadline,
+> advance-on-both-ready, AI fallback on timeout. Remaining: the hosting
+> decision, then Workstream C.3 netcode.
 
 ---
 
@@ -194,17 +198,24 @@ possible and behaviorally against `AUDIT.md` otherwise.
 
 ## Workstream C — Externalize playcalling + netcode (the H2H core)
 
-> **Status: started — the run/pass Coordinator seam has landed.** `_play()`
-> (play-engine.js) now routes its run/pass decision through an optional
-> per-side coordinator: `this._coordinators[poss]` is called with the live
-> game state + the AI's computed `passProb` and returns `"pass"`/`"run"` (or
-> null to defer). When unset, the original `_rand() < passProb` roll runs
-> unchanged — verified byte-identical across same-seed games (gate-safe,
-> calibration-neutral), and an injected coordinator fully drives the call
-> (forced-pass → 74 pass/1 run; forced-run → 47/0). Remaining: extend the seam
-> to 4th-down/tempo decisions, make the drive loop YIELDABLE (pause for a call),
-> build the single-player playcall UI (you vs the AICoordinator), then the
-> server-authoritative netcode for live H2H.
+> **Status: C.1 + C.2 shipped — all four decision seams live.** The engine
+> routes run/pass, 4th-down (go/fg/punt), PAT (kick/two), and — V4 — the
+> **defensive coverage shell** through optional per-side coordinators.
+> The defensive seam (`kind: "defense"`, called for the DEFENDING side at
+> the top of every scrimmage snap, before the 4th-down branch — the
+> defense commits without knowing go/kick/punt, the hidden-info structure
+> H2H needs) accepts one of the six shells (C0_BLITZ / C1_MAN / C2_ZONE /
+> C3_ZONE / C4_QUARTERS / TAMPA_2) or null. On pass plays the call
+> overrides the AI's coverage roll (which still runs — stream-identical
+> when deferring) and flows through the same concept×coverage matchup
+> tables; on run plays it shifts the trench battle (blitz = mean toward
+> the defense + wider variance = boom/bust; two-high = light box,
+> offense-favoring). Context includes the offense's personnel (defenses
+> see subs come on — an authentic pre-snap read). The single-player
+> interactive runner prompts for it on every defensive snap (keys 1-6,
+> O = DC call); the deferring-coordinator CI invariant covers all four
+> kinds. Remaining: C.3 — the server-authoritative netcode per the
+> decided pacing model.
 
 Today the playcall brain is **inline** in the engine (tempo, 4th-down, run/pass
 tendencies computed mid-loop). For H2H it must become an **interface**:
@@ -319,8 +330,21 @@ TimelineEvent {        // downsampled, stored on g.timeline
   H2H may want a flag.
 - **Scope of B.** Do we seed only the live-game path, or the whole franchise
   (draft/FA/dev) for fully reproducible saves? Start with the game path.
-- **Pacing of H2H.** Real-time snap clock vs. turn-based play-by-play — a
-  product call that shapes the netcode and UX.
+- ~~**Pacing of H2H.**~~ **DECIDED** (user-ratified): the dichotomy was
+  false — the engine resolves plays instantly and animation is a local
+  replay, so the game is structurally turn-based with no twitch input.
+  Model: **simultaneous hidden calls per snap** (offense + defense commit
+  without seeing each other), a **server-anchored play-clock deadline**
+  (per-match parameter, ~20s default — deadline-as-data means a 24h
+  deadline gives async league play on the same system), **advance when
+  both have submitted** (decisive players finish games in ~20-25 min),
+  and **AICoordinator fallback on timeout** (anti-grief + graceful
+  disconnect: the game degrades to vs-AI and a reconnect resumes from the
+  authoritative state + input tape). Calls are submitted while the replay
+  animates — think-time windows are symmetric whether you watch or skip.
+  Explicitly rejected: a continuous wall-clock game clock (fake urgency on
+  a discrete sim) and client lockstep (already rejected for float drift).
+  Remaining product call: **hosting**.
 
 ---
 

@@ -78,17 +78,28 @@ needed bare assignments) and its synth gameResult lacked
 franchise rosters via `buildRatings`). Replays run slow-mo
 (`speedMul = 0.5`); `_frnEnterLiveGameScreen` restores 1.0 + slider UI.
 
-## NEXT: V4 or V5
+## V4 progress: pacing DECIDED + defensive seam SHIPPED
 
-- **V4 — C.3 server-authoritative netcode design** per
-  `INGAME_CLOCK_AND_MULTIPLAYER.md`: blocked on product decisions (pacing:
-  snap-clock vs turn-based; hosting) — ASK THE USER before building.
-  The tempo-decision seam can land alongside (same Coordinator-seam
-  pattern as 4th-down/PAT).
-- **V5 — realism + polish backlog**: one-score % (~42-43 vs NFL 44-52,
-  warn-only in the gate today), OT % (~3.2 vs 4-10),
-  injury-rate-by-position bands in `_brady_audit.js`; keyboard-only
-  offseason playthrough (§F's unfinished pass criterion).
+- **Pacing model (user-ratified, recorded in
+  `INGAME_CLOCK_AND_MULTIPLAYER.md`):** simultaneous hidden calls per
+  snap, server-anchored play-clock deadline (per-match parameter, ~20s
+  default; deadline-as-data → async leagues reuse the system),
+  advance-on-both-ready, AICoordinator fallback on timeout. Rejected:
+  continuous wall-clock game clock; client lockstep.
+- **Defensive coverage-shell seam (4th Coordinator seam):** engine asks
+  `_coordinators[defendingSide]` with `kind:"defense"` at the top of
+  every scrimmage snap (before the 4th-down branch — hidden-info
+  correct). Shells = the six coverages; pass plays override the AI's
+  coverage roll (roll still runs — defer = byte-identical, CI invariant
+  extended), run plays shift the trench battle (blitz boom/bust via
+  `_shellRun` shift+SD). Interactive runner prompts on defensive snaps
+  (keys 1-6, O); plays carry `defShell` only when called.
+
+## NEXT: V4 hosting decision (ASK THE USER), then C.3 netcode build.
+Or **V5 — realism + polish backlog**: one-score % (~42-43 vs NFL 44-52,
+warn-only in the gate today), OT % (~3.2 vs 4-10),
+injury-rate-by-position bands in `_brady_audit.js`; keyboard-only
+offseason playthrough (§F's unfinished pass criterion).
 
 **The topology after V1** (back→front, all inside `.bspnlive-field-wrap`):
 1. `#field-pixi` — WebGL via `GCField`: ALL static field art (grass/bands/

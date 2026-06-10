@@ -2612,6 +2612,9 @@ class GameSimulator {
       // Pre-snap visuals (kickoff/score/punt) inherit the last selection.
       personnel: data.personnel || this._currentPersonnel || "BASE",
       defPackage: data.defPackage || this._currentDefPackage || "BASE_43",
+      // V4 seam — key present only when a defensive coordinator called a
+      // shell this snap; no-coordinator games carry no trace of it.
+      ...(this._defShellCall ? { defShell: this._defShellCall } : {}),
       // OL/DL trench leverage seed for the animation (−1.5..1.9). Only
       // meaningful on dropback pass plays; harmless elsewhere.
       pressure: data.pressure != null ? data.pressure : (this._currentPressure || 0),
@@ -2951,6 +2954,7 @@ class GameSimulator {
       if (accept) {
         this._restoreFromPenaltySnapshot(snap);
         this._applyPenaltyEffects(pen, decisionContext);
+        this._defShellCall = null;   // V4 seam — don't leak onto kick visuals
         return { yards: 0, incomplete: false, isPenalty: true };
       } else {
         // Declined — increment team-level declined counter for audit.
@@ -2975,6 +2979,9 @@ class GameSimulator {
         });
       }
     }
+    // V4 seam — the shell call is scoped to this snap; clear it so the
+    // between-snap visuals (kickoffs, drive markers) don't inherit it.
+    this._defShellCall = null;
     return result;
   }
   _playInner() {
@@ -2982,6 +2989,7 @@ class GameSimulator {
     // (screen, rollout, sack) don't inherit stale values from prior plays.
     this._lastPassConcept = null;
     this._lastPassCoverage = null;
+    this._defShellCall = null;   // V4 seam — set fresh per snap below
     // Depth-chart rotation: sub starters based on garbage time / fatigue
     // BEFORE any reads of this.offR.starters.X. Restores from base depth
     // chart at the top, then optionally swaps in backups.
@@ -3201,6 +3209,35 @@ class GameSimulator {
     this._boxStackCompMod = (PERS_COMP[personnel] || 0) + situCompMod;
     this._boxStackIntMod  = (PERS_INT_MOD[personnel] || 0);
     this._boxStackSackMul = (PERS_SACK_MUL[personnel] || 1) * situSackMul;
+    // ── DEFENSIVE COORDINATOR SEAM (V4 / Workstream C) ───────────────────
+    // Pre-snap shell call by the DEFENDING side's coordinator. Same gate-
+    // safe contract as the offensive seams: the coordinator is consulted
+    // with the live situation and may return one of the six coverage
+    // shells (C0_BLITZ / C1_MAN / C2_ZONE / C3_ZONE / C4_QUARTERS /
+    // TAMPA_2) or null to defer. The seam itself consumes NO RNG, and the
+    // AI's own coverage roll still runs on pass plays (the call overrides
+    // only its RESULT) — an unset or deferring coordinator leaves the
+    // stream byte-identical. Fires BEFORE the 4th-down branch on purpose:
+    // the defense commits without knowing whether the offense goes /
+    // kicks / punts — the hidden-information structure live H2H needs.
+    // The offense's personnel is in the context (defenses see the subs
+    // come on; that's an authentic pre-snap read, not a leak).
+    this._defShellCall = null;
+    {
+      const _defSideKey = this.poss === "home" ? "away" : "home";
+      const _dCoord = this._coordinators && this._coordinators[_defSideKey];
+      if (_dCoord) {
+        const _shell = _dCoord({
+          kind: "defense",
+          side: _defSideKey, down: this.down, ytg: this.ytg, yardLine: this.yardLine,
+          quarter: this.quarter, time: this.time,
+          score: { home: this.score.home, away: this.score.away },
+          offPersonnel: this._currentPersonnel,
+          defPackage: this._currentDefPackage,
+        });
+        if (_shell && PASS_COVERAGE_FREQ[_shell] != null) this._defShellCall = _shell;
+      }
+    }
     // RZ team-stat: count the trip when offense first crosses into the 20.
     // Use this._lastRzPossession to dedupe re-entries on a single drive.
     if (isRedZone && this._lastRzDrive !== this.drives.length) {
@@ -5275,7 +5312,12 @@ class GameSimulator {
       // "incomplete" on plays where the visual showed the ball arriving
       // at a wide-open receiver.
       const _hoistedConcept = this._pickPassConcept(pb);
-      const _hoistedCoverage = this._pickPassCoverage(defPbCurrent);
+      // The AI coverage roll ALWAYS runs (keeps the RNG stream identical
+      // when no shell was called); a defensive coordinator's pre-snap
+      // shell call (V4 seam) overrides the result, flowing through the
+      // same concept×coverage matchup tables the AI's roll feeds.
+      const _rolledCoverage = this._pickPassCoverage(defPbCurrent);
+      const _hoistedCoverage = this._defShellCall || _rolledCoverage;
       const _hoistedReadP = PASS_CONCEPTS[_hoistedConcept]?.readSuccessVs?.[_hoistedCoverage] ?? 0.50;
       // Openness-driven comp% modifier. A 0.80-read matchup adds +9pp,
       // a 0.40-read matchup subtracts ~5pp. Open routes complete; covered
@@ -6282,8 +6324,25 @@ class GameSimulator {
                        + (rushMean - 4.3) * 0.5;   // playbook tilt
     // Per-snap noise — even dominant OLs lose some reps; even bad OLs win
     // some. SD 1.5 keeps outcomes probabilistic, not deterministic.
-    const _noise = normal(0, 1.5);
-    const _finalScore = _battleScore + _noise;
+    //
+    // Defensive shell vs the run (V4 seam) — applies ONLY when a
+    // coordinator actually called a shell this snap; the AI path is
+    // byte-identical (normal() consumes the same draws regardless of
+    // params). Blitz crashes the box: more TFL/stuff but a blocked-up
+    // blitz springs big runs — mean shifts toward the defense while the
+    // variance widens (boom/bust). Two-high shells trade a light box for
+    // deep help — offense-favoring vs the run. Magnitudes are on the
+    // _battleScore scale where ±3 = the dominant tiers.
+    const _shellRun = this._defShellCall ? ({
+      C0_BLITZ:    { shift: -0.9, sd: 2.4 },
+      C1_MAN:      { shift: -0.3, sd: 1.5 },
+      C2_ZONE:     { shift:  0.2, sd: 1.5 },
+      C3_ZONE:     { shift: -0.4, sd: 1.5 },
+      C4_QUARTERS: { shift:  0.8, sd: 1.5 },
+      TAMPA_2:     { shift:  0.5, sd: 1.5 },
+    })[this._defShellCall] : null;
+    const _noise = normal(0, _shellRun ? _shellRun.sd : 1.5);
+    const _finalScore = _battleScore + (_shellRun ? _shellRun.shift : 0) + _noise;
     let _trench;
     if      (_finalScore >  3)  _trench = 'dominant_win';
     else if (_finalScore >  1)  _trench = 'win';

@@ -3902,8 +3902,10 @@ function frnPlayGame(homeId, awayId, isPlayoff) {
 }
 
 // ── Interactive playcalling (Workstream C.2 — single-player) ────────────────
-// You are the OC: the game pauses at every one of YOUR offensive snaps and you
-// call run/pass (or defer to the AI). Defense + special teams stay AI-called.
+// You are the OC AND the DC: the game pauses at every one of YOUR offensive
+// snaps for run/pass (+ 4th-down and PAT calls), and — V4 — at every one of
+// your DEFENSIVE snaps for a coverage-shell call (blitz/man/zones). Special
+// teams stay AI-called. Any prompt can be deferred to the AI with [O].
 //
 // Architecture: deterministic re-sim with an input tape. The engine's drive
 // loop is synchronous and can't literally pause, but Workstream B made the
@@ -4028,15 +4030,17 @@ function _ipcMaybePrompt() {
   return true;
 }
 
-// Your call, from the panel buttons (or keyboard). Two decision kinds share
+// Your call, from the panel buttons (or keyboard). Four decision kinds share
 // the one tape (decisions replay in deterministic order): "playcall" snaps
-// take run/pass, "fourthDown" takes go/fg/punt. Anything else (incl. "auto")
-// records null = defer to the AI.
+// take run/pass, "fourthDown" takes go/fg/punt, "pat" takes kick/two, and
+// "defense" (V4 — your team defending) takes one of the six coverage shells.
+// Anything else (incl. "auto") records null = defer to the AI.
 function frnPlaycall(call) {
   if (!_ipc || _ipc.status !== "pending") return;
   const kind  = _ipc.pending?.kind || "playcall";
   const valid = kind === "fourthDown" ? ["go", "fg", "punt"]
               : kind === "pat"        ? ["kick", "two"]
+              : kind === "defense"    ? ["C0_BLITZ", "C1_MAN", "C2_ZONE", "C3_ZONE", "C4_QUARTERS", "TAMPA_2"]
               :                         ["run", "pass"];
   _ipc.tape.push(valid.includes(call) ? call : null);
   _ipc.pending = null;
@@ -4091,7 +4095,11 @@ function _ipcShowPanel() {
   const down = ["1ST", "2ND", "3RD", "4TH"][(c.down || 1) - 1] || `${c.down}TH`;
   const goalToGo = (c.yardLine + c.ytg) >= 100;
   const dist = goalToGo ? "GOAL" : c.ytg;
-  const spot = c.yardLine <= 50 ? `OWN ${c.yardLine}` : `OPP ${100 - c.yardLine}`;
+  // yardLine is from the OFFENSE's perspective — flip the labels when the
+  // user is the one defending.
+  const spot = kind === "defense"
+    ? (c.yardLine <= 50 ? `THEIR ${c.yardLine}` : `YOUR ${100 - c.yardLine}`)
+    : (c.yardLine <= 50 ? `OWN ${c.yardLine}` : `OPP ${100 - c.yardLine}`);
   const mm = Math.floor((c.time || 0) / 60), ss = String(Math.floor((c.time || 0) % 60)).padStart(2, "0");
   const qlab = c.quarter <= 4 ? `Q${c.quarter}` : "OT";
   const my  = c.score[_ipc.userSide];
@@ -4120,6 +4128,21 @@ function _ipcShowPanel() {
       <button class="ipc-btn ipc-fg${c.inFGRange ? "" : " ipc-longshot"}" ${fgOk ? "" : "disabled"} onclick="frnPlaycall('fg')" title="${fgTitle}">🥅 FIELD GOAL · ${c.fgDist} YD</button>
       <button class="ipc-btn ipc-punt" onclick="frnPlaycall('punt')" title="Flip the field [P]">🦶 PUNT</button>
       <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let your coach decide [O]">🧠 COACH CALL</button>
+      ${coachBtn}`;
+  } else if (kind === "defense") {
+    // V4 — defensive shell call. The opponent has the ball; you see their
+    // personnel (subs are visible pre-snap) and pick one of the six
+    // shells that feed the engine's concept×coverage matchup tables.
+    badge = "🛡 THEIR BALL — YOUR DEFENSE";
+    lean = `THEY SHOW · ${String(c.offPersonnel || "BASE").replace(/_/g, " ")}`;
+    btns = `
+      <button class="ipc-btn ipc-go" onclick="frnPlaycall('C0_BLITZ')" title="Send the house — eats slow routes and runs, dies to quick game/screens [1]">🔥 BLITZ</button>
+      <button class="ipc-btn ipc-run" onclick="frnPlaycall('C1_MAN')" title="Press man — jams short routes, vulnerable to mesh/rubs [2]">🤝 MAN</button>
+      <button class="ipc-btn ipc-run" onclick="frnPlaycall('C3_ZONE')" title="Single-high zone — the balanced base call [3]">🛡 COVER 3</button>
+      <button class="ipc-btn ipc-fg" onclick="frnPlaycall('C2_ZONE')" title="Two-deep zone — takes away verticals, soft underneath [4]">✌ COVER 2</button>
+      <button class="ipc-btn ipc-fg" onclick="frnPlaycall('C4_QUARTERS')" title="Quarters — max deep help, light box vs the run [5]">🏰 QUARTERS</button>
+      <button class="ipc-btn ipc-fg" onclick="frnPlaycall('TAMPA_2')" title="Tampa 2 — MLB carries the deep middle [6]">🕸 TAMPA 2</button>
+      <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let your DC call it [O]">🧠 DC CALL</button>
       ${coachBtn}`;
   } else {
     badge = "🎙 YOUR CALL";
@@ -4159,6 +4182,13 @@ function _ipcInstallKeys() {
     if (kindK === "pat") {
       if (k === "k")      { e.preventDefault(); frnPlaycall("kick"); }
       else if (k === "g") { e.preventDefault(); frnPlaycall("two"); }
+      else if (k === "o") { e.preventDefault(); frnPlaycall("auto"); }
+      return;
+    }
+    if (kindK === "defense") {
+      const map = { "1": "C0_BLITZ", "2": "C1_MAN", "3": "C3_ZONE",
+                    "4": "C2_ZONE", "5": "C4_QUARTERS", "6": "TAMPA_2" };
+      if (map[k])         { e.preventDefault(); frnPlaycall(map[k]); }
       else if (k === "o") { e.preventDefault(); frnPlaycall("auto"); }
       return;
     }

@@ -865,8 +865,9 @@ const audit = `
   console.log("");
 
   // ============== INTERACTIVE-MODE INVARIANT (Workstream C) ==============
-  // The run/pass + 4th-down Coordinator seams must be behavior-preserving when
-  // unused: a coordinator that always DEFERS (returns null) has to produce a
+  // The run/pass + 4th-down + PAT + defensive-shell Coordinator seams must be
+  // behavior-preserving when unused: a coordinator that always DEFERS (returns
+  // null — for every kind, including "defense") has to produce a
   // byte-identical game to no coordinator under the same seed. This is the
   // gate-safety claim the interactive-playcalling feature rests on; assert it
   // here so any future engine edit that breaks it fails the audit. Uses the
