@@ -357,6 +357,22 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    // One-time match setup for the browser client: team ids + the roster
+    // SNAPSHOTS (the client builds ratings/lookup locally from these — the
+    // same objects the server sims, so names/jerseys/tooltips agree).
+    const suMatch = url.pathname.match(/^\/api\/setup\/([a-f0-9]+)$/);
+    if (req.method === "GET" && suMatch) {
+      const a = authedMatch(suMatch[1], url.searchParams.get("token"));
+      if (a.error) return json(res, 403, a);
+      const m = a.m;
+      return json(res, 200, {
+        side: a.side, status: m.status, joined: m.joined,
+        homeTeamId: m.homeTeamId, awayTeamId: m.awayTeamId,
+        settings: m.settings, rosters: m.rosters,
+        lastEventId: m.nextEventId - 1,
+      });
+    }
+
     const arMatch = url.pathname.match(/^\/api\/artifact\/([a-f0-9]+)$/);
     if (req.method === "GET" && arMatch) {
       const a = authedMatch(arMatch[1], url.searchParams.get("token"));

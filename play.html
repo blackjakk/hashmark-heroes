@@ -75,6 +75,15 @@
       <button class="btn btn-outline" id="powerRankBtn" title="Round-robin all 32 teams to compute a power ranking">📊 Power Rankings</button>
       <button class="btn btn-outline" id="tournamentBtn" title="Single-elimination playoff bracket of the top 8 (or 16) teams">🏆 Tournament</button>
     </div>
+
+    <!-- Live head-to-head (Workstream C.3) — host a match against another
+         human via the h2h-server (node server/h2h-server.js). The opponent
+         joins through the share link; both call plays on the panels. -->
+    <div class="controls" id="h2hControls">
+      <button class="btn btn-outline" id="h2hCreateBtn" title="Host a live head-to-head match — your opponent joins via the share link">🌐 Host H2H</button>
+      <input id="h2hServer" type="text" value="http://localhost:8787" title="H2H match server URL" style="width:200px" />
+      <span id="h2hStatus" class="h2h-status"></span>
+    </div>
   </div>
 
   <!-- Playback controls — shown when any game is being played (franchise or testing) -->
@@ -154,5 +163,6 @@
 <script src="play-franchise-season.js"></script>
 <script src="play-franchise-stats.js"></script>
 <script src="play-franchise-offseason.js"></script>
+<script src="play-h2h-client.js"></script>
 </body>
 </html>

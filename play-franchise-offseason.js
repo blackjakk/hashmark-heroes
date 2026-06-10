@@ -4020,14 +4020,28 @@ function _ipcPartialResult(sim) {
 // if an interactive decision is waiting and the call panel took over (the
 // caller must NOT render the FINAL screen).
 function _ipcMaybePrompt() {
-  if (!_ipc || _ipc.status !== "pending") return false;
+  if (!_ipc) return false;
   if (!gameResult || playHead < gameResult.plays.length) return false;
-  playing = false;
-  cancelAnimationFrame(rafId);
-  animState = null;
-  if (typeof updateButtons === "function") updateButtons();
-  _ipcShowPanel();
-  return true;
+  if (_ipc.status === "pending") {
+    playing = false;
+    cancelAnimationFrame(rafId);
+    animState = null;
+    if (typeof updateButtons === "function") updateButtons();
+    _ipcShowPanel();
+    return true;
+  }
+  // Network match (C.3): playback caught up with the stream but the game
+  // isn't over — the opponent (or the server) is still to act. Park on
+  // the waiting banner instead of falling through to the FINAL screen.
+  if (_ipc.mode === "net" && _ipc.status !== "final") {
+    playing = false;
+    cancelAnimationFrame(rafId);
+    animState = null;
+    if (typeof updateButtons === "function") updateButtons();
+    if (typeof _h2hShowWaiting === "function") _h2hShowWaiting();
+    return true;
+  }
+  return false;
 }
 
 // Your call, from the panel buttons (or keyboard). Four decision kinds share
@@ -4042,6 +4056,12 @@ function frnPlaycall(call) {
               : kind === "pat"        ? ["kick", "two"]
               : kind === "defense"    ? ["C0_BLITZ", "C1_MAN", "C2_ZONE", "C3_ZONE", "C4_QUARTERS", "TAMPA_2"]
               :                         ["run", "pass"];
+  // Network match (C.3) — the answer goes to the authoritative server
+  // instead of the local tape; resolved plays come back over SSE.
+  if (_ipc.mode === "net") {
+    if (typeof _h2hSubmitCall === "function") _h2hSubmitCall(valid.includes(call) ? call : null);
+    return;
+  }
   _ipc.tape.push(valid.includes(call) ? call : null);
   _ipc.pending = null;
   _ipcHidePanel();
@@ -4055,6 +4075,13 @@ function frnPlaycall(call) {
 function frnPlaycallCoachMode() {
   if (!_ipc || _ipc.status !== "pending") return;
   _ipc.coachMode = true;
+  // Network match — auto-defer this and every future prompt to the AI
+  // (the client answers "auto" on each decision event; the server's
+  // play clock would do the same anyway).
+  if (_ipc.mode === "net") {
+    if (typeof _h2hSubmitCall === "function") _h2hSubmitCall(null);
+    return;
+  }
   _ipc.pending = null;
   _ipcHidePanel();
   _ipcRun();

@@ -407,11 +407,23 @@ dependency at all.**
   re-sim the artifact tape locally and assert the same final score +
   hash. Runs headless in CI like every other gate.
 
-**Not in v1 (explicit):** browser-client wiring of network matches (the
-UI speaks `_ipc` locally today; pointing it at the server protocol is
-the next slice), matchmaking/accounts (identity = match token + join
-code), wire-payload slimming (plays currently ship with statsSnap), and
-all chain settlement.
+**Browser client (shipped):** `play-h2h-client.js` — the network
+session wears the `_ipc` interface so the existing call panels,
+keyboard, and playback loop work unchanged: SSE `decision` events land
+in `_ipc.pending`, `frnPlaycall`'s `mode === "net"` branch POSTs the
+answer instead of tape-pushing, `_ipcMaybePrompt` parks playback on a
+waiting banner (with the opponent's play-clock countdown) when caught
+up mid-match, and play slices resume it. Entry: 🌐 Host H2H (dev/testing
+panel) → share link `#h2h=matchId.joinCode.server`; joining from the
+link works in any app mode. Proven by `server/h2h-client-probe.js`:
+two headless browsers play a full match through the real UI (button
+click → share link → first prompt answered by clicking the defense
+panel → autopilot to FINAL) with identical finals and zero page errors.
+
+**Still open (follow-ups):** parallel same-snap decision windows,
+wire-payload slimming (plays ship with statsSnap), a host entry outside
+the dev panel, franchise-roster matches, matchmaking/accounts, real
+deployment (domain + TLS), and all chain settlement.
 
 ---
 
