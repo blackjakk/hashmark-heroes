@@ -630,7 +630,7 @@ function _renderPSLeagueTab(myId, visitsLeft) {
       const poachBtn = `<button class="frn-pcard-yrbtn" style="border-color:var(--gold);color:var(--gold)" onclick="frnPSPoach('${escName}')" title="Sign ${_escHtml(p.name)} off ${_escHtml(t.name)}'s practice squad onto YOUR active roster (2yr / $1.0M minimum)">📲 Sign</button>`;
       return `<tr>
         <td style="color:var(--gold);font-size:.62rem">${p.position}</td>
-        <td style="font-weight:600">${p.name}</td>
+        <td style="font-weight:600">${_escHtml(p.name)}</td>
         <td>${gradeBadge(p)}</td>
         <td style="color:var(--gray)">${p.age||"?"}</td>
         <td style="color:var(--gray);font-size:.62rem">${draftStr(p)}</td>
@@ -670,7 +670,7 @@ function _renderPSScoutedTab(myId) {
     const tier = _ceilingTier(p.potential || p.overall, p.draftRound);
     return `<tr>
       <td style="color:var(--gold);font-size:.62rem">${p.position}</td>
-      <td style="font-weight:700">${p.name}</td>
+      <td style="font-weight:700">${_escHtml(p.name)}</td>
       <td style="color:var(--gray);font-size:.62rem">${team?.name||"?"}</td>
       <td>${gradeBadge(p)}</td>
       <td style="font-size:.62rem"><b style="color:${tier.color}">${tier.grade}</b> <span style="color:var(--gray);font-size:.55rem">tier</span></td>
@@ -707,7 +707,7 @@ function _renderPSSignTab(myId, ps) {
     if (!list.length) return `<div style="color:var(--gray);font-style:italic;padding:.6rem;font-size:.68rem">None eligible.</div>`;
     const rows = list.map(p => `<tr>
       <td style="color:var(--gold);font-size:.62rem">${p.position}</td>
-      <td style="font-weight:700">${p.name}</td>
+      <td style="font-weight:700">${_escHtml(p.name)}</td>
       <td>${gradeBadge(p)}</td>
       <td style="color:var(--gray)">${p.age||"?"}</td>
       <td style="color:var(--gray);font-size:.62rem">${draftStr(p)}</td>
@@ -809,10 +809,7 @@ function frnPSScout(name) {
   saveFranchise();
   renderFrnPracticeSquad("league");
 }
-function frnTogglePSAutoSpend(on) {
-  franchise.autoSpendScouts = !!on;
-  saveFranchise();
-}
+// [removed] frnTogglePSAutoSpend — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 function renderFrnInjuryReport() {
   const myId = franchise.chosenTeamId;
@@ -1027,7 +1024,7 @@ function renderFrnMakeRoom() {
     const c = p.contract || {};
     return `<div style="display:grid;grid-template-columns:1fr repeat(4,auto) auto;gap:.6rem;align-items:center;padding:.45rem .6rem;border:1px solid var(--border);border-radius:10px;background:var(--bg2);margin-bottom:.35rem">
       <div style="min-width:0">
-        <div><span class="frn-pname" data-player-name="${esc}" data-player-pid="${p.pid || ''}">${p.name}</span></div>
+        <div><span class="frn-pname" data-player-name="${esc}" data-player-pid="${p.pid || ''}">${_escHtml(p.name)}</span></div>
         <div style="color:var(--gray);font-size:.6rem">${p.position} · ${depth[p.position]} at ${p.position} · Age ${p.age || '?'}</div>
       </div>
       <div style="text-align:center"><div style="font-weight:800">${p.overall || '?'}</div><div style="color:var(--gray);font-size:.52rem">OVR</div></div>
@@ -1463,7 +1460,7 @@ function frnPlayerTipShow(anchorEl, name, pid) {
     <div class="frn-ptip-head">
       ${_playerPortrait(p, 56)}
       <div style="flex:1;min-width:0">
-        <div style="font-weight:900;font-size:.9rem">${p.name}</div>
+        <div style="font-weight:900;font-size:.9rem">${_escHtml(p.name)}</div>
         <div style="color:var(--gray);font-size:.62rem">
           ${p.position} · Age ${p.age||"?"} · ${team?.name||"?"}
         </div>
@@ -1594,10 +1591,10 @@ function _frnOpenRetiredPlayerModal(p) {
   const heroName = tier
     ? `<div class="frn-pname-hero frn-pname-hero-t-${tier.tier}" title="${tier.label}">
         <span class="frn-pname-hero-glyph" aria-hidden="true">${tier.icon}</span>
-        <span class="frn-pname-hero-name">${p.name}</span>
+        <span class="frn-pname-hero-name">${_escHtml(p.name)}</span>
         <span class="frn-pname-hero-tag">${tier.label}</span>
        </div>`
-    : `<div style="font-size:1.15rem;font-weight:900">${p.name}</div>`;
+    : `<div style="font-size:1.15rem;font-weight:900">${_escHtml(p.name)}</div>`;
   overlay.innerHTML = `
     <div class="frn-pcard-overlay-inner">
       <button class="frn-pcard-close" onclick="frnClosePlayerModal()" title="Close">×</button>
@@ -3618,18 +3615,7 @@ function frnDepthSetPkg(pkgKey) {
   renderFrnDepthChart();
 }
 
-function _depthSlotLabel(slotKey, idx) {
-  const named = {
-    LT:"★ LT", LG:"★ LG", C:"★ C", RG:"★ RG", RT:"★ RT",
-    SS:"★ SS", FS:"★ FS", NB:"NICKEL", NB2:"DIME ⛺",
-    DL5:"GL-LINE ⛺", DL6:"GL-LINE ⛺",
-    K:"★ KICKER", P:"★ PUNTER",
-    KR1:"★ KICK RETURN", PR1:"★ PUNT RETURN",
-    RB1:"★ RB", RB2:"#2 RB",
-  };
-  if (named[slotKey]) return named[slotKey];
-  return idx === 0 ? "★ STARTER" : `#${idx + 1}`;
-}
+// [removed] _depthSlotLabel — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // Build the "if this starter is injured" cascade chain as plain text
 // (uses \n for the browser's native tooltip line breaks). Walks the
@@ -4405,23 +4391,7 @@ function _teamRecordAsOf(teamId, throughWeek) {
   }
   return { w, l, t, confW, confL };
 }
-// Fantasy points (standard PPR) so we can pick top performers per team.
-function _fpts(p, pos) {
-  let f = 0;
-  if (pos === "QB") f += (p.pass_yds||0)*0.04 + (p.pass_td||0)*4 - (p.pass_int||0)*2;
-  f += (p.rush_yds||0)*0.1 + (p.rush_td||0)*6;
-  f += (p.rec||0)*1 + (p.rec_yds||0)*0.1 + (p.rec_td||0)*6;
-  f += (p.tkl||0)*1 + (p.sk||0)*2 + (p.int_made||0)*4 + (p.ff||0)*2 + (p.fr||0)*2 + (p.pd||0)*0.5;
-  f += (p.fg_made||0)*3 + (p.xp_made||0)*1;
-  return Math.round(f * 10) / 10;
-}
-// secs left in quarter → "MM:SS"
-function _clockMMSS(secs) {
-  const s = Math.max(0, Math.round(Number(secs) || 0));
-  const m = Math.floor(s / 60);
-  const sec = s % 60;
-  return `${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
-}
+// [removed] _clockMMSS — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 // Deterministic crowd size in the 45–75k range based on home/week.
 function _attendanceFor(home, week, season) {
   if (!home) return 0;
@@ -4431,41 +4401,7 @@ function _attendanceFor(home, week, season) {
   const range = 30000;
   return base + Math.abs(h) % range;
 }
-// Pick top performer in a stat category. Returns null if no one qualifies.
-function _topPerformer(players, scoreFn, threshold) {
-  let best = null, bestS = -Infinity;
-  for (const p of players) {
-    const s = scoreFn(p);
-    if (s > bestS && s >= (threshold || 0)) { best = p; bestS = s; }
-  }
-  return best;
-}
-// Mini helmet glyph used in leader rows (cheap inline SVG).
-function _mini_helmet(team) {
-  const primary = team?.primary || "#444";
-  const secondary = team?.secondary || "#ccc";
-  return `<svg class="frn-bs-leader-helm" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="20" cy="19" rx="15" ry="13" fill="${primary}" stroke="${secondary}" stroke-width="1.5"/>
-    <rect x="6" y="22" width="20" height="2" fill="${secondary}" rx="1"/>
-  </svg>`;
-}
-// Linear bars for the team-stat-comparison row.
-function _bsCompRow(label, aVal, hVal, awayColor, homeColor, fmt) {
-  const a = +aVal || 0, h = +hVal || 0;
-  const max = Math.max(a, h) || 1;
-  const aw = Math.round((a / max) * 100);
-  const hw = Math.round((h / max) * 100);
-  const fmtFn = fmt || (v => v);
-  return `<div class="row">
-    <div class="stat">${label}</div>
-    <div class="v-left">${fmtFn(a)}</div>
-    <div class="frn-bs-bar">
-      <div class="frn-bs-bar-l"><span style="width:${aw}%;background:${awayColor}"></span></div>
-      <div class="frn-bs-bar-r"><span style="width:${hw}%;background:${homeColor}"></span></div>
-    </div>
-    <div class="v-right">${fmtFn(h)}</div>
-  </div>`;
-}
+// [removed] _bsCompRow — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 // ── BSPN box-score: adapter + vanilla-JS render ─────────────────────────────
 // Mirrors the React BSPN system (src/components/bspn/*) but lives inline in
 // play.html so franchise mode can use it without crossing app boundaries.
@@ -7254,7 +7190,7 @@ function renderFrnLockerRoom() {
     </div>
     ${disgruntled.length ? `<div class="frn-lr-alert">
       <div style="font-size:.6rem;letter-spacing:.8px;color:#ff8a8a;font-weight:700;margin-bottom:.3rem">⚠ NEEDS ATTENTION (${disgruntled.length})</div>
-      ${disgruntled.map(p => { const t = tierOf(p.morale); const wantsOut = p._wantsOut ? ` <span style="color:#ff8a8a;font-weight:800;font-size:.56rem;border:1px solid #ff8a8a;padding:.02rem .25rem">📢 WANTS OUT</span>` : ""; return `<div class="frn-lr-att-row"><div style="font-size:.64rem"><b style="cursor:pointer" onclick="frnOpenPlayerCard('${esc(p.name)}')">${p.name}</b> <span style="color:var(--gold-lt)">${p.position} ${p.overall}</span> · <span style="color:${t.color}">${t.icon} ${t.label}</span> <span style="color:var(--gray)">· ${reasonOf(p)}</span>${wantsOut}</div>${actBtns(p)}</div>`; }).join("")}
+      ${disgruntled.map(p => { const t = tierOf(p.morale); const wantsOut = p._wantsOut ? ` <span style="color:#ff8a8a;font-weight:800;font-size:.56rem;border:1px solid #ff8a8a;padding:.02rem .25rem">📢 WANTS OUT</span>` : ""; return `<div class="frn-lr-att-row"><div style="font-size:.64rem"><b style="cursor:pointer" onclick="frnOpenPlayerCard('${esc(p.name)}')">${_escHtml(p.name)}</b> <span style="color:var(--gold-lt)">${p.position} ${p.overall}</span> · <span style="color:${t.color}">${t.icon} ${t.label}</span> <span style="color:var(--gray)">· ${reasonOf(p)}</span>${wantsOut}</div>${actBtns(p)}</div>`; }).join("")}
       <div style="font-size:.56rem;color:var(--gray);margin-top:.3rem;font-style:italic">Talk to them, promise a role, win games — or move them before it spreads.</div>
     </div>` : `<div style="font-size:.6rem;color:#86e0a3;margin-bottom:.6rem">✓ No disgruntled stars — the room is in a good place.</div>`}
     <div class="frn-lr-list-head">ROSTER MOOD · problems first</div>
@@ -9724,10 +9660,7 @@ function mffTopPlays(limit = 25) {
   const e = _mffGetEPA();
   return e?.topPlays?.slice(0, limit) || [];
 }
-function mffPlayerOfGame(gameIdx) {
-  const e = _mffGetEPA();
-  return e?.bestPerGame?.find(g => g.gameIdx === gameIdx) || null;
-}
+// [removed] mffPlayerOfGame — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 function mffAllPlayerOfGame() {
   return _mffGetEPA()?.bestPerGame || [];
 }
@@ -9926,14 +9859,7 @@ function mffTeamEPAStatRows(myId, oppId, statRow) {
   return rows;
 }
 
-// Strength-of-schedule summary for a team (the SOS values that drove the
-// DVOA adjustment). +0.10 sosDef means opposing defenses averaged +0.10
-// EPA/play allowed (weak defenses you faced); negative = tough schedule.
-function mffTeamSOS(teamId) {
-  const d = mffTeamDVOA(teamId);
-  if (!d) return null;
-  return { sosOff: d.sosOff, sosDef: d.sosDef };
-}
+// [removed] mffTeamSOS — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // ── MFF Slice H: production-based development boost ─────────────────
 // Returns a multiplier in [0.80, 1.20] applied alongside coachBoost in the
@@ -12765,7 +12691,7 @@ function _renderPlayerDevelopmentPanel(myId, staff) {
     const pct = ceil > 0 ? Math.min(100, Math.max(0, (awr / ceil) * 100)) : 100;
     return `<div style="display:flex;align-items:center;gap:.5rem;padding:.32rem .55rem;background:var(--bg2);border:1px solid var(--border);font-size:.66rem">
       <span style="color:var(--gold);font-weight:700;width:1.8rem">${p.position}</span>
-      <span style="flex:1;min-width:0;font-weight:700;color:var(--blwhite);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>
+      <span style="flex:1;min-width:0;font-weight:700;color:var(--blwhite);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}</span>
       <span style="color:var(--gray);font-size:.58rem;width:5rem;text-align:right">age ${p.age||"?"} · OVR ${p.overall||"?"}</span>
       <div style="width:120px;display:flex;align-items:center;gap:.35rem">
         <span style="font-family:'IBM Plex Mono','JetBrains Mono',monospace;font-size:.62rem;color:var(--blgray)">${awr}</span>

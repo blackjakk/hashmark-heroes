@@ -80,10 +80,7 @@ function leagueMinSalary(cap) {
   const c = _capRef(cap);
   return Math.round((c * _MIN_SALARY_FRAC + Math.random() * c * _MIN_SALARY_SPREAD) * 10) / 10;
 }
-// Absolute salary backstop (no contract rounds below this). $0.5M at base.
-function absSalaryFloor(cap) {
-  return Math.round(_capRef(cap) * _ABS_SALARY_FLOOR_FRAC * 10) / 10;
-}
+// [removed] absSalaryFloor — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // Render the inner HTML for an "AAV vs current market" cell. A clear
 // signal — overpaid is red, bargain is green, within $1M is "≈ Market".
@@ -475,9 +472,7 @@ function refundsForTeam(teamId) {
   };
 }
 
-function currentCap() {
-  return franchise?.salaryCap || SALARY_CAP_BASE;
-}
+// [removed] currentCap — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // ── Injured Reserve (IR) system ──────────────────────────────────────────────
 // Real-NFL roster mechanic. The active roster is hard-capped at 53; an injured
@@ -1365,10 +1360,7 @@ function _playerNoiseBand(p) {
   return best;
 }
 
-function _isPlayerScouted(p) {
-  // Backward-compat: returns true for any sharpened read (band ≤ 5).
-  return _playerNoiseBand(p) <= 5;
-}
+// [removed] _isPlayerScouted — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // Returns the list of scouting categories assigned to a draft prospect.
 // Handles both the new shape (categories array on draftScoutReveals[name])
@@ -2100,9 +2092,7 @@ const SCHEME_MATCHUP_LABELS = [
   { min: -99,label: "BAD",         color: "#ef5350" },
 ];
 
-function _schemeMatchupLabel(mod) {
-  return SCHEME_MATCHUP_LABELS.find(e => mod >= e.min) || SCHEME_MATCHUP_LABELS.at(-1);
-}
+// [removed] _schemeMatchupLabel — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 function _getTeamOffScheme(teamId) {
   const ocTrait = franchise?.coaches?.[teamId]?.oc?.trait;
@@ -2825,15 +2815,7 @@ function _seedPracticeSquads() {
     franchise.rosters[t.id] = roster;
   }
 }
-// Tick down scouted-info expirations (intel lasts a season). Called
-// at offseason boundary.
-function _expireScoutingIntel() {
-  if (!franchise.scoutedPS) franchise.scoutedPS = {};
-  for (const name of Object.keys(franchise.scoutedPS)) {
-    const info = franchise.scoutedPS[name];
-    if (info.season !== franchise.season) delete franchise.scoutedPS[name];
-  }
-}
+// [removed] _expireScoutingIntel — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 // Reset weekly scout visits at advance-week.
 // Scout tokens — a persistent BANK (not a weekly reset). You gain
 // SCOUT_VISITS_PER_WEEK each week (see _scoutTokensWeeklyTick) and may spend
@@ -2861,8 +2843,7 @@ function _scoutTokensWeeklyTick() {
     franchise.scoutTokens = Math.min(franchise.scoutTokens, SCOUT_TOKEN_CAP);
   }
 }
-// Legacy no-op — the weekly-reset model was replaced by the token bank.
-function _resetWeeklyScoutVisits() {}
+// [removed] _resetWeeklyScoutVisits — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 // Weekly flash roll for every PS player on every team. Splits into
 // three tiers and stamps the flash log + emits wire alerts. The
 // poach pass uses the flash count to weight rival interest.
@@ -4828,21 +4809,7 @@ function showFranchiseHome() {
   renderFrnStartScreen();
 }
 
-// Build a summary string for a saved franchise (shown on the Load button)
-function frnSaveSummary() {
-  if (!franchise) return null;
-  const team  = getTeam(franchise.chosenTeamId);
-  const s     = franchise.standings?.[franchise.chosenTeamId] || { w:0, l:0 };
-  const phase = franchise.phase || "regular";
-  const phaseLabel =
-    phase === "regular"   ? `Season ${franchise.season} · Week ${franchise.week} of ${FRANCHISE_WEEKS}` :
-    phase === "playoffs"  ? `Season ${franchise.season} · Playoffs` :
-    phase === "awards"    ? `Season ${franchise.season} · Awards` :
-    phase === "offseason" ? `Season ${franchise.season} · Offseason` :
-    `Season ${franchise.season}`;
-  const name = team ? `${team.city} ${team.name}` : "—";
-  return `${name} · ${phaseLabel} · ${s.w}-${s.l}`;
-}
+// [removed] frnSaveSummary — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // Start screen — landing UI listing all saved franchises (multi-slot)
 function renderFrnStartScreen() {
@@ -5099,20 +5066,9 @@ async function frnRerollLeague() {
   renderFrnTeamPicker();
 }
 
-// "Load Game" handler — opens the saved franchise dashboard
-function frnLoadGame() {
-  loadFranchise();
-  if (!franchise) {
-    alert("No saved franchise found.");
-    renderFrnStartScreen();
-    return;
-  }
-  showFranchiseDashboard();
-}
+// [removed] frnLoadGame — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
-// Backwards-compat shims — old code paths still call these names
-function openFranchiseModal()  { setAppMode("franchise"); showFranchiseHome(); }
-function closeFranchiseModal() { /* no-op: franchise is inline now */ }
+// [removed] closeFranchiseModal — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // ── Initialize new franchise ─────────────────────────────────────────────────
 // Graceful fallback for a franchise CREATION failure (distinct from a render

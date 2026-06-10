@@ -735,7 +735,7 @@ function renderFrnTeamDetail(teamId) {
 
   const renderDepthRow = (p, slot) => `<tr>
     <td class="frn-scout-slot">${slot}</td>
-    <td>${p.name}</td>
+    <td>${_escHtml(p.name)}</td>
     <td>${gradeBadge(p)}</td>
     <td style="color:var(--gray)">${p.age||"?"}</td>
     <td style="color:var(--gray);font-size:.66rem">${draftStr(p)}</td>
@@ -864,7 +864,7 @@ function renderFrnTeamDetail(teamId) {
       <div class="frn-team-stars">
         ${stars.map(p => `<div class="frn-star-pill">
           ${gradeBadge(p)}
-          <span style="font-weight:700">${p.name}</span>
+          <span style="font-weight:700">${_escHtml(p.name)}</span>
           <span style="color:var(--gray);font-size:.65rem">${p.position} · age ${p.age||"?"} · ${draftStr(p)}</span>
         </div>`).join("")}
       </div>
@@ -1083,7 +1083,7 @@ function _buildPSTab(myId) {
     return `<div style="display:flex;align-items:center;gap:.4rem;padding:.32rem .45rem;background:${isAlert?"rgba(220,50,50,.08)":"var(--bg2)"};border:1px solid ${isAlert?"rgba(220,50,50,.35)":"var(--border)"};border-radius:4px;margin-bottom:.22rem">
       <span style="font-size:.58rem;color:var(--gold);font-weight:700;min-width:1.6rem">${p.position}</span>
       <span style="font-size:.72rem;font-weight:700;flex:1;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px"
-        onclick="frnOpenPlayerCard('${ep}','${epid}')">${p.name}</span>
+        onclick="frnOpenPlayerCard('${ep}','${epid}')">${_escHtml(p.name)}</span>
       ${gradeBadge(p)}
       <span style="font-size:.6rem;color:var(--gray)">Age ${p.age||"?"}</span>
       ${flashBadge}
@@ -1101,7 +1101,7 @@ function _buildPSTab(myId) {
     return `<div style="display:flex;align-items:center;gap:.4rem;padding:.28rem .45rem;background:var(--bg3);border:1px solid var(--border);border-radius:4px;margin-bottom:.18rem;opacity:${slotsLeft<=0?.45:1}">
       <span style="font-size:.58rem;color:var(--gold);font-weight:700;min-width:1.6rem">${p.position}</span>
       <span style="font-size:.68rem;font-weight:700;flex:1;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px"
-        onclick="frnOpenPlayerCard('${ep}','${epid}')">${p.name}</span>
+        onclick="frnOpenPlayerCard('${ep}','${epid}')">${_escHtml(p.name)}</span>
       ${gradeBadge(p)}
       <span style="font-size:.6rem;color:var(--gray)">Age ${p.age||"?"}</span>
       <button onclick="frnPSStash('${ep}')" ${slotsLeft<=0?"disabled":""}
@@ -1263,7 +1263,7 @@ function _preseasonRosterTab(roster, selName) {
               : `<button class="frn-pre-cut" onclick="event.stopPropagation();frnReleasePlayer('${escNm}','${p.position}')" title="Release — opens decision panel">✗</button>`;
             return `<tr class="frn-scout-row ${isSel?"selected":""}" style="background:${rowBg}" onclick="renderFrnPreseason('roster',null,null,'${escName}')">
               <td class="frn-scout-slot">${isStarter?"★":"#"+(i+1)}</td>
-              <td style="font-weight:${isStarter?700:400}"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${escName}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">${p.name}</span></td>
+              <td style="font-weight:${isStarter?700:400}"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${escName}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">${_escHtml(p.name)}</span></td>
               <td>${gradeBadge(p)}</td>
               <td>${potChip}</td>
               <td style="color:${ageColor}">${p.age || "?"}</td>
@@ -1558,7 +1558,7 @@ function _buildScoutPlayerPanel(p, scouted) {
       ${_playerPortrait(p, 80)}
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:flex-start;gap:.4rem;flex-wrap:wrap">
-          <span style="font-size:.98rem;font-weight:900;flex:1">${p.name}</span>
+          <span style="font-size:.98rem;font-weight:900;flex:1">${_escHtml(p.name)}</span>
           <button onclick="frnOpenPlayerCard('${escN}','${escPid}')"
             style="background:none;border:1px solid var(--border);color:var(--blgray);font-size:.54rem;padding:.12rem .32rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0"
             onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'"
@@ -1741,7 +1741,7 @@ function _preseasonScoutTab(myId, scoutId, view, selName) {
     return `<div class="frn-scout-threat-card"
       onclick="renderFrnPreseason('scout',${scoutId},'${view}','${pKey}')">
       <div class="frn-scout-threat-lbl">${labelText}</div>
-      <div class="frn-scout-threat-name"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${(p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">${p.name}</span></div>
+      <div class="frn-scout-threat-name"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${(p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">${_escHtml(p.name)}</span></div>
       <div style="margin-top:.15rem">${_scoutGradeBadge(p, scoutedThisSeason)}</div>
       ${statLine ? `<div class="frn-scout-threat-stat">${statLine}</div>` : ""}
     </div>`;
@@ -1778,7 +1778,7 @@ function _preseasonScoutTab(myId, scoutId, view, selName) {
     return `<tr class="frn-scout-row ${isSel?"selected":""}"
       onclick="renderFrnPreseason('scout',${scoutId},'${view}','${escName}')">
       <td class="frn-scout-slot">${slotLabel}</td>
-      <td style="font-weight:${isStarter?700:400}"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${escName}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">${p.name}</span></td>
+      <td style="font-weight:${isStarter?700:400}"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${escName}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">${_escHtml(p.name)}</span></td>
       <td>${_scoutGradeBadge(p, scoutedThisSeason)}</td>
       <td style="color:var(--gray)">${p.age || "?"}</td>
       <td style="color:var(--gray);font-size:.66rem">${draftStr(p)}</td>
@@ -2029,12 +2029,7 @@ function _runHOFVoting() {
   return inductees;
 }
 
-// Legacy shim — preserved for any saves/callers still wired to the old
-// direct-enshrinement path. New code routes retirees through
-// _addHOFCandidate + _runHOFVoting instead.
-function _maybeEnshrineHOF(player, team) {
-  _addHOFCandidate(player, team);
-}
+// [removed] _maybeEnshrineHOF — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // Build a career-stats card for any player — shown when you click into
 // a player from the scout / roster screens. Falls back gracefully for
@@ -6431,7 +6426,7 @@ function renderFrnFA(selectedKey) {
     return `<div style="${rowStyle}">
       <span style="font-size:.57rem;color:var(--blgray);font-weight:700;min-width:1.5rem">${p.position}</span>
       <span style="flex:1;font-size:.66rem;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;${isQueued?"color:#ffaaaa":""}"
-        onclick="event.stopPropagation();frnOpenPlayerCard('${ep}','${epid}')" title="View player card">${p.name}</span>
+        onclick="event.stopPropagation();frnOpenPlayerCard('${ep}','${epid}')" title="View player card">${_escHtml(p.name)}</span>
       <div style="display:flex;flex-direction:column;align-items:center;gap:.03rem">
         ${gradeBadge(p)}
         ${isStarter?`<span style="font-size:.43rem;color:var(--gold);font-weight:700">START</span>`:""}
@@ -6452,7 +6447,7 @@ function renderFrnFA(selectedKey) {
       <div style="display:flex;align-items:center;gap:.35rem;margin-bottom:.28rem">
         <span style="font-size:.58rem;color:#ff9090;font-weight:700;flex-shrink:0">${p.position}</span>
         <span style="font-size:.74rem;font-weight:900;color:#ffcccc;flex:1;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px"
-          onclick="event.stopPropagation();frnOpenPlayerCard('${ep}','${epid}')">${p.name}</span>
+          onclick="event.stopPropagation();frnOpenPlayerCard('${ep}','${epid}')">${_escHtml(p.name)}</span>
         ${gradeBadge(p)}
         <span style="font-size:.62rem;color:var(--green-lt);font-weight:700;flex-shrink:0">+$${aav.toFixed(1)}M</span>
       </div>
@@ -7100,10 +7095,7 @@ function _faResolveAfterWeek(week, isSeasonEnd) {
   franchise._faLastNews = { week, signed: newsSigned, lost: newsLost };
 }
 
-// ── User actions on the negotiations screen ──────────────────────────────────
-function frnFANegotiationOpen(name) {
-  renderFrnFANegotiations(name);
-}
+// [removed] frnFANegotiationOpen — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 function frnFARaiseBid(name, byAmount) {
   const n = franchise.faNegotiations?.[name]; if (!n) return;
   const cur = n.yourBid?.aav || _faNegCurrentHigh(n)?.aav || n.fa.demandedAAV * 0.95;
@@ -7223,7 +7215,7 @@ function _faTryKnockout(negKey) {
   return "signed";
 }
 
-function frnFAOpenSelf() { renderFrnFANegotiations(); }
+// [removed] frnFAOpenSelf — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 function frnNegToggleCut(negKey, cutName, checked) {
   const n = franchise.faNegotiations?.[negKey]; if (!n) return;
@@ -7588,7 +7580,7 @@ function renderFrnFANegotiations(selectedName) {
     return `<div style="${rowStyle}">
       <span style="font-size:.57rem;color:var(--blgray);font-weight:700;min-width:1.5rem">${p.position}</span>
       <span style="flex:1;font-size:.66rem;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;${isQueued?"color:#ffaaaa":""}"
-        onclick="event.stopPropagation();frnOpenPlayerCard('${ep}','${epid}')">${p.name}</span>
+        onclick="event.stopPropagation();frnOpenPlayerCard('${ep}','${epid}')">${_escHtml(p.name)}</span>
       <div style="display:flex;flex-direction:column;align-items:center;gap:.03rem">
         ${gradeBadge(p)}${isStarter?`<span style="font-size:.43rem;color:var(--gold);font-weight:700">START</span>`:""}
       </div>
@@ -7608,7 +7600,7 @@ function renderFrnFANegotiations(selectedName) {
       <div style="display:flex;align-items:center;gap:.35rem;margin-bottom:.28rem">
         <span style="font-size:.58rem;color:#ff9090;font-weight:700;flex-shrink:0">${p.position}</span>
         <span style="font-size:.74rem;font-weight:900;color:#ffcccc;flex:1;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px"
-          onclick="event.stopPropagation();frnOpenPlayerCard('${ep}','${epid}')">${p.name}</span>
+          onclick="event.stopPropagation();frnOpenPlayerCard('${ep}','${epid}')">${_escHtml(p.name)}</span>
         ${gradeBadge(p)}
         <span style="font-size:.62rem;color:var(--green-lt);font-weight:700;flex-shrink:0">+$${aav.toFixed(1)}M</span>
       </div>
@@ -8642,7 +8634,7 @@ function renderFrnFACuts() {
             onclick="frnOpenPlayerCard('${cleanN(p.name)}')"
             title="${_escHtml(p.name)} (${p.position}) · $${econ.hit.toFixed(1)}M hit · ${verdict.verdict==='pending'?'PENDING CUT':(verdict.label||'')}"
             >
-            ${showName ? `<div class="frn-cuts-tm-name">${p.name}</div>` : ""}
+            ${showName ? `<div class="frn-cuts-tm-name">${_escHtml(p.name)}</div>` : ""}
             ${showHit  ? `<div class="frn-cuts-tm-hit">$${econ.hit.toFixed(1)}M · ${p.position}</div>` : ""}
           </div>`;
         }).join("");
@@ -8725,7 +8717,7 @@ function renderFrnFACuts() {
           const dead = econ.totalDeadOnCut > 0 ? `<span style="color:#ffc850">−$${econ.totalDeadOnCut.toFixed(1)}M dead</span>` : `<span style="color:#86e0a3">$0 dead</span>`;
           return `<div class="frn-cuts-pending-row">
             <span class="frn-cuts-pos">${p.position}</span>
-            <span class="frn-cuts-name">${p.name}</span>
+            <span class="frn-cuts-name">${_escHtml(p.name)}</span>
             <span class="frn-cuts-ovr">${p.overall||"-"}</span>
             <span class="frn-cuts-econ">$${econ.hit.toFixed(1)}M hit · ${dead} · <b style="color:#86e0a3">+$${econ.netRelief.toFixed(1)}M net</b></span>
             <button class="frn-cuts-undo-btn" onclick="frnFACutsTogglePending('${cleanName(p.name)}')">✕ undo</button>
@@ -8833,7 +8825,7 @@ function renderFrnFACuts() {
     return `<tr class="${isPending?"pending":""} verdict-${verdict.verdict}">
       <td class="frn-cuts-td-pos">${p.position}</td>
       <td class="frn-cuts-td-name">
-        <span class="frn-cuts-name-link" onclick="frnOpenPlayerCard('${cleanName(p.name)}')" title="${_escHtml(p.name)} — click for full card · ceiling, contract, career history">${p.name}</span>
+        <span class="frn-cuts-name-link" onclick="frnOpenPlayerCard('${cleanName(p.name)}')" title="${_escHtml(p.name)} — click for full card · ceiling, contract, career history">${_escHtml(p.name)}</span>
         ${badges.length ? `<span class="frn-cuts-badges">${badges.map(b => `<span class="frn-cuts-badge" style="color:${b.col};border-color:${b.col}55">${b.tag}</span>`).join("")}</span>` : ""}
       </td>
       <td class="frn-cuts-td-ovr" style="color:${ovrCol}">${ovrStr}</td>
@@ -8897,17 +8889,7 @@ function renderFrnFACuts() {
     ${footerHtml}`;
 }
 
-// Legacy direct-cut shim — staging is the new primary path, but this is
-// still referenced from FA flows that want to release immediately
-// (e.g., the FA negotiations "cut to make room" panel uses it directly).
-async function frnFACutPlayer(name, pos) {
-  if (!await _frnConfirm(`Release ${name}? They free up their cap immediately.`)) return;
-  const roster = franchise.rosters[franchise.chosenTeamId];
-  const idx = roster.findIndex(p => p.name === name && p.position === pos);
-  if (idx !== -1) roster.splice(idx, 1);
-  saveFranchise();
-  renderFrnFACuts();
-}
+// [removed] frnFACutPlayer — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 function frnFAFinish() {
   frnTransition("regular");

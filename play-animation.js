@@ -7703,22 +7703,7 @@ function buildAnimForPlay(play, prevPlay) {
   }};
 }
 
-function drawKickoffFormation(ctx, homeTeam, awayTeam) {
-  const cy = (FIELD.TOP + FIELD.BOT) / 2;
-  // Kicking team (away) at their 35
-  const kx = absYardToX(65);
-  for (let i = -5; i <= 5; i++) {
-    if (i === 0) continue;
-    drawPlayer(ctx, kx, cy + i * 12, awayTeam.primary, awayTeam.secondary);
-  }
-  drawPlayer(ctx, kx - 10, cy, awayTeam.primary, awayTeam.secondary, "K");
-  // Receiving team (home) deep
-  const rx = absYardToX(15);
-  for (let i = -3; i <= 3; i++) {
-    drawPlayer(ctx, rx, cy + i * 16, homeTeam.primary, homeTeam.secondary);
-  }
-  drawPlayer(ctx, absYardToX(8), cy, homeTeam.primary, homeTeam.secondary, "R");
-}
+// [removed] drawKickoffFormation — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ─── CINEMA VIEW (side-camera, pixel-art sprites) ──────────────────────────
@@ -11268,51 +11253,5 @@ function playEntry(p) {
   return `<div class="play-entry ${p.kind}"><span class="meta">${meta}</span>${icon}${highlightPlayerNamesInPlay(p)}</div>`;
 }
 
-function renderRatings() {
-  const r = gameResult; if (!r) return;
-  const row = (label, h, a) => {
-    const winner = h > a ? "h" : a > h ? "a" : null;
-    return `<tr>
-      <td class="home ${winner === "h" ? "winner" : ""}">${Math.round(h)}</td>
-      <td class="lbl">${label}</td>
-      <td class="away ${winner === "a" ? "winner" : ""}">${Math.round(a)}</td>
-    </tr>`;
-  };
-  // Starter rows — show name (hoverable) + OVR for each side's top player at the slot
-  const topAt = (roster, pos, idx = 0) => {
-    const list = roster.filter(p => p.position === pos).sort((a, b) => b.overall - a.overall);
-    return list[idx] || null;
-  };
-  const starterRow = (label, hP, aP) => {
-    if (!hP || !aP) return "";
-    const winner = hP.overall > aP.overall ? "h" : aP.overall > hP.overall ? "a" : null;
-    return `<tr class="starter-row">
-      <td class="home ${winner === "h" ? "winner" : ""}">${nameSpan(hP.name)} <span class="ovr-pill">${hP.overall}</span></td>
-      <td class="lbl">${label}</td>
-      <td class="away ${winner === "a" ? "winner" : ""}"><span class="ovr-pill">${aP.overall}</span> ${nameSpan(aP.name)}</td>
-    </tr>`;
-  };
-  $("ratings").innerHTML = `
-    <thead><tr>
-      <th class="home" style="color:var(--gold);font-size:.78rem">${r.homeTeam.name}</th>
-      <th class="lbl"></th>
-      <th class="away" style="color:var(--gold);font-size:.78rem">${r.awayTeam.name}</th>
-    </tr></thead>
-    <tbody>
-      ${row("OFFENSE", r.homeRatings.offense, r.awayRatings.offense)}
-      ${row("DEFENSE", r.homeRatings.defense, r.awayRatings.defense)}
-      ${starterRow("QB",  topAt(r.homeRoster, "QB"), topAt(r.awayRoster, "QB"))}
-      ${starterRow("RB",  topAt(r.homeRoster, "RB"), topAt(r.awayRoster, "RB"))}
-      ${starterRow("WR1", topAt(r.homeRoster, "WR", 0), topAt(r.awayRoster, "WR", 0))}
-      ${starterRow("WR2", topAt(r.homeRoster, "WR", 1), topAt(r.awayRoster, "WR", 1))}
-      ${starterRow("TE",  topAt(r.homeRoster, "TE"), topAt(r.awayRoster, "TE"))}
-      ${row("OL",  r.homeRatings.ol,  r.awayRatings.ol)}
-      ${row("DL",  r.homeRatings.dl,  r.awayRatings.dl)}
-      ${row("LB",  r.homeRatings.lb,  r.awayRatings.lb)}
-      ${row("CB",  r.homeRatings.cb,  r.awayRatings.cb)}
-      ${row("S",   r.homeRatings.saf, r.awayRatings.saf)}
-      ${starterRow("K",   topAt(r.homeRoster, "K"), topAt(r.awayRoster, "K"))}
-    </tbody>
-  `;
-}
+// [removed] renderRatings — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 

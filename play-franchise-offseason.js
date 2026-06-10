@@ -2159,14 +2159,7 @@ function frnOpenReplaysTab() {
   if (typeof frnSetTab === "function") frnSetTab("replays");
 }
 
-// Compute the weekly top-10 league-wide for a given season/week
-function _weeklyTopTen(seasonNum, weekNum, limit = 10) {
-  if (!franchise?.highlights) return [];
-  return franchise.replayClips
-    .filter(h => h.season === seasonNum && h.week === weekNum)
-    .sort((a, b) => b.rating - a.rating)
-    .slice(0, limit);
-}
+// [removed] _weeklyTopTen — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // Replay the previous play in the active live game. Rewinds playHead
 // to the start of the prior snap, drops speed to slow-mo, restarts.
@@ -4752,115 +4745,7 @@ function _frnTogglePlayoffPregame() {
   renderFrnPlayoffs();
 }
 
-// ── Current game hub ─────────────────────────────────────────────────────────
-// The "what you're doing this round" workspace. Three modes:
-//   1. User's matchup unplayed → featured card + collapsible pregame
-//   2. User played but round not done → progress + sim-remaining CTA
-//   3. Round complete → big advance/crown ceremony block
-function _renderCurrentGameHub(currentRound) {
-  const pb = franchise.playoffBracket;
-  if (!pb || pb.champion) return "";
-  const myId = franchise.chosenTeamId;
-  const roundNames = PLAYOFF_ROUND_NAMES;
-  const roundIdx = pb.roundIdx;
-  const userStatus = _userPlayoffStatus();
-
-  const userMatchup = currentRound?.find(m =>
-    (m.homeId === myId || m.awayId === myId) && m.winnerId == null);
-  const allRoundDone = currentRound && currentRound.every(m => m.winnerId != null);
-  const pending = currentRound ? currentRound.filter(m => !m.winnerId && m.homeId && m.awayId) : [];
-
-  // ── Mode 3: Round complete → advance ceremony ────────────────────────
-  if (allRoundDone) {
-    const isFinalRound = roundIdx >= pb.rounds.length - 1;
-    const nextLabel = isFinalRound ? "Crown Champion" : `Advance to ${roundNames[roundIdx + 1] || "Next Round"}`;
-    const subText = isFinalRound
-      ? "The trophy is one click away."
-      : "All games are final — the next round is set.";
-    return `<div class="frn-playoff-hub advance">
-      <div class="frn-playoff-hub-eyebrow">${roundNames[roundIdx]} COMPLETE</div>
-      <div class="frn-playoff-hub-title">${nextLabel}</div>
-      <div class="frn-playoff-hub-sub">${subText}</div>
-      <button class="frn-playoff-hub-cta" onclick="frnConfirmAdvancePlayoffRound()">
-        ${isFinalRound ? "🌟 CROWN CHAMPION" : "▶ ADVANCE ROUND"}
-      </button>
-    </div>`;
-  }
-
-  // ── Mode 2: User has nothing to play this round (already played and
-  //          won, eliminated, or wasn't in playoffs at all). Show
-  //          progress + a sim-remaining CTA. Sub-line depends on which.
-  if (!userMatchup) {
-    const playedCount = currentRound.filter(m => m.winnerId != null).length;
-    const totalInRound = currentRound.length;
-    // Did the user just play and win their game this round?
-    const userJustAdvanced = currentRound.some(m =>
-      (m.homeId === myId || m.awayId === myId) && m.winnerId === myId);
-    const eliminated = userStatus.eliminatedRound != null;
-    let elimText;
-    if (userJustAdvanced) {
-      elimText = "Your matchup is final — sim the rest of the round to see who's next.";
-    } else if (eliminated) {
-      elimText = `Your run ended in ${roundNames[userStatus.eliminatedRound] || "an earlier round"}.`;
-    } else {
-      elimText = "Watching from the couch this postseason.";
-    }
-    return `<div class="frn-playoff-hub spectate">
-      <div class="frn-playoff-hub-eyebrow">${roundNames[roundIdx]} — IN PROGRESS</div>
-      <div class="frn-playoff-hub-title">${playedCount} of ${totalInRound} games played</div>
-      <div class="frn-playoff-hub-sub">${elimText}</div>
-      <button class="frn-playoff-hub-cta" onclick="frnSimPlayoffRound()" ${pending.length===0?'disabled':''}>
-        ⏩ SIM ${pending.length} REMAINING
-      </button>
-    </div>`;
-  }
-
-  // ── Mode 1: User has unplayed matchup → featured + pregame ───────────
-  const m = userMatchup;
-  const mi = currentRound.indexOf(m);
-  const home = getTeam(m.homeId), away = getTeam(m.awayId);
-  const homeSeed = pb.seeds.find(s => s.teamId === m.homeId)?.seed;
-  const awaySeed = pb.seeds.find(s => s.teamId === m.awayId)?.seed;
-  const isHome = m.homeId === myId;
-  const oppId = isHome ? m.awayId : m.homeId;
-  const opp = getTeam(oppId);
-  const tag = _playoffMatchupTag(m, pb.seeds);
-  const homeStand = franchise.standings?.[m.homeId] || { w:0, l:0 };
-  const awayStand = franchise.standings?.[m.awayId] || { w:0, l:0 };
-
-  const sideHtml = (team, seed, stand, isMine) => `
-    <div class="frn-playoff-feat-side ${isMine?"mine":""}" style="--team-color:${team.primary}">
-      <div class="frn-playoff-feat-seed">#${seed||"?"}</div>
-      <div class="frn-playoff-feat-ascii">${typeof teamAscii==="function"?teamAscii(team):"🏈"}</div>
-      <div class="frn-playoff-feat-name">${team.city}<br><b>${team.name.toUpperCase()}</b></div>
-      <div class="frn-playoff-feat-rec">${stand.w}-${stand.l}${stand.t?`-${stand.t}`:""}</div>
-    </div>`;
-
-  // Collapsed pregame preview = single button. Expanded = call existing fn.
-  const pregameHtml = _frnPlayoffPregameExpanded
-    ? `<div class="frn-playoff-pregame-wrap">
-        ${_renderPregamePreview(m, pb.seeds)}
-        <button class="frn-playoff-pregame-toggle" onclick="_frnTogglePlayoffPregame()">▴ Hide pregame breakdown</button>
-      </div>`
-    : `<button class="frn-playoff-pregame-toggle collapsed" onclick="_frnTogglePlayoffPregame()">
-        ▾ Show pregame breakdown <span style="color:var(--blgray);font-weight:400">· head-to-head · recent form · team film</span>
-      </button>`;
-
-  return `<div class="frn-playoff-hub featured">
-    <div class="frn-playoff-hub-eyebrow">${roundNames[roundIdx]} · YOUR MATCHUP</div>
-    ${tag ? `<div class="frn-playoff-hub-tag">${tag}</div>` : ""}
-    <div class="frn-playoff-feat-matchup">
-      ${sideHtml(home, homeSeed, homeStand, isHome)}
-      <div class="frn-playoff-feat-vs">${isHome ? "vs" : "@"}<div class="atstad">AT ${home.city.toUpperCase()}</div></div>
-      ${sideHtml(away, awaySeed, awayStand, !isHome)}
-    </div>
-    <div class="frn-playoff-feat-actions">
-      <button class="frn-playoff-hub-cta primary" onclick="frnPlayGame(${m.homeId},${m.awayId},true)">▶ PLAY GAME</button>
-      <button class="frn-playoff-hub-cta secondary" onclick="frnSimPlayoffGame(${m.homeId},${m.awayId})">⏩ SIM</button>
-    </div>
-    ${pregameHtml}
-  </div>`;
-}
+// [removed] _renderCurrentGameHub — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // ── Other current-round matchups — compact horizontal strip ──────────────────
 function _renderOtherMatchups(currentRound) {
@@ -6206,7 +6091,7 @@ function renderFrnAnalytics(defaultTab) {
             </button>`;
           };
           return `<tr style="background:rgba(80,160,80,.10)">
-            <td style="font-weight:700;color:var(--green-lt)">${p.name}</td>
+            <td style="font-weight:700;color:var(--green-lt)">${_escHtml(p.name)}</td>
             <td style="color:var(--gray)">${p.position}</td>
             <td colspan="6" style="font-size:.66rem;padding:.4rem .5rem">
               <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.5rem 1rem">
@@ -6229,7 +6114,7 @@ function renderFrnAnalytics(defaultTab) {
         if (result === "accept") {
           const freed = Math.round((currentAav - newAav) * 10) / 10;
           return `<tr style="background:rgba(80,180,80,.16)">
-            <td style="font-weight:700;color:var(--green-lt)">${p.name}</td>
+            <td style="font-weight:700;color:var(--green-lt)">${_escHtml(p.name)}</td>
             <td style="color:var(--gray)">${p.position}</td>
             <td colspan="6" style="font-size:.7rem;padding:.4rem .5rem">
               <span style="color:var(--green-lt);font-weight:700">✓ ACCEPTED</span>
@@ -6244,7 +6129,7 @@ function renderFrnAnalytics(defaultTab) {
         }
         // Declined
         return `<tr style="background:rgba(180,80,80,.14)">
-          <td style="font-weight:700;color:#ff9090">${p.name}</td>
+          <td style="font-weight:700;color:#ff9090">${_escHtml(p.name)}</td>
           <td style="color:var(--gray)">${p.position}</td>
           <td colspan="6" style="font-size:.7rem;padding:.4rem .5rem">
             <span style="color:#ff9090;font-weight:700">✗ REFUSED</span>
@@ -6268,7 +6153,7 @@ function renderFrnAnalytics(defaultTab) {
           return `<button class="btn ${sel ? "btn-gold" : "btn-outline"}" onclick="frnRestructure(${chosenTeamId},'${escName}','${p.position}',${n})" style="font-size:.56rem;padding:.12rem .35rem;min-width:auto">+${n}v</button>`;
         }).join("");
         return `<tr style="background:rgba(200,169,0,.1)">
-          <td style="font-weight:700;color:var(--gold)">${p.name}</td>
+          <td style="font-weight:700;color:var(--gold)">${_escHtml(p.name)}</td>
           <td style="color:var(--gray)">${p.position}</td>
           <td colspan="6" style="font-size:.68rem;padding:.4rem .5rem">
             <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.5rem">
@@ -6726,7 +6611,7 @@ function renderFrnAnalytics(defaultTab) {
       const isMe = p.teamId === chosenTeamId;
       return `<tr style="${isMe?"background:rgba(200,169,0,0.07)":""}">
         <td style="color:var(--gray);font-size:.65rem">${i+1}.</td>
-        <td style="color:${isMe?"var(--gold)":"var(--white)"};font-weight:700">${p.name}</td>
+        <td style="color:${isMe?"var(--gold)":"var(--white)"};font-weight:700">${_escHtml(p.name)}</td>
         <td style="color:var(--gray)">${p.position}</td>
         <td>${gradeBadge(p)}</td>
         <td style="color:var(--gray)">${p.age||"?"}</td>
@@ -6759,7 +6644,7 @@ function renderFrnAnalytics(defaultTab) {
       const mv = computeMarketValue(p, cap);
       return `<tr style="${isMe?"background:rgba(200,169,0,0.07)":""}">
         <td style="color:var(--gray);font-size:.65rem">${i+1}.</td>
-        <td style="color:${isMe?"var(--gold)":"var(--white)"};font-weight:700">${p.name}</td>
+        <td style="color:${isMe?"var(--gold)":"var(--white)"};font-weight:700">${_escHtml(p.name)}</td>
         <td>${gradeBadge(p)}</td>
         <td style="color:var(--gray)">${p.age||"?"}</td>
         <td style="color:var(--gray);font-size:.65rem">${draftStr(p)}</td>
@@ -7031,13 +6916,7 @@ const _CAREER_MILESTONES = [
   { stat: "pr_td",    thresh: 5,     label: "scores his 5th career punt-return TD — Devin Hester territory" },
 ];
 
-// Return-ability composite for skill players. Used for depth-chart KR/PR
-// slot recommendations. Weighted toward speed + agility + vision.
-function _returnAbility(p) {
-  const s = p?.stats || [];
-  const spd = s[0] ?? 50, agi = s[2] ?? 50, awr = s[3] ?? 50;
-  return Math.round(spd * 0.45 + agi * 0.35 + awr * 0.20);
-}
+// [removed] _returnAbility — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // Random ST events that surface as wire flavor — blocked kicks, fake
 // punts, onside kick recoveries. Rates are modest so a season produces
@@ -12945,7 +12824,7 @@ function _devChartPosShow(evt, pos) {
     const dColor = p.delta > 0 ? "#86e0a3" : p.delta < 0 ? "#ff9b9b" : "#7a8b85";
     const dStr   = p.delta > 0 ? `+${p.delta}` : p.delta < 0 ? `${p.delta}` : "—";
     return `<div style="display:grid;grid-template-columns:1fr 2rem 3rem;gap:.4rem;align-items:baseline;padding:.1rem 0;font-size:10.5px">
-      <span style="color:#cce8d6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}<span style="color:#5d6b66;font-size:9px;margin-left:.3rem">${p.age || ""}</span></span>
+      <span style="color:#cce8d6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}<span style="color:#5d6b66;font-size:9px;margin-left:.3rem">${p.age || ""}</span></span>
       <span style="color:${dColor};font-weight:700;text-align:right">${dStr}</span>
       <span style="color:#7a8b85;font-size:9.5px;text-align:right;font-family:'Bebas Neue',sans-serif;letter-spacing:.5px">${p.preOvr}→${p.postOvr}</span>
     </div>`;
@@ -12995,7 +12874,7 @@ function _devChartTierShow(evt, tier) {
     const dColor = p.delta > 0 ? "#86e0a3" : p.delta < 0 ? "#ff9b9b" : "#7a8b85";
     const dArr = p.delta > 0 ? `▲ +${p.delta}` : p.delta < 0 ? `▼ ${p.delta}` : "━";
     return `<div style="display:grid;grid-template-columns:1fr 2.4rem 2.8rem;gap:.4rem;align-items:baseline;padding:.1rem 0;font-size:10.5px">
-      <span style="color:#cce8d6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}<span style="color:#5d6b66;font-size:9px;margin-left:.3rem">${p.pos} · ${p.age || ""}</span></span>
+      <span style="color:#cce8d6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}<span style="color:#5d6b66;font-size:9px;margin-left:.3rem">${p.pos} · ${p.age || ""}</span></span>
       <span style="color:#cce8d6;font-family:'Bebas Neue',sans-serif;font-size:13px;text-align:right;letter-spacing:.5px">${p.postOvr}</span>
       <span style="color:${dColor};font-weight:700;text-align:right;font-size:10px">${dArr}</span>
     </div>`;
@@ -15690,11 +15569,7 @@ function _pickValue(pick) {
 function _teamPicks(teamId) {
   return (franchise.picks || []).filter(p => p.currentOwnerId === teamId);
 }
-function _teamPicksByYear(teamId) {
-  const by = {};
-  for (const p of _teamPicks(teamId)) (by[p.year] ||= []).push(p);
-  return by;
-}
+// [removed] _teamPicksByYear — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // ── Trades ─────────────────────────────────────────────────────────────────────
 // Player-for-player(s) trades. Trade deadline = Week 7. AI accepts if
@@ -16481,38 +16356,7 @@ function _buildBestOfferPackage(teamId, player, targetValue) {
   return { pickIds, extraPlayerName, absorb, totalValue };
 }
 
-// Run during _runWeekEndResolution: convert queued counters into
-// concrete offers in the user's inbox.
-function _processPendingCounters() {
-  if (!franchise._pendingCounters?.length) return;
-  if (!franchise.tradeOffers) franchise.tradeOffers = [];
-  const myId = franchise.chosenTeamId;
-  for (const c of franchise._pendingCounters) {
-    const player = franchise.rosters[myId].find(p => p.name === c.playerName);
-    if (!player || !player.onTradeBlock) continue;
-    const theirRoster = franchise.rosters[c.fromTeamId];
-    if (!theirRoster) continue;
-    // AI counter: keep wanting the user's player; offer a player worth
-    // ~85% of the user's player (less generous than what user asked for)
-    const target = _playerTradeValue(player) * 0.85;
-    const candidates = theirRoster
-      .map(rp => ({ rp, diff: Math.abs(_playerTradeValue(rp) - target) }))
-      .sort((a,b) => a.diff - b.diff);
-    const offered = candidates[0]?.rp;
-    if (!offered) continue;
-    franchise.tradeOffers.push({
-      id: `c-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
-      fromTeamId: c.fromTeamId,
-      theyGive: [offered.name],
-      theyWant: [player.name],
-      week: franchise.week,
-      status: "pending",
-      isCounter: true,
-      counterToAsk: c.askWantNames,
-    });
-  }
-  franchise._pendingCounters = [];
-}
+// [removed] _processPendingCounters — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // Seed AI teams with 0-2 block listings at start of regular season so
 // the trade-block view has activity even before the user lists anyone.
@@ -17504,7 +17348,7 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
         onchange="frnAddReceiveFromBrowse(${teamId},'${escName}')">
       <span class="frn-trade-pos">${p.position}</span>
       <span class="frn-trade-name-row">
-        <span class="frn-trade-name" style="font-weight:${sel?700:400}">${p.name}</span>
+        <span class="frn-trade-name" style="font-weight:${sel?700:400}">${_escHtml(p.name)}</span>
         ${!partnerId ? `<span class="frn-trade-team">${team.name}</span>` : ""}
         ${stanceTag}
         ${kickerTag}
@@ -17532,7 +17376,7 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
         onchange="frnToggleTradePlayer('send','${escName}')">
       <span class="frn-trade-pos">${p.position}</span>
       <span class="frn-trade-name-row">
-        <span class="frn-trade-name" style="font-weight:${sel?700:400}">${p.name}</span>
+        <span class="frn-trade-name" style="font-weight:${sel?700:400}">${_escHtml(p.name)}</span>
         ${blockTag}
         ${deadTag}
       </span>
@@ -18061,7 +17905,7 @@ function _renderTradeValueBoard(myRoster) {
       style="left:${xPct.toFixed(2)}%;top:${yPct.toFixed(2)}%;width:${wPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;background:${fill}"
       onclick="frnOpenPlayerCard('${cleanN(p.name)}')"
       title="${_escHtml(p.name)} (${p.position}) · ${p.overall||"?"} OVR · age ${p.age||"?"} · $${aav}M × ${yrs}yr · TV ${value.toFixed(1)}">
-      ${showName ? `<div class="frn-tvb-name">${p.name}</div>` : ""}
+      ${showName ? `<div class="frn-tvb-name">${_escHtml(p.name)}</div>` : ""}
       ${showSub  ? `<div class="frn-tvb-sub">${p.position} · ${p.overall||"?"} · $${aav}M</div>` : ""}
     </div>`;
   }).join("");
@@ -18550,7 +18394,7 @@ function _tradeOfferChip(p, teamId, mine) {
     <div class="frn-offer-chip-top">
       <span class="frn-offer-chip-pos">${p.position}</span>
       <span class="frn-offer-chip-ovr" style="color:${ovrCol}">${ovr}</span>
-      <span class="frn-offer-chip-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')" title="Open ${_escHtml(p.name)}'s card">${p.name}</span>
+      <span class="frn-offer-chip-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')" title="Open ${_escHtml(p.name)}'s card">${_escHtml(p.name)}</span>
       ${_tradeTraj(p)}
       ${injW > 0 ? `<span class="frn-offer-chip-inj" title="Injured — ${injW}w out">🩹</span>` : ""}
     </div>
@@ -18863,9 +18707,7 @@ function _buildScoutKnockNote(knockType, isHighUpside) {
   return isHighUpside ? pair.dismiss : pair.confirm;
 }
 
-function _getScoutKnockNote(name) {
-  return franchise.draftScoutReveals?.[name]?.knockNote || null;
-}
+// [removed] _getScoutKnockNote — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // Fictional NCAA-style schools for college-career attribution. Avoids
 // trademark risk by using generic place + school suffix combinations.
@@ -20429,7 +20271,7 @@ function renderFrnDraftPreshow() {
       <span style="color:${sgColor};font-weight:900;font-size:.7rem">${pos}</span>
       <div>
         <div style="display:flex;gap:.4rem;align-items:baseline">
-          <span style="color:var(--white);font-weight:700">${p.name}</span>
+          <span style="color:var(--white);font-weight:700">${_escHtml(p.name)}</span>
           <span style="color:var(--gray);font-size:.55rem">Age ${p.age}</span>
           ${meta?`<span style="color:var(--gold-lt);font-size:.55rem">${meta}</span>`:""}
         </div>
@@ -20683,20 +20525,7 @@ function _buildClassPositionPool(themes) {
   return pool;
 }
 
-// Human-readable strength chips derived from the multipliers. Top-2
-// boosted positions get a "Deep" chip; bottom-2 nerfed positions get a
-// "Thin" chip. If nothing meaningfully diverges from the mean, returns
-// a single "Balanced class" chip.
-function _classThemeChips(themes) {
-  const entries = Object.entries(themes).sort((a, b) => b[1] - a[1]);
-  const deep = entries.filter(([, v]) => v >= 1.15).slice(0, 2).map(([p]) => p);
-  const thin = entries.filter(([, v]) => v <= 0.85).slice(-2).map(([p]) => p);
-  const chips = [];
-  if (deep.length) chips.push({ text: `🔥 Deep at ${deep.join("/")}`, color: "var(--green-lt)" });
-  if (thin.length) chips.push({ text: `⚠ Thin at ${thin.join("/")}`,  color: "#e8a000" });
-  if (!chips.length) chips.push({ text: "— Balanced class", color: "var(--gray)" });
-  return chips;
-}
+// [removed] _classThemeChips — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // C-D: theme chips derived from ACTUAL class composition (not the
 // pre-class roll). Under Path A's threshold-based grading,
@@ -21871,12 +21700,7 @@ function _scoutTierFromOvr(p) {
   return "poor";
 }
 
-// How sharp is the scouting grade for a prospect, expressed as a noise
-// band (lower = more accurate). Used for the "B+ · ±5" display on each
-// row. _playerNoiseBand returns 8 on every "no info" path — no throws.
-function _scoutBandFor(p) {
-  return (typeof _playerNoiseBand === "function") ? _playerNoiseBand(p) : 8;
-}
+// [removed] _scoutBandFor — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // ── Pinned prospects ────────────────────────────────────────────────────────
 // User-driven watch list. Pinning a college player marks them as "follow this
@@ -21903,9 +21727,7 @@ function frnTogglePinProspect(name) {
     renderFrnScoutingBoard();
   }
 }
-function _isProspectPinned(name) {
-  return Array.isArray(franchise.pinnedProspects) && franchise.pinnedProspects.includes(name);
-}
+// [removed] _isProspectPinned — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // Called at frnGoToDraft after the draft class is built. Any pinned
 // prospect who's in this year's draft class becomes an auto-target.
@@ -23164,7 +22986,7 @@ function renderFrnDraft() {
       <div class="frn-dp-rank">${displayRank}</div>
       <div class="frn-dp-body">
         <div class="frn-dp-top">
-          <span class="frn-dp-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s scouting card">${p.name}</span>
+          <span class="frn-dp-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s scouting card">${_escHtml(p.name)}</span>
           ${_posPillHtml(p.position)}
           ${_posRankChip}
           ${needBadge}
@@ -23340,7 +23162,7 @@ function renderFrnDraft() {
         <span class="frn-draft-rec-rank">${i+1}</span>
         <div class="frn-draft-rec-body">
           <div class="frn-draft-rec-top">
-            <span class="frn-draft-rec-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(r.p.name)}'s scouting card">${r.p.name}</span>
+            <span class="frn-draft-rec-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(r.p.name)}'s scouting card">${_escHtml(r.p.name)}</span>
             ${_posPillHtml(r.p.position)}
             <span style="color:${sgColor};font-weight:700;font-size:.6rem" title="Your scout grade">${gradeLabel(sg)}</span>
           </div>
@@ -23792,7 +23614,7 @@ function renderFrnPreDraftScout() {
     }).join("");
     return `<div class="frn-prescout-row">
       <span class="frn-prescout-rank">${i+1}</span>
-      <span class="frn-prescout-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s scouting card">${p.name}</span>
+      <span class="frn-prescout-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s scouting card">${_escHtml(p.name)}</span>
       ${_posPillHtml(p.position)}
       <span class="frn-prescout-proj">${projLabel}</span>
       ${needBadge}
@@ -24276,7 +24098,7 @@ function _renderPostDraftGrade(myPicks) {
              const e = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
              return `<div class="frn-draft-pick-review">
                <span class="frn-draft-ticker-pick-no">UDFA</span>
-               <span style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${e}')">${p.name}</span>
+               <span style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${e}')">${_escHtml(p.name)}</span>
                <span style="color:var(--gold);font-size:.6rem">${p.position}</span>
                <span class="tt-ovr tier-${gradeClass(scoutGrade(p))}">${gradeLabel(scoutGrade(p))}</span>
              </div>`;
@@ -25075,115 +24897,7 @@ function _trimAiRostersToCap(targetSize = 55, opts = {}) {
   return totalCut;
 }
 
-// AI FA signing pass — each AI team scans the free-agent pool (cut vets +
-// synthetic templates) for players that fill a positional hole OR upgrade
-// a weak starter. Sorted by "signability" (OVR + youth-weighted upside)
-// so top FAs go to most-needy teams first. Top FAs get scooped up
-// quickly; bottom-tier FAs sit unsigned and eventually retire via
-// _ageUnsignedFreeAgents.
-//
-//   needsDepth = pos count < ROSTER_SLOTS floor (below the floor = a
-//                real depth hole)
-//   isUpgrade  = fa.overall >= weakestAtPos + 2 (must be a real bump)
-//
-// Caps signings at targetSize-1 so cuts can fire on the same cycle.
-// Skips user's team by default.
-function _aiSignFreeAgents(opts = {}) {
-  const userId = opts.includeUser ? null : franchise.chosenTeamId;
-  const targetSize = opts.targetSize ?? 55;
-  const ROSTER_FLOORS = (typeof ROSTER_SLOTS === "object" && ROSTER_SLOTS) || {};
-  // FA evaluation uses PERCEIVED OVR + PERCEIVED potential. AI teams
-  // don't see true numbers for outside players — they get scouted reads
-  // with name-hash noise. A 22yo true-OVR-75 with true-pot 90 might be
-  // perceived as OVR 73 / pot 82 → effective ceiling rates lower than
-  // truth. Conversely a perceived OVR 78 / pot 90 hidden gem looks
-  // even more attractive than truth. Creates NFL-realistic "misses"
-  // and "steals" instead of perfect AI hidden-gem hunting.
-  const faRanking = (p) => {
-    const perceivedOvr = _perceivedOverall(p);   // no opts.known → perceived
-    const age = p.age || 27;
-    const perceivedPot = _perceivedPotential(p);
-    const ceiling = Math.max(0, perceivedPot - perceivedOvr);
-    const youthMul = Math.max(0, (28 - age) / 6);
-    return perceivedOvr + ceiling * youthMul * 0.4;
-  };
-  // For roster comparison (team's OWN players), use TRUE OVR — teams
-  // know their own guys. Potential is still fuzzy since even own-team
-  // ceiling reads are imperfect.
-  const rosterEff = (p) => {
-    const ovr = p.overall || 60;
-    const age = p.age || 27;
-    const perceivedPot = _perceivedPotential(p);
-    const ceiling = Math.max(0, perceivedPot - ovr);
-    const youthMul = Math.max(0, (28 - age) / 6);
-    return ovr + ceiling * youthMul * 0.4;
-  };
-  if (!Array.isArray(franchise.freeAgents) || !franchise.freeAgents.length) return 0;
-  // Sort the FA pool by signability descending. Includes BOTH cut vets
-  // (with _cutSeason tag) and synthetic templates from _generateFAPool.
-  const pool = franchise.freeAgents.slice().sort((a, b) => faRanking(b) - faRanking(a));
-  const signedIds = new Set();
-  let totalSigned = 0;
-  for (const fa of pool) {
-    const faEff = faRanking(fa);
-    // For each FA, find the team that needs them most. Three sign cases.
-    // Comparison uses EFFECTIVE OVR (current + youth-weighted upside) so
-    // a 22yo OVR-75 with potential 90 is rated higher than a 31yo OVR-78
-    // with potential 78. Teams chase upside the way NFL does — Mahomes
-    // signed at OVR 75 over Alex Smith at 88.
-    const candidates = [];
-    for (const t of TEAMS) {
-      if (userId != null && t.id === userId) continue;
-      const roster = franchise.rosters[t.id] || [];
-      if (roster.length >= targetSize) continue;
-      const posPlayers = roster.filter(p => p.position === fa.position);
-      const floor = ROSTER_FLOORS[fa.position] || 0;
-      const needsDepth = posPlayers.length < floor;
-      let starterUpgrade = false, depthUpgrade = false;
-      if (posPlayers.length > 0) {
-        // Comparison: PERCEIVED FA eff (faEff, fuzz applied above)
-        // against the team's OWN ROSTER true-OVR eff. Team has full
-        // intel on its own players, scouting reports on outsiders.
-        const bestEff = Math.max(...posPlayers.map(p => rosterEff(p)));
-        const weakestEff = Math.min(...posPlayers.map(p => rosterEff(p)));
-        starterUpgrade = faEff >= bestEff + 2;
-        depthUpgrade   = !starterUpgrade && faEff >= weakestEff + 2;
-      }
-      if (needsDepth || starterUpgrade || depthUpgrade) {
-        const topAtPos = posPlayers.length
-          ? Math.max(...posPlayers.map(p => p.overall || 60))
-          : 0;
-        candidates.push({ team: t, topAtPos, needsDepth, starterUpgrade });
-      }
-    }
-    if (!candidates.length) continue;
-    // Priority ladder:
-    //   1. Teams with a depth hole (no body at the position)
-    //   2. Teams where the FA is a STARTER upgrade (most impact)
-    //   3. Among ties, the team with the weakest existing starter
-    candidates.sort((a, b) =>
-      (b.needsDepth - a.needsDepth)
-      || (b.starterUpgrade - a.starterUpgrade)
-      || (a.topAtPos - b.topAtPos)
-    );
-    const team = candidates[0].team;
-    // Sign — clear FA tags, push to roster.
-    // If the player was CUT (not just an aging FA pool synthetic), roll a milder
-    // trade-reaction: cut = "they didn't want me" → smaller chip rate, no sulk
-    // (they're grateful to be picked up). Skip for synthetic FA-pool templates.
-    const wasCut = !!fa._cutSeason;
-    delete fa._cutSeason;
-    delete fa._unsignedSeasons;
-    delete fa._cutFromTeamId;
-    if (wasCut && typeof _rollTradeReaction === "function") _rollTradeReaction(fa, { cutAndSigned: true });
-    franchise.rosters[team.id].push(fa);
-    signedIds.add(fa.name);
-    totalSigned++;
-  }
-  // Remove signed players from FA pool.
-  franchise.freeAgents = franchise.freeAgents.filter(p => !signedIds.has(p.name));
-  return totalSigned;
-}
+// [removed] _aiSignFreeAgents — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 // Age out unsigned FAs. Players who've been on the open market for 2+
 // seasons without a team effectively retire — mirrors NFL where a vet
@@ -25457,7 +25171,7 @@ function renderFrnUDFAScramble() {
     if (!p) return "";
     const esc = (p.name||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     return `<div class="frn-udfa-claim-row">
-      <span style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s card">${p.name}</span>
+      <span style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s card">${_escHtml(p.name)}</span>
       ${_posPillHtml(p.position)}
       ${gradeBadge(p)}
       <button class="btn btn-outline" onclick="frnDraftUnclaimUDFA('${esc}')">× Remove</button>
@@ -25528,7 +25242,7 @@ function renderFrnUDFAScramble() {
       <div class="frn-dp-rank">${displayRank}</div>
       <div class="frn-dp-body">
         <div class="frn-dp-top">
-          <span class="frn-dp-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s card">${p.name}</span>
+          <span class="frn-dp-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s card">${_escHtml(p.name)}</span>
           ${_posPillHtml(p.position)}
           ${needBadge}
           ${gradeBadge(p)}
@@ -25831,16 +25545,4 @@ if (document.readyState !== "loading") setAppMode(_initialMode());
 
 // ─── END FRANCHISE MODE ────────────────────────────────────────────────────
 
-function renderDrives() {
-  const r = gameResult; if (!r) return;
-  $("driveLog").innerHTML = r.drives.map(d => `
-    <div class="drive-entry">
-      <span class="drive-team-${d.team}">
-        ${d.team === "home" ? r.homeTeam.name : r.awayTeam.name}
-      </span>
-      <span class="${d.result === "TD" ? "drive-result-td" : ""}" style="color:var(--gray);">
-        ${d.result} · ${d.homeScore}–${d.awayScore}
-      </span>
-    </div>
-  `).join("");
-}
+// [removed] renderDrives — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
