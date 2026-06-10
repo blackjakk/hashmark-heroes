@@ -41,13 +41,26 @@ demotion, save-status jargon, Overview header slimming are the open IA items).
 
 ## What's open / suggested next moves
 
-1. **`CODEBASE_AUDIT_PLAN.md` workstream 1: the injection sweep** (143
-   innerHTML sinks / ~600 inline onclick handlers) — cheap and mechanical.
-2. **Workstream C next steps:** 2-point/PAT decision seam (same pattern as
+**The 9-workstream `CODEBASE_AUDIT_PLAN.md` is FULLY EXECUTED** (every §
+carries a DONE block with findings + verification; remaining items live as
+tickets inside each §). The highest-value open tickets, in rough order:
+
+1. **Live-playback static-field cache** (plan §E — the big perf ticket):
+   `drawField` repaints the whole 1700×720 static field every tick; render
+   once per (cameraMode, weather, teams) to an offscreen canvas, blit + draw
+   only dynamic layers. ~470ms/frame in software raster today.
+2. **Save-stall worker** (plan §E/§B): 52MB save = ~2s main-thread
+   stringify+flush per week; worker the mirror/IDB snapshot and/or shrink the
+   per-clip motion payload by regenerating from seed (determinism now allows).
+3. **Workstream C next steps:** 2-point/PAT decision seam (same pattern as
    4th down), tempo, then C.3 server-authoritative netcode for live H2H
    (design in `INGAME_CLOCK_AND_MULTIPLAYER.md`).
-3. **IA quick wins from the UX audit** (see plan §F bullet list).
-4. Playoff format remains 14 teams (`PLAYOFF_PER_CONF = 7`).
+4. **KR-return realism** (plan §C / AUDIT.md open finding): KR avg ~29 yd
+   (NFL ~22) but ~0.005 return TD/game (NFL ~0.05) — needs a "mostly short,
+   occasional housecall" return model.
+5. Smaller tickets: dead-code deletion list (§G), display-sink escape-at-sink
+   (§A), non-mutating trim (§B), keyboard-only offseason run (§F).
+6. Playoff format remains 14 teams (`PLAYOFF_PER_CONF = 7`).
 
 ## Verification recipes that paid off this session
 
@@ -74,5 +87,5 @@ demotion, save-status jargon, Overview header slimming are the open IA items).
 
 ---
 
-That's it. Say "start the injection sweep" (audit plan §A), "continue
-Workstream C" (2pt seam / netcode), or "do the IA quick wins".
+That's it. Say "do the static-field cache" (top perf ticket), "continue
+Workstream C" (2pt seam / netcode), or pick any ticket above.
