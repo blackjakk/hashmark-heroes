@@ -7213,6 +7213,7 @@ function _franchiseTagAvailable() {
 const _MID_HOLDOUT_MIN_YEARS = 1; // 1yr "prove-it" counters are realistic in NFL
 const _MID_HOLDOUT_MAX_YEARS = 6;
 const _MID_HOLDOUT_MAX_DEFERS = 2;
+const _MID_HOLDOUT_MAX_ROUNDS = 2; // failed below-ask offers before he's at his final number
 
 // Position+age+talent aware max contract length. Returns the realistic
 // ceiling for a player given his profile. K/P cap at 4yr (short careers,
@@ -7332,6 +7333,8 @@ function _checkHoldoutDemands() {
       structure: _defaultStructure(p.age || 27, p.overall || 70),
       week: franchise.week, deadlineWeek: franchise.week + 4,
       defers: 0,
+      rounds: 0,        // below-ask offers rolled so far (max _MID_HOLDOUT_MAX_ROUNDS)
+      lastTalk: null,   // { tone: "concede"|"harden"|"final", text } — agent's last response
       resolved: null,
       pressureScore: ps.score,
       pressureBreakdown: ps.breakdown,
@@ -7379,6 +7382,8 @@ function _migrateHoldoutDemandShape(list) {
     if (d.currentAAV == null)       d.currentAAV = live?.contract?.aav ?? 0;
     if (d.currentRemaining == null) d.currentRemaining = live?.contract?.remaining ?? 1;
     if (d.defers == null)           d.defers = 0;
+    if (d.rounds == null)           d.rounds = 0;
+    if (d.lastTalk === undefined)   d.lastTalk = null;
     if (d.resolved === undefined)   d.resolved = null;
   }
 }
@@ -7426,24 +7431,64 @@ function frnHoldoutMidExtend(name) {
   frnRefreshHoldoutCenter();
 }
 
-function frnHoldoutMidCounter(name) {
+// Submit the current offer to the player — the actual negotiation
+// exchange. At (or above) the full ask he signs on the spot. Below it,
+// roll against accept odds:
+//   accept  → signs at your number (grudgingly if odds < 50%)
+//   concede → credible offer (odds ≥ 40%): he drops his ask toward
+//             your number — countering can genuinely save money
+//   dig in  → insulting offer (odds < 40%): ask hardens +3%
+// _MID_HOLDOUT_MAX_ROUNDS failed rolls and he's at his final number:
+// below-ask offers stop rolling and just get the door.
+function frnHoldoutMidSubmitOffer(name) {
   const list = franchise.holdoutDemands || [];
   _migrateHoldoutDemandShape(list);
   const d = list.find(x => x.name === name);
   if (!d) return;
-  if (Math.abs((d.offer || 0) - d.demandedAAV) < 0.05) {
-    const live = (franchise.rosters[franchise.chosenTeamId] || []).find(p => p.name === name);
-    const posMax = _maxContractYears(live || { position: d.position, age: d.age, overall: d.overall });
-    d.offer = Math.round(d.demandedAAV * 0.95 * 10) / 10;
-    d.offerYears = Math.max(_MID_HOLDOUT_MIN_YEARS, Math.min(posMax, d.demandedYears));
+  const offer = d.offer ?? d.demandedAAV;
+  const years = d.offerYears ?? d.demandedYears;
+  const meetsAsk = offer >= d.demandedAAV - 0.05 && years >= d.demandedYears;
+  if (meetsAsk) { frnHoldoutMidExtend(name); return; }
+  if ((d.rounds || 0) >= _MID_HOLDOUT_MAX_ROUNDS) {
+    d.lastTalk = { tone: "final",
+      text: `His camp: "We've been around on this. $${d.demandedAAV.toFixed(1)}M × ${d.demandedYears}yr is the number — meet it or we're done talking."` };
+    _holdoutMidPreview = null;
+    saveFranchise();
+    frnRefreshHoldoutCenter();
+    return;
   }
-  _holdoutMidCounterFor = name;
+  const odds = _holdoutAcceptOdds(offer, years, d.demandedAAV, d.demandedYears);
+  if (Math.random() < odds) { frnHoldoutMidExtend(name); return; }
+  d.rounds = (d.rounds || 0) + 1;
+  const roundsLeft = _MID_HOLDOUT_MAX_ROUNDS - d.rounds;
+  const leftStr = roundsLeft > 0
+    ? `${roundsLeft} round${roundsLeft === 1 ? "" : "s"} of talks left`
+    : `that was his last concession — final number`;
+  if (odds >= 0.4) {
+    // Credible counter — his ask moves toward your number, floored by
+    // the tag math that anchors the demand in the first place.
+    const mid = Math.round((d.demandedAAV * 0.65 + offer * 0.35) * 10) / 10;
+    const newAsk = Math.max(offer + 0.1, (d.tagFloorAAV || 0) * 0.90, mid);
+    if (newAsk < d.demandedAAV - 0.05) {
+      d.demandedAAV = Math.round(newAsk * 10) / 10;
+      if (years < d.demandedYears) d.demandedYears = Math.max(years, d.demandedYears - 1);
+      d.lastTalk = { tone: "concede",
+        text: `His camp: "Not there yet — but we hear you. $${d.demandedAAV.toFixed(1)}M × ${d.demandedYears}yr closes this today." (${leftStr})` };
+      _pushNews({ type: "holdout_demand",
+        label: `🤝 ${d.position} ${d.name}'s camp came down to $${d.demandedAAV.toFixed(1)}M/yr × ${d.demandedYears}yr after the team's counter` });
+    } else {
+      d.lastTalk = { tone: "harden",
+        text: `His camp: "That's basically our number — put the real one on paper and it's done." (${leftStr})` };
+    }
+  } else {
+    d.demandedAAV = Math.round(d.demandedAAV * 1.03 * 10) / 10;
+    d.lastTalk = { tone: "harden",
+      text: `His camp: "Insulting. The price just went up — $${d.demandedAAV.toFixed(1)}M/yr now." (${leftStr})` };
+    _pushNews({ type: "holdout_demand",
+      label: `📈 ${d.position} ${d.name}'s camp hardened to $${d.demandedAAV.toFixed(1)}M/yr after a lowball counter` });
+  }
+  _holdoutMidPreview = null;
   saveFranchise();
-  frnRefreshHoldoutCenter();
-}
-
-function frnHoldoutMidCounterClose() {
-  _holdoutMidCounterFor = null;
   frnRefreshHoldoutCenter();
 }
 
@@ -7588,6 +7633,8 @@ function _renderHoldoutCenterRow(d) {
   const offerYears = d.offerYears ?? d.demandedYears;
   const { bonusProration } = _signingBonusCalc(offer, offerYears, ovr);
   const deadTotal = bonusProration * offerYears;
+  const meetsAsk = offer >= d.demandedAAV - 0.05 && offerYears >= d.demandedYears;
+  const talksDone = (d.rounds || 0) >= _MID_HOLDOUT_MAX_ROUNDS;
 
   // ── Year-by-year preview before signing ──────────────────────────
   if (_holdoutMidPreview === d.name) {
@@ -7615,7 +7662,7 @@ function _renderHoldoutCenterRow(d) {
       <div style="flex:1;display:flex;flex-direction:column;gap:.2rem;margin:0 .6rem">${yearPills}</div>
       <div class="frn-resign-btns" style="flex-direction:column;gap:.3rem">
         ${deadTotal >= 0.5 ? `<span style="color:#ff9090;font-size:.6rem;text-align:center">☠ Dead $${bonusProration.toFixed(1)}M×${offerYears}yr</span>` : ""}
-        <button class="btn btn-gold" onclick="frnHoldoutMidExtend('${escName}')" style="white-space:nowrap">✓ Sign Extension</button>
+        <button class="btn btn-gold" onclick="frnHoldoutMidSubmitOffer('${escName}')" style="white-space:nowrap">${meetsAsk ? "✓ Sign Extension" : "📤 Submit Counter"}</button>
         <button class="btn btn-outline" onclick="frnHoldoutMidPreviewClose()" style="font-size:.65rem">← Back</button>
       </div>
     </div>`;
@@ -7709,18 +7756,70 @@ function _renderHoldoutCenterRow(d) {
   }, 4);
   const hoverAttr = `data-resign-hits='${JSON.stringify(hoverHits)}' data-resign-cap='${cap}' onmouseenter="_resignHoverIn(this)" onmouseleave="_resignHoverOut()"`;
   const midPosMax = _maxContractYears(live || { position: d.position, age: d.age, overall: d.overall });
-  // Counter composer (full-width edit panel below the row, when open)
-  const counterHtml = _holdoutMidCounterFor === d.name ? _renderCounterComposer({
-    offer, offerYears,
-    demandedAAV: d.demandedAAV, demandedYears: d.demandedYears,
-    marketAAV: d.demandedAAV,
-    top5Aav: (typeof _positionTopAvgAAV === "function") ? _positionTopAvgAAV(d.position, cap, 5) : 0,
-    minYears: _MID_HOLDOUT_MIN_YEARS, maxYears: midPosMax,
-    onAavDelta: dt => `frnHoldoutMidAdjustOffer('${escName}', ${dt})`,
-    onYrDelta:  dt => `frnHoldoutMidAdjustYears('${escName}', ${dt})`,
-    onChip:     k => `frnHoldoutMidCounterChip('${escName}', '${k}')`,
-    onClose: `frnHoldoutMidCounterClose()`,
-  }) : "";
+
+  // ── Always-on offer composer (right rail) ─────────────────────────
+  // Countering IS the screen: edit AAV / years / structure, watch the
+  // accept odds, submit. No toggle to hunt for.
+  const aavBtn = (delta, label) =>
+    `<button class="frn-counter-aav-btn" onclick="frnHoldoutMidAdjustOffer('${escName}', ${delta})">${label}</button>`;
+  const chips = [
+    { key: "snap95", label: "95% ask", title: "Drop AAV to 95% of his ask, match his years" },
+    { key: "matchAavCutYr", label: `Match $ · ${Math.max(_MID_HOLDOUT_MIN_YEARS, d.demandedYears - 1)}yr`, title: `Match his AAV, cut years to ${Math.max(_MID_HOLDOUT_MIN_YEARS, d.demandedYears - 1)}` },
+    { key: "matchYrsCutAav", label: "-15% $", title: "Drop AAV 15%, match his years" },
+    { key: "top5Avg", label: "Top-5 avg", title: "Snap to position top-5 average AAV" },
+    { key: "lowball", label: "Lowball", title: "85% of market — high risk of hardening his ask" },
+  ];
+  const chipsHtml = chips.map(c =>
+    `<button class="frn-counter-chip" onclick="frnHoldoutMidCounterChip('${escName}', '${c.key}')" title="${c.title}">${c.label}</button>`).join("");
+  const roundsUsed = d.rounds || 0;
+  const roundsDots = Array.from({ length: _MID_HOLDOUT_MAX_ROUNDS }, (_, i) =>
+    `<span class="dot ${i < roundsUsed ? "used" : ""}"></span>`).join("");
+  const talkHtml = d.lastTalk
+    ? `<div class="frn-offer-talk tone-${d.lastTalk.tone}">🗣 ${d.lastTalk.text}</div>`
+    : (talksDone && !meetsAsk
+      ? `<div class="frn-offer-talk tone-final">🗣 His camp is done negotiating — meet the ask, or trade / defer / refuse.</div>`
+      : "");
+  const submitBtn = meetsAsk
+    ? `<button class="btn btn-gold frn-offer-submit" onclick="frnHoldoutMidSubmitOffer('${escName}')" title="Matches his full ask — signs on the spot">✓ Meet the Ask</button>`
+    : talksDone
+    ? `<button class="btn btn-outline frn-offer-submit" disabled title="No negotiation rounds left — he only signs at his full ask now">🚫 Done negotiating</button>`
+    : `<button class="btn btn-gold frn-offer-submit" onclick="frnHoldoutMidSubmitOffer('${escName}')" title="Below his ask — he may accept, come down, or dig in">📤 Counter · ${Math.round(odds * 100)}% accept</button>`;
+  const offerPanel = `<div class="frn-offer-panel">
+    <div class="frn-offer-panel-eyebrow"><span>YOUR OFFER</span><span style="color:var(--gray);letter-spacing:0">ask $${d.demandedAAV.toFixed(1)}M × ${d.demandedYears}yr</span></div>
+    <div class="frn-offer-aav-row">
+      ${aavBtn(-0.5, "−$0.5")}${aavBtn(-0.1, "−$0.1")}
+      <span class="frn-offer-aav-val" style="color:${offer > d.marketAAV * 1.1 ? 'var(--red)' : offer < d.marketAAV * 0.9 ? 'var(--green-lt)' : 'var(--gold)'}">$${offer.toFixed(1)}M/yr</span>
+      ${aavBtn(0.1, "+$0.1")}${aavBtn(0.5, "+$0.5")}
+    </div>
+    <div style="text-align:center;font-size:.6rem">${vsMarketCell(offer, d.marketAAV)} ${offerDeltaStr}</div>
+    <div class="frn-offer-aav-row">
+      <button class="frn-resign-yrbtn" ${offerYears <= _MID_HOLDOUT_MIN_YEARS ? "disabled" : ""} onclick="frnHoldoutMidAdjustYears('${escName}', -1)">−</button>
+      <span style="color:var(--gold);font-weight:700;font-size:.72rem;min-width:2.5rem;text-align:center" title="Position+age cap: max ${midPosMax}yr">${offerYears} yr</span>
+      <button class="frn-resign-yrbtn" ${offerYears >= midPosMax ? "disabled" : ""} onclick="frnHoldoutMidAdjustYears('${escName}', 1)">+</button>
+      <span style="color:var(--gray);font-size:.6rem;margin-left:.4rem">total $${(offer * offerYears).toFixed(1)}M</span>
+    </div>
+    <div style="display:flex;gap:.2rem;justify-content:center;align-items:center;flex-wrap:wrap">
+      ${["BALANCED","BACKLOADED","FRONTLOADED"].map(s => {
+        const desc = s==="BALANCED"?"flat salaries":s==="BACKLOADED"?"cheap now, costly later":"costly now, cheap later";
+        return `<button class="btn ${struct===s?"btn-gold":"btn-outline"}" onclick="frnHoldoutMidSetStructure('${escName}','${s}')" style="font-size:.55rem;padding:.1rem .3rem" title="${desc}">${s[0]+s.slice(1).toLowerCase()}</button>`;
+      }).join("")}
+    </div>
+    <div style="display:flex;gap:.25rem;justify-content:center;flex-wrap:wrap">${chipsHtml}</div>
+    <div class="frn-counter-odds" style="gap:.4rem">
+      <span class="frn-counter-lbl" style="min-width:0">Accept</span>
+      <span style="color:${oddsColor};font-weight:700;font-size:.75rem">${Math.round(odds * 100)}%</span>
+      <div class="frn-counter-odds-bar"><div style="width:${Math.round(odds * 100)}%;background:${oddsColor}"></div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      ${deadTotal < 0.5
+        ? `<span style="color:var(--gray);font-size:.58rem">No dead cap</span>`
+        : `<span style="color:#ff9090;font-size:.58rem">☠ Dead $${bonusProration.toFixed(1)}M×${offerYears}yr = $${deadTotal.toFixed(1)}M</span>`}
+      <span class="frn-offer-rounds" title="Failed below-ask offers burn a round — after ${_MID_HOLDOUT_MAX_ROUNDS} he's at his final number">TALKS ${roundsDots}</span>
+    </div>
+    ${talkHtml}
+    ${submitBtn}
+  </div>`;
+
   return `<div class="frn-resign-row tier-${tier}" ${hoverAttr}>
     <div class="frn-resign-row-inner">
       ${portraitHtml}
@@ -7734,40 +7833,16 @@ function _renderHoldoutCenterRow(d) {
         ${faPreviewHtml}
         ${deadlineHtml}
       </div>
-      <div class="frn-resign-offer">
-        <span style="color:${offer > d.marketAAV * 1.1 ? 'var(--red)' : offer < d.marketAAV * 0.9 ? 'var(--green-lt)' : 'var(--gold)'};font-weight:700">$${offer.toFixed(1)}M/yr ${vsMarketCell(offer, d.marketAAV)}</span>
-        <div style="display:flex;align-items:center;gap:.25rem;justify-content:flex-end;margin-top:.15rem">
-          <button class="frn-resign-yrbtn"
-            ${offerYears <= _MID_HOLDOUT_MIN_YEARS ? "disabled" : ""}
-            onclick="frnHoldoutMidAdjustYears('${escName}', -1)">−</button>
-          <span style="color:var(--gray);font-size:.7rem;min-width:2.5rem;text-align:center" title="Position+age cap: max ${midPosMax}yr">${offerYears} yr</span>
-          <button class="frn-resign-yrbtn"
-            ${offerYears >= midPosMax ? "disabled" : ""}
-            onclick="frnHoldoutMidAdjustYears('${escName}', 1)">+</button>
-        </div>
-        <span style="color:var(--gray);font-size:.6rem;text-align:right">total $${(offer * offerYears).toFixed(1)}M</span>
-        ${deadTotal < 0.5
-          ? `<span style="color:var(--gray);font-size:.6rem">No dead cap</span>`
-          : `<span style="color:#ff9090;font-size:.6rem;text-align:right">☠ Dead $${bonusProration.toFixed(1)}M×${offerYears}yr = $${deadTotal.toFixed(1)}M</span>`}
-        <div style="display:flex;gap:.2rem;justify-content:flex-end;margin-top:.25rem;align-items:center;flex-wrap:wrap">
-          <span style="color:var(--gray);font-size:.58rem">Structure:</span>
-          ${["BALANCED","BACKLOADED","FRONTLOADED"].map(s => {
-            const desc = s==="BALANCED"?"flat salaries":s==="BACKLOADED"?"cheap now, costly later":"costly now, cheap later";
-            return `<button class="btn ${struct===s?"btn-gold":"btn-outline"}" onclick="frnHoldoutMidSetStructure('${escName}','${s}')" style="font-size:.55rem;padding:.1rem .3rem" title="${desc}">${s[0]+s.slice(1).toLowerCase()}</button>`;
-          }).join("")}
-        </div>
-      </div>
-      <div class="frn-resign-btns">
-        <button class="btn frn-resign-btn accept-btn" onclick="frnHoldoutMidPreview('${escName}')">Review &amp; Extend</button>
-        ${odds < 0.85 ? `<button class="btn frn-resign-btn accept-btn ${_holdoutMidCounterFor === d.name ? 'active' : ''}" style="border-color:var(--gold-lt);color:var(--gold-lt)" onclick="${_holdoutMidCounterFor === d.name ? 'frnHoldoutMidCounterClose()' : `frnHoldoutMidCounter('${escName}')`}" title="Open the counter composer — tune AAV / years / snap to a preset">${_holdoutMidCounterFor === d.name ? '↻ Close' : '↻ Counter'}</button>` : ""}
+      ${offerPanel}
+      <div class="frn-resign-btns" style="flex-direction:column;justify-content:flex-start">
+        <button class="btn frn-resign-btn accept-btn" onclick="frnHoldoutMidPreview('${escName}')" title="Year-by-year cap hits before you commit">📋 Review<span style="font-size:.5rem;display:block;color:var(--green-lt)">year-by-year</span></button>
         <button class="btn frn-resign-btn" style="border-color:var(--gold);color:var(--gold)" onclick="frnHoldoutMidTrade('${escName}')" title="Open trade screen with him pre-selected">🔀 Trade<span style="font-size:.5rem;display:block;color:var(--gold-lt)">${tradeVal}</span></button>
         ${(d.defers || 0) < _MID_HOLDOUT_MAX_DEFERS
-          ? `<button class="btn frn-resign-btn" style="border-color:var(--blgray);color:var(--blgray)" onclick="frnHoldoutMidDefer('${escName}')" title="Push deadline +2 wks. Demand rises 3% each defer. Max ${_MID_HOLDOUT_MAX_DEFERS}×.">⏳ Defer<span style="font-size:.5rem;display:block;color:var(--blgray)">+2 wks · +3% AAV</span></button>`
+          ? `<button class="btn frn-resign-btn" style="border-color:var(--blgray, #9aa7b8);color:var(--blgray, #9aa7b8)" onclick="frnHoldoutMidDefer('${escName}')" title="Push deadline +2 wks. Demand rises 3% each defer. Max ${_MID_HOLDOUT_MAX_DEFERS}×.">⏳ Defer<span style="font-size:.5rem;display:block">+2 wks · +3% AAV</span></button>`
           : `<button class="btn frn-resign-btn" disabled title="Already deferred max times" style="opacity:.4">⏳ Defer<span style="font-size:.5rem;display:block">max reached</span></button>`}
         <button class="btn frn-resign-btn decline-btn" onclick="frnHoldoutMidRefuse('${escName}')" title="Player sits this week and walks at expiry">✗ Refuse<span style="font-size:.5rem;display:block;color:#ff9090">sits 1 game</span></button>
       </div>
     </div>
-    ${counterHtml}
   </div>`;
 }
 
@@ -7780,7 +7855,12 @@ function frnOpenHoldoutCenter() {
   el.className = "frn-resign-recap-overlay";
   el.innerHTML = _holdoutCenterInnerHtml();
   el.addEventListener("click", e => { if (e.target === el) frnCloseHoldoutCenter(); });
+  el.tabIndex = -1;
+  el.addEventListener("keydown", e => {
+    if (e.key === "Escape") { e.stopPropagation(); frnCloseHoldoutCenter(); }
+  });
   document.body.appendChild(el);
+  el.focus();
 }
 
 function frnCloseHoldoutCenter() {
@@ -7813,7 +7893,7 @@ function _holdoutCenterInnerHtml() {
     <button class="frn-resign-recap-close" onclick="frnCloseHoldoutCenter()">×</button>
     <div class="frn-resign-recap-eyebrow">WEEK ${franchise.week} · HOLDOUT CENTER</div>
     <h2 class="frn-resign-recap-title">🗣 ${pending.length} ACTIVE DEMAND${pending.length===1?"":"S"}</h2>
-    <p style="color:var(--blgray);text-align:center;margin:.4rem 0 .8rem;font-size:.72rem">Walk-year stars demanding an extension. Tag-floored asks. Refuse → 1-game sit-out + flight risk. Defer → +2 weeks, +3% AAV (max 2×).</p>
+    <p style="color:var(--blgray, #9aa7b8);text-align:center;margin:.4rem 0 .8rem;font-size:.72rem">Walk-year stars demanding an extension. Tag-floored asks. Counter below the ask — he can accept, come down, or dig in (${_MID_HOLDOUT_MAX_ROUNDS} rounds of talks). Refuse → 1-game sit-out + flight risk. Defer → +2 weeks, +3% AAV (max 2×).</p>
     <div class="frn-resign-list" style="margin-top:.6rem">${rows}</div>
     <div class="frn-resign-recap-cta">
       <button class="btn btn-outline" onclick="frnCloseHoldoutCenter()">← Close</button>
@@ -8365,7 +8445,7 @@ function _resignSurplusVsComp(r, compPick) {
 // before) and shortcut chips for common counter shapes.
 let _resignCounterFor = null;     // re-sign idx
 let _holdoutCounterFor = null;    // offseason demand player name
-let _holdoutMidCounterFor = null; // mid-season demand player name
+// (the mid-season holdout center renders its composer always-on — no toggle)
 
 // Shared composer HTML. Caller supplies onclick strings for each
 // control so this stays system-agnostic. Returns "" when not active.
@@ -8916,7 +8996,7 @@ function _renderResignUI(cap, capCommitted) {
           </div>
           <div class="frn-resign-btns">
             <button class="btn frn-resign-btn accept-btn" onclick="_resignPreview=${idx};_renderResignUIRefresh()">Review &amp; Sign</button>
-            ${odds < 0.85 ? `<button class="btn frn-resign-btn accept-btn ${_resignCounterFor === idx ? 'active' : ''}" style="border-color:var(--gold-lt);color:var(--gold-lt)" onclick="${_resignCounterFor === idx ? 'frnResignCounterClose()' : `frnResignCounter(${idx})`}" title="Open the counter composer — tune AAV / years / snap to a preset">${_resignCounterFor === idx ? '↻ Close' : '↻ Counter'}</button>` : ""}
+            <button class="btn frn-resign-btn accept-btn ${_resignCounterFor === idx ? 'active' : ''}" style="border-color:var(--gold-lt);color:var(--gold-lt)" onclick="${_resignCounterFor === idx ? 'frnResignCounterClose()' : `frnResignCounter(${idx})`}" title="Open the counter composer — tune AAV / years / snap to a preset">${_resignCounterFor === idx ? '↻ Close' : '↻ Counter'}</button>
             ${_franchiseTagAvailable() ? `<button class="btn frn-resign-btn accept-btn" style="border-color:var(--gold);color:var(--gold)"
               onclick="frnResignTag(${idx})" title="Franchise tag: 1yr fully guaranteed at top-5 position avg ($${_franchiseTagAAV({position: r.pos, name: r.name}, cap).toFixed(1)}M)">🏷 Tag</button>` : ""}
             <button class="btn frn-resign-btn decline-btn" onclick="frnResignDecide(${idx},'decline')" title="${compPick?compPick.label:''}">Let Walk${compPick?`<span style="font-size:.5rem;display:block;color:var(--gold-lt)">${compPick.label}</span>`:""}</button>
@@ -15384,7 +15464,7 @@ function _renderHoldoutsBlock() {
         </div>
         <div class="frn-resign-btns">
           <button class="btn frn-resign-btn accept-btn" onclick="frnHoldoutPreview('${escName}')">Review &amp; Extend</button>
-          ${odds < 0.85 ? `<button class="btn frn-resign-btn accept-btn ${_holdoutCounterFor === h.name ? 'active' : ''}" style="border-color:var(--gold-lt);color:var(--gold-lt)" onclick="${_holdoutCounterFor === h.name ? 'frnHoldoutCounterClose()' : `frnHoldoutCounter('${escName}')`}" title="Open the counter composer — tune AAV / years / snap to a preset">${_holdoutCounterFor === h.name ? '↻ Close' : '↻ Counter'}</button>` : ""}
+          <button class="btn frn-resign-btn accept-btn ${_holdoutCounterFor === h.name ? 'active' : ''}" style="border-color:var(--gold-lt);color:var(--gold-lt)" onclick="${_holdoutCounterFor === h.name ? 'frnHoldoutCounterClose()' : `frnHoldoutCounter('${escName}')`}" title="Open the counter composer — tune AAV / years / snap to a preset">${_holdoutCounterFor === h.name ? '↻ Close' : '↻ Counter'}</button>
           <button class="btn frn-resign-btn" style="border-color:var(--gold);color:var(--gold)" onclick="frnHoldoutTrade('${escName}')" title="Flip him for assets">🔀 Trade<span style="font-size:.5rem;display:block;color:var(--gold-lt)">${tradeVal}</span></button>
           <button class="btn frn-resign-btn decline-btn" onclick="frnHoldoutIgnore('${escName}')" title="Locker-room fallout: -2 OVR immediately · dev frozen next offseason · 40% chance of formal trade request · low re-sign odds at expiry">✗ Ignore<span style="font-size:.5rem;display:block;color:#ff9090">-2 OVR · dev freeze · flight</span></button>
         </div>

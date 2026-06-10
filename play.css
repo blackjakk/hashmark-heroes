@@ -4,6 +4,10 @@
     --bg: #0a0f0a;    --bg2: #111811; --bg3: #1a221a;
     --card: #182018; --border: #2e3d2e;
     --white: #f0f0f0; --gray: #999; --red: #c0392b;
+    /* Defined here as well as in the broadcast-overlay scopes: body-level
+       modals (holdout center etc.) reference it and got UA-default styling
+       when it resolved to nothing. */
+    --blgray: #9aa7b8;
     --field: #1f6b34; --field-dk: #185b2c; --field-lt: #2a7d40;
     /* Modern proportional face for narrative/prose copy (loaded in play.html).
        Data tables + numbers stay on IBM Plex Mono so columns keep aligning. */
@@ -10153,6 +10157,9 @@
   .frn-resign-btn {
     padding: .25rem .75rem; font-size: .68rem; font-weight: 700; cursor: pointer;
     font-family: inherit; border: 1px solid; transition: all .1s; min-width: 72px; text-align: center;
+    /* Variant-less buttons (Trade/Defer) were getting the UA's white
+       buttonface — set the dark-ghost base here. */
+    background: transparent; color: var(--white); border-radius: 4px;
   }
   .frn-resign-btn.accept-btn  { border-color: var(--green); color: var(--green-lt); background: transparent; }
   .frn-resign-btn.accept-btn:hover  { background: var(--green); color: #000; }
@@ -10216,6 +10223,35 @@
     border-radius: 2px; overflow: hidden; max-width: 180px;
   }
   .frn-counter-odds-bar > div { height: 100%; transition: width .2s; }
+
+  /* Holdout Center — always-on offer composer (right rail of each demand row) */
+  .frn-offer-panel {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+    padding: .5rem .6rem .55rem; width: 270px; flex-shrink: 0;
+    display: flex; flex-direction: column; gap: .32rem;
+  }
+  @media (max-width: 760px) { .frn-offer-panel { width: 100%; } }
+  .frn-offer-panel-eyebrow {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: .55rem; letter-spacing: 1.5px; color: var(--gold); font-weight: 800;
+  }
+  .frn-offer-aav-row { display: flex; align-items: center; gap: .25rem; justify-content: center; }
+  .frn-offer-aav-val { font-weight: 700; font-size: .95rem; min-width: 5.4rem; text-align: center; }
+  .frn-offer-talk {
+    border-left: 3px solid var(--gold); background: rgba(200,169,0,.07);
+    font-size: .62rem; padding: .3rem .45rem; border-radius: 0 4px 4px 0; line-height: 1.35;
+    font-family: var(--font-prose); font-style: italic;
+  }
+  .frn-offer-talk.tone-concede { border-color: var(--green-lt); background: rgba(46,139,87,.10); }
+  .frn-offer-talk.tone-harden  { border-color: var(--red); background: rgba(192,57,43,.10); }
+  .frn-offer-talk.tone-final   { border-color: #e8a000; background: rgba(232,160,0,.10); }
+  .frn-offer-rounds {
+    display: inline-flex; gap: .22rem; align-items: center;
+    font-size: .52rem; color: var(--gray); letter-spacing: 1px; font-weight: 700;
+  }
+  .frn-offer-rounds .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); display: inline-block; }
+  .frn-offer-rounds .dot.used { background: rgba(255,255,255,.15); }
+  .frn-offer-submit { width: 100%; justify-content: center; font-size: .7rem; padding: .4rem .6rem; margin-top: .1rem; }
 
   /* Cinema move callout */
   .cinema-callout {
