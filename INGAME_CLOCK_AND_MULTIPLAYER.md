@@ -344,7 +344,74 @@ TimelineEvent {        // downsampled, stored on g.timeline
   animates — think-time windows are symmetric whether you watch or skip.
   Explicitly rejected: a continuous wall-clock game clock (fake urgency on
   a discrete sim) and client lockstep (already rejected for float drift).
-  Remaining product call: **hosting**.
+
+---
+
+## C.3 — Hosting & netcode design (DECIDED, v1 scaffold shipped)
+
+**Hosting (user-ratified): a plain Node + HTTP/SSE process on a small
+VPS — no chain, no vendor APIs, zero npm dependencies.** Two facts decide
+it: (1) the authoritative state is just `(seed, roster snapshots, input
+tape)` — a few hundred KB, perfectly recoverable by re-sim, so restarts
+and failover are free; (2) the engine already runs headless in Node (the
+audit harness proves it on every gate run), so the server reuses that
+exact bundle-loading pattern with zero engine changes. Rejected:
+player-as-host P2P (host peeks at the opponent's call before committing —
+breaks the authority model; TURN server needed anyway), serverless actors
+(scale benefits we don't need, toolchain + no-eval costs we'd pay now),
+BaaS realtime DBs (clunky clock enforcement, two vendors).
+
+**MegaETH relationship (user-ratified):** orthogonal layers. The chain
+owns identity/assets/league state + (later) settlement truth; the Node
+server owns realtime match execution; the deterministic artifact
+`{seed, teams, rosters, tape}` is the bridge. The server computes a
+SHA-256 **artifact hash** at match end — the settlement hook. Posting
+`(resultHash, artifactHash)` to `LeagueManager`, optimistic wagers with
+challenge-by-re-sim, and per-call on-chain anchoring (feasible on
+MegaETH's fast blocks via session keys, but 260 txs/match of wallet UX
+for thin trust gain) are all later bolt-ons — **v1 runs with no chain
+dependency at all.**
+
+**The v1 scaffold** (`server/h2h-server.js`, zero-dep; engine loaded by
+`server/engine-host.js`, the audit's bundle pattern):
+
+- **Match lifecycle:** `POST /api/match` (create → matchId + hostToken +
+  joinCode) → `POST /api/join` → both connected via SSE
+  (`GET /api/events/:id?token=&since=`) → decision loop → `final` event
+  with result + artifact hash. `GET /api/state/:id` is the reconnect
+  snapshot; SSE `since` replays missed events (every event has a seq id).
+- **Decision loop = the interactive runner's mechanics, server-side:**
+  fresh seeded sim per step, both sides' coordinators answer from one
+  flat tape in deterministic order, sentinel-pause at the first
+  unanswered call. The pending decision goes to its owner as a
+  `decision` event (kind + context + deadline); the opponent gets
+  `waiting`. `POST /api/call {seq, call}` appends to the tape (seq
+  guards stale/dupe submissions) and re-steps; resolved plays stream to
+  both sides as `plays` slices. **Hidden info holds because calls are
+  never broadcast** — the defense's shell commits at the snap top (the
+  engine seam fires before the 4th-down branch) and the offense never
+  sees it. v1 collects the two same-snap calls sequentially (two
+  windows); parallel windows are a server-side optimization, no protocol
+  change.
+- **Play clock:** server timer per pending decision; on expiry the
+  server appends `null` (= the AICoordinator decides, exactly like the
+  single-player defer) and the match advances. AFK/disconnect therefore
+  degrades to vs-AI; reconnection resumes from the snapshot.
+- **Persistence:** append-only JSONL per match (header = seed/teams/
+  rosters/settings/tokens; one line per call; footer = result + hash).
+  On boot the server reloads every unfinished match and re-sims it back
+  to its pending state — determinism IS the recovery mechanism.
+- **Test harness:** `server/h2h-probe.js` — two scripted clients play a
+  FULL match over the real wire (create/join/SSE/calls), including a
+  go-silent window asserting the timeout fallback, then independently
+  re-sim the artifact tape locally and assert the same final score +
+  hash. Runs headless in CI like every other gate.
+
+**Not in v1 (explicit):** browser-client wiring of network matches (the
+UI speaks `_ipc` locally today; pointing it at the server protocol is
+the next slice), matchmaking/accounts (identity = match token + join
+code), wire-payload slimming (plays currently ship with statsSnap), and
+all chain settlement.
 
 ---
 

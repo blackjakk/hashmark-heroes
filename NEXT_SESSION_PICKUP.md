@@ -95,11 +95,33 @@ franchise rosters via `buildRatings`). Replays run slow-mo
   `_shellRun` shift+SD). Interactive runner prompts on defensive snaps
   (keys 1-6, O); plays carry `defShell` only when called.
 
-## NEXT: V4 hosting decision (ASK THE USER), then C.3 netcode build.
-Or **V5 — realism + polish backlog**: one-score % (~42-43 vs NFL 44-52,
-warn-only in the gate today), OT % (~3.2 vs 4-10),
-injury-rate-by-position bands in `_brady_audit.js`; keyboard-only
-offseason playthrough (§F's unfinished pass criterion).
+## V4 progress 2: hosting DECIDED + C.3 server scaffold SHIPPED
+
+- **Hosting (user-ratified):** plain Node + HTTP/SSE on a small VPS,
+  zero npm deps, NO chain dependency in v1. MegaETH stays the
+  asset/league/settlement layer; the deterministic artifact
+  `{seed, teams, rosters, tape}` + its SHA-256 hash (computed at match
+  end) is the future settlement bridge. Full rationale + rejected
+  options recorded in `INGAME_CLOCK_AND_MULTIPLAYER.md` §C.3.
+- **`server/` shipped:** `engine-host.js` (audit-style bundle loader —
+  keep its FILES/shims in sync with `_sim_audit.js`), `h2h-server.js`
+  (create/join → SSE decision loop → tape re-sim per call → play-clock
+  timeout = AI defer → JSONL persistence → artifact endpoint),
+  `h2h-probe.js` (two scripted clients, full match over the wire,
+  go-silent window, independent re-sim reproduces score + hash),
+  `h2h-recovery-probe.js` (SIGKILL mid-match → respawn → exact
+  play-count + pending-seq restore → finishes to FINAL). Both probes
+  ALL PASS; a full 289-decision match takes ~18s wall with zero-think
+  clients.
+
+## NEXT: wire the browser client to the server protocol
+The game UI speaks `_ipc` locally today; the next slice points the same
+panels at `/api/events` + `/api/call` (an `_ipc`-shaped adapter:
+decision events → `_ipcShowPanel`, calls → POST instead of tape-push).
+Then: parallel decision windows (defense+offense same snap), wire-slim
+the play slices (statsSnap), match-link UX. Or **V5 — realism + polish
+backlog**: one-score % (~42-43 vs NFL 44-52, warn-only), OT % (~3.2 vs
+4-10), injury bands in `_brady_audit.js`; keyboard-only offseason run.
 
 **The topology after V1** (back→front, all inside `.bspnlive-field-wrap`):
 1. `#field-pixi` — WebGL via `GCField`: ALL static field art (grass/bands/
@@ -184,6 +206,6 @@ injury bands) + keyboard-only offseason run.
 
 ---
 
-That's it. Say **"start V5"** (realism nits + keyboard-only offseason),
-or **"start V4"** to begin the netcode design discussion (it needs your
-product calls on pacing + hosting before any code).
+That's it. Say **"wire up the client"** (browser ↔ h2h-server: the
+`_ipc`-shaped network adapter), or **"start V5"** (realism nits +
+keyboard-only offseason).

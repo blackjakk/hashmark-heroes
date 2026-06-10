@@ -39,3 +39,6 @@ yarn-error.log*
 # Coverage
 coverage/
 coverage.json
+
+# H2H match server runtime data (seed/tape JSONL per match)
+server/data/
