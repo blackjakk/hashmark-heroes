@@ -246,9 +246,15 @@ chatter), must-NOT-seed (player generation entropy across new franchises).
 > POSITION MARKETS; demoted the dashboard Abandon button to a quiet link;
 > de-jargoned the "IDB only" save status → "✓ Auto-saved". Keyboard a11y: a
 > `:focus-visible` ring for the hover-only controls + `aria-live` on the WIRE
-> ticker. **Remaining (tickets):** full keyboard-only playthrough of the
-> offseason/draft flows; landmarks/headings; the ~35 borderline floor if a
-> strict AA badge is ever wanted.
+> ticker. **Keyboard-only offseason: DONE (V5)** — the §F pass criterion is
+> met and detector-backed: `tools/_kb_offseason_probe.js` traverses the
+> entire playoffs + offseason with Tab/Enter only (every playoff round,
+> re-signings via bulk actions, drafting a specific prospect by keyboard,
+> submitting an FA offer, into Season 2; zero page errors). No app fixes
+> were needed — the §E focus work had already made every gate a real
+> button, and the confirm-modal helper's Enter/Esc contract carries the
+> two-click guards. **Remaining (tickets):** landmarks/headings; the ~35
+> borderline WCAG floor if a strict AA badge is ever wanted.
 
 - Contrast: extend the alpha-compositing WCAG walker (see
   `NEXT_SESSION_PICKUP.md` recipe) from the box score to **every** screen

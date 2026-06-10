@@ -148,12 +148,32 @@ box/domain provisioning is the operator's step). All three server probes
 + the two-browser probe ALL PASS; gate green. Details in
 `INGAME_CLOCK_AND_MULTIPLAYER.md` §C.3.
 
+## V5: COMPLETE (the whole roadmap is now done)
+
+- **One-score % 42.7 → 45.0 [44-52 ✓]** (canonical 40-season audit).
+  Measurement-led: endgame close-out was already fine; the deficit was a
+  fat 17+ blowout tail fed by an INVERTED garbage-time dynamic — PREVENT's
+  passMul 0.92 suppressed the underneath game it should concede (→1.16,
+  sackMul 0.60, 14+ Q4 leads shell from 8:00), plus the missing NFL
+  two-score script (down 8-16, Q4 outside 2:00, FG range → kick).
+- **OT % 3.2 → ~4** (band 4-10, borderline at seed): PAT chart kicked the
+  tying XP (was 35% go-for-the-win-by-1 across the final 10:00 → 10%);
+  tied teams pinned deep late now play for OT (kneel-to-OT + two-min-drill
+  discipline) instead of hurry-up turnovers.
+- **Injury-by-position bands**: 11 banded chk() detectors in
+  `_brady_audit.js` on injury SHARE — all positions PASS (QB 4.3%,
+  WR/CB/OL lead, specialists ~0).
+- **Keyboard-only offseason (§F)**: met + detector-backed —
+  `tools/_kb_offseason_probe.js` Tab/Enters through playoffs → resignings
+  → draft (drafts a prospect) → FA (submits an offer) → Season 2, zero
+  errors, zero app fixes needed.
+- Gate re-baselined for the intentional drifts in the same commit.
+
 ## NEXT options
-- **V5 — realism + polish backlog:** one-score % (~42-43 vs NFL 44-52,
-  warn-only), OT % (~3.2 vs 4-10), injury bands in `_brady_audit.js`;
-  keyboard-only offseason run.
 - **H2H beyond v1:** matchmaking/accounts, spectators, async-league
   deadlines (protocol-ready, UX only), chain settlement.
+- Anything new the user wants — the recorded roadmap (V1-V5) is fully
+  closed out.
 
 **The topology after V1** (back→front, all inside `.bspnlive-field-wrap`):
 1. `#field-pixi` — WebGL via `GCField`: ALL static field art (grass/bands/
@@ -238,6 +258,6 @@ injury bands) + keyboard-only offseason run.
 
 ---
 
-That's it. Say **"start V5"** (realism nits + keyboard-only offseason),
-or pick an H2H beyond-v1 item (matchmaking / spectators / async leagues /
-chain settlement).
+That's it. The V1-V5 roadmap is closed. Natural next arcs: an H2H
+beyond-v1 item (matchmaking / spectators / async leagues / chain
+settlement), or whatever the user asks for.

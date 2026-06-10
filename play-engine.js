@@ -1131,7 +1131,12 @@ class GameSimulator {
     const offScore = this.score[this.poss];
     const defScore = this.score[this.poss === "home" ? "away" : "home"];
     if (this.quarter === 2) return offScore <= defScore + 14;   // end of half — go for points
-    return offScore <= defScore;   // 4th quarter — only if tied or behind
+    // 4th quarter: trailing → always drill. TIED → only with a realistic
+    // shot (field position or time to work with); a tied team pinned deep
+    // under a minute plays for OT instead of forcing a turnover-prone
+    // sprint (V5 — the hurry-up-while-tied gamble was leaking overtimes).
+    if (offScore === defScore) return this.yardLine >= 45 || this.time > 75;
+    return offScore < defScore;
   }
   // AI decides whether to burn a timeout. Returns the team that called it, or null.
   // Called between plays in _drive(). Only fires when the clock would keep running.
@@ -2247,6 +2252,9 @@ class GameSimulator {
     const defLead = this.score[defKey] - this.score[offKey];
     const lateGame = (this.quarter === 4 && this.time < 240) || this.quarter >= 5;
     if (lateGame && defLead >= 9) return DEF_PLAYBOOKS.PREVENT;
+    // V5: a 14+ Q4 lead shells up well before the 4:00 mark — NFL teams
+    // trade underneath yards for clock from the start of the quarter.
+    if (this.quarter === 4 && this.time < 480 && defLead >= 14) return DEF_PLAYBOOKS.PREVENT;
     // MLB AGGRESSION TILT — the MLB is the defense's playcaller. An aggressive
     // MLB (BLITZER, high PRS+TCK) overrides the team's base scheme on key downs:
     //   ≥80 → BLITZ_46 on 3rd-and-medium / 3rd-and-long
@@ -3390,11 +3398,25 @@ class GameSimulator {
         // to 2-score → almost always kick.
         const fgWouldTieOrWin = q4Late && scoreDiff <= 0 && scoreDiff >= -3;
         const fgExtendsToTwoScore = q4Late && scoreDiff >= 1 && scoreDiff <= 4;
+        // TWO-SCORE SCRIPT (V5): down 8-16 in Q4 with clock to work with
+        // (outside the final 2:00), the FG is the play — it turns a
+        // two-score game into one score (down 9-11 → 6-8), banks the kick
+        // in a TD+FG path (12-16), or upgrades TD-ties-it to TD-wins-it
+        // (down 8 → 5). This is the standard NFL comeback script; the old
+        // "down 8+ → FG is wasted" rule only holds in the final 2:00.
+        // This was the missing 9-16 → 4-8 margin compressor behind the
+        // one-score% sitting at ~42 vs the NFL's 44-52.
+        const fgMakesItOneScore = q4Late && !q4Final
+          && scoreDiff <= -8 && scoreDiff >= -16;
         if (fgWouldTieOrWin || fgExtendsToTwoScore) {
           action = "fg";
+        } else if (fgMakesItOneScore) {
+          // Short yardage still leans GO (the analytics chart agrees);
+          // anything longer takes the points.
+          action = _rand() < (this.ytg <= 2 ? 0.30 : 0.88) ? "fg" : "go";
         } else if (q4Late && scoreDiff <= -8 && this.ytg <= 7) {
-          // Trailing 8+ late: a FG is wasted (still down 5+). Go for it
-          // even on moderate yardage in FG range.
+          // Final 2:00 (or down 17+) trailing 8+: a FG is wasted. Go for
+          // it even on moderate yardage in FG range.
           const desperateGo = this.ytg <= 4 ? 0.85 : 0.55;
           action = _rand() < desperateGo ? "go" : "fg";
         } else {
@@ -4007,10 +4029,13 @@ class GameSimulator {
       const _lead = this.poss === "home"
         ? this.score.home - this.score.away
         : this.score.away - this.score.home;
+      // V5: tilts deepened slightly — Q4 leaders run more than the engine
+      // did (clock burned by a leading team is the margin-compressor that
+      // keeps NFL games one-score; see one_score_game_pct).
       if (_lead >= 21)      passProb = clamp(passProb - 0.30, 0.10, 0.95); // blowout — kneel/run
-      else if (_lead >= 14) passProb = clamp(passProb - 0.20, 0.10, 0.95); // 2-score lead
-      else if (_lead >= 8)  passProb = clamp(passProb - 0.14, 0.10, 0.95); // 1-score lead
-      else if (_lead >= 1)  passProb = clamp(passProb - 0.06, 0.10, 0.95); // any lead — modest tilt
+      else if (_lead >= 14) passProb = clamp(passProb - 0.22, 0.10, 0.95); // 2-score lead
+      else if (_lead >= 8)  passProb = clamp(passProb - 0.17, 0.10, 0.95); // 1-score lead
+      else if (_lead >= 1)  passProb = clamp(passProb - 0.10, 0.10, 0.95); // any lead — run lean
     }
     // Goal-to-go bias toward the run — NFL calls ~60% rush inside the 10.
     // Engine still rolled close to 50/50 (default mid passProb), so we shed
@@ -4217,7 +4242,16 @@ class GameSimulator {
       const oppTimeouts = this.timeouts[oppKey] || 0;
       const remainingDowns = 5 - this.down;  // 1st = 4 downs available, 4th = 1
       const kneelMargin = remainingDowns * 40 - oppTimeouts * 30;
-      const canKneelOut = lead > 0
+      // PLAY FOR OVERTIME (V5): a TIED team pinned deep with the clock
+      // dying doesn't force a desperation drive — a sack/INT there gifts
+      // the opponent a walk-off FG. NFL teams kneel into OT from this
+      // spot. (One of the two leaks that pinned OT% at ~3 vs NFL 4-10.)
+      const kneelToOT = lead === 0
+        && this.quarter === 4
+        && this.yardLine <= 42
+        && this.time <= kneelMargin
+        && this.time > 0;
+      const canKneelOut = (lead > 0 || kneelToOT)
         && this.quarter === 4
         && this.time <= kneelMargin
         && this.time > 0;
@@ -7036,7 +7070,12 @@ class GameSimulator {
         switch (diff) {
           case -5: twoPtChance = lateGame ? 0.80 : 0.30; break;  // down 5 → need 7
           case -2: twoPtChance = lateGame ? 0.95 : 0.45; break;  // down 2 → tie immediately
-          case -1: twoPtChance = lateGame ? 0.35 : 0.08; break;  // down 1 → lead-by-1 vs tie
+          // Down 1 after the TD: the XP TIES (→ OT). NFL kicks this
+          // near-automatically — the go-for-the-win-by-1 gamble is a rare
+          // endgame call, not a 10-minute-window default. The old 0.35
+          // drained the OT funnel (a third of would-be ties became
+          // win-or-lose), pinning OT% at ~3.2 vs the NFL's 4-10 (V5).
+          case -1: twoPtChance = lateGame ? 0.10 : 0.04; break;  // down 1 → kick to tie
           case  0: twoPtChance = lateGame ? 0.20 : 0.04; break;  // tied → usually kick
           case  1: twoPtChance = lateGame ? 0.55 : 0.18; break;  // up 1 → up 3 (2-score buffer)
           case  4: twoPtChance = lateGame ? 0.75 : 0.18; break;  // up 4 → up 6 (forces TD to lose)

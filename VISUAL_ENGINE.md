@@ -151,10 +151,31 @@ Server-authoritative live H2H per `INGAME_CLOCK_AND_MULTIPLAYER.md`. Needs
 product decisions first (pacing: snap-clock vs turn-based; hosting). The
 tempo-decision seam can land alongside (same pattern as 4th-down/PAT).
 
-### V5. Realism + polish backlog (small, anytime)
-One-score % (~42 vs NFL 44-52) and OT % (~3.2 vs 4-10) tuning;
-injury-rate-by-position bands in `_brady_audit.js`; keyboard-only offseason
-playthrough (§F's unfinished pass criterion).
+### V5. Realism + polish backlog — DONE
+- **One-score %: 42.7 → 45.0 [44-52 ✓]** (canonical 40-season audit). The
+  deficit wasn't endgame close-out (95% of games close at 3:00 finished
+  one-score) — it was upstream: a fat 17+ blowout tail (35.7%, now ~31)
+  fed by an INVERTED garbage-time dynamic (leader outscored trailer
+  5.7-4.7 in Q4 of 14+ games; NFL is ~5-7 the other way). Root cause:
+  PREVENT's `passMul` 0.92 made underneath passing HARDER — prevent is
+  supposed to concede it (now 1.16, sackMul 0.60 for the 3-man rush, and
+  14+ Q4 leads shell up from 8:00). Plus the missing NFL two-score
+  script: down 8-16 in Q4 outside 2:00, in FG range → kick to make it
+  one score.
+- **OT %: 3.2 → ~3.9-4.1** (band 4-10, borderline at the seed). Two
+  leaks fixed: the PAT chart went for the win-by-1 35% of the time in
+  the whole final 10:00 (NFL kicks the tying XP — now 10%), and tied
+  teams pinned deep late hurry-upped into turnovers instead of playing
+  for OT (kneel-to-OT + tied-drill discipline added).
+- **Injury-rate-by-position bands** added to `_brady_audit.js` as 11
+  banded `chk()` detectors on SHARE of injuries (robust to total-rate
+  retunes): all positions PASS — QB protected 4.3%, WR/CB/OL lead,
+  specialists ~0.
+- **Keyboard-only offseason: COMPLETE** — `tools/_kb_offseason_probe.js`
+  walks recap → playoffs (all rounds) → awards → re-signings → draft
+  (incl. drafting a prospect by keyboard) → FA (incl. submitting an
+  offer) → Season 2 with Tab/Enter only, zero page errors. No app fixes
+  needed — §E's earlier focus work held up.
 
 ---
 

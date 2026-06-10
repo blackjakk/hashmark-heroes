@@ -328,7 +328,13 @@ const DEF_PLAYBOOKS = {
   },
   PREVENT: {
     id: "PREVENT", name: "Prevent", badge: "PRV",
-    runMul: 1.10, passMul: 0.92, sackMul: 0.85, deepCovMul: 0.55,
+    // V5 realism: prevent CONCEDES the underneath game — that's the whole
+    // trade. passMul (a direct completion-% multiplier) was 0.92, which
+    // made garbage-time passing HARDER and starved trailing teams of the
+    // late points the NFL sees (the trailer outscores the leader ~7-5 in
+    // Q4 of 14+ games; the engine had it inverted at 4.7-5.7). Deep shots
+    // stay crushed via deepCovMul; the 3-man rush rarely gets home.
+    runMul: 1.10, passMul: 1.16, sackMul: 0.60, deepCovMul: 0.55,
     archBias: { S: { CENTER_FIELD: 0.55, BALL_HAWK: 0.25, PHYSICAL: 0.10, BOX: 0.10 } },
   },
 };

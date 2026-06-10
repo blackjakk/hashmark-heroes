@@ -1,5 +1,5 @@
 {
-  "_comment": "Realism regression baseline for _audit_gate.js. Reproducible because the audits are SEEDED. The gate fails if a metric drifts from 'value' by more than 'tol'; 'nfl' is the audit's acceptable band (informational only). Each metric has a TIER: 'fast' (mff, ~1min — pre-commit hook + per-PR CI), 'full' (sim, ~3min — per-PR CI), 'slow' (clutch DiD + brady aggregates — nightly workflow). Gate flags: --fast (fast), default (fast+full), --slow (slow), --all. Gate is REGRESSION-focused, not a realism-validity claim — run larger N manually for that (AUDIT.md). Re-baseline an intentional change by updating 'value' in the same commit. NOTE: rare-event tails (sim INT-rate/turnovers, clutch FG-DiD) are deliberately NOT gated — small-sample noisy even seeded.",
+  "_comment": "Realism regression baseline for _audit_gate.js. Reproducible because the audits are SEEDED. The gate fails if a metric drifts from 'value' by more than 'tol'; 'nfl' is the audit's acceptable band (informational only). Each metric has a TIER: 'fast' (mff, ~1min \u2014 pre-commit hook + per-PR CI), 'full' (sim, ~3min \u2014 per-PR CI), 'slow' (clutch DiD + brady aggregates \u2014 nightly workflow). Gate flags: --fast (fast), default (fast+full), --slow (slow), --all. Gate is REGRESSION-focused, not a realism-validity claim \u2014 run larger N manually for that (AUDIT.md). Re-baseline an intentional change by updating 'value' in the same commit. NOTE: rare-event tails (sim INT-rate/turnovers, clutch FG-DiD) are deliberately NOT gated \u2014 small-sample noisy even seeded.",
   "seed": 1337,
   "metrics": [
     {
@@ -10,7 +10,7 @@
       "tier": "fast",
       "label": "mff_league_pressure_rate",
       "pattern": "League pressure rate:\\s+([0-9.]+)%",
-      "value": 40,
+      "value": 39.8,
       "tol": 2.5,
       "nfl": [
         30,
@@ -25,7 +25,7 @@
       "tier": "fast",
       "label": "mff_run_block_win_rate",
       "pattern": "League run-block-win rate:\\s+([0-9.]+)%",
-      "value": 45.7,
+      "value": 45.3,
       "tol": 3,
       "nfl": [
         30,
@@ -40,7 +40,7 @@
       "tier": "fast",
       "label": "mff_completion_allowed",
       "pattern": "League completion-allowed:\\s+([0-9.]+)%",
-      "value": 65.5,
+      "value": 66.2,
       "tol": 2.5,
       "nfl": [
         58,
@@ -55,7 +55,7 @@
       "tier": "full",
       "label": "sim_points_per_game",
       "pattern": "Points / game\\s+([0-9.]+)",
-      "value": 21.3,
+      "value": 20.8,
       "tol": 1.5,
       "nfl": [
         17,
@@ -70,7 +70,7 @@
       "tier": "full",
       "label": "sim_total_yds_per_game",
       "pattern": "Total yds / game\\s+([0-9.]+)",
-      "value": 347,
+      "value": 344,
       "tol": 18,
       "nfl": [
         290,
@@ -85,7 +85,7 @@
       "tier": "full",
       "label": "sim_completion_pct",
       "pattern": "Completion %\\s+([0-9.]+)%",
-      "value": 64,
+      "value": 64.5,
       "tol": 1.5,
       "nfl": [
         58,
@@ -100,7 +100,7 @@
       "tier": "full",
       "label": "sim_yards_per_carry",
       "pattern": "Yards / carry\\s+([0-9.]+)",
-      "value": 4.39,
+      "value": 4.36,
       "tol": 0.25,
       "nfl": [
         3.9,
@@ -115,7 +115,7 @@
       "tier": "full",
       "label": "sim_sacks_per_game",
       "pattern": "Sacks / game\\s+([0-9.]+)",
-      "value": 2.44,
+      "value": 2.47,
       "tol": 0.4,
       "nfl": [
         1.6,
@@ -130,7 +130,7 @@
       "tier": "full",
       "label": "sim_yards_per_play",
       "pattern": "Yards / play\\s+([0-9.]+)",
-      "value": 5.71,
+      "value": 5.69,
       "tol": 0.25,
       "nfl": [
         5,
@@ -160,7 +160,7 @@
       "tier": "full",
       "label": "sim_kr_avg_yds",
       "pattern": "KR avg \\(yds\\)\\s+([0-9.]+)",
-      "value": 24.4,
+      "value": 24.5,
       "tol": 2.5,
       "nfl": [
         20,
@@ -190,7 +190,7 @@
       "tier": "full",
       "label": "sim_penalties_per_game",
       "pattern": "TOTAL accepted / game\\s+([0-9.]+)",
-      "value": 10.55,
+      "value": 10.69,
       "tol": 1.6,
       "nfl": [
         9,
@@ -205,7 +205,7 @@
       "tier": "full",
       "label": "sim_one_score_game_pct",
       "pattern": "One-score games \\(margin <=8\\)\\s+([0-9.]+)%",
-      "value": 43.4,
+      "value": 43.8,
       "tol": 4,
       "nfl": [
         44,

@@ -1881,10 +1881,23 @@ const harness = `
     row("Games missed / team-season",     perTS(_inj.gamesMissed),  null, null, v => v.toFixed(1));
     row("Median weeks out",               med,                      null);
     row("P90 weeks out",                  p90,                      null);
-    console.log("  ── by position (injuries / team-season) ──");
+    // V5 — BANDED per-position injury shares. NFL injury-report / IR
+    // distributions (normalized for 53-man roster composition): OL leads
+    // on volume (most bodies), the speed+contact positions (WR/RB/CB/LB)
+    // lead per player, QBs are protected by rule, and specialists barely
+    // appear. Bands are deliberately wide — this checks the SHAPE (no
+    // position wildly over/under-injured), not season noise. Banding the
+    // SHARE (% of all injuries) keeps the check robust if the total rate
+    // is ever retuned.
+    console.log("  ── by position (share of all injuries, %) ──");
+    const _posBands = { QB:[2,8], RB:[6,15], WR:[10,20], TE:[4,11], OL:[13,26],
+                        DL:[9,19], LB:[8,18], CB:[7,17], S:[5,14], K:[0,2], P:[0,2] };
     for (const pos of ["QB","RB","WR","TE","OL","DL","LB","CB","S","K","P"]) {
-      if (!_inj.byPos[pos]) continue;
-      console.log("    " + pos.padEnd(5) + perTS(_inj.byPos[pos]).toFixed(2).padStart(6));
+      const share = 100 * (_inj.byPos[pos] || 0) / Math.max(1, _inj.total);
+      const bandPos = _posBands[pos];
+      row("  " + pos + " share % (" + perTS(_inj.byPos[pos] || 0).toFixed(2) + "/ts)",
+          share, bandPos[0], bandPos[1], v => v.toFixed(1));
+      chk("Injuries", pos + " injury share %", share, bandPos[0], bandPos[1], v => v.toFixed(1), "NFL shape");
     }
     console.log("  ── most common injury types (% of all) ──");
     for (const [lab, n] of Object.entries(_inj.byLabel).sort((a, b) => b[1] - a[1]).slice(0, 8)) {
