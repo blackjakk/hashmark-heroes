@@ -4105,6 +4105,7 @@ function _ipcEnsurePanel() {
       <span class="ipc-badge" id="ipcBadge">🎙 YOUR CALL</span>
       <span class="ipc-sit" id="ipcSit"></span>
       <span class="ipc-lean" id="ipcLean" title="What your coach would call here"></span>
+      <span class="ipc-clock" id="ipcClock" title="Play clock — at zero your coordinator makes the call"></span>
     </div>
     <div class="ipc-btns" id="ipcBtns"></div>`;
   const cap = document.getElementById("playCaption");
@@ -4193,9 +4194,49 @@ function _ipcShowPanel() {
   el.querySelector("#ipcLean").textContent = lean;
   el.querySelector("#ipcBtns").innerHTML = btns;
   el.style.display = "flex";
+  _ipcClockStart();
+}
+
+// ── Local play clock ────────────────────────────────────────────────────────
+// Solo interactive games used to wait forever on a call. Now the panel runs
+// the same 20s play clock the H2H server enforces; at zero the prompt
+// auto-defers to the OC/DC ("auto" = null on the tape, byte-identical to
+// pressing O). Net matches keep the SERVER clock authoritative — its
+// countdown already renders into #ipcSit and the server defers on expiry,
+// so the local clock never arms there. The clock freezes while the tab is
+// hidden (background-tab interval throttling would otherwise burn the
+// whole clock and play the game out behind the user's back).
+const _IPC_CLOCK_MS = 20000;
+let _ipcClockTimer = null;
+let _ipcClockDeadline = 0;
+function _ipcClockStart() {
+  _ipcClockStop();
+  const clockEl = document.getElementById("ipcClock");
+  if (!_ipc || !_ipc.pending) return;
+  if (_ipc.mode === "net") { if (clockEl) clockEl.textContent = ""; return; }
+  _ipcClockDeadline = Date.now() + _IPC_CLOCK_MS;
+  const tick = () => {
+    const el = document.getElementById("ipcClock");
+    if (!_ipc || !_ipc.pending) { _ipcClockStop(); return; }
+    if (document.hidden) { _ipcClockDeadline += 200; return; }
+    const left = _ipcClockDeadline - Date.now();
+    if (el) {
+      el.textContent = `⏱ ${Math.max(0, Math.ceil(left / 1000))}`;
+      el.classList.toggle("hot", left < 5000);
+    }
+    if (left <= 0) { _ipcClockStop(); frnPlaycall("auto"); }
+  };
+  _ipcClockTimer = setInterval(tick, 200);
+  tick();
+}
+function _ipcClockStop() {
+  if (_ipcClockTimer) { clearInterval(_ipcClockTimer); _ipcClockTimer = null; }
+  const el = document.getElementById("ipcClock");
+  if (el) { el.textContent = ""; el.classList.remove("hot"); }
 }
 
 function _ipcHidePanel() {
+  _ipcClockStop();
   const el = document.getElementById("ipcPanel");
   if (el) el.style.display = "none";
 }

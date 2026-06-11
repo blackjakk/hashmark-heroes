@@ -4956,6 +4956,12 @@
     font-family: 'IBM Plex Mono', monospace; font-size: .62rem;
     color: var(--blgray, #9aa7b8); letter-spacing: .5px;
   }
+  .ipc-clock {
+    font-family: 'IBM Plex Mono', monospace; font-size: .78rem; font-weight: 700;
+    color: var(--blgold, #f5c542); letter-spacing: .5px; min-width: 3ch; text-align: right;
+  }
+  .ipc-clock.hot { color: #ff5b5b; animation: ipc-clock-pulse .5s ease-in-out infinite alternate; }
+  @keyframes ipc-clock-pulse { from { opacity: 1; } to { opacity: .45; } }
   .ipc-btns { display: flex; gap: .45rem; flex-wrap: wrap; }
   .ipc-btn {
     font-family: 'Bebas Neue','Anton',sans-serif; letter-spacing: 1px;
