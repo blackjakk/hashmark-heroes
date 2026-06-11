@@ -4,7 +4,13 @@
 // State persisted in localStorage so it survives page reloads.
 
 const FRANCHISE_KEY   = "gc_franchise_v1";
-const FRANCHISE_WEEKS = 17;
+// 18 calendar weeks · 17 games per team · one bye each (half the league
+// rests in week 9, the other half in week 10 — see
+// generateFranchiseSchedule). Use GAMES_PER_TEAM anywhere the math means
+// "games in a season", FRANCHISE_WEEKS where it means "weeks on the
+// calendar" — they stopped being the same number when byes landed.
+const FRANCHISE_WEEKS = 18;
+const GAMES_PER_TEAM  = 17;
 const PLAYOFF_TEAMS   = 14;  // NFL-style: 7 per conference (#1 seed gets a bye)
 const PLAYOFF_PER_CONF = 7;
 const PLAYOFF_ROUND_NAMES = ["WILD CARD", "DIVISIONAL", "CONFERENCE", "SUPER BOWL"];
@@ -4411,26 +4417,35 @@ function frnRenameSlot(id) {
   renderFrnStartScreen();
 }
 
-// ── Schedule — 17 games over 17 weeks via Berger round-robin ─────────────────
-// 32 teams × 17 games = 544 team-games / 2 = 272 games total, packed into
-// 17 weeks of 16 games each. Berger circle method gives each team 17 unique
-// opponents (out of 31 possible). No bye weeks — matches the NFL 17-game
-// total but compresses to 17 weeks instead of 18 (no in-season rest week).
+// ── Schedule — 17 games over 18 weeks via Berger round-robin + byes ──────────
+// 32 teams × 17 games = 544 team-games / 2 = 272 games total. Berger circle
+// method builds 17 full ROUNDS (16 games each, every team playing); the
+// middle round (9) is then SPLIT across two calendar weeks — its first 8
+// games land in week 9, the other 8 in week 10 — so the 16 teams playing
+// in week 10 are on BYE in week 9 and vice versa. Every team gets exactly
+// one bye, totals stay exact (16 full weeks × 16 + 2 bye weeks × 8 = 272),
+// and rounds 10-17 shift to weeks 11-18.
 function generateFranchiseSchedule() {
   const arr = TEAMS.map(t => t.id);
   const n   = arr.length;   // 32
+  const ROUNDS = GAMES_PER_TEAM;          // 17
+  const SPLIT_ROUND = 9;                  // becomes calendar weeks 9 + 10
   const schedule = [];
-  for (let week = 1; week <= FRANCHISE_WEEKS; week++) {
+  for (let round = 1; round <= ROUNDS; round++) {
     for (let i = 0; i < n / 2; i++) {
       const a = arr[i], b = arr[n - 1 - i];
-      const homeId = (i + week) % 2 === 0 ? a : b;
+      const homeId = (i + round) % 2 === 0 ? a : b;
       const awayId = homeId === a ? b : a;
+      const week = round < SPLIT_ROUND ? round
+                 : round === SPLIT_ROUND ? (i < n / 4 ? SPLIT_ROUND : SPLIT_ROUND + 1)
+                 : round + 1;
       schedule.push({ week, homeId, awayId, homeScore: null, awayScore: null, played: false });
     }
     // Rotate arr[1..n-1] right by 1 position (arr[0] is fixed)
     const last = arr.pop();
     arr.splice(1, 0, last);
   }
+  schedule.sort((a, b) => a.week - b.week);
   // Home/away BALANCE pass. The circle-method assignment above left whole sets
   // of teams stuck all-home or all-away (e.g. 17 away, 0 home) — which also
   // robbed those teams of home-field advantage all season. Greedy fix: walk the
@@ -4898,7 +4913,7 @@ function renderFrnStartScreen() {
       <div class="fps-hero-sub">American Football Manager</div>
       <div class="fps-ticker">
         <span><b>32</b> teams</span><i></i>
-        <span><b>${FRANCHISE_WEEKS}</b>-game season</span><i></i>
+        <span><b>${GAMES_PER_TEAM}</b>-game season</span><i></i>
         <span><b>${PLAYOFF_TEAMS}</b>-team playoffs</span><i></i>
         <span><b>MVP</b> &amp; award races</span><i></i>
         <span><b>FA</b> bidding wars</span><i></i>

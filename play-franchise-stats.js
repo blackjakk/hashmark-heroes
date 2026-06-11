@@ -1300,6 +1300,14 @@ function _findPlayer(nameOrPid, pid) {
     const p = roster.find(rp => rp.nickname === nameOrPid);
     if (p) return p;
   }
+  // Injured reserve — IR players leave the active roster arrays, so
+  // without this they fell through to the retired-player snapshot
+  // lookup and the card opened a "RETIRED" modal for a guy on IR.
+  for (const pool of Object.values(franchise?.ir || {})) {
+    if (!pool) continue;
+    const p = pool.find(rp => (pid && rp.pid === pid) || rp.name === nameOrPid || rp.nickname === nameOrPid);
+    if (p) return p;
+  }
   // Free agents + practice squads
   for (const pool of [franchise?.freeAgents, ...Object.values(franchise?.practiceSquads || {})]) {
     if (!pool) continue;
@@ -2710,15 +2718,15 @@ function _playoffClinchStatus(teamId, sorted) {
   const target = sorted.find(s => s.id === teamId);
   if (!target) return null;
   const gp = (target.w || 0) + (target.l || 0) + (target.t || 0);
-  const gamesLeft = Math.max(0, FRANCHISE_WEEKS - gp);
-  if (gamesLeft >= FRANCHISE_WEEKS) return null; // season hasn't started
+  const gamesLeft = Math.max(0, GAMES_PER_TEAM - gp);
+  if (gamesLeft >= GAMES_PER_TEAM) return null; // season hasn't started
   const conf = target.team.conference;
   const confTeams = sorted.filter(s => s.team.conference === conf);
   const seedCount = PLAYOFF_TEAMS / 2;
   const bubble     = confTeams[seedCount - 1];
   const firstOut   = confTeams[seedCount];
   if (!bubble) return null;
-  const _maxWins = s => (s.w || 0) + Math.max(0, FRANCHISE_WEEKS - ((s.w||0)+(s.l||0)+(s.t||0)));
+  const _maxWins = s => (s.w || 0) + Math.max(0, GAMES_PER_TEAM - ((s.w||0)+(s.l||0)+(s.t||0)));
   const _minWins = s => (s.w || 0);
   const targetMin = _minWins(target);
   const targetMax = _maxWins(target);
@@ -4320,6 +4328,7 @@ async function renderFrnDepthChart() {
       </div>
       <div style="display:flex;gap:.45rem;align-items:center">
         <button class="frn-dc-auto-btn${autoChangedSlots>0?" hot":""}" data-confirm-msg="${autoBtnConfirm.replace(/"/g,"&quot;")}" onclick="(async()=>{ if(await _frnConfirm(this.dataset.confirmMsg)) frnDepthAutoSetOVR(); })()">${autoBtnLabel}</button>
+        <button class="btn btn-outline" onclick="frnOpenStreetFA()" title="Sign unsigned free agents mid-season — 1-year street deals, cap and roster rules apply">📥 STREET FAs</button>
         <button class="btn btn-outline" onclick="showFranchiseDashboard()">← Back</button>
       </div>
     </div>
@@ -8280,6 +8289,24 @@ function renderFrnRegular() {
         <div style="color:var(--gray);margin-bottom:1rem">Final record: ${recStr} · PF ${myStand.pf} / PA ${myStand.pa}</div>
         <button class="btn btn-gold-big" onclick="frnConfirmStartPlayoffs()">🏆 START PLAYOFFS</button>
       </div>`;
+  } else if (!myGames.some(g => g.week === week) && week <= FRANCHISE_WEEKS) {
+    // BYE WEEK — no game on the schedule this week. Rest week: wear and
+    // stress decay extra (the weekly recovery pass treats non-playing
+    // teams as byes), so the card sells the upside instead of looking
+    // like a dead end.
+    const backGame = nextGame;
+    const backOpp = backGame ? getTeam(backGame.homeId === chosenTeamId ? backGame.awayId : backGame.homeId) : null;
+    nextCardHtml = `
+      <div class="frn-next-card" style="text-align:center;border-color:var(--blgray, #9aa7b8)">
+        <div style="font-size:1.25rem;font-weight:900;color:var(--blgray, #9aa7b8);letter-spacing:2px;margin-bottom:.35rem">😴 WEEK ${week} — BYE</div>
+        <div style="color:var(--gray);font-size:.78rem;margin-bottom:.8rem;font-family:var(--font-prose)">
+          No game this week — your roster gets a full recovery bounce (wear and stress decay extra while resting).
+          ${backOpp ? `Back in Week ${backGame.week} ${backGame.homeId === chosenTeamId ? "vs" : "at"} the ${backOpp.name}.` : ""}
+        </div>
+        <div class="frn-next-actions" style="justify-content:center">
+          ${_renderSimForwardPanel()}
+        </div>
+      </div>`;
   } else {
     // User played their game this week; other teams' games pending
     nextCardHtml = `
@@ -8333,8 +8360,17 @@ function renderFrnRegular() {
   // focus on the Next Up card + the glanceable schedule strip.
   const fullScheduleHtml = `
     <div class="frn-card-box">
-      <div class="frn-card-title">FULL SCHEDULE <span class="frn-card-title-sub">${FRANCHISE_WEEKS} games</span></div>
+      <div class="frn-card-title">FULL SCHEDULE <span class="frn-card-title-sub">${GAMES_PER_TEAM} games · 1 bye</span></div>
       ${(()=>{
+  // The bye is the one week in 1..FRANCHISE_WEEKS with no game.
+  const _schWeeks = new Set(myGames.map(g => g.week));
+  let _byeW = null;
+  for (let w = 1; w <= FRANCHISE_WEEKS; w++) if (!_schWeeks.has(w)) { _byeW = w; break; }
+  const _byeRow = _byeW == null ? "" : `<div class="frn-game-row" style="opacity:.75" data-bye-week="${_byeW}">
+    <span class="frn-wk">W${_byeW}</span>
+    <span class="frn-opp" style="color:var(--blgray, #9aa7b8);letter-spacing:1px">😴 BYE WEEK</span>
+    <span class="frn-res" style="color:var(--gray);font-size:.6rem">rest + recovery</span>
+  </div>`;
   const schHtml = myGames.map(g => {
     const isHome = g.homeId === chosenTeamId;
     const oppId  = isHome ? g.awayId : g.homeId;
@@ -8364,8 +8400,12 @@ function renderFrnRegular() {
       <span class="frn-opp">${rivalTag}${isHome ? "vs" : "@"} ${teamLink(opp)} <span style="color:var(--gray);font-size:.62rem">${oppRS}</span></span>
       ${isNext ? `<span class="frn-res" style="color:var(--gold)">NEXT</span>` : ""}
     </div>`;
-  }).join("");
-  return schHtml;
+  });
+  if (_byeRow) {
+    const at = myGames.findIndex(g => g.week > _byeW);
+    schHtml.splice(at === -1 ? schHtml.length : at, 0, _byeRow);
+  }
+  return schHtml.join("");
       })()}
     </div>`;
 
@@ -8663,7 +8703,27 @@ function renderFrnRegular() {
       <div class="frn-gauntlet-tag" style="background:${toughCol}22;color:${toughCol};border-color:${toughCol}55">${tough.toUpperCase()}</div>
     </div>`;
   };
-  const haveAnything = stripPast.length || upcoming4.length;
+  // BYE card — surface the rest week inside the gauntlet when it falls
+  // in (or at the front of) the upcoming window.
+  const _gqWeeks = new Set(myGames.map(g => g.week));
+  let _gqByeW = null;
+  for (let w = 1; w <= FRANCHISE_WEEKS; w++) if (!_gqWeeks.has(w)) { _gqByeW = w; break; }
+  const gauntletCards = upcoming4.map(g => ({ week: g.week, html: _gauntletCard(g) }));
+  if (_gqByeW != null && _gqByeW >= week &&
+      (gauntletCards.length === 0 || _gqByeW <= gauntletCards[gauntletCards.length - 1].week)) {
+    gauntletCards.push({ week: _gqByeW, html: `<div class="frn-gauntlet-card" style="--toughCol:#9aa7b8">
+      <div class="frn-gauntlet-wk">W${_gqByeW}</div>
+      <div class="frn-gauntlet-opp">😴 BYE WEEK</div>
+      <div class="frn-gauntlet-rec">—</div>
+      <div class="frn-gauntlet-rating">
+        <span class="frn-gauntlet-rval" style="color:#86e0a3">REST</span>
+        <span class="frn-gauntlet-rsub">wear + stress recover</span>
+      </div>
+      <div class="frn-gauntlet-tag" style="background:#9aa7b822;color:#9aa7b8;border-color:#9aa7b855">RECOVERY</div>
+    </div>` });
+    gauntletCards.sort((a, b) => a.week - b.week);
+  }
+  const haveAnything = stripPast.length || gauntletCards.length;
   const gauntletHtml = haveAnything ? `
     <div class="frn-card-box frn-schedule-card">
       <div class="frn-card-title">
@@ -8676,10 +8736,10 @@ function renderFrnRegular() {
           <div class="frn-sched-strip-group">${stripPast.map(g => stripChip(g, "past")).join("")}</div>
         </div>
       ` : ""}
-      ${upcoming4.length ? `
+      ${gauntletCards.length ? `
         <div class="frn-schedule-future-row">
           <span class="frn-schedule-row-label">UPCOMING</span>
-          <div class="frn-gauntlet">${upcoming4.map(_gauntletCard).join("")}</div>
+          <div class="frn-gauntlet">${gauntletCards.map(c => c.html).join("")}</div>
         </div>
       ` : ""}
     </div>` : "";

@@ -2422,6 +2422,11 @@
     transition: transform .08s;
   }
   .frn-cuts-auto-btn:hover { transform: translateY(-1px); }
+  .frn-cuts-auto-btn.restruct {
+    background: linear-gradient(180deg, var(--green-lt), var(--green));
+    color: #eafff0;
+    box-shadow: 0 2px 0 rgba(0,0,0,.4), 0 4px 12px rgba(46,139,87,.25);
+  }
   .frn-cuts-sort-wrap {
     display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
     margin-left: auto;

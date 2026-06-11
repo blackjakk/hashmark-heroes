@@ -3798,10 +3798,205 @@ function _frnChaosRolls(homeId, awayId) {
 //   interactive runner's throwaway partial re-sims must not stack those onto
 //   the real league. Player objects are save-serialized JSON, so a JSON
 //   round-trip is a faithful clone.
+
+// ── Mid-season street free agency ───────────────────────────────────────────
+// The FA-phase leftovers stay signable all season — real teams patch
+// injury holes with street free agents every week. One-year deals at a
+// street discount; cap room and the 53-man limit are the only gates.
+function _streetFAPrice(p) {
+  const cap = franchise.salaryCap || SALARY_CAP_BASE;
+  const market = (typeof computeMarketValue === "function") ? computeMarketValue(p, cap) : 2;
+  // Street discount: half of market, capped — nobody signs a star deal
+  // off the couch in November.
+  return Math.max(0.8, Math.round(Math.min(market * 0.5, 8) * 10) / 10);
+}
+// The street never runs dry — when the FA pool thins out (or the season
+// started before one was generated), top it up with vet-min/camp-body
+// tier players so an injury-struck team always has SOMEONE to sign.
+function _streetFATopUp(minPool = 12) {
+  franchise.freeAgents = franchise.freeAgents || [];
+  if (franchise.freeAgents.length >= minPool) return;
+  const taken = new Set();
+  for (const r of Object.values(franchise.rosters || {})) r.forEach(p => taken.add(p.name));
+  franchise.freeAgents.forEach(p => taken.add(p.name));
+  const POS = ["QB", "RB", "RB", "WR", "WR", "WR", "TE", "OL", "OL", "DL", "DL", "LB", "LB", "CB", "CB", "S", "K", "P"];
+  const stories = [
+    "Working out in his garage all fall",
+    "Was coaching high school ball last week",
+    "Answered the phone on the first ring",
+    "Kept his playbook from two teams ago",
+    "Flew in on a red-eye for the workout",
+    "Says he never stopped training",
+  ];
+  while (franchise.freeAgents.length < minPool + 8) {
+    const pos = POS[Math.floor(Math.random() * POS.length)];
+    const p = genUniquePlayer(pos, Math.random() < 0.3 ? "average" : "poor", taken);
+    taken.add(p.name);
+    p.age = 26 + Math.floor(Math.random() * 8);
+    p.draftRound = Math.random() < 0.4 ? 0 : 5 + Math.floor(Math.random() * 3);
+    p.faStory = stories[Math.floor(Math.random() * stories.length)];
+    if (typeof generateCareer === "function") try { generateCareer(p); } catch (e) {}
+    if (typeof _assignFACareerTeams === "function") try { _assignFACareerTeams(p); } catch (e) {}
+    franchise.freeAgents.push(p);
+  }
+}
+function frnOpenStreetFA(posFilter) {
+  const myId = franchise.chosenTeamId;
+  _streetFATopUp();
+  const pool = (franchise.freeAgents || []).slice()
+    .filter(p => !posFilter || p.position === posFilter)
+    .sort((a, b) => (b.overall || 0) - (a.overall || 0));
+  const room = effectiveSalaryCap(myId) - capUsedByTeam(myId);
+  const spots = (typeof rosterSpaceLeft === "function") ? rosterSpaceLeft(myId) : 1;
+  const POS = ["ALL", "QB", "RB", "WR", "TE", "OL", "DL", "LB", "CB", "S", "K", "P"];
+  const chips = POS.map(ps =>
+    `<button class="btn ${((ps === "ALL" && !posFilter) || ps === posFilter) ? "btn-gold" : "btn-outline"}" style="font-size:.6rem;padding:.15rem .45rem" onclick="frnOpenStreetFA(${ps === "ALL" ? "" : `'${ps}'`})">${ps}</button>`).join("");
+  const rows = pool.slice(0, 30).map(p => {
+    const price = _streetFAPrice(p);
+    const esc = (p.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const blocked = price > room ? "over cap" : spots <= 0 ? "roster full" : null;
+    return `<div class="frn-resign-row" style="padding:.4rem .6rem">
+      <div class="frn-resign-row-inner" style="align-items:center">
+        <div class="frn-resign-info" style="flex-direction:row;gap:.6rem;align-items:baseline">
+          <span style="font-weight:700">${_escHtml(p.name)}</span>
+          <span style="color:var(--gray);font-size:.68rem">${p.position} · ${gradeLabel(scoutGrade(p))} grade · Age ${p.age || "?"}</span>
+          ${p.faStory ? `<span style="color:var(--gold-lt);font-size:.6rem;font-style:italic">"${p.faStory}"</span>` : ""}
+        </div>
+        <span style="color:var(--gold);font-weight:700;font-size:.78rem;margin-right:.6rem">$${price.toFixed(1)}M · 1yr</span>
+        ${blocked
+          ? `<button class="btn frn-resign-btn" disabled style="opacity:.45" title="${blocked}">✗ ${blocked.toUpperCase()}</button>`
+          : `<button class="btn frn-resign-btn accept-btn" onclick="frnSignStreetFA('${esc}')">✍ SIGN</button>`}
+      </div>
+    </div>`;
+  }).join("");
+  const existing = document.getElementById("frn-streetfa-modal");
+  if (existing) existing.remove();
+  const el = document.createElement("div");
+  el.id = "frn-streetfa-modal";
+  el.className = "frn-resign-recap-overlay";
+  el.innerHTML = `<div class="frn-resign-recap-card" style="max-width:760px">
+    <button class="frn-resign-recap-close" onclick="frnCloseStreetFA()">×</button>
+    <div class="frn-resign-recap-eyebrow">WEEK ${franchise.week} · STREET FREE AGENTS</div>
+    <h2 class="frn-resign-recap-title">📥 ${pool.length} AVAILABLE</h2>
+    <p style="color:var(--gray);text-align:center;margin:.2rem 0 .6rem;font-size:.7rem;font-family:var(--font-prose)">
+      Unsigned veterans — 1-year street deals at half market. Cap room <b style="color:${room < 3 ? "#ff8a8a" : "var(--green-lt)"}">$${room.toFixed(1)}M</b> · roster spots <b style="color:${spots <= 0 ? "#ff8a8a" : "var(--green-lt)"}">${spots}</b>${spots <= 0 ? " — cut or IR someone first" : ""}
+    </p>
+    <div style="display:flex;gap:.25rem;justify-content:center;flex-wrap:wrap;margin-bottom:.6rem">${chips}</div>
+    <div class="frn-resign-list" style="max-height:52vh;overflow-y:auto">${rows || `<div style="color:var(--gray);text-align:center;padding:1rem;font-style:italic">Nobody left on the street${posFilter ? ` at ${posFilter}` : ""}.</div>`}</div>
+    <div class="frn-resign-recap-cta"><button class="btn btn-outline" onclick="frnCloseStreetFA()">← Close</button></div>
+  </div>`;
+  el.addEventListener("click", e => { if (e.target === el) frnCloseStreetFA(); });
+  el.tabIndex = -1;
+  el.addEventListener("keydown", e => { if (e.key === "Escape") { e.stopPropagation(); frnCloseStreetFA(); } });
+  document.body.appendChild(el);
+  el.focus();
+  el._posFilter = posFilter || null;
+}
+function frnCloseStreetFA() {
+  const el = document.getElementById("frn-streetfa-modal");
+  if (el) el.remove();
+}
+function frnSignStreetFA(name) {
+  const myId = franchise.chosenTeamId;
+  const pool = franchise.freeAgents || [];
+  const p = pool.find(x => x.name === name);
+  if (!p) return;
+  const price = _streetFAPrice(p);
+  const room = effectiveSalaryCap(myId) - capUsedByTeam(myId);
+  const spots = (typeof rosterSpaceLeft === "function") ? rosterSpaceLeft(myId) : 1;
+  if (price > room) { _frnAlert(`Not enough cap room — $${price.toFixed(1)}M deal, $${room.toFixed(1)}M available.`); return; }
+  if (spots <= 0)   { _frnAlert(`Roster is at the ${ACTIVE_ROSTER_LIMIT}-man limit — cut or IR someone first.`); return; }
+  p.contract = {
+    years: 1, remaining: 1, aav: price, structure: "BALANCED",
+    baseSalaries: [price], signingBonus: 0, bonusProration: 0, tradeKicker: 0,
+    guaranteedYears: 0, guaranteedAAV: price, incentives: [], signedAav: price,
+    startSeason: franchise.season || 1, signedOvr: p.overall || 60,
+  };
+  franchise.freeAgents = pool.filter(x => x.name !== name);
+  (franchise.rosters[myId] ||= []).push(p);
+  if (typeof _pushNews === "function") {
+    _pushNews({ type: "fa_sign",
+      label: `✍ Signed ${p.position} ${p.name} off the street — 1yr / $${price.toFixed(1)}M (Week ${franchise.week})` });
+  }
+  saveFranchise();
+  const modal = document.getElementById("frn-streetfa-modal");
+  frnOpenStreetFA(modal?._posFilter || undefined);
+}
+
+// ── Emergency depth (NEXT MAN UP) ────────────────────────────────────────────
+// Donor positions per group, in preference order. Mirrors real emergency
+// football: a CB slides to safety, a WR takes backfield snaps, the kicker
+// punts. The convert plays at a stiff out-of-position penalty.
+const _EMERGENCY_DONORS = {
+  QB: ["WR", "RB", "TE"], RB: ["WR", "TE", "LB"], WR: ["RB", "CB", "TE"],
+  TE: ["WR", "OL", "LB"], OL: ["DL", "TE"],       DL: ["OL", "LB"],
+  LB: ["S", "DL", "TE"],  CB: ["S", "WR"],        S:  ["CB", "LB"],
+  K:  ["P"],              P:  ["K"],
+};
+// Healthy bodies a game needs per group (engine starter slots).
+const _EMERGENCY_NEED = { QB: 1, RB: 1, WR: 2, TE: 1, OL: 5, DL: 4, LB: 3, CB: 2, S: 2, K: 1 };
+const _EMERGENCY_OVR_MULT = 0.82;   // out-of-position: ~-18% overall
+// Returns { roster, conversions } — `roster` is a NEW array where each
+// converted player is REPLACED by a position-swapped clone (so the same
+// human never appears at two spots). Conversions only happen when a
+// group is short of its game-day minimum, so almost every call is a
+// no-op pass-through.
+function _emergencyDepthPatch(roster, teamId) {
+  const healthy = (p) => !(p.injury && p.injury.weeksRemaining > 0);
+  const byPos = {};
+  for (const p of roster) if (healthy(p)) (byPos[p.position] ||= []).push(p);
+  for (const k in byPos) byPos[k].sort((a, b) => (b.overall || 0) - (a.overall || 0));
+  let out = roster;
+  const conversions = [];
+  for (const [pos, need] of Object.entries(_EMERGENCY_NEED)) {
+    let missing = need - (byPos[pos] || []).length;
+    if (missing <= 0) continue;
+    for (const donorPos of _EMERGENCY_DONORS[pos] || []) {
+      while (missing > 0) {
+        const donors = byPos[donorPos] || [];
+        // Never strip a donor group below its own game-day minimum.
+        if (donors.length <= (_EMERGENCY_NEED[donorPos] || 0)) break;
+        const d = donors.pop();   // most expendable healthy body in the group
+        const clone = {
+          ...d,
+          position: pos,
+          overall: Math.max(40, Math.round((d.overall || 60) * _EMERGENCY_OVR_MULT)),
+          stats: Array.isArray(d.stats) ? d.stats.map(v => Math.max(30, Math.round(v * 0.88))) : d.stats,
+          _emergencyFrom: donorPos,
+        };
+        if (out === roster) out = roster.slice();
+        const idx = out.indexOf(d);
+        if (idx !== -1) out[idx] = clone; else out.push(clone);
+        (byPos[pos] ||= []).push(clone);
+        conversions.push({ name: d.name, from: donorPos, to: pos });
+        missing--;
+      }
+      if (missing <= 0) break;
+    }
+  }
+  // Surface the user's own emergencies on the wire (once per week+player).
+  if (conversions.length && teamId === franchise?.chosenTeamId && typeof _pushNews === "function") {
+    franchise._emergencyNewsStamp = franchise._emergencyNewsStamp || {};
+    for (const c of conversions) {
+      const key = `${franchise.season}.${franchise.week}.${c.name}.${c.to}`;
+      if (franchise._emergencyNewsStamp[key]) continue;
+      franchise._emergencyNewsStamp[key] = 1;
+      _pushNews({ type: "injury",
+        label: `🚨 NEXT MAN UP — with every healthy ${c.to} out, ${c.from} ${c.name} lines up at ${c.to} this week (out-of-position penalty)` });
+    }
+  }
+  return { roster: out, conversions };
+}
 function _frnBuildLiveSim(homeId, awayId, isPlayoff, chaos, cloneRosters) {
   const home       = getTeam(homeId), away = getTeam(awayId);
-  const homeRoster = cloneRosters ? JSON.parse(JSON.stringify(franchise.rosters[homeId])) : franchise.rosters[homeId];
-  const awayRoster = cloneRosters ? JSON.parse(JSON.stringify(franchise.rosters[awayId])) : franchise.rosters[awayId];
+  let homeRoster = cloneRosters ? JSON.parse(JSON.stringify(franchise.rosters[homeId])) : franchise.rosters[homeId];
+  let awayRoster = cloneRosters ? JSON.parse(JSON.stringify(franchise.rosters[awayId])) : franchise.rosters[awayId];
+  // NEXT MAN UP — when injuries empty a position group, the engine used
+  // to field a 50-OVR ghost with a placeholder name. Convert the most
+  // expendable healthy neighbor (CB→S, WR→RB, K→P…) at an out-of-position
+  // penalty so a real, named player lines up there instead.
+  homeRoster = _emergencyDepthPatch(homeRoster, homeId).roster;
+  awayRoster = _emergencyDepthPatch(awayRoster, awayId).roster;
 
   const isRivalry = _areRivals(homeId, awayId);
   const sim = new GameSimulator(home, away, homeRoster, awayRoster,
@@ -10180,7 +10375,7 @@ function _buildExtensionPitch(ctx, live, cap) {
   // at 100% as a safety net so corrupted data never shows ">100%".
   const seasonsCompleted = careerHistory.length;
   const histGP = careerHistory.reduce((s, r) => s + (r.gp || 0), 0);
-  const wpsConst = (typeof FRANCHISE_WEEKS === "number" ? FRANCHISE_WEEKS : 14);
+  const wpsConst = (typeof GAMES_PER_TEAM === "number" ? GAMES_PER_TEAM : 17);
   const maxGP = seasonsCompleted * wpsConst;
   const availPct = maxGP > 0 ? Math.min(100, Math.round(histGP / maxGP * 100)) : 0;
   const availColor = availPct >= 90 ? "var(--green-lt)" : availPct >= 75 ? "var(--gold)" : "#ff8a8a";

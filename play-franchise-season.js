@@ -3371,7 +3371,7 @@ function _restorePriorCareerHistories_v4() {
       // Only repair when the gap is meaningful (≥ 10 games unaccounted for).
       if (missingGP < 10) continue;
       // Estimate missing seasons from GP gap (~14 reg-season games).
-      const wpsConst = (typeof FRANCHISE_WEEKS === "number" ? FRANCHISE_WEEKS : 14);
+      const wpsConst = (typeof GAMES_PER_TEAM === "number" ? GAMES_PER_TEAM : 17);
       const missingCount = Math.max(1, Math.min(15, Math.round(missingGP / wpsConst)));
       // Compute per-row distribution: each new row gets stats/missingCount.
       const newRows = [];
@@ -7836,6 +7836,38 @@ function _faRestructurePreview(player) {
   return { eligible: true, freed, newProration, currentBase, remaining };
 }
 
+// Per-year cap-hit DELTAS of a restructure plan over the next 4 seasons:
+// this year drops by `freed`; each remaining future contract year rises
+// by `newProration`. Lets the confirm dialogs show where the money GOES,
+// not just what it frees today.
+function _faRestructureYearDeltas(plan) {
+  const deltas = [0, 0, 0, 0];
+  for (const { prev } of plan) {
+    for (let i = 0; i < 4; i++) {
+      if (i === 0) deltas[0] -= prev.freed;
+      else if (i < prev.remaining) deltas[i] += prev.newProration;
+    }
+  }
+  return deltas.map(d => Math.round(d * 10) / 10);
+}
+function _faRestructureSpreadText(plan) {
+  const d = _faRestructureYearDeltas(plan);
+  const s0 = franchise.season || 1;
+  return [0, 1, 2, 3]
+    .map(i => `  S${s0 + i}${i === 0 ? " (now)" : ""}: ${d[i] > 0 ? "+" : ""}$${d[i].toFixed(1)}M`)
+    .join("\n");
+}
+// Commit half of a restructure — shared by the single-player flow and
+// the auto-restructure plan. Caller confirms first.
+function _faRestructureApply(p, prev) {
+  const c = p.contract;
+  const yearIndex = Math.max(0, (c.years || 1) - (c.remaining || 1));
+  if (c.baseSalaries) c.baseSalaries[yearIndex] = 0;
+  c.bonusProration     = Math.round(((c.bonusProration || 0) + prev.newProration) * 10) / 10;
+  c.signingBonus       = Math.round(((c.signingBonus   || 0) + prev.currentBase) * 10) / 10;
+  c.restructuredSeason = franchise.season;
+}
+
 // Execute a restructure inline from the cuts screen. Mirrors the
 // commit half of the analytics-screen flow but re-renders the cuts
 // screen so the user stays in the cut-decision context.
@@ -7851,20 +7883,60 @@ async function frnFARestructureFromCuts(name, pos) {
   }
   const msg = `Restructure ${name}?\n\n`
             + `Convert $${prev.currentBase.toFixed(1)}M of current-year base salary into a $${prev.newProration.toFixed(1)}M/yr signing bonus across ${prev.remaining} years.\n\n`
-            + `Frees $${prev.freed.toFixed(1)}M of cap now.\n`
-            + `Adds $${prev.newProration.toFixed(1)}M/yr in dead money if cut later.\n\n`
+            + `CAP SPREAD (your cap, by season):\n${_faRestructureSpreadText([{ prev }])}\n\n`
+            + `Adds $${prev.newProration.toFixed(1)}M/yr in dead money if cut later.\n`
             + `Limited to once per player per offseason.`;
   if (!(await _frnConfirm(msg))) return;
-  const c = p.contract;
-  const yearIndex = Math.max(0, (c.years || 1) - (c.remaining || 1));
-  if (c.baseSalaries) c.baseSalaries[yearIndex] = 0;
-  c.bonusProration     = Math.round(((c.bonusProration || 0) + prev.newProration) * 10) / 10;
-  c.signingBonus       = Math.round(((c.signingBonus   || 0) + prev.currentBase) * 10) / 10;
-  c.restructuredSeason = franchise.season;
+  _faRestructureApply(p, prev);
   saveFranchise();
   if (typeof _pushNews === "function") {
     _pushNews({ type: "restructure",
       label: `🔀 Restructured ${p.position} ${name} — freed $${prev.freed.toFixed(1)}M, added $${prev.newProration.toFixed(1)}M/yr dead` });
+  }
+  renderFrnFACuts();
+}
+
+// AUTO-RESTRUCTURE TO CAP — greedy plan over every eligible contract
+// (largest freed first) until the team is under the cap, confirmed as
+// ONE plan with the combined per-season cap spread. Nobody gets cut;
+// the cost is dead-money risk pushed into future years.
+async function frnFAAutoRestructure() {
+  const myId = franchise.chosenTeamId;
+  const roster = franchise?.rosters?.[myId] || [];
+  const cap = effectiveSalaryCap(myId);
+  const used = capUsedByTeam(myId);
+  const need = used - cap;
+  if (need <= 0) { _frnAlert("You're already under the cap."); return; }
+  const cands = roster
+    .map(p => ({ p, prev: _faRestructurePreview(p) }))
+    .filter(c => c.prev.eligible)
+    .sort((a, b) => b.prev.freed - a.prev.freed);
+  if (!cands.length) {
+    _frnAlert("No restructure-eligible contracts (needs 2+ years left, $2M+ base, not already restructured this season).");
+    return;
+  }
+  const plan = [];
+  let freedSum = 0;
+  for (const c of cands) {
+    if (freedSum >= need) break;
+    plan.push(c);
+    freedSum = Math.round((freedSum + c.prev.freed) * 10) / 10;
+  }
+  const short = Math.max(0, Math.round((need - freedSum) * 10) / 10);
+  const lines = plan.map(({ p, prev }) =>
+    `  ${p.position} ${p.name} — frees $${prev.freed.toFixed(1)}M (+$${prev.newProration.toFixed(1)}M/yr next ${prev.remaining - 1}yr)`).join("\n");
+  const msg = `AUTO-RESTRUCTURE — ${plan.length} contract${plan.length === 1 ? "" : "s"}\n\n`
+            + `Over the cap by $${need.toFixed(1)}M · this plan frees $${freedSum.toFixed(1)}M\n\n`
+            + `${lines}\n\n`
+            + `CAP SPREAD (your cap, by season):\n${_faRestructureSpreadText(plan)}\n\n`
+            + (short > 0 ? `⚠ Still $${short.toFixed(1)}M short after this — cuts or trades cover the rest.\n\n` : "")
+            + `Each contract restructures once per season; every dollar moved becomes dead money if that player is cut later.`;
+  if (!(await _frnConfirm(msg))) return;
+  for (const { p, prev } of plan) _faRestructureApply(p, prev);
+  saveFranchise();
+  if (typeof _pushNews === "function") {
+    _pushNews({ type: "restructure",
+      label: `♻ Front office restructured ${plan.length} contract${plan.length === 1 ? "" : "s"} — freed $${freedSum.toFixed(1)}M of cap${short > 0 ? ` (still $${short.toFixed(1)}M over)` : " (now compliant)"}` });
   }
   renderFrnFACuts();
 }
@@ -8604,6 +8676,7 @@ function renderFrnFACuts() {
       })()}
       <div class="frn-cuts-hero-actions">
         ${overCap ? `<button class="frn-cuts-auto-btn" onclick="frnFAAutoCutSuggest()">✨ AUTO-CUT TO LEGAL</button>` : ""}
+        ${overCap ? `<button class="frn-cuts-auto-btn restruct" onclick="frnFAAutoRestructure()" title="Convert base salaries to signing bonus across eligible contracts until you're under the cap — no one gets cut, but dead-money risk moves into future years">♻ AUTO-RESTRUCTURE TO CAP</button>` : ""}
         <div class="frn-cuts-sort-wrap">
           <span class="frn-cuts-sort-label">Sort:</span>
           ${["relief","aav","dead","restruct","ovr","age","pos"].map(k => {
