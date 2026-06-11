@@ -118,21 +118,11 @@ otherwise take direction from the user.
     audit gate 0-drift). Madden-style procedural SVG play art on every
     card (_ipcPlayArt; routes/zones/blitz arrows/kick arcs). Keys:
     1-5 runs, 6-0 passes, QWEASD shots, T/K fakes, K/S kickoff,
-    7/8 new shells. Probes: tools/_playsheet_probe.js (28 headless
-    engine checks), _ipc_clock_probe.js (19). — the offensive prompt
-    offers REAL plays, not run/pass: 4 run variants (RUN_INSIDE/OUTSIDE/
-    COUNTER/TOSS → engine runTypes via `RUN_CALL_VARIANTS`) + the 6
-    PASS_CONCEPTS (QUICK_GAME…PA_SHOT), plus generic run/pass and OC
-    defer. Engine seam accepts named calls and stashes
-    `_offConceptCall`/`_offRunCall`; downstream picks (PA roll, screen
-    roll, concept pick, runType roll, QB-keeper + reverse) override ROLL
-    RESULTS only — every draw still runs, so defer/no-coordinator stays
-    byte-identical (audit gate 0-drift). Called runs suppress reverses/
-    QB keepers; called concepts suppress accidental screens/PA. Keys:
-    1-4 runs, 5-0 passes, R/P generic, O defer. Works in net play too
-    (server's engine seam validates; foreign strings = defer). Probes:
-    `tools/_playsheet_probe.js` (13 headless engine checks),
-    `_ipc_clock_probe.js` → 19.
+    7/8 new shells. Works in net play unchanged (the server runs the
+    same engine seams; foreign strings = defer). Called runs suppress
+    reverses/QB keepers; called concepts suppress accidental screens/PA.
+    Probes: `tools/_playsheet_probe.js` (28 headless engine checks),
+    `_ipc_clock_probe.js` (19).
 17. **Huddle scene + defense pace** (post-compact) — while a call prompt
     is up, both squads form real huddles at the new LOS instead of the
     previous play's freeze-frame; status line on the TOP banner (the
