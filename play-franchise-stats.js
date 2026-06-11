@@ -4263,59 +4263,72 @@ async function renderFrnDepthChart() {
   // the edges. List view stays the home of snap bars + backups.
   const FIELD_SPOTS = {
     OFF: {
-      los: 30,
+      los: 26,
       spots: {
-        WR1: [6, 26],  WR3: [17, 31], LT: [33, 28], LG: [41, 28], C: [49, 28],
-        RG: [57, 28],  RT: [65, 28],  TE1: [74, 31], WR4: [84, 31], WR2: [95, 26],
-        TE2: [25, 36], QB: [49, 50],  RB1: [49, 72], RB2: [63, 64],
+        WR1: [5, 16],  LT: [30, 16], LG: [40, 16], C: [50, 16],
+        RG: [60, 16],  RT: [70, 16], TE1: [80, 16], WR2: [95, 16],
+        WR3: [15, 36], TE2: [25, 36], WR4: [88, 36],
+        QB: [50, 54],  RB1: [50, 76], RB2: [66, 70],
       },
     },
     DEF: {
-      los: 74,
+      los: 80,
       spots: {
-        DL1: [33, 67], DL2: [44, 67], DL3: [55, 67], DL4: [66, 67],
-        DL5: [22, 67], DL6: [77, 67],
+        DL1: [33, 70], DL2: [44, 70], DL3: [55, 70], DL4: [66, 70],
+        DL5: [22, 70], DL6: [77, 70],
         LB1: [33, 48], LB2: [49, 48], LB3: [66, 48],
-        CB1: [7, 60],  CB2: [92, 60], NB: [20, 52], NB2: [80, 52],
-        SS: [33, 22],  FS: [66, 22],
+        CB1: [6, 62],  CB2: [93, 62], NB: [15, 44], NB2: [84, 44],
+        SS: [33, 18],  FS: [66, 18],
       },
     },
     ST: {
-      los: 55,
-      spots: { K: [30, 38], P: [49, 38], KR1: [68, 38], PR1: [49, 72] },
+      los: 52,
+      spots: { K: [30, 34], P: [50, 34], KR1: [70, 34], PR1: [50, 72] },
     },
   };
   const PKG_ONLY = new Set(["DL5", "DL6", "NB2"]);
   const renderFieldView = (unitKey) => {
     const cfg = FIELD_SPOTS[unitKey];
     if (!cfg) return "";
-    const spotCard = (slotKey, x, y) => {
-      const slot = dc[slotKey];
-      const p = slot?.starter ? byPid[slot.starter] : null;
+    // One PILL per depth level — uniform size, starter bold on top,
+    // backup indented beneath. Both are independent drag sources AND
+    // drop targets, so 2nd-stringers move between spots/levels too.
+    const pill = (slotKey, role, p) => {
+      const isStarter = role === "starter";
       const slotPos = (typeof _dcSlotPos === "function") ? _dcSlotPos(slotKey) : null;
-      const oop = p && slotPos && slotPos !== "RET" && p.position !== slotPos;
-      const hurt = p && p.injury && p.injury.weeksRemaining > 0;
-      const effOvr = p ? (oop ? Math.max(40, Math.round((p.overall || 60) * 0.82)) : (p.overall || 60)) : null;
-      const escPid = p ? (p.pid || "").replace(/'/g, "\\'").replace(/"/g, "&quot;") : "";
-      const faded = PKG_ONLY.has(slotKey) ? " pkg" : "";
       if (!p) {
-        return `<div class="frn-dc-spot empty${faded} frn-dc-droptarget" style="left:${x}%;top:${y}%" data-slot="${slotKey}" data-role="starter"${dropAttrs(slotKey, "starter")}>
-          <span class="frn-dc-spot-slot">${slotKey}</span>
-          <span class="frn-dc-spot-name">— open —</span>
+        return `<div class="frn-dc-spot-pill ${isStarter ? "s" : "b"} empty frn-dc-droptarget" data-slot="${slotKey}" data-role="${role}"${dropAttrs(slotKey, role)}>
+          <span class="frn-dc-spot-rank">${isStarter ? "★" : "▸"}</span><span class="frn-dc-spot-name">— open —</span>
         </div>`;
       }
-      return `<div class="frn-dc-spot${oop ? " oop" : ""}${hurt ? " injured" : ""}${faded} frn-dc-droptarget" draggable="true" style="left:${x}%;top:${y}%"
-        data-slot="${slotKey}" data-role="starter" data-pid="${escPid}"
-        ondragstart="frnDcDragStart(event,'${escPid}','${slotKey}','starter')" ondragend="frnDcDragEnd(event)"${dropAttrs(slotKey, "starter")}
-        title="${_escHtml(p.name)} — ${slotKey}${oop ? ` · OUT OF POSITION (${p.position}→${slotPos}, plays at ${effOvr})` : ""}${hurt ? ` · 🚫 OUT ${p.injury.weeksRemaining}w` : ""} · drag to move">
-        <span class="frn-dc-spot-slot">${slotKey}${oop ? " ⚠" : ""}${hurt ? " 🚫" : ""}</span>
-        <span class="frn-dc-spot-name" onclick="frnOpenPlayerCard('${(p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'")}','${escPid}')">${_escHtml(p.name.split(" ").slice(-1)[0])}</span>
-        <span class="frn-dc-spot-ovr${oop ? " oop" : ""}">${effOvr}</span>
+      const oop = slotPos && slotPos !== "RET" && p.position !== slotPos;
+      const hurt = p.injury && p.injury.weeksRemaining > 0;
+      const effOvr = oop ? Math.max(40, Math.round((p.overall || 60) * 0.82)) : (p.overall || 60);
+      const escPid = (p.pid || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+      const escName = (p.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      return `<div class="frn-dc-spot-pill ${isStarter ? "s" : "b"}${oop ? " oop" : ""}${hurt ? " injured" : ""} frn-dc-droptarget" draggable="true"
+        data-slot="${slotKey}" data-role="${role}" data-pid="${escPid}"
+        ondragstart="frnDcDragStart(event,'${escPid}','${slotKey}','${role}')" ondragend="frnDcDragEnd(event)"${dropAttrs(slotKey, role)}
+        title="${_escHtml(p.name)} — ${slotKey} ${isStarter ? "starter" : "backup"}${oop ? ` · OUT OF POSITION (${p.position}→${slotPos}, plays at ${effOvr})` : ""}${hurt ? ` · 🚫 OUT ${p.injury.weeksRemaining}w` : ""} · drag to move">
+        <span class="frn-dc-spot-rank">${isStarter ? "★" : "▸"}</span>
+        <span class="frn-dc-spot-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name.split(" ").slice(-1)[0])}</span>
+        <span class="frn-dc-spot-ovr${oop ? " oop" : ""}">${effOvr}${hurt ? "🚫" : ""}</span>
+      </div>`;
+    };
+    const spotStack = (slotKey, x, y) => {
+      const slot = dc[slotKey] || {};
+      const starter = slot.starter ? byPid[slot.starter] : null;
+      const backup  = slot.backup  ? byPid[slot.backup]  : null;
+      const faded = PKG_ONLY.has(slotKey) ? " pkg" : "";
+      return `<div class="frn-dc-spot${faded}" style="left:${x}%;top:${y}%">
+        <span class="frn-dc-spot-slot">${slotKey}</span>
+        ${pill(slotKey, "starter", starter)}
+        ${pill(slotKey, "backup", backup)}
       </div>`;
     };
     const spots = Object.entries(cfg.spots)
       .filter(([k]) => dc[k] !== undefined || !PKG_ONLY.has(k))
-      .map(([k, [x, y]]) => spotCard(k, x, y)).join("");
+      .map(([k, [x, y]]) => spotStack(k, x, y)).join("");
     // Unit-wide bench strip — every unassigned player at this unit's positions.
     const unitPositions = new Set(activeGroups.map(g => g.pos));
     const benchPool = roster

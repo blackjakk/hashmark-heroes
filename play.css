@@ -5923,12 +5923,15 @@
   .frn-dc-bench-chip:hover { border-color: var(--gold); }
   .frn-dc-bench-none { font-size: .56rem; color: var(--gray); font-style: italic; }
 
-  /* ── Field view — formation diagram with positioned, draggable spots ── */
+  /* ── Field view — formation diagram, uniform depth stacks ──
+     One card per formation spot: slot tag, starter pill (bold), backup
+     pill (indented, dimmer) beneath. Every pill is its own drag source
+     and drop target. */
   .frn-dc-field-wrap { display: flex; flex-direction: column; gap: .4rem; }
   .frn-dc-field {
-    position: relative; height: 460px; border-radius: 8px;
+    position: relative; height: 540px; border-radius: 8px;
     background:
-      repeating-linear-gradient(to bottom, transparent 0 54px, rgba(255,255,255,.05) 54px 56px),
+      repeating-linear-gradient(to bottom, transparent 0 60px, rgba(255,255,255,.05) 60px 62px),
       linear-gradient(180deg, #1c5c30 0%, #1a542c 50%, #174d28 100%);
     border: 1px solid rgba(255,255,255,.12);
     box-shadow: inset 0 0 40px rgba(0,0,0,.35);
@@ -5944,29 +5947,53 @@
   }
   .frn-dc-spot {
     position: absolute; transform: translate(-50%, -50%);
-    display: flex; flex-direction: column; align-items: center; gap: 1px;
-    min-width: 74px; max-width: 96px; padding: .25rem .4rem;
-    background: rgba(8,14,9,.82); border: 1px solid rgba(255,255,255,.18);
-    border-radius: 6px; cursor: grab; text-align: center;
+    display: flex; flex-direction: column; gap: 2px;
+    width: 108px;
+    padding: .22rem .25rem .25rem;
+    background: rgba(8,14,9,.78); border: 1px solid rgba(255,255,255,.16);
+    border-radius: 7px;
     box-shadow: 0 2px 8px rgba(0,0,0,.45);
   }
-  .frn-dc-spot:active { cursor: grabbing; }
-  .frn-dc-spot.empty { border-style: dashed; opacity: .65; cursor: default; }
   .frn-dc-spot.pkg { opacity: .55; }
-  .frn-dc-spot.injured { border-color: rgba(255,90,90,.6); }
-  .frn-dc-spot.oop { border-color: rgba(255,154,77,.7); }
   .frn-dc-spot-slot {
     font-size: .5rem; letter-spacing: 1px; color: var(--gold); font-weight: 800;
+    text-align: center; line-height: 1;
   }
+  .frn-dc-spot-pill {
+    display: flex; align-items: center; gap: .25rem;
+    width: 100%; border-radius: 4px; cursor: grab;
+    border: 1px solid transparent;
+    padding: .14rem .3rem;
+    background: rgba(255,255,255,.06);
+  }
+  .frn-dc-spot-pill:active { cursor: grabbing; }
+  .frn-dc-spot-pill.s {
+    background: rgba(212,175,55,.14);
+    border-color: rgba(212,175,55,.35);
+  }
+  .frn-dc-spot-pill.s .frn-dc-spot-name { font-size: .68rem; font-weight: 800; }
+  .frn-dc-spot-pill.s .frn-dc-spot-ovr  { font-size: .85rem; }
+  .frn-dc-spot-pill.b {
+    margin-left: 10px; width: calc(100% - 10px);
+    opacity: .8;
+  }
+  .frn-dc-spot-pill.b .frn-dc-spot-name { font-size: .6rem; font-weight: 600; }
+  .frn-dc-spot-pill.b .frn-dc-spot-ovr  { font-size: .7rem; opacity: .85; }
+  .frn-dc-spot-pill.empty { border-style: dashed; border-color: rgba(255,255,255,.18); opacity: .55; cursor: default; background: transparent; }
+  .frn-dc-spot-pill.empty .frn-dc-spot-name { color: var(--gray); font-style: italic; text-decoration: none; cursor: default; }
+  .frn-dc-spot-pill.injured { border-color: rgba(255,90,90,.55); }
+  .frn-dc-spot-pill.oop { border-color: rgba(255,154,77,.65); }
+  .frn-dc-spot-rank { font-size: .55rem; color: var(--gold); flex-shrink: 0; }
+  .frn-dc-spot-pill.b .frn-dc-spot-rank { color: var(--blgray); }
   .frn-dc-spot-name {
-    font-size: .66rem; font-weight: 700; color: var(--white);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 88px;
+    flex: 1; min-width: 0;
+    color: var(--white); text-align: left;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px;
   }
-  .frn-dc-spot.empty .frn-dc-spot-name { color: var(--gray); font-style: italic; text-decoration: none; cursor: default; }
   .frn-dc-spot-ovr {
-    font-family: 'Bebas Neue','Anton',sans-serif; font-size: .9rem; line-height: 1;
-    color: var(--gold-lt);
+    font-family: 'Bebas Neue','Anton',sans-serif; line-height: 1;
+    color: var(--gold-lt); flex-shrink: 0;
   }
   .frn-dc-spot-ovr.oop { color: #ffb37a; }
 

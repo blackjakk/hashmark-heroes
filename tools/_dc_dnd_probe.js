@@ -145,6 +145,22 @@ const ok = (c, l) => { if (c) { pass++; console.log("  ✓ " + l); } else { fail
   }));
   ok(fv2.wr3 === fv.wr1Before && fv2.wr1 === fv.wr3Before, "field-view drag swaps WR1 ↔ WR3");
   ok(fv2.stillField, "re-render stays in field view");
+  // Backup-level drag: move a 2nd-stringer between spots (the "2nd to
+  // 3rd string" move — depth beyond the pair lives across slots).
+  const bk = await page.evaluate(() => ({
+    rb1b: franchise.depthChart[franchise.chosenTeamId].RB1.backup,
+    rb2b: franchise.depthChart[franchise.chosenTeamId].RB2.backup,
+    pills: document.querySelectorAll(".frn-dc-spot-pill").length,
+    stacks: document.querySelectorAll(".frn-dc-spot").length,
+  }));
+  ok(bk.pills >= bk.stacks * 2 - 2, `every spot stacks starter + backup pills (${bk.pills} pills / ${bk.stacks} spots)`);
+  await page.dragAndDrop(`.frn-dc-field [data-slot="RB1"][data-role="backup"]`, `.frn-dc-field [data-slot="RB2"][data-role="backup"]`).catch(() => {});
+  await page.waitForTimeout(400);
+  const bk2 = await page.evaluate(() => ({
+    rb1b: franchise.depthChart[franchise.chosenTeamId].RB1.backup,
+    rb2b: franchise.depthChart[franchise.chosenTeamId].RB2.backup,
+  }));
+  ok(bk.rb1b == null || (bk2.rb2b === bk.rb1b), "backup pill drags between spots (RB1 backup → RB2 backup)");
   await page.evaluate(() => frnDepthSetView("list"));
   await page.waitForTimeout(300);
 
