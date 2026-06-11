@@ -3664,6 +3664,87 @@ function _buildInjuryCascadeText(slotKey, dc, byPid) {
   return `If injured — cascade chain:\n${chain.join("\n")}`;
 }
 
+// ── Depth chart drag & drop ──────────────────────────────────────────────────
+// Every player cell is a drag source and a drop target; each group has a
+// BENCH tray (drag in to assign, drop a charted player to unassign).
+// Cross-position drops are validated by _dcCanPlay (the emergency-donor
+// adjacency: CB↔S, WR↔RB, K↔P, …) and play at the out-of-position
+// penalty — the engine sees the converted player via
+// _applyDepthChartToRoster. The ▲/⇅/↑/↓ buttons remain the keyboard
+// path; drag never becomes the only way.
+let _dcDrag = null;   // { pid, fromSlot, fromRole } — fromSlot "" = bench
+function _dcPlayerByPid(pid) {
+  return (franchise?.rosters?.[franchise.chosenTeamId] || []).find(p => p.pid === pid) || null;
+}
+function frnDcDragStart(ev, pid, fromSlot, fromRole) {
+  _dcDrag = { pid, fromSlot: fromSlot || null, fromRole: fromRole || null };
+  ev.dataTransfer.effectAllowed = "move";
+  try { ev.dataTransfer.setData("text/plain", pid); } catch (e) {}
+  ev.currentTarget.classList.add("dragging");
+}
+function frnDcDragEnd(ev) {
+  ev.currentTarget.classList.remove("dragging");
+  document.querySelectorAll(".frn-dc-droptarget").forEach(el => el.classList.remove("frn-dc-over", "frn-dc-bad"));
+  _dcDrag = null;
+}
+function frnDcDragOver(ev, slotKey) {
+  if (!_dcDrag) return;
+  const p = _dcPlayerByPid(_dcDrag.pid);
+  const okDrop = !!(p && typeof _dcCanPlay === "function" && _dcCanPlay(p.position, _dcSlotPos(slotKey)));
+  ev.currentTarget.classList.toggle("frn-dc-over", okDrop);
+  ev.currentTarget.classList.toggle("frn-dc-bad", !okDrop);
+  if (okDrop) { ev.preventDefault(); ev.dataTransfer.dropEffect = "move"; }
+}
+function frnDcDragLeave(ev) {
+  ev.currentTarget.classList.remove("frn-dc-over", "frn-dc-bad");
+}
+function frnDcDrop(ev, slotKey, role) {
+  ev.preventDefault();
+  ev.currentTarget.classList.remove("frn-dc-over", "frn-dc-bad");
+  if (!_dcDrag) return;
+  const drag = _dcDrag;
+  _dcDrag = null;
+  const myId = franchise.chosenTeamId;
+  const dc = franchise.depthChart?.[myId];
+  const p = _dcPlayerByPid(drag.pid);
+  if (!dc || !p || !_dcCanPlay(p.position, _dcSlotPos(slotKey))) return;
+  if (drag.fromSlot === slotKey && drag.fromRole === role) return;
+  dc[slotKey] = dc[slotKey] || { starter: null, backup: null };
+  const displaced = dc[slotKey][role] || null;
+  // Swap back into the source cell when the displaced player can play
+  // there; otherwise the source cell empties (he's back on the bench).
+  if (drag.fromSlot && dc[drag.fromSlot]) {
+    const dp = displaced && displaced !== drag.pid ? _dcPlayerByPid(displaced) : null;
+    dc[drag.fromSlot][drag.fromRole] =
+      (dp && _dcCanPlay(dp.position, _dcSlotPos(drag.fromSlot))) ? displaced : null;
+  }
+  dc[slotKey][role] = drag.pid;
+  _optimizeSnapShares(myId);
+  saveFranchise();
+  renderFrnDepthChart();
+}
+// Bench: always droppable — dropping a charted player unassigns him.
+function frnDcBenchOver(ev) {
+  if (!_dcDrag || !_dcDrag.fromSlot) return;   // bench→bench = no-op
+  ev.currentTarget.classList.add("frn-dc-over");
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = "move";
+}
+function frnDcDropBench(ev) {
+  ev.preventDefault();
+  ev.currentTarget.classList.remove("frn-dc-over", "frn-dc-bad");
+  if (!_dcDrag) return;
+  const drag = _dcDrag;
+  _dcDrag = null;
+  if (!drag.fromSlot) return;
+  const dc = franchise.depthChart?.[franchise.chosenTeamId];
+  if (!dc?.[drag.fromSlot]) return;
+  dc[drag.fromSlot][drag.fromRole] = null;
+  _optimizeSnapShares(franchise.chosenTeamId);
+  saveFranchise();
+  renderFrnDepthChart();
+}
+
 // Swap starters at slots[idx] and slots[idx+1] within a position group,
 // then reoptimize snap shares so the engine reflects the new order.
 function frnDepthSwap(posKey, idx) {
@@ -3927,7 +4008,14 @@ async function renderFrnDepthChart() {
   };
 
   // ── Player cell ───────────────────────────────────────────────────────────
+  // Every cell is BOTH a drag source and a drop target (HTML5 DnD).
+  // Buttons (▲/⇅/↑/↓) stay as the keyboard path — drag is an addition,
+  // never the only way.
+  const dropAttrs = (slotKey, role) =>
+    ` ondragover="frnDcDragOver(event,'${slotKey}')" ondragleave="frnDcDragLeave(event)"` +
+    ` ondrop="frnDcDrop(event,'${slotKey}','${role}')"`;
   const playerCell = (p, isStarter, slotKey) => {
+    const role = isStarter ? "starter" : "backup";
     const misplaced = isStarter ? isStarterMisplaced(slotKey) : isBackupMisplaced(slotKey);
     const autoPid   = autoChart[slotKey]?.[isStarter ? "starter" : "backup"];
     const autoP     = autoPid ? byPid[autoPid] : null;
@@ -3935,12 +4023,20 @@ async function renderFrnDepthChart() {
       ? `<span class="frn-dc-badge mis" title="AUTO-by-OVR would place ${_escHtml(autoP.name)} (OVR ${autoP.overall}) here">⚠ ${autoP.name.split(" ").slice(-1)[0]}</span>`
       : "";
     if (!p) {
-      return `<div class="frn-dc-player ${isStarter?"s1":"s2"} empty${misplaced?" misplaced":""}">
+      return `<div class="frn-dc-player ${isStarter?"s1":"s2"} empty${misplaced?" misplaced":""} frn-dc-droptarget" data-slot="${slotKey}" data-role="${role}"${dropAttrs(slotKey, role)}>
         <span class="frn-dc-rank ${isStarter?"r1":"r2"}">${isStarter?"★1":"▸2"}</span>
-        <span class="frn-dc-empty">— open —</span>
+        <span class="frn-dc-empty">— open — drag a player here</span>
         ${misBadge}
       </div>`;
     }
+    // Out-of-position chip: a player slotted outside his natural group
+    // (drag-and-drop cross-position) plays at the emergency penalty.
+    const slotPos = (typeof _dcSlotPos === "function") ? _dcSlotPos(slotKey) : null;
+    const oop = slotPos && slotPos !== "RET" && p.position !== slotPos;
+    const effOvr = oop ? Math.max(40, Math.round((p.overall || 60) * 0.82)) : (p.overall || 60);
+    const oopBadge = oop
+      ? `<span class="frn-dc-badge oop" title="Out of position — natural ${p.position}, lining up at ${slotPos}. Plays at ${effOvr} effective OVR (−18%).">${p.position}→${slotPos} · ${effOvr} OVR</span>`
+      : "";
     const escName    = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     const escPid     = (p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     const isInjured  = (p.injury?.weeksRemaining || 0) > 0;
@@ -4004,12 +4100,13 @@ async function renderFrnDepthChart() {
     const titleAttr = cascadeTitle
       ? ` title="${cascadeTitle.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"`
       : "";
-    return `<div class="frn-dc-player ${isStarter?"s1":isCascade?"sc":"s2"}${isInjured?" injured":""}${misplaced?" misplaced":""}"${titleAttr}>
+    return `<div class="frn-dc-player ${isStarter?"s1":isCascade?"sc":"s2"}${isInjured?" injured":""}${misplaced?" misplaced":""} frn-dc-droptarget" draggable="true" data-slot="${slotKey}" data-role="${role}" data-pid="${escPid}"
+      ondragstart="frnDcDragStart(event,'${escPid}','${slotKey}','${role}')" ondragend="frnDcDragEnd(event)"${dropAttrs(slotKey, role)}${titleAttr}>
       <span class="frn-dc-rank ${rankClass}">${rankLabel}</span>
       ${gradeBadge(p)}
       <span class="frn-dc-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name)}</span>
       <span class="frn-dc-meta">${p.age} · $${aav}M · ${yrs}yr</span>
-      ${archBadge}${cascadeBadge}${injBadge}${expBadge}${blkBadge}${moodBadge}${potBadge}${misBadge}
+      ${oopBadge}${archBadge}${cascadeBadge}${injBadge}${expBadge}${blkBadge}${moodBadge}${potBadge}${misBadge}
       ${promoteBtn}
     </div>`;
   };
@@ -4090,6 +4187,27 @@ async function renderFrnDepthChart() {
       </div>`;
     }).join("");
 
+    // ── Bench tray — unassigned players at this position, draggable into
+    // any slot. Doubles as a drop target: dropping a charted player here
+    // unassigns him.
+    const benchPool = roster
+      .filter(p => p.position === group.pos && p.pid && !assignedPids.has(p.pid))
+      .sort((a, b) => (b.overall || 0) - (a.overall || 0));
+    const benchChips = benchPool.map(p => {
+      const escPid = (p.pid || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+      const hurt = p.injury && p.injury.weeksRemaining > 0;
+      return `<span class="frn-dc-bench-chip${hurt ? " injured" : ""}" draggable="true" data-pid="${escPid}" data-bench-pos="${group.pos}"
+        ondragstart="frnDcDragStart(event,'${escPid}','','')" ondragend="frnDcDragEnd(event)"
+        title="${_escHtml(p.name)} — OVR ${p.overall}${hurt ? ` · 🚫 OUT ${p.injury.weeksRemaining}w` : ""} · drag onto a slot">
+        ${_escHtml(p.name.split(" ").slice(-1)[0])} <b>${p.overall}</b>${hurt ? " 🚫" : ""}
+      </span>`;
+    }).join("");
+    const benchHtml = (group.pos === "RET") ? "" : `
+      <div class="frn-dc-bench frn-dc-droptarget" ondragover="frnDcBenchOver(event)" ondragleave="frnDcDragLeave(event)" ondrop="frnDcDropBench(event)">
+        <span class="frn-dc-bench-lbl" title="Unassigned ${group.pos}s — drag onto a slot above, or drop a charted player here to unassign">BENCH</span>
+        ${benchChips || `<span class="frn-dc-bench-none">no spare ${group.pos}s — drag from a neighbor group (${(typeof _EMERGENCY_DONORS === "object" && _EMERGENCY_DONORS[group.pos] || []).join("/") || "—"})</span>`}
+      </div>`;
+
     return `<div class="frn-dc-group">
       <div class="frn-dc-group-hdr" style="border-left:3px solid ${strCol}">
         <span class="frn-dc-group-pos">${group.pos}</span>
@@ -4097,6 +4215,7 @@ async function renderFrnDepthChart() {
         <span class="frn-dc-group-str" style="color:${strCol};border-color:${strCol}44">${groupOvr > 0 ? groupOvr+" " : ""}${strLabel}</span>
       </div>
       ${rows}
+      ${benchHtml}
     </div>`;
   };
 

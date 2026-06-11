@@ -266,6 +266,15 @@ function _archetypeBreakStyle(arch) {
   return null;
 }
 
+// Depth ordering — manual depth charts stamp `_depthRank` per position
+// (0 = the slot-1 starter) via the franchise layer; players without a
+// rank sort by overall as always. Rosters that never touch a depth
+// chart (exhibitions, audits, H2H BYO) carry no _depthRank, so this
+// comparator is byte-identical to the old pure-OVR sort for them.
+function _depthCmp(a, b) {
+  return ((a._depthRank ?? 1e9) - (b._depthRank ?? 1e9)) || ((b.overall || 0) - (a.overall || 0));
+}
+
 function buildRatings(roster) {
   // Injured players (`weeksRemaining > 0`) are unavailable — exclude
   // them from depth-chart ratings so missing your QB1 actually hurts.
@@ -274,7 +283,7 @@ function buildRatings(roster) {
     if (p.injury && p.injury.weeksRemaining > 0) continue;
     (byPos[p.position] ||= []).push(p);
   }
-  for (const k in byPos) byPos[k].sort((a,b) => b.overall - a.overall);
+  for (const k in byPos) byPos[k].sort(_depthCmp);
   // Flat top-n average — used only when one player matters (QB, K).
   const g = (pos, n) => {
     const arr = (byPos[pos] || []).slice(0, n);
@@ -395,7 +404,7 @@ class GameSimulator {
     // donating its archetype bonus to the offense from the sidelines.
     const archetypesByPos = (roster, pos, n) => roster
       .filter(p => p.position === pos && !(p.injury && p.injury.weeksRemaining > 0))
-      .sort((a, b) => b.overall - a.overall)
+      .sort(_depthCmp)
       .slice(0, n)
       .map(p => ({ name: p.name, archetype: p.archetype, overall: p.overall, stats: p.stats }));
     // Assigns LT/LG/C/RG/RT slots to the top-5 OL based on archetype + stats.
@@ -1221,7 +1230,7 @@ class GameSimulator {
     const candidates = roster
       .filter(p => p.position === position && !set.has(p.name)
                 && !(p.injury && p.injury.weeksRemaining > 0))
-      .sort((a, b) => (b.overall || 0) - (a.overall || 0));
+      .sort(_depthCmp);
     return candidates[0]?.name || null;
   }
   _ensurePlayerStat(side, name, pos) {

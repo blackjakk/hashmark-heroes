@@ -3923,6 +3923,75 @@ function frnSignStreetFA(name) {
   frnOpenStreetFA(modal?._posFilter || undefined);
 }
 
+// ── Depth chart → engine bridge ──────────────────────────────────────────────
+// The engine used to start players by raw OVR — the depth chart UI's
+// "starter" flag only moved snap percentages. This bridge makes the
+// chart REAL: before each sim, stamp `_depthRank` per position from the
+// chart's slot order (engine sorts rank-first, OVR tiebreak), and turn
+// any cross-position assignment (slot pos ≠ player pos — the drag-and-
+// drop out-of-position feature) into a position-swapped clone at the
+// same penalty the emergency NEXT-MAN-UP machinery uses.
+//
+// AI teams' auto-charts are OVR-ordered by construction, so their game
+// behavior is unchanged; only deliberate edits move lineups.
+function _dcSlotPos(slotKey) {
+  if (typeof DEPTH_POS_GROUPS === "undefined") return null;
+  for (const g of DEPTH_POS_GROUPS) if (g.slots.includes(slotKey)) return g.pos;
+  return null;
+}
+// Can `playerPos` line up at a `slotPos` slot? Same position always;
+// returners take any speed-skill position; otherwise the emergency
+// donor adjacency in EITHER direction (CB↔S, WR↔RB, K↔P, …).
+function _dcCanPlay(playerPos, slotPos) {
+  if (!playerPos || !slotPos) return false;
+  if (playerPos === slotPos) return true;
+  if (slotPos === "RET") return ["WR", "RB", "CB", "S"].includes(playerPos);
+  if ((_EMERGENCY_DONORS[slotPos] || []).includes(playerPos)) return true;
+  return (_EMERGENCY_DONORS[playerPos] || []).includes(slotPos);
+}
+function _applyDepthChartToRoster(roster, teamId) {
+  const dc = franchise?.depthChart?.[teamId];
+  if (!dc) return roster;
+  // Clear stale ranks (players dropped from the chart keep pure-OVR order).
+  for (const p of roster) if (p._depthRank != null) delete p._depthRank;
+  const byPid = new Map(roster.map(p => [p.pid, p]));
+  let out = roster;
+  const rankAt = {};
+  const seen = new Set();
+  for (const g of (typeof DEPTH_POS_GROUPS !== "undefined" ? DEPTH_POS_GROUPS : [])) {
+    if (g.pos === "RET") continue;   // returners are position-agnostic
+    // Starters across the group's slots rank first (RB1→0, RB2→1…), then
+    // backups — matching how the engine consumes depth.
+    for (const role of ["starter", "backup"]) {
+      for (const slotKey of g.slots) {
+        const pid = dc[slotKey]?.[role];
+        if (!pid || seen.has(pid)) continue;   // cascade backups repeat — first assignment wins
+        let p = byPid.get(pid);
+        if (!p) continue;
+        seen.add(pid);
+        if (p.position !== g.pos) {
+          // Out-of-position assignment → converted clone, same penalty
+          // family as the emergency fill. Replace in place so the same
+          // human never appears at two positions.
+          const clone = {
+            ...p,
+            position: g.pos,
+            overall: Math.max(40, Math.round((p.overall || 60) * _EMERGENCY_OVR_MULT)),
+            stats: Array.isArray(p.stats) ? p.stats.map(v => Math.max(30, Math.round(v * 0.88))) : p.stats,
+            _emergencyFrom: p.position,
+          };
+          if (out === roster) out = roster.slice();
+          const idx = out.indexOf(p);
+          if (idx !== -1) out[idx] = clone; else out.push(clone);
+          p = clone;
+        }
+        p._depthRank = (rankAt[g.pos] = (rankAt[g.pos] ?? -1) + 1);
+      }
+    }
+  }
+  return out;
+}
+
 // ── Emergency depth (NEXT MAN UP) ────────────────────────────────────────────
 // Donor positions per group, in preference order. Mirrors real emergency
 // football: a CB slides to safety, a WR takes backfield snaps, the kicker
@@ -3991,8 +4060,12 @@ function _frnBuildLiveSim(homeId, awayId, isPlayoff, chaos, cloneRosters) {
   const home       = getTeam(homeId), away = getTeam(awayId);
   let homeRoster = cloneRosters ? JSON.parse(JSON.stringify(franchise.rosters[homeId])) : franchise.rosters[homeId];
   let awayRoster = cloneRosters ? JSON.parse(JSON.stringify(franchise.rosters[awayId])) : franchise.rosters[awayId];
-  // NEXT MAN UP — when injuries empty a position group, the engine used
-  // to field a 50-OVR ghost with a placeholder name. Convert the most
+  // Depth chart → engine: stamp manual slot order + convert deliberate
+  // out-of-position assignments…
+  homeRoster = _applyDepthChartToRoster(homeRoster, homeId);
+  awayRoster = _applyDepthChartToRoster(awayRoster, awayId);
+  // …then NEXT MAN UP — when injuries empty a position group, the engine
+  // used to field a 50-OVR ghost with a placeholder name. Convert the most
   // expendable healthy neighbor (CB→S, WR→RB, K→P…) at an out-of-position
   // penalty so a real, named player lines up there instead.
   homeRoster = _emergencyDepthPatch(homeRoster, homeId).roster;

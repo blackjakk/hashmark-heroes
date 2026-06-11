@@ -5884,6 +5884,44 @@
   }
   .frn-dc-badge.mood { color: #e8a000; border: 1px solid rgba(232,160,0,.4); }
   .frn-dc-badge.mood.out { color: #fff; background: #b23a3a; border-color: #b23a3a; font-weight: 800; }
+  .frn-dc-badge.oop {
+    color: #ffb37a; border: 1px solid rgba(255,154,77,.5);
+    background: rgba(255,154,77,.10); border-radius: 2px; font-weight: 800;
+  }
+
+  /* ── Drag & drop ── cells are sources AND targets; bench tray below each
+     group holds the unassigned pool. Buttons stay as the keyboard path. */
+  .frn-dc-player[draggable="true"] { cursor: grab; }
+  .frn-dc-player[draggable="true"]:active { cursor: grabbing; }
+  .frn-dc-player.dragging, .frn-dc-bench-chip.dragging { opacity: .35; }
+  .frn-dc-droptarget.frn-dc-over {
+    outline: 2px solid var(--gold); outline-offset: -2px;
+    background: rgba(212,175,55,.10);
+  }
+  .frn-dc-droptarget.frn-dc-bad {
+    outline: 2px solid rgba(255,90,90,.7); outline-offset: -2px;
+    cursor: no-drop;
+  }
+  .frn-dc-bench {
+    display: flex; align-items: center; gap: .3rem; flex-wrap: wrap;
+    padding: .22rem .45rem; margin-top: 1px;
+    background: rgba(0,0,0,.22); border: 1px dashed rgba(255,255,255,.10);
+    min-height: 1.5rem;
+  }
+  .frn-dc-bench-lbl {
+    font-size: .52rem; letter-spacing: 1px; color: var(--blgray); font-weight: 800;
+    margin-right: .15rem;
+  }
+  .frn-dc-bench-chip {
+    display: inline-flex; align-items: center; gap: .25rem;
+    font-size: .58rem; padding: .1rem .4rem; cursor: grab;
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 999px;
+    color: var(--white); white-space: nowrap;
+  }
+  .frn-dc-bench-chip b { color: var(--gold); }
+  .frn-dc-bench-chip.injured { opacity: .55; }
+  .frn-dc-bench-chip:hover { border-color: var(--gold); }
+  .frn-dc-bench-none { font-size: .56rem; color: var(--gray); font-style: italic; }
 
   /* Locker-room mood strip (depth chart → opens the Locker Room) */
   .frn-dc-mood-strip {
