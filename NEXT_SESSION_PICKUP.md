@@ -101,6 +101,19 @@ otherwise take direction from the user.
     128px box per row (rows 210px→82px; the body-wear silhouette had
     computed 0px wide since it shipped — `display: contents` wrapper +
     explicit svg sizing).
+16. **Huddle scene + defense pace** (post-compact) — while a call prompt
+    is up, both squads form real huddles at the new LOS instead of the
+    previous play's freeze-frame; status line on the TOP banner (the
+    bottom cadence slot sits under the scrub bar). DEFENSIVE prompts run
+    a shorter randomized 8-13s window (`_IPC_DEF_CLOCK_*`): the opposing
+    offense BREAKS THE HUDDLE on screen ~2.6s before zero
+    (`_ipcHuddleBreakAt`, hidden-tab freeze shifts it too) and at zero
+    the DC's call locks in (same null-tape "auto" path). Scene:
+    `ipcHuddleStart/Stop` in play-animation.js, jog-transition frame
+    skeleton (`_frameStartBroadcast` → drawField/drawPlayer →
+    `_frameEndBroadcast`); cinema viewMode keeps the freeze-frame.
+    `_ipc_clock_probe.js` now 17 checks (break lead, mid-break call
+    window, scene lifecycle).
 
 ## OPEN THREADS (user picks)
 

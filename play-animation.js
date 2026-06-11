@@ -10370,6 +10370,124 @@ function buildJogTransition(prevPlay, nextPlay) {
   };
 }
 
+// ── Interactive-call huddle scene ───────────────────────────────────────────
+// While the call panel waits on a HUMAN (solo interactive play-calling), the
+// field used to freeze on the previous play's final frame — a scrum of bodies
+// at the tackle spot. Now both squads form real huddles at the new LOS:
+//   • Offensive prompts: your eleven huddle around the QB until you make the
+//     call (the play clock still auto-defers to the OC at zero).
+//   • Defensive prompts: the OPPOSING offense huddles while their OC picks a
+//     play on his own (shorter) clock — when their call is in they BREAK the
+//     huddle and jog to the line; at zero your DC's call locks in. The break
+//     moment comes from opts.breakAtFn (a live read of _ipcHuddleBreakAt,
+//     owned by the clock in play-franchise-offseason.js, so hidden-tab clock
+//     freezes shift the break too).
+// Tactical + broadcast cameras only; cinema keeps the freeze-frame.
+const _HUDDLE_BREAK_MS = 1400;   // huddle → line jog duration
+let _huddleScene = null;
+
+function ipcHuddleStart(opts) {
+  ipcHuddleStop();
+  if (!gameResult) return;
+  if (typeof viewMode !== "undefined" && viewMode === "cinema") return;
+  const canvas = document.getElementById("field");
+  if (!canvas) return;
+  const offSide = opts.offSide === "away" ? "away" : "home";
+  const PX = FIELD.PX_PER_YARD;
+  const cy = (FIELD.TOP + FIELD.BOT) / 2;
+  const dir = offSide === "home" ? 1 : -1;
+  const losX = yardToAbsX(opts.yardLine, offSide);
+  const firstDownAbs = (opts.down > 0 && opts.ytg > 0)
+    ? yardToAbsX(clamp(opts.yardLine + opts.ytg, 0, 100), offSide) : null;
+  const team = offSide === "home" ? gameResult.homeTeam : gameResult.awayTeam;
+  const opp  = offSide === "home" ? gameResult.awayTeam : gameResult.homeTeam;
+  // The formation they'll line up in when the huddle breaks (also the source
+  // of jersey styles/labels). Same construction the jog transition uses.
+  const formation = makeFormation(losX, offSide, {
+    down: opts.down, ytg: opts.ytg, personnel: opts.personnel,
+  });
+  const offStarters = offSide === "home" ? gameResult.homeRatings.starters : gameResult.awayRatings.starters;
+  const defStarters = offSide === "home" ? gameResult.awayRatings.starters : gameResult.homeRatings.starters;
+  attachPlayerStyles(formation, offStarters, defStarters, gameResult.playerLookup);
+
+  // Offense huddle — QB at the LOS-facing edge, his ten in two arced rows
+  // facing him. Defense — a loose two-row cluster on their side, eyes on
+  // the offense. Each entry keeps both spots: h* = huddle, f* = formation.
+  const off = formation.offense.map(p => ({ p, fx: p.x, fy: p.y, hx: p.x, hy: p.y, hf: dir, sf: dir }));
+  const def = formation.defense.map(p => ({ p, fx: p.x, fy: p.y, hx: p.x, hy: p.y, hf: -dir, sf: -dir }));
+  const ohx = losX - dir * 7.5 * PX;
+  const qbE = off.find(o => o.p.role === "QB");
+  if (qbE) { qbE.hx = ohx + dir * 1.7 * PX; qbE.hy = cy; qbE.hf = -dir; }
+  const rest = off.filter(o => o !== qbE);
+  const placeRows = (entries, baseX, rowDir, faceSign) => {
+    const front = entries.slice(0, Math.min(5, entries.length));
+    const back  = entries.slice(front.length);
+    [front, back].forEach((row, ri) => row.forEach((o, j) => {
+      const col = j - (row.length - 1) / 2;
+      o.hx = baseX + rowDir * (0.5 + ri * 1.6 + Math.abs(col) * 0.25) * PX;
+      o.hy = cy + col * 1.95 * PX;
+      o.hf = faceSign;
+    }));
+  };
+  placeRows(rest, ohx, -dir, dir);                      // offense backs away from LOS
+  placeRows(def, losX + dir * 7 * PX, dir, -dir);       // defense clusters on their side
+
+  const scene = _huddleScene = {
+    raf: 0,
+    breakAtFn: typeof opts.breakAtFn === "function" ? opts.breakAtFn : null,
+    label: opts.label || "IN THE HUDDLE",
+  };
+  if (typeof _fcClearAll === "function") _fcClearAll();   // stale result card
+  const ctx = canvas.getContext("2d");
+  const fieldState = { los: losX, firstDownAbs, possColor: team.primary };
+  const loop = () => {
+    if (_huddleScene !== scene) return;
+    if (!canvas.isConnected) { ipcHuddleStop(); return; }
+    const wallNow = Date.now();
+    const breakAt = scene.breakAtFn ? (scene.breakAtFn() || 0) : 0;
+    const p = breakAt && wallNow >= breakAt
+      ? Math.min(1, (wallNow - breakAt) / _HUDDLE_BREAK_MS) : 0;
+    const ease = p * p * (3 - 2 * p);
+    _frameStartBroadcast();
+    drawField(ctx, gameResult.homeTeam, gameResult.awayTeam, fieldState);
+    // Ball spotted at the LOS. skipCarryShift: jogging players passing the
+    // spot must not yank the ball into their hands pre-snap.
+    drawBall(ctx, losX, cy, 1, { angle: 0, skipCarryShift: true });
+    const cyc = (performance.now() / 1000 * 4.2) % 1;
+    const drawSquad = (squad, color, sec) => {
+      for (const o of squad) {
+        const x = o.hx + (o.fx - o.hx) * ease;
+        const y = o.hy + (o.fy - o.hy) * ease;
+        const moving = p > 0 && p < 1
+          && (Math.abs(o.fx - o.hx) + Math.abs(o.fy - o.hy)) > 8;
+        const facing = moving ? (Math.sign(o.fx - o.hx) || o.hf)
+                     : p >= 1 ? o.sf : o.hf;
+        drawPlayer(ctx, x, y, color, sec, o.p.label,
+                   moving ? "run" : "idle", moving ? cyc : 0, facing, o.p);
+      }
+    };
+    drawSquad(off, team.primary, team.secondary);
+    drawSquad(def, opp.primary, opp.secondary);
+    // Status line on the TOP banner — the bottom cadence slot sits under
+    // the playback scrub bar while a prompt is up.
+    if (typeof _fcBanner === "function") {
+      if (p <= 0)      _fcBanner("motion", 0.85, scene.label);
+      else if (p < 1)  _fcBanner("audible", 0.95, "BREAKING THE HUDDLE!");
+      else             _fcBanner("audible", 1, "OFFENSE IS SET!");
+    }
+    _frameEndBroadcast(ctx);
+    scene.raf = requestAnimationFrame(loop);
+  };
+  loop();
+}
+
+function ipcHuddleStop() {
+  if (!_huddleScene) return;
+  cancelAnimationFrame(_huddleScene.raf);
+  _huddleScene = null;
+  if (typeof _fcClearAll === "function") _fcClearAll();
+}
+
 function startNextPlay() {
   if (!gameResult) return;
   // Stale DOM callouts/cards from the prior play don't clear themselves

@@ -4609,6 +4609,26 @@ function _ipcShowPanel() {
   el.querySelector("#ipcBtns").innerHTML = btns;
   el.style.display = "flex";
   _ipcClockStart();
+  // Field scene — both squads huddle at the new LOS while the call is in
+  // (PAT prompts keep the TD aftermath on screen instead). On defensive
+  // prompts the scene reads _ipcHuddleBreakAt (armed by the clock above):
+  // the opposing offense breaks the huddle when their OC's play is in.
+  if (typeof ipcHuddleStart === "function") {
+    if (kind === "pat") ipcHuddleStop();
+    else {
+      const offSide = kind === "defense"
+        ? (_ipc.userSide === "home" ? "away" : "home")
+        : _ipc.userSide;
+      ipcHuddleStart({
+        offSide, yardLine: c.yardLine, ytg: c.ytg, down: c.down,
+        personnel: c.offPersonnel,
+        label: kind === "defense"
+          ? "THEY'RE IN THE HUDDLE — GET YOUR CALL IN"
+          : "YOUR OFFENSE IS IN THE HUDDLE — MAKE THE CALL",
+        breakAtFn: kind === "defense" ? () => _ipcHuddleBreakAt : null,
+      });
+    }
+  }
 }
 
 // ── Local play clock ────────────────────────────────────────────────────────
@@ -4620,19 +4640,38 @@ function _ipcShowPanel() {
 // so the local clock never arms there. The clock freezes while the tab is
 // hidden (background-tab interval throttling would otherwise burn the
 // whole clock and play the game out behind the user's back).
+//
+// DEFENSIVE prompts run a SHORTER, randomized window — the opposing OC gets
+// his play in after 8-13s. ~2.6s before the deadline the offense BREAKS THE
+// HUDDLE on the field (the huddle scene in play-animation.js reads
+// _ipcHuddleBreakAt live); at zero they're set and your DC's call locks in.
+// If their play comes in before yours, the DC handles it — keep up.
 const _IPC_CLOCK_MS = 20000;
+const _IPC_DEF_CLOCK_MIN_MS = 8000;
+const _IPC_DEF_CLOCK_VAR_MS = 5000;
+const _IPC_HUDDLE_BREAK_LEAD_MS = 2600;
 let _ipcClockTimer = null;
 let _ipcClockDeadline = 0;
+let _ipcHuddleBreakAt = 0;   // wall-clock ms; 0 = no scheduled huddle break
 function _ipcClockStart() {
   _ipcClockStop();
   const clockEl = document.getElementById("ipcClock");
   if (!_ipc || !_ipc.pending) return;
   if (_ipc.mode === "net") { if (clockEl) clockEl.textContent = ""; return; }
-  _ipcClockDeadline = Date.now() + _IPC_CLOCK_MS;
+  const isDef = (_ipc.pending.kind || "playcall") === "defense";
+  const durMs = isDef
+    ? _IPC_DEF_CLOCK_MIN_MS + Math.random() * _IPC_DEF_CLOCK_VAR_MS
+    : _IPC_CLOCK_MS;
+  _ipcClockDeadline = Date.now() + durMs;
+  _ipcHuddleBreakAt = isDef ? _ipcClockDeadline - _IPC_HUDDLE_BREAK_LEAD_MS : 0;
   const tick = () => {
     const el = document.getElementById("ipcClock");
     if (!_ipc || !_ipc.pending) { _ipcClockStop(); return; }
-    if (document.hidden) { _ipcClockDeadline += 200; return; }
+    if (document.hidden) {
+      _ipcClockDeadline += 200;
+      if (_ipcHuddleBreakAt) _ipcHuddleBreakAt += 200;
+      return;
+    }
     const left = _ipcClockDeadline - Date.now();
     if (el) {
       el.textContent = `⏱ ${Math.max(0, Math.ceil(left / 1000))}`;
@@ -4651,6 +4690,7 @@ function _ipcClockStop() {
 
 function _ipcHidePanel() {
   _ipcClockStop();
+  if (typeof ipcHuddleStop === "function") ipcHuddleStop();
   const el = document.getElementById("ipcPanel");
   if (el) el.style.display = "none";
 }
