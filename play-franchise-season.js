@@ -256,8 +256,12 @@ function showFranchiseDashboard() {
     else if (franchise.phase === "regular" && (franchise.week || 1) > _fw && !franchise.playoffBracket) frnTransition("season_recap");
     // A crowned bracket is COMPLETE — never bounce it back to the pre-playoff
     // recap (the symptom when advancePlayoffRound threw on a legacy bracket
-    // and left phase stuck at "playoffs"). Route to the awards screen.
-    else if ((franchise.phase === "playoffs_pending" || franchise.phase === "playoffs") && _champCrowned) frnTransition("awards");
+    // and left phase stuck at "playoffs"). Route to the awards screen —
+    // EXCEPT while a just-played-game recap takeover is pending (the SB is
+    // crowned the moment its result records now, and the user should see
+    // their post-game recap before the ceremony).
+    else if ((franchise.phase === "playoffs_pending" || franchise.phase === "playoffs") && _champCrowned
+             && !(typeof _frnPlayoffRecapPending !== "undefined" && _frnPlayoffRecapPending)) frnTransition("awards");
     // Legacy playoffs_pending (the retired auto-seed waypoint) and any "playoffs
     // phase but no real bracket" save heal back to season_recap — its CTA
     // re-seeds via startFrnPlayoffs. This keeps seeding a TRANSITION concern so

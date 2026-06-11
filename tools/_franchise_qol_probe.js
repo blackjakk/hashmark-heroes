@@ -197,6 +197,51 @@ const ok = (c, l) => { if (c) { pass++; console.log("  ✓ " + l); } else { fail
     ok(fa.deal && fa.deal.years === 1 && fa.deal.remaining === 1, "1-year street deal");
   }
 
+  console.log("— 6. SB loss → recap → awards (no crown-champion trap) —");
+  const sb = await page.evaluate(async () => {
+    const myId = franchise.chosenTeamId;
+    franchise.standings[myId] = { ...franchise.standings[myId], w: 17, l: 0, t: 0, pf: 500, pa: 100 };
+    franchise.playoffBracket = null;
+    franchise.phase = "season_recap";
+    startFrnPlayoffs();
+    const pb = franchise.playoffBracket;
+    for (let round = 0; round < 3; round++) {
+      for (const m of pb.rounds[pb.roundIdx]) {
+        if (!m.homeId || !m.awayId || m.winnerId) continue;
+        const uh = m.homeId === myId, ua = m.awayId === myId;
+        applyPlayoffResult(m.homeId, m.awayId, uh ? 31 : ua ? 10 : 24, ua ? 31 : uh ? 10 : 17);
+      }
+      frnAdvancePlayoffRound();
+      await new Promise(r => setTimeout(r, 80));
+    }
+    const sbm = pb.rounds[3][0];
+    if (sbm.homeId !== myId && sbm.awayId !== myId) return { skip: true };
+    franchise.pendingFranchiseGame = { homeId: sbm.homeId, awayId: sbm.awayId, isPlayoff: true };
+    const userHome = sbm.homeId === myId;
+    gameResult = { homeScore: userHome ? 17 : 27, awayScore: userHome ? 27 : 17,
+      stats: { home: { players: {} }, away: { players: {} } }, plays: [] };
+    frnFinishGame();   // user LOSES the Super Bowl
+    await new Promise(r => setTimeout(r, 300));
+    const recapShown = document.body.innerText.includes("ELIMINATED");
+    // recap → bracket → awards CTA, no confirm modal in the way
+    const toBracket = [...document.querySelectorAll("button")].find(b => /TO THE BRACKET/i.test(b.textContent));
+    if (toBracket) toBracket.click();
+    await new Promise(r => setTimeout(r, 300));
+    const awardsBtn = [...document.querySelectorAll("button")].find(b => /AWARDS CEREMONY/i.test(b.textContent));
+    const crownBtn = [...document.querySelectorAll("button")].find(b => /CROWN CHAMPION/i.test(b.textContent));
+    if (awardsBtn) awardsBtn.click();
+    await new Promise(r => setTimeout(r, 300));
+    return { skip: false, champ: pb.champion != null, recapShown,
+             hadAwardsCta: !!awardsBtn, noCrownTrap: !crownBtn, phase: franchise.phase };
+  });
+  if (sb.skip) ok(false, "user team missed the SB — staging failed");
+  else {
+    ok(sb.champ, "champion auto-crowned when the SB result recorded");
+    ok(sb.recapShown, "post-game ELIMINATED recap shown first");
+    ok(sb.hadAwardsCta && sb.noCrownTrap, "bracket lands on AWARDS CEREMONY (no CROWN CHAMPION trap)");
+    ok(sb.phase === "awards", `phase advanced to awards (${sb.phase})`);
+  }
+
   ok(errors.length === 0, errors.length ? "page errors: " + errors.slice(0, 3).join(" | ") : "zero page errors");
   console.log(fail === 0 ? `\nALL-PASS (${pass} checks)` : `\n${fail} FAILURES / ${pass + fail}`);
   await browser.close();

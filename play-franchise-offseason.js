@@ -1859,22 +1859,7 @@ function markGamePlayed(homeId, awayId, homeScore, awayScore, gameStats, plays, 
     // bytes/field, ~120 bytes/play). At ~130 plays/game × 17 games × 32 teams
     // ÷ 2 (each game has one log entry, not two) ≈ 35k plays/season ≈ 4MB —
     // well within IndexedDB capacity (saveFranchise.IDB has no size limit).
-    if (plays && !ctx?.isPlayoff && typeof _mffCompactPlay === "function") {
-      try {
-        const season = franchise.season ?? 1;
-        if (!franchise.playLog) franchise.playLog = {};
-        if (!franchise.playLog[season]) franchise.playLog[season] = [];
-        const buf = franchise.playLog[season];
-        // Marker carries the game's FINAL score (hf/af) so the EPA walker
-        // can detect end-of-game TDs/FGs — without this, a walk-off TD
-        // gets no EP_after credit because there's no "next snap" to compare.
-        buf.push({ __g: 1, homeId, awayId, week: g.week ?? franchise.week ?? 0, hf: homeScore, af: awayScore });
-        for (const p of plays) {
-          const c = _mffCompactPlay(p);
-          if (c) buf.push(c);
-        }
-      } catch (e) { console.warn("[mff playLog]", e); }
-    }
+    _mffAppendPlayLog(homeId, awayId, g.week ?? franchise.week ?? 0, homeScore, awayScore, plays, !!ctx?.isPlayoff);
     // Highlights: scan plays for big moments (TD, pick-six, big hits,
     // long FGs, 4th-down calls). Keeps top 7 per game.
     if (plays) {
@@ -3506,12 +3491,36 @@ function _potwSubmitVotes(week) {
 // and drifted twice: week-simmed games missed g.gameplan, and bulk sims missed
 // replay-clip extraction (an empty Replays tab after Sim-to-Week / Sim Season).
 // All three call this now; the only divergence left is the per-loop pacing.
+// MFF EPA/WPA play-log append — shared by BOTH game-persist paths.
+// _frnPersistSimmedGame (the Sim-Week path) used to skip this entirely,
+// so the WPA system (win-prob curves, player-of-the-game, EPA boards)
+// only had data for games persisted via markGamePlayed (played live /
+// single-game sims) — the recap's analytics card appeared for some
+// games and silently vanished for others. Each game opens with a
+// {__g:1,...} marker carrying the FINAL score (hf/af) so the walker can
+// credit end-of-game scores (no "next snap" to compare against).
+function _mffAppendPlayLog(homeId, awayId, week, homeScore, awayScore, plays, isPlayoff) {
+  if (!plays || isPlayoff || typeof _mffCompactPlay !== "function") return;
+  try {
+    const season = franchise.season ?? 1;
+    if (!franchise.playLog) franchise.playLog = {};
+    if (!franchise.playLog[season]) franchise.playLog[season] = [];
+    const buf = franchise.playLog[season];
+    buf.push({ __g: 1, homeId, awayId, week: week || 0, hf: homeScore, af: awayScore });
+    for (const p of plays) {
+      const c = _mffCompactPlay(p);
+      if (c) buf.push(c);
+    }
+  } catch (e) { console.warn("[mff playLog]", e); }
+}
+
 function _frnPersistSimmedGame(g, r, w) {
   g.homeScore = r.homeScore; g.awayScore = r.awayScore; g.played = true;
   g.stats = _stripGameStatsForStorage(r.full?.stats);
   g.scoring = _extractScoringTimeline(r.full?.plays, r.homeScore, r.awayScore);
   g.momentumLog = _extractMomentumLog(r.full?.plays);
   g.drives = _extractDriveLog(r.full?.plays);
+  _mffAppendPlayLog(g.homeId, g.awayId, g.week || w, r.homeScore, r.awayScore, r.full?.plays, false);
   // Highlights — top 7 per game saved to franchise.replayClips (capped /wk).
   if (r.full?.plays) {
     try {
@@ -3700,7 +3709,12 @@ async function frnConfirmStartPlayoffs() {
   startFrnPlayoffs();
 }
 async function frnConfirmAdvancePlayoffRound() {
-  if (!await _frnConfirm("Advance to the next playoff round?")) return;
+  // Crowning the champion (final round, legacy fallback path) needs no
+  // confirm — it isn't destructive and the modal's old copy ("Advance
+  // to the next playoff round?") was wrong for the Super Bowl.
+  const pb = franchise.playoffBracket;
+  const isFinal = pb && pb.roundIdx >= (pb.rounds?.length || 4) - 1;
+  if (!isFinal && !await _frnConfirm("Advance to the next playoff round?")) return;
   frnAdvancePlayoffRound();
 }
 async function frnConfirmFAFinish() {
@@ -6082,7 +6096,22 @@ function applyPlayoffResult(homeId, awayId, homeScore, awayScore) {
   m.homeScore = homeScore; m.awayScore = awayScore;
   m.winnerId  = homeScore >= awayScore ? homeId : awayId;
   // Don't auto-advance — let user review results then click Advance
-  if (rd.every(x => x.winnerId !== null)) playoffBracket.roundPending = true;
+  if (rd.every(x => x.winnerId !== null)) {
+    playoffBracket.roundPending = true;
+    // FINAL ROUND: crown on the spot. The old flow parked the season
+    // behind a "🌟 CROWN CHAMPION" button + an "Advance to the next
+    // playoff round?" confirm — after LOSING the Super Bowl that read
+    // as a trap (user report: couldn't move forward, kept bouncing
+    // back). With the champion set, the bracket hero is the
+    // unambiguous "🌟 AWARDS CEREMONY" button. Phase stays "playoffs"
+    // so the post-game recap takeover still shows first.
+    const isFinal = playoffBracket.roundIdx >= playoffBracket.rounds.length - 1;
+    if (isFinal && playoffBracket.champion == null) {
+      try { _computePlayoffRoundPOTW(playoffBracket.roundIdx, FRANCHISE_WEEKS + playoffBracket.roundIdx + 1); } catch (e) {}
+      playoffBracket.champion = rd[0].winnerId;
+      playoffBracket.roundPending = false;
+    }
+  }
 }
 
 function advancePlayoffRound() {

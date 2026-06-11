@@ -3617,6 +3617,13 @@ const PERSONNEL_PACKAGES = [
 ];
 
 let _dcActivePkg = "NICKEL";
+// Depth chart view: "list" (rows + snap bars + backups) or "field"
+// (formation diagram — slots where the players line up, same DnD).
+let _dcViewMode = "list";
+function frnDepthSetView(mode) {
+  _dcViewMode = mode === "field" ? "field" : "list";
+  renderFrnDepthChart();
+}
 function frnDepthSetPkg(pkgKey) {
   if (!PERSONNEL_PACKAGES.find(p => p.key === pkgKey)) return;
   _dcActivePkg = pkgKey;
@@ -4245,7 +4252,99 @@ async function renderFrnDepthChart() {
   </div>`;
 
   const activeGroups = unitMetrics[_dcActiveUnit].groups;
-  const groupSections = activeGroups.map(renderGroup).join("");
+
+  // ── FIELD VIEW — slots placed where the players line up ──────────────────
+  // Same dc slots, same drag-and-drop contract (data-slot/data-role +
+  // frnDcDrag* handlers), just spatial: OL across the line, QB behind,
+  // backs in the backfield, receivers split wide; defense mirrored with
+  // the front on the line, LBs at depth, corners on the numbers, safeties
+  // deep. Coordinates are [x%, y%] of the field box; the LOS is drawn at
+  // the matching height. Sub-package extras (NB2, DL5/DL6) sit faded at
+  // the edges. List view stays the home of snap bars + backups.
+  const FIELD_SPOTS = {
+    OFF: {
+      los: 30,
+      spots: {
+        WR1: [6, 26],  WR3: [17, 31], LT: [33, 28], LG: [41, 28], C: [49, 28],
+        RG: [57, 28],  RT: [65, 28],  TE1: [74, 31], WR4: [84, 31], WR2: [95, 26],
+        TE2: [25, 36], QB: [49, 50],  RB1: [49, 72], RB2: [63, 64],
+      },
+    },
+    DEF: {
+      los: 74,
+      spots: {
+        DL1: [33, 67], DL2: [44, 67], DL3: [55, 67], DL4: [66, 67],
+        DL5: [22, 67], DL6: [77, 67],
+        LB1: [33, 48], LB2: [49, 48], LB3: [66, 48],
+        CB1: [7, 60],  CB2: [92, 60], NB: [20, 52], NB2: [80, 52],
+        SS: [33, 22],  FS: [66, 22],
+      },
+    },
+    ST: {
+      los: 55,
+      spots: { K: [30, 38], P: [49, 38], KR1: [68, 38], PR1: [49, 72] },
+    },
+  };
+  const PKG_ONLY = new Set(["DL5", "DL6", "NB2"]);
+  const renderFieldView = (unitKey) => {
+    const cfg = FIELD_SPOTS[unitKey];
+    if (!cfg) return "";
+    const spotCard = (slotKey, x, y) => {
+      const slot = dc[slotKey];
+      const p = slot?.starter ? byPid[slot.starter] : null;
+      const slotPos = (typeof _dcSlotPos === "function") ? _dcSlotPos(slotKey) : null;
+      const oop = p && slotPos && slotPos !== "RET" && p.position !== slotPos;
+      const hurt = p && p.injury && p.injury.weeksRemaining > 0;
+      const effOvr = p ? (oop ? Math.max(40, Math.round((p.overall || 60) * 0.82)) : (p.overall || 60)) : null;
+      const escPid = p ? (p.pid || "").replace(/'/g, "\\'").replace(/"/g, "&quot;") : "";
+      const faded = PKG_ONLY.has(slotKey) ? " pkg" : "";
+      if (!p) {
+        return `<div class="frn-dc-spot empty${faded} frn-dc-droptarget" style="left:${x}%;top:${y}%" data-slot="${slotKey}" data-role="starter"${dropAttrs(slotKey, "starter")}>
+          <span class="frn-dc-spot-slot">${slotKey}</span>
+          <span class="frn-dc-spot-name">— open —</span>
+        </div>`;
+      }
+      return `<div class="frn-dc-spot${oop ? " oop" : ""}${hurt ? " injured" : ""}${faded} frn-dc-droptarget" draggable="true" style="left:${x}%;top:${y}%"
+        data-slot="${slotKey}" data-role="starter" data-pid="${escPid}"
+        ondragstart="frnDcDragStart(event,'${escPid}','${slotKey}','starter')" ondragend="frnDcDragEnd(event)"${dropAttrs(slotKey, "starter")}
+        title="${_escHtml(p.name)} — ${slotKey}${oop ? ` · OUT OF POSITION (${p.position}→${slotPos}, plays at ${effOvr})` : ""}${hurt ? ` · 🚫 OUT ${p.injury.weeksRemaining}w` : ""} · drag to move">
+        <span class="frn-dc-spot-slot">${slotKey}${oop ? " ⚠" : ""}${hurt ? " 🚫" : ""}</span>
+        <span class="frn-dc-spot-name" onclick="frnOpenPlayerCard('${(p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'")}','${escPid}')">${_escHtml(p.name.split(" ").slice(-1)[0])}</span>
+        <span class="frn-dc-spot-ovr${oop ? " oop" : ""}">${effOvr}</span>
+      </div>`;
+    };
+    const spots = Object.entries(cfg.spots)
+      .filter(([k]) => dc[k] !== undefined || !PKG_ONLY.has(k))
+      .map(([k, [x, y]]) => spotCard(k, x, y)).join("");
+    // Unit-wide bench strip — every unassigned player at this unit's positions.
+    const unitPositions = new Set(activeGroups.map(g => g.pos));
+    const benchPool = roster
+      .filter(p => unitPositions.has(p.position) && p.pid && !assignedPids.has(p.pid))
+      .sort((a, b) => (b.overall || 0) - (a.overall || 0));
+    const benchChips = benchPool.map(p => {
+      const escPid = (p.pid || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+      const hurt = p.injury && p.injury.weeksRemaining > 0;
+      return `<span class="frn-dc-bench-chip${hurt ? " injured" : ""}" draggable="true" data-pid="${escPid}"
+        ondragstart="frnDcDragStart(event,'${escPid}','','')" ondragend="frnDcDragEnd(event)"
+        title="${_escHtml(p.name)} · ${p.position} · OVR ${p.overall}${hurt ? ` · 🚫 OUT ${p.injury.weeksRemaining}w` : ""}">
+        ${p.position} ${_escHtml(p.name.split(" ").slice(-1)[0])} <b>${p.overall}</b>${hurt ? " 🚫" : ""}
+      </span>`;
+    }).join("");
+    return `<div class="frn-dc-field-wrap">
+      <div class="frn-dc-field" data-unit="${unitKey}">
+        <div class="frn-dc-field-los" style="top:${cfg.los}%"><span>LINE OF SCRIMMAGE</span></div>
+        ${spots}
+      </div>
+      <div class="frn-dc-bench frn-dc-droptarget" ondragover="frnDcBenchOver(event)" ondragleave="frnDcDragLeave(event)" ondrop="frnDcDropBench(event)">
+        <span class="frn-dc-bench-lbl" title="Unassigned players — drag onto a spot, or drop a charted player here to unassign">BENCH</span>
+        ${benchChips || `<span class="frn-dc-bench-none">everyone's on the chart</span>`}
+      </div>
+    </div>`;
+  };
+
+  const groupSections = (_dcViewMode === "field" && FIELD_SPOTS[_dcActiveUnit])
+    ? renderFieldView(_dcActiveUnit)
+    : activeGroups.map(renderGroup).join("");
 
   // ── Packages view (alternate render path for the PKG tab) ────────────────
   // Shared with the rest of the depth chart — all slots are sourced from the
@@ -4447,6 +4546,7 @@ async function renderFrnDepthChart() {
       </div>
       <div style="display:flex;gap:.45rem;align-items:center">
         <button class="frn-dc-auto-btn${autoChangedSlots>0?" hot":""}" data-confirm-msg="${autoBtnConfirm.replace(/"/g,"&quot;")}" onclick="(async()=>{ if(await _frnConfirm(this.dataset.confirmMsg)) frnDepthAutoSetOVR(); })()">${autoBtnLabel}</button>
+        <button class="btn ${_dcViewMode === "field" ? "btn-gold" : "btn-outline"}" onclick="frnDepthSetView('${_dcViewMode === "field" ? "list" : "field"}')" title="${_dcViewMode === "field" ? "Back to the list (snap bars, backups, workload plans)" : "Formation view — every slot where it lines up on the field, drag players between spots"}">${_dcViewMode === "field" ? "📋 LIST VIEW" : "🏟 FIELD VIEW"}</button>
         <button class="btn btn-outline" onclick="frnOpenStreetFA()" title="Sign unsigned free agents mid-season — 1-year street deals, cap and roster rules apply">📥 STREET FAs</button>
         <button class="btn btn-outline" onclick="showFranchiseDashboard()">← Back</button>
       </div>
@@ -9759,15 +9859,20 @@ function _mffComputeEPA() {
           if (success) out.totals.succR++;
           if (c.ru) { const r = bump(out.rb, c.ru, () => ({epa:0, wpa:0, att:0, suc:0})); r.epa += epa; r.wpa += wpa; r.att++; if (success) r.suc++; }
         }
-        // Top-swings + Player-of-the-Game tracking.
+        // Top-swings + Player-of-the-Game tracking. `sc` = points the
+        // OFFENSE scored on (or off the back of) this play — it's what
+        // lets the recap card say "GO-AHEAD TOUCHDOWN" instead of the
+        // criminally undersold "17-yd reception" (user report: "the
+        // catch still doesn't look that important").
+        const ptsOff = scoredByOff ? (scored.pts || 0) : 0;
         if (Math.abs(wpa) >= WPA_NOISE_FLOOR) {
           topPool.push({ gameIdx, j, wpa: +wpa.toFixed(3), epa: +epa.toFixed(2),
             poss: c.p, offTid, defTid, week: curMeta?.week,
-            qb: c.qb, rc: c.rc, ru: c.ru, k: c.k, yd: c.yd,
+            qb: c.qb, rc: c.rc, ru: c.ru, k: c.k, yd: c.yd, sc: ptsOff,
             q: c.q, t: c.t, hs: c.hs, as: c.as, d: c.d, y: c.y, yl: c.yl });
         }
         if (wpa > 0 && (!gameBest || wpa > gameBest.wpa)) {
-          gameBest = { wpa, epa, c, poss: c.p, offTid, defTid };
+          gameBest = { wpa, epa, c, poss: c.p, offTid, defTid, sc: ptsOff };
         }
       }
       if (gameBest) {
@@ -9777,7 +9882,7 @@ function _mffComputeEPA() {
           wpa: +gameBest.wpa.toFixed(3), epa: +gameBest.epa.toFixed(2),
           poss: gameBest.poss, offTid: gameBest.offTid,
           name: gameBest.c.qb || gameBest.c.rc || gameBest.c.ru,
-          k: gameBest.c.k, yd: gameBest.c.yd,
+          k: gameBest.c.k, yd: gameBest.c.yd, sc: gameBest.sc || 0,
           q: gameBest.c.q, t: gameBest.c.t, hs: gameBest.c.hs, as: gameBest.c.as,
           d: gameBest.c.d, y: gameBest.c.y,
         });
@@ -10208,47 +10313,84 @@ function mffWPCurveSvg(curve, opts = {}) {
     <line x1="${qx2}" y1="${pad}" x2="${qx2}" y2="${h-pad}" stroke="rgba(255,255,255,0.15)"/>
     <line x1="${qx3}" y1="${pad}" x2="${qx3}" y2="${h-pad}" stroke="rgba(255,255,255,0.08)"/>
     <path d="${path}" fill="none" stroke="${userColor}" stroke-width="1.8" stroke-linejoin="round"/>
+    ${(() => {
+      // Play-of-the-game marker: gold halo + dot at the play's position on
+      // the curve, tying the callout card to the moment on the chart.
+      if (opts.markX == null) return "";
+      const mx = pad + (Math.max(0, Math.min(3600, opts.markX)) / 3600) * innerW;
+      let nearest = pts[0], bd = Infinity;
+      for (const p of pts) { const d = Math.abs(p.px - mx); if (d < bd) { bd = d; nearest = p; } }
+      return `<circle cx="${nearest.px.toFixed(1)}" cy="${nearest.py.toFixed(1)}" r="5" fill="rgba(245,197,66,.25)"/>
+        <circle cx="${nearest.px.toFixed(1)}" cy="${nearest.py.toFixed(1)}" r="2.2" fill="var(--gold, #f5c542)" stroke="rgba(0,0,0,.5)" stroke-width=".6"/>`;
+    })()}
     <text x="${qx1}" y="${h-1}" font-size="6" fill="rgba(255,255,255,0.35)" text-anchor="middle">Q2</text>
     <text x="${qx2}" y="${h-1}" font-size="6" fill="rgba(255,255,255,0.35)" text-anchor="middle">HALF</text>
     <text x="${qx3}" y="${h-1}" font-size="6" fill="rgba(255,255,255,0.35)" text-anchor="middle">Q4</text>
   </svg>`;
 }
 
+// Raw Player-of-the-Game record for a specific game (or null). Shared by
+// the callout card and the sparkline play-marker.
+function _mffPotgFor(homeId, awayId, week) {
+  const all = mffAllPlayerOfGame();
+  if (!all || !all.length) return null;
+  // Match on homeId/awayId/week — gameIdx isn't stable across loads.
+  return all.find(g =>
+    g.homeId === homeId && g.awayId === awayId &&
+    (week == null || g.week === week)) || null;
+}
+
 // Player-of-the-Game callout for a specific game. Pulls from the WPA
 // walker's bestPerGame array. Returns "" if no data (e.g. playoff game).
+// The headline SAYS WHAT THE PLAY DID — a +70% swing is almost always a
+// score or a lead change, and "17-yd reception" buried that.
 function mffPlayerOfGameFor(homeId, awayId, week) {
-  const all = mffAllPlayerOfGame();
-  if (!all || !all.length) return "";
-  // Match on homeId/awayId/week — gameIdx isn't stable across loads.
-  const potg = all.find(g =>
-    g.homeId === homeId && g.awayId === awayId &&
-    (week == null || g.week === week));
+  const potg = _mffPotgFor(homeId, awayId, week);
   if (!potg) return "";
-  const kindBlurb = potg.k === "complete" ? `${potg.yd}-yd reception`
-                  : potg.k === "run"      ? `${potg.yd}-yd run`
+  const offLead = (potg.poss === "home") ? ((potg.hs || 0) - (potg.as || 0)) : ((potg.as || 0) - (potg.hs || 0));
+  const pts = potg.sc || 0;
+  const tookLead = pts > 0 && offLead <= 0 && (offLead + pts) > 0;
+  const isTD = pts >= 6;
+  const isCarry = potg.k === "run" || potg.k === "complete";
+  const playBlurb = potg.k === "complete" ? `${potg.yd}-yd ${isTD ? "TD strike" : "reception"}`
+                  : potg.k === "run"      ? `${potg.yd}-yd ${isTD ? "TD run" : "run"}`
                   : potg.k === "sack"     ? "sack"
                   : potg.k === "int"      ? "interception"
                   : potg.k;
+  const headline = tookLead && isTD ? "🏈 GO-AHEAD TOUCHDOWN"
+                 : isTD             ? "🏈 TOUCHDOWN"
+                 : tookLead         ? "GO-AHEAD SCORE"
+                 : pts === 3        ? "FIELD-GOAL DRIVE"
+                 : potg.k === "int" ? "🛡 THE TAKEAWAY"
+                 : (potg.d === 4 && isCarry && potg.yd >= potg.y) ? "💪 4TH-DOWN CONVERSION"
+                 : "THE KEY PLAY";
   const sign = potg.wpa >= 0 ? "+" : "";
   const wpaPct = (potg.wpa * 100).toFixed(1);
-  // Situational context — why this play mattered (a 3-yd run can be the play
-  // of the game if it's a 4th-down conversion late in a one-score game).
   const clock = (potg.q != null && potg.t != null) ? `Q${potg.q} ${Math.floor(potg.t/60)}:${String(potg.t%60).padStart(2,"0")}` : "";
   const ord = potg.d === 1 ? "1st" : potg.d === 2 ? "2nd" : potg.d === 3 ? "3rd" : potg.d === 4 ? "4th" : (potg.d ? `${potg.d}th` : "");
   const dd = (potg.d && potg.y != null) ? `${ord} & ${potg.y === 0 ? "goal" : potg.y}` : "";
-  const isCarry = potg.k === "run" || potg.k === "complete";
-  const conv = (potg.d >= 3 && isCarry && potg.yd != null && potg.y != null)
-    ? (potg.yd >= potg.y ? "✓ conversion" : (potg.d === 4 ? "✗ turnover on downs" : "short of the sticks")) : "";
-  const offLead = (potg.poss === "home") ? ((potg.hs || 0) - (potg.as || 0)) : ((potg.as || 0) - (potg.hs || 0));
-  const scoreCtx = (potg.hs != null && potg.as != null) ? (offLead === 0 ? "tie game" : offLead > 0 ? `up ${offLead}` : `down ${-offLead}`) : "";
+  const conv = (potg.d >= 3 && isCarry && potg.yd != null && potg.y != null && !isTD)
+    ? (potg.yd >= potg.y ? "✓ moved the chains" : (potg.d === 4 ? "✗ turnover on downs" : "short of the sticks")) : "";
+  // Score journey — "down 7 → up 1" tells the whole story.
+  const scoreCtx = (potg.hs != null && potg.as != null)
+    ? (pts > 0
+        ? `${offLead === 0 ? "tied" : offLead > 0 ? `up ${offLead}` : `down ${-offLead}`} → ${(offLead + pts) === 0 ? "tied" : (offLead + pts) > 0 ? `up ${offLead + pts}` : `down ${-(offLead + pts)}`}`
+        : (offLead === 0 ? "tie game" : offLead > 0 ? `up ${offLead}` : `down ${-offLead}`))
+    : "";
   const ctx = [clock, dd, conv, scoreCtx].filter(Boolean).join(" · ");
-  return `<div style="margin-top:.4rem;padding:.45rem .6rem;border:1px dashed var(--border);border-radius:6px;background:rgba(245,197,66,0.04)">
-    <div style="font-size:.6rem;letter-spacing:.6px;color:var(--gold);font-weight:700">⭐ PLAYER OF THE GAME (BIGGEST WPA SWING)</div>
-    <div style="margin-top:.15rem">
-      <span style="font-weight:700">${potg.name}</span>
-      <span style="opacity:.7"> · ${kindBlurb} · WPA ${sign}${wpaPct}%</span>
+  return `<div style="margin-top:.4rem;padding:.5rem .65rem;border:1px solid rgba(245,197,66,.35);border-left:4px solid var(--gold);border-radius:6px;background:rgba(245,197,66,0.06);display:flex;align-items:center;gap:.8rem">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:.6rem;letter-spacing:.6px;color:var(--gold);font-weight:700">⭐ PLAYER OF THE GAME · ${headline}</div>
+      <div style="margin-top:.15rem">
+        <span style="font-weight:700">${potg.name}</span>
+        <span style="opacity:.75"> · ${playBlurb}</span>
+      </div>
+      ${ctx ? `<div style="font-size:.6rem;color:var(--gray);margin-top:.12rem">${ctx} · ⬤ marked on the chart</div>` : ""}
     </div>
-    ${ctx ? `<div style="font-size:.6rem;color:var(--gray);margin-top:.12rem">${ctx}</div>` : ""}
+    <div style="text-align:right;flex-shrink:0">
+      <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.5rem;line-height:1;color:${potg.wpa >= 0 ? "var(--green-lt)" : "#ff8a8a"}">${sign}${wpaPct}%</div>
+      <div style="font-size:.52rem;letter-spacing:.8px;color:var(--gray)">WIN PROB SWING</div>
+    </div>
   </div>`;
 }
 
@@ -10328,12 +10470,16 @@ function mffPostGameWPBlock(userTeamId) {
   if (!curve) { _MFF_POSTGAME_CACHE.key = k; _MFF_POSTGAME_CACHE.data = ""; return ""; }
   const teamColor = (typeof getTeam === "function") ? (getTeam(userTeamId)?.primary || "var(--green-lt)") : "var(--green-lt)";
   const potg = mffPlayerOfGameFor(g.homeId, g.awayId, g.week);
+  // Mark the play-of-the-game's moment on the curve.
+  const potgRec = _mffPotgFor(g.homeId, g.awayId, g.week);
+  const markX = (potgRec && potgRec.q != null && potgRec.t != null)
+    ? 3600 - _mffSecondsLeft(potgRec.q, potgRec.t) : null;
   const html = `<div style="margin-top:.5rem;padding:.5rem .6rem;border:1px solid var(--border);border-radius:6px;background:rgba(0,0,0,0.06)">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.25rem">
       <span style="font-size:.62rem;letter-spacing:.6px;color:var(--gray);font-weight:700">WIN PROBABILITY · YOUR PERSPECTIVE</span>
       <span style="font-size:.55rem;opacity:.6">Q1 · Q2 · HALF · Q3 · Q4</span>
     </div>
-    ${mffWPCurveSvg(curve, { color: teamColor, width: 320, height: 60 })}
+    ${mffWPCurveSvg(curve, { color: teamColor, width: 320, height: 60, markX })}
     ${potg}
   </div>`;
   _MFF_POSTGAME_CACHE.key = k;

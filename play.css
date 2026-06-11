@@ -5923,6 +5923,53 @@
   .frn-dc-bench-chip:hover { border-color: var(--gold); }
   .frn-dc-bench-none { font-size: .56rem; color: var(--gray); font-style: italic; }
 
+  /* ── Field view — formation diagram with positioned, draggable spots ── */
+  .frn-dc-field-wrap { display: flex; flex-direction: column; gap: .4rem; }
+  .frn-dc-field {
+    position: relative; height: 460px; border-radius: 8px;
+    background:
+      repeating-linear-gradient(to bottom, transparent 0 54px, rgba(255,255,255,.05) 54px 56px),
+      linear-gradient(180deg, #1c5c30 0%, #1a542c 50%, #174d28 100%);
+    border: 1px solid rgba(255,255,255,.12);
+    box-shadow: inset 0 0 40px rgba(0,0,0,.35);
+    overflow: hidden;
+  }
+  .frn-dc-field-los {
+    position: absolute; left: 0; width: 100%; height: 0;
+    border-top: 2px solid rgba(74,144,217,.65);
+  }
+  .frn-dc-field-los span {
+    position: absolute; right: 8px; top: -14px;
+    font-size: .5rem; letter-spacing: 1.5px; color: rgba(120,180,240,.75); font-weight: 800;
+  }
+  .frn-dc-spot {
+    position: absolute; transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    min-width: 74px; max-width: 96px; padding: .25rem .4rem;
+    background: rgba(8,14,9,.82); border: 1px solid rgba(255,255,255,.18);
+    border-radius: 6px; cursor: grab; text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.45);
+  }
+  .frn-dc-spot:active { cursor: grabbing; }
+  .frn-dc-spot.empty { border-style: dashed; opacity: .65; cursor: default; }
+  .frn-dc-spot.pkg { opacity: .55; }
+  .frn-dc-spot.injured { border-color: rgba(255,90,90,.6); }
+  .frn-dc-spot.oop { border-color: rgba(255,154,77,.7); }
+  .frn-dc-spot-slot {
+    font-size: .5rem; letter-spacing: 1px; color: var(--gold); font-weight: 800;
+  }
+  .frn-dc-spot-name {
+    font-size: .66rem; font-weight: 700; color: var(--white);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 88px;
+    cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px;
+  }
+  .frn-dc-spot.empty .frn-dc-spot-name { color: var(--gray); font-style: italic; text-decoration: none; cursor: default; }
+  .frn-dc-spot-ovr {
+    font-family: 'Bebas Neue','Anton',sans-serif; font-size: .9rem; line-height: 1;
+    color: var(--gold-lt);
+  }
+  .frn-dc-spot-ovr.oop { color: #ffb37a; }
+
   /* Locker-room mood strip (depth chart → opens the Locker Room) */
   .frn-dc-mood-strip {
     display: flex; flex-wrap: wrap; gap: .55rem; align-items: center;

@@ -124,6 +124,30 @@ const ok = (c, l) => { if (c) { pass++; console.log("  ✓ " + l); } else { fail
   });
   ok(unas.cleared, "dropping a charted player on the bench unassigns him");
 
+  console.log("— 5b. field view: formation spots + drag —");
+  await page.evaluate(() => { _dcActiveUnit = "OFF"; frnDepthSetView("field"); });
+  await page.waitForTimeout(400);
+  const fv = await page.evaluate(() => ({
+    spots: document.querySelectorAll(".frn-dc-spot").length,
+    los: !!document.querySelector(".frn-dc-field-los"),
+    qbBefore: franchise.depthChart[franchise.chosenTeamId].QB.starter,
+    wr1Before: franchise.depthChart[franchise.chosenTeamId].WR1.starter,
+    wr3Before: franchise.depthChart[franchise.chosenTeamId].WR3.starter,
+  }));
+  ok(fv.spots >= 13, `field view renders formation spots (${fv.spots})`);
+  ok(fv.los, "line of scrimmage drawn");
+  await page.dragAndDrop(`.frn-dc-field [data-slot="WR1"]`, `.frn-dc-field [data-slot="WR3"]`);
+  await page.waitForTimeout(400);
+  const fv2 = await page.evaluate(() => ({
+    wr1: franchise.depthChart[franchise.chosenTeamId].WR1.starter,
+    wr3: franchise.depthChart[franchise.chosenTeamId].WR3.starter,
+    stillField: !!document.querySelector(".frn-dc-field"),
+  }));
+  ok(fv2.wr3 === fv.wr1Before && fv2.wr1 === fv.wr3Before, "field-view drag swaps WR1 ↔ WR3");
+  ok(fv2.stillField, "re-render stays in field view");
+  await page.evaluate(() => frnDepthSetView("list"));
+  await page.waitForTimeout(300);
+
   console.log("— 5. keyboard path intact —");
   const kb = await page.evaluate(() => {
     const dc = franchise.depthChart[franchise.chosenTeamId];
