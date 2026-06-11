@@ -137,6 +137,24 @@ otherwise take direction from the user.
     `_ipc_clock_probe.js` now 17 checks (break lead, mid-break call
     window, scene lifecycle).
 
+18. **Throw animation Phase 1** (post-compact) — contact-event release.
+    The pass art's 4 frames are ALL pre-release (set/turn/cock/cock-high;
+    no arm-extended frame exists, and there's no PixelLab API in-repo —
+    sprites came from manually downloaded ZIPs via sprites/_extract.py).
+    Old timeline froze the QB on painted-cocked frames through the whole
+    flight (double ball, no release read). Now: windup frames 0→3 peak
+    EXACTLY at releaseAT (tf*0.55), sprite swaps to empty-handed idle +
+    ~5px weight-transfer step-in, releaseX/Y = extended hand, flight arc
+    gets relElev (starts at hand height, blends out), standalone-ball
+    gap closed (airStart 8%→1% of flight), and a 2-ball frame-history
+    RELEASE STREAK (rides drawBall → correct in both cameras; clears on
+    scrub-back). Catch hitstop already existed (slowMoUntil freeze 220ms
+    + green flash at throwEndAT). Verified: zoom frame sweeps + 71
+    pass-family plays × 9 fracs rendered error-free; teleport gate 4/4.
+    PHASE 2 (not started): catch matrix (variant by ball-arrival
+    geometry; isLeapingCatch/catchRadius already emitted), torso/legs
+    sprite layering for catch-in-stride, procedural lean/squash.
+
 ## OPEN THREADS (user picks)
 
 1. **Touch drag-and-drop** — HTML5 DnD doesn't fire on touchscreens;

@@ -4013,9 +4013,12 @@ function buildAnimForPlay(play, prevPlay) {
       const cockHoldAT = throwFrac * 0.48;   // ball reaches the ear, "held cocked"
       const releaseAT  = throwFrac * 0.55;   // ball leaves the hand (matches QB pose)
       const throwEndAT = throwFrac;          // ball arrives at WR
-      // Ball-in-hand positions
-      const releaseX = qb.x + dir * 1.5;
-      const releaseY = cy - 14;
+      // Ball-in-hand positions. The release point is the EXTENDED throwing
+      // hand (forward of the body, above shoulder) — the QB pose swaps to
+      // empty-handed at this same tick, so the real ball visibly leaves
+      // from where the arm whips through, not from the chest.
+      const releaseX = qb.x + dir * 10;
+      const releaseY = cy - 16;
       const cradleX = qb.x;
       const cradleY = cy - 3;
       // Center position (front of OL) — where the ball is pre-snap
@@ -4132,7 +4135,13 @@ function buildAnimForPlay(play, prevPlay) {
         const handElev = incDropFast ? 0
                        : _homeToRcvr  ? _chestElev
                        : (incOffsetY < 0 ? 18 : 14);
-        arc = Math.sin(tt * Math.PI) * arcHeight * incArcMul + tt * handElev;
+        // Release elevation — the ball leaves the THROWING HAND (above the
+        // shoulder, ~head height), not the ground plane. Blends out over
+        // the flight so the arc + arrival elevation are unchanged at tt=1.
+        // Without this the ball visibly dropped from the painted cocked
+        // position to the QB's feet at the release tick.
+        const relElev = _spriteHands ? 50 : 16;
+        arc = Math.sin(tt * Math.PI) * arcHeight * incArcMul + tt * handElev + (1 - tt) * relElev;
         ballY = releaseY + (flightTY - releaseY) * tt - arc;
         // Spiral orientation — ball nose points along the velocity vector.
         // The flight ball is drawn with its LONG AXIS ALONG Y (ellipse
@@ -4141,7 +4150,7 @@ function buildAnimForPlay(play, prevPlay) {
         // (not atan2(vy, vx) — that aligned the SHORT axis with velocity,
         // which is why the ball came out sideways).
         const vx = flightTX - releaseX;
-        const vy = (flightTY - releaseY) - Math.cos(tt * Math.PI) * Math.PI * arcHeight * incArcMul - handElev;
+        const vy = (flightTY - releaseY) - Math.cos(tt * Math.PI) * Math.PI * arcHeight * incArcMul - handElev + relElev;
         ballAngle = Math.atan2(vx, -vy);
       } else {
         const tt = (t - throwPhase) / (1 - throwPhase);
@@ -5227,36 +5236,45 @@ function buildAnimForPlay(play, prevPlay) {
       } else {
         const at = aT;   // flicker-aware action time
         const tf = throwFrac;
-        // QB pose timeline — shifted earlier to match the new release at
-        // tf * 0.55 (was tf * 0.73). Dropback compressed; cock + release
-        // start sooner. The follow-through still finishes at tf so the
-        // ball is in the air while the QB completes his motion.
+        // ── QB THROW TIMELINE (Phase-1 contact-event rework) ─────────────
+        // The pass art's 4 frames are ALL pre-release (set → turn → cock →
+        // cock-high); there is no arm-extended release frame in the set.
+        // The old timeline kept playing those frames through release AND
+        // follow-through, so the QB stood frozen with a PAINTED ball behind
+        // his ear for the whole flight — double ball, no visible release.
+        // New timeline: the windup builds so the cock PEAKS exactly at the
+        // release event (releaseAT = tf*0.55, where the ball-flight math
+        // launches), then the sprite swaps to empty-handed idle and STEPS
+        // INTO the throw (weight transfer onto the front foot). The release
+        // streak below (echo balls) carries the arm-whip energy.
         //   0    - 0.35 tf: dropback (drop_step)
-        //   0.35 - 0.45 tf: cock-back (qbT 0.18→0.42)
-        //   0.45 - 0.50 tf: hold at cocked ear (qbT 0.42→0.48)
-        //   0.50 - 0.65 tf: snap / release (qbT 0.48→0.68, ball out at 0.55)
-        //   0.65 - 1.00 tf: follow-through (qbT 0.68→1.0)
+        //   0.35 - 0.55 tf: windup — frames 0→3, ~110ms cadence, painted
+        //                   ball in hand IS the ball (standalone suppressed)
+        //   0.55 tf (releaseAT): BALL OUT — pose swaps to empty-handed
+        //   0.55 - 0.75 tf: follow-through step-in, then watching
         if (at < tf * 0.35) {
           qbPose = "drop_step";
           qbT = ((t * (dur / 1000)) * 1.8) % 1;
-        } else if (at < tf * 0.45) {
+        } else if (at < tf * 0.55) {
           qbPose = "throw";
-          qbT = 0.18 + (at - tf * 0.35) / (tf * 0.10) * (0.42 - 0.18);
-        } else if (at < tf * 0.50) {
-          qbPose = "throw";
-          qbT = 0.42 + (at - tf * 0.45) / (tf * 0.05) * 0.06;
-        } else if (at < tf * 0.65) {
-          qbPose = "throw";
-          qbT = 0.48 + (at - tf * 0.50) / (tf * 0.15) * 0.20;
-        } else if (at < tf * 1.0) {
-          qbPose = "throw";
-          qbT = 0.68 + (at - tf * 0.65) / (tf * 0.35) * 0.32;
+          qbT = Math.min(0.99, (at - tf * 0.35) / (tf * 0.20));
         } else {
-          qbPose = "idle";
+          qbPose = "idle";   // ball is gone — empty hands, eyes downfield
           qbT = 0;
         }
       }
-      const qbWithPose = { ...qb, pose: qbPose, t: qbT, facing: dir };
+      // Weight transfer — from the release event the QB strides ~5px into
+      // the throw and settles. Small enough for the continuity guard's
+      // legit-motion band; reads as the body finishing over the front foot.
+      let _qbStepIn = 0;
+      if (!(play.isFleaFlicker && aTRaw < FLICKER_END) && t >= PRE) {
+        const _ftP = Math.max(0, Math.min(1, (aT - throwFrac * 0.55) / (throwFrac * 0.20)));
+        if (_ftP > 0) {
+          const _e = 1 - (1 - _ftP) * (1 - _ftP);    // ease-out
+          _qbStepIn = dir * (5 * _e - 1.5 * _ftP);   // out to ~5px, settle ~3.5
+        }
+      }
+      const qbWithPose = { ...qb, x: qb.x + _qbStepIn, pose: qbPose, t: qbT, facing: dir };
       // Target receiver pose — reach during the catch window, then carry the ball downfield
       const isCatching = t > throwPhase - 0.05 && t < throwPhase + 0.10;
       const isPostCatch = play.kind === "complete" && t > throwPhase + 0.10;
@@ -5789,7 +5807,11 @@ function buildAnimForPlay(play, prevPlay) {
       // ball must be suppressed or two balls show at once. Hand off to the
       // catch sprite, but ONLY once the ball is genuinely near the hands.
       const _flightSpan = Math.max(0.001, throwEndAT - releaseAT);
-      const _airStart = releaseAT + _flightSpan * 0.08;
+      // Was releaseAT + 8% of flight — that gap hid the standalone behind
+      // the QB's painted cocked ball. The QB sprite now swaps to EMPTY
+      // hands exactly at releaseAT, so the real ball must exist from the
+      // release tick or there's a beat with no ball anywhere on the field.
+      const _airStart = releaseAT + _flightSpan * 0.01;
       const _airEnd   = throwEndAT - _flightSpan * 0.06;
       // The catch/leap POSE windup opens at a fixed offset in FULL-PLAY time
       // (throwPhase - 0.10 for a leap). On a deep ball the flight is only a
@@ -5929,6 +5951,26 @@ function buildAnimForPlay(play, prevPlay) {
         // isn't yanked up to the WR's hand position.
         if (play.kind === "incomplete" && at > throwEndAT - 0.02) {
           _ballOpts.skipCarryShift = true;
+        }
+        // RELEASE STREAK — for the first beat of flight, two shrinking echo
+        // balls trail the live one along its actual path (frame-history
+        // smear). At pixel scale this reads as the whip coming off the
+        // hand; rides drawBall so both cameras project it correctly.
+        const _relMs = (at - releaseAT) * dur;
+        if (at >= releaseAT && _relMs < 150) {
+          const _ech = play._ballEchoes || (play._ballEchoes = []);
+          // Scrub/replay jumps leave stale far-away echoes — drop them.
+          while (_ech.length && Math.hypot(_ech[_ech.length - 1].x - _ballDrawX,
+                                           _ech[_ech.length - 1].y - _ballDrawY) > 60) _ech.pop();
+          for (let _ei = 0; _ei < _ech.length; _ei++) {
+            drawBall(ctx, _ech[_ei].x, _ech[_ei].y,
+                     (arc > 30 ? 1.3 : 1) * (0.45 + 0.2 * _ei),
+                     { angle: _ballDrawAng, skipCarryShift: true });
+          }
+          _ech.push({ x: _ballDrawX, y: _ballDrawY });
+          if (_ech.length > 2) _ech.shift();
+        } else if (at < releaseAT && play._ballEchoes) {
+          play._ballEchoes.length = 0;   // re-armed on scrub-back
         }
         drawBall(ctx, _ballDrawX, _ballDrawY, arc > 30 ? 1.3 : 1, _ballOpts);
       }
