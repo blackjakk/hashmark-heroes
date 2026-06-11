@@ -10,9 +10,12 @@
        ink (used as text-on-gold). */
     --fg: #f0f0f0; --text: #f0f0f0; --bg1: #0a0f0a;
     /* Defined here as well as in the broadcast-overlay scopes: body-level
-       modals (holdout center etc.) reference it and got UA-default styling
-       when it resolved to nothing. */
-    --blgray: #9aa7b8;
+       modals (holdout center, re-sign/demands recaps etc.) reference the
+       bl* palette and silently inherited when the vars resolved to
+       nothing. Values mirror the broadcast scope. */
+    --blgray: #9aa7b8; --blwhite: #f1f4f9; --blgold: #f5c542;
+    --blgreen: #3ecf8e; --blgreen-d: #1f9d63; --blred: #ff5b5b;
+    --blborder: rgba(255,255,255,.08); --blbordr2: rgba(255,255,255,.16);
     --field: #1f6b34; --field-dk: #185b2c; --field-lt: #2a7d40;
     /* Modern proportional face for narrative/prose copy (loaded in play.html).
        Data tables + numbers stay on IBM Plex Mono so columns keep aligning. */

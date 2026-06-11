@@ -77,6 +77,25 @@ process.on("exit", () => children.forEach(c => { try { c.kill("SIGKILL"); } catc
         cls: String(el.className).slice(0, 70), bg: cs.fontFamily.slice(0, 50),
         txt: n.textContent.trim().replace(/\\s+/g, " ").slice(0, 40) });
     }
+    // Undefined CSS custom properties on inline styles — var(--x) that
+    // resolves to nothing silently inherits (or falls to initial), the
+    // class of bug behind the blank Defer pill and the flat un-themed
+    // ceremony modals (bl* palette unscoped at body level).
+    for (const el of document.querySelectorAll("[style*='var(--']")) {
+      if (!el.offsetParent) continue;
+      const styleAttr = el.getAttribute("style") || "";
+      const names = [...styleAttr.matchAll(/var\\((--[a-z0-9-]+)/gi)].map(m => m[1]);
+      const cs2 = getComputedStyle(el);
+      for (const name of new Set(names)) {
+        // skip vars with literal fallbacks — var(--x, #abc) is safe
+        if (new RegExp("var\\\\(" + name + "\\\\s*,").test(styleAttr)) continue;
+        if (!cs2.getPropertyValue(name).trim()) {
+          push({ kind: "undef-var", surface, bg: name,
+            cls: String(el.className).slice(0, 70),
+            txt: (el.textContent || "").trim().replace(/\\s+/g, " ").slice(0, 40) });
+        }
+      }
+    }
     const vw = document.documentElement.clientWidth;
     for (const el of document.querySelectorAll("body *")) {
       if (!el.offsetParent) continue;
@@ -148,6 +167,21 @@ process.on("exit", () => children.forEach(c => { try { c.kill("SIGKILL"); } catc
   await page.waitForTimeout(350);
   await scan("player-card");
   await page.evaluate(() => frnClosePlayerModal());
+
+  // Re-signing ceremony recap (staged pending rows).
+  await page.evaluate(() => {
+    const roster = franchise.rosters[franchise.chosenTeamId];
+    const cands = roster.filter(p => p.contract).slice(0, 6);
+    franchise._resignPending = cands.map((p, i) => ({
+      name: p.name, pos: p.position, overall: p.overall,
+      offer: 8 + i, offerYears: 2 + (i % 3), baseMarket: 9 + i, tagAAV: 18 + i,
+      decision: i < 3 ? "accept" : i < 4 ? "tag" : "decline",
+    }));
+    frnOpenResignRecap();
+  });
+  await page.waitForTimeout(300);
+  await scan("resign-ceremony");
+  await page.evaluate(() => frnCloseResignRecap());
 
   // Holdout center modal — EMPTY state first (the branch a seeded-only
   // walk never reaches; the vintage "all demands resolved" card hid here).
