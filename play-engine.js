@@ -153,6 +153,11 @@ const PASS_CONCEPT_FREQ = {  // base offensive concept call distribution
 const PASS_COVERAGE_FREQ = { // base defensive coverage distribution
   C0_BLITZ: 0.05, C1_MAN: 0.22, C2_ZONE: 0.18, C3_ZONE: 0.32, C4_QUARTERS: 0.15, TAMPA_2: 0.08,
 };
+// Play-sheet RUN calls (interactive playcalling) → engine runType variants.
+// The pass side of the sheet is PASS_CONCEPTS' own keys.
+const RUN_CALL_VARIANTS = {
+  RUN_INSIDE: "inside", RUN_OUTSIDE: "stretch", RUN_COUNTER: "counter", RUN_TOSS: "pitch",
+};
 
 const _YAC_TACKLER_ZONES = {
   short: { S: 0.40, CB: 0.35, LB: 0.25 },              // catch + immediate wrap
@@ -4052,15 +4057,21 @@ class GameSimulator {
     if (this._inGoalToGo) passProb = Math.max(0.20, passProb - 0.12);
     else if (this._inRedZone) passProb = Math.max(0.25, passProb - 0.06);
     // ── COORDINATOR SEAM (Workstream C) ──────────────────────────────────
-    // The run/pass call. By default the AI rolls against the situational
+    // The play call. By default the AI rolls against the situational
     // passProb computed above — UNCHANGED behavior. But a Coordinator can be
     // installed per side (this._coordinators[side]) to DRIVE the call instead:
-    // a human (single-player playcalling) or, later, a networked opponent. It
+    // a human (single-player playcalling) or a networked opponent. It
     // receives the live game state + the AI's passProb (so it can defer) and
-    // returns "pass" | "run" (or null to fall back to the AI roll). When no
-    // coordinator is set, the _rand() roll runs exactly as before — gate-safe,
-    // calibration-neutral (same RNG draw, so the audit is unaffected).
+    // returns either the generic "pass" | "run", a NAMED play off the sheet
+    // (a PASS_CONCEPTS key like "VERTICAL", or a RUN_CALL_VARIANTS key like
+    // "RUN_TOSS"), or null to fall back to the AI roll. Named calls stash a
+    // forced concept/variant that the downstream picks honor by overriding
+    // the ROLL RESULT only — every draw still runs, so an unset or deferring
+    // coordinator leaves the RNG stream byte-identical (gate-safe,
+    // calibration-neutral). Foreign values are treated as a defer.
     let playType;
+    this._offConceptCall = null;   // forced pass concept for this snap
+    this._offRunCall = null;       // forced run variant for this snap
     const _offSideKey = this.poss;
     const _coord = this._coordinators && this._coordinators[_offSideKey];
     if (_coord) {
@@ -4071,7 +4082,17 @@ class GameSimulator {
         score: { home: this.score.home, away: this.score.away },
         passProb,
       });
-      playType = (call === "pass" || call === "run") ? call : (_rand() < passProb ? "pass" : "run");
+      if (call === "pass" || call === "run") {
+        playType = call;
+      } else if (call && PASS_CONCEPTS[call]) {
+        playType = "pass";
+        this._offConceptCall = call;
+      } else if (call && RUN_CALL_VARIANTS[call]) {
+        playType = "run";
+        this._offRunCall = RUN_CALL_VARIANTS[call];
+      } else {
+        playType = _rand() < passProb ? "pass" : "run";
+      }
     } else {
       playType = _rand() < passProb ? "pass" : "run";
     }
@@ -4385,7 +4406,13 @@ class GameSimulator {
       const runThreat = clamp((this.offR.rb - 65) / 35, 0, 1);   // 0-1 based on RB room
       const paQbSkill = clamp((qbAwr + qbThr - 140) / 80, 0, 1); // 0-1 based on QB
       const paBaseRate = 0.16 + runThreat * 0.10 - (isThird && this.ytg >= 7 ? 0.10 : 0);
-      const isPlayAction = !isShort && _rand() < paBaseRate;
+      // Called PA_SHOT forces the fake; any OTHER named call suppresses an
+      // accidental PA (the call IS the play). The roll always runs so an
+      // unset coordinator leaves the RNG stream byte-identical.
+      const _paRoll = !isShort && _rand() < paBaseRate;
+      const isPlayAction = this._offConceptCall === "PA_SHOT" ? true
+                         : this._offConceptCall ? false
+                         : _paRoll;
       // FLEA FLICKER — rare trick play, only on PA setups in good run threat.
       // RB takes the fake handoff, then pitches the ball BACK to the QB who
       // throws deep. Big play upside, big-time risk if it breaks down.
@@ -5009,7 +5036,12 @@ class GameSimulator {
                             + ((offArch.WR2?.archetype === "POSSESSION") ? 0.012 : 0);
       // Screen passes — about 8% of called passes are screens. High comp rate, modest YAC.
       // Skip on 3rd & long (screens get blown up by overzealous blitzers).
-      const isScreenCall = !(isThird && this.ytg >= 9) && _rand() < 0.085;
+      // A called SCREEN off the play sheet forces this branch; any other
+      // named call suppresses an accidental screen. Roll always runs.
+      const _scrRollHit = !(isThird && this.ytg >= 9) && _rand() < 0.085;
+      const isScreenCall = this._offConceptCall === "SCREEN" ? true
+                         : this._offConceptCall ? false
+                         : _scrRollHit;
       if (isScreenCall) {
         // Screen TARGET — ~70% RB, ~30% WR (wr1 or wr2 50/50). Engine
         // emitted only RB screens before, so every screen looked the
@@ -5354,7 +5386,12 @@ class GameSimulator {
       // routes had the same comp% as covered ones, and the engine called
       // "incomplete" on plays where the visual showed the ball arriving
       // at a wide-open receiver.
-      const _hoistedConcept = this._pickPassConcept(pb);
+      // The AI concept roll ALWAYS runs (keeps the RNG stream identical when
+      // no play was called); a coordinator's named call off the play sheet
+      // overrides the result, flowing through the same matchup tables.
+      const _rolledConcept = this._pickPassConcept(pb);
+      const _hoistedConcept = (this._offConceptCall && PASS_CONCEPTS[this._offConceptCall])
+        ? this._offConceptCall : _rolledConcept;
       // The AI coverage roll ALWAYS runs (keeps the RNG stream identical
       // when no shell was called); a defensive coordinator's pre-snap
       // shell call (V4 seam) overrides the result, flowing through the
@@ -6136,7 +6173,10 @@ class GameSimulator {
         qbRushPct = Math.max(qbRushPct, _mob * 0.10);
       }
     }
-    let isQBRun = qbRushPct > 0 && _rand() < qbRushPct;
+    // A called run off the play sheet means the BACK gets the ball — the
+    // QB-keeper conversion is suppressed. Check sits AFTER the _rand() so
+    // the draw order is identical in every path.
+    let isQBRun = qbRushPct > 0 && _rand() < qbRushPct && !this._offRunCall;
     // SPEED OPTION — a subset of QB-run calls where the RB trails the QB
     // as a live pitch threat. The QB sprints to the option side and either
     // KEEPS the ball or PITCHES to the trailing back. Option-heavy
@@ -6196,7 +6236,11 @@ class GameSimulator {
     // and runs laterally, then pitches to a crossing WR who runs the other way.
     // High variance: bigger gains AND bigger losses if it gets read.
     // Never on two-back — fullbacks don't run reverses.
-    const isReverse = !isQBRun && !useTwoBack && !isSpeedOption && _rand() < 0.015;
+    // A called run off the play sheet suppresses the reverse (you called
+    // INSIDE, you get a handoff — not a trick play). The check sits AFTER
+    // the _rand() so the draw order is identical in every path.
+    const isReverse = !isQBRun && !useTwoBack && !isSpeedOption && _rand() < 0.015
+                   && !this._offRunCall;
     // ── RUN-PLAY VARIANTS (counter / stretch / pitch) ──────────────────
     // Pick a runType for the non-reverse, non-QB runs. Distribution favors
     // GROUND_AND_POUND and OPTION schemes for counter / pitch, AIR_RAID
@@ -6220,6 +6264,10 @@ class GameSimulator {
         else if (r < 0.22) runType = "stretch";
         else if (r < 0.26) runType = "pitch";
       }
+      // Coordinator's called run variant (play sheet) overrides the ROLL
+      // RESULT only — the draw above still ran, so an unset coordinator
+      // leaves the RNG stream byte-identical.
+      if (this._offRunCall) runType = this._offRunCall;
     }
     // Per-variant yardage tuning — counter = boom/bust, stretch needs
     // athletic OL, pitch = chunk upside with TFL risk if read.

@@ -5025,6 +5025,19 @@
   }
   .ipc-btn.ipc-coach { margin-left: auto; }
 
+  /* Play sheet — the offensive playcall panel's grouped RUN/PASS rows */
+  .ipc-sheet { display: flex; flex-direction: column; gap: .4rem; width: 100%; }
+  .ipc-sheet-row { display: flex; gap: .4rem; align-items: stretch; flex-wrap: wrap; }
+  .ipc-sheet-tag {
+    flex: 0 0 42px; display: flex; align-items: center; justify-content: flex-end;
+    padding-right: .15rem;
+    font-family: 'IBM Plex Mono', monospace; font-size: .58rem; font-weight: 700;
+    letter-spacing: .14em; color: var(--blgray, #9aa7b8);
+  }
+  .ipc-sheet .ipc-btn { flex: 1 1 0; padding: .48rem .45rem; font-size: .82rem; white-space: nowrap; }
+  .ipc-sheet .ipc-btn.ipc-auto, .ipc-sheet .ipc-btn.ipc-coach { flex: 0 1 auto; }
+  .ipc-sheet .ipc-btn.ipc-generic { flex: 0 1 auto; opacity: .85; }
+
   /* Hero entry button for the interactive mode */
   .frn-sim-btn.frn-callplays-btn {
     color: var(--blgold, #f5c542);

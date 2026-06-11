@@ -101,7 +101,21 @@ otherwise take direction from the user.
     128px box per row (rows 210px→82px; the body-wear silhouette had
     computed 0px wide since it shipped — `display: contents` wrapper +
     explicit svg sizing).
-16. **Huddle scene + defense pace** (post-compact) — while a call prompt
+16. **Play sheet — named plays** (post-compact) — the offensive prompt
+    offers REAL plays, not run/pass: 4 run variants (RUN_INSIDE/OUTSIDE/
+    COUNTER/TOSS → engine runTypes via `RUN_CALL_VARIANTS`) + the 6
+    PASS_CONCEPTS (QUICK_GAME…PA_SHOT), plus generic run/pass and OC
+    defer. Engine seam accepts named calls and stashes
+    `_offConceptCall`/`_offRunCall`; downstream picks (PA roll, screen
+    roll, concept pick, runType roll, QB-keeper + reverse) override ROLL
+    RESULTS only — every draw still runs, so defer/no-coordinator stays
+    byte-identical (audit gate 0-drift). Called runs suppress reverses/
+    QB keepers; called concepts suppress accidental screens/PA. Keys:
+    1-4 runs, 5-0 passes, R/P generic, O defer. Works in net play too
+    (server's engine seam validates; foreign strings = defer). Probes:
+    `tools/_playsheet_probe.js` (13 headless engine checks),
+    `_ipc_clock_probe.js` → 19.
+17. **Huddle scene + defense pace** (post-compact) — while a call prompt
     is up, both squads form real huddles at the new LOS instead of the
     previous play's freeze-frame; status line on the TOP banner (the
     bottom cadence slot sits under the scrub bar). DEFENSIVE prompts run

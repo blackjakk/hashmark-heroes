@@ -75,21 +75,49 @@ const ok = (c, l) => { if (c) { pass++; console.log("  ✓ " + l); } else { fail
   ok(r.lastEntry === null, "entry is null = deferred to OC/DC");
   ok(r.huddleGone, "huddle scene stopped at expiry");
 
-  // ── Manual call cancels the clock + scene ───────────────────────────
+  // ── Manual call cancels the clock + scene. On offensive playcall
+  //    prompts the PLAY SHEET must render and a named call must record. ──
   await waitPrompt();
   const r2 = await page.evaluate(async () => {
     const kind = _ipc.pending.kind;
-    const call = kind === "fourthDown" ? "punt" : kind === "pat" ? "kick" : kind === "defense" ? "C3_ZONE" : "run";
+    const call = kind === "fourthDown" ? "punt" : kind === "pat" ? "kick"
+               : kind === "defense" ? "C3_ZONE" : "VERTICAL";
+    const sheet = kind === "playcall" || kind === undefined
+      ? { present: !!document.querySelector(".ipc-sheet"),
+          btns: document.querySelectorAll(".ipc-sheet .ipc-btn").length }
+      : null;
     frnPlaycall(call);
     await new Promise(res => setTimeout(res, 300));
     return { clockText: document.getElementById("ipcClock")?.textContent,
              timerDead: _ipcClockTimer === null,
              huddleGone: _huddleScene === null,
-             last: _ipc ? _ipc.tape[_ipc.tape.length - 1] : "gone", call };
+             last: _ipc ? _ipc.tape[_ipc.tape.length - 1] : "gone", call, kind, sheet };
   });
-  ok(r2.last === r2.call, `manual call recorded (${r2.call})`);
+  ok(r2.last === r2.call, `manual call recorded (${r2.call}, kind=${r2.kind})`);
   ok(r2.timerDead && r2.clockText === "", "clock cleared after manual call");
   ok(r2.huddleGone, "huddle scene stopped after manual call");
+  if (r2.sheet) ok(r2.sheet.present && r2.sheet.btns >= 13,
+                   `play sheet rendered with ${r2.sheet.btns} calls`);
+
+  // ── Walk to an offensive PLAYCALL prompt: sheet renders, named run
+  //    call records on the tape ─────────────────────────────────────────
+  let sheetSeen = null;
+  for (let i = 0; i < 24 && !sheetSeen; i++) {
+    await waitPrompt();
+    sheetSeen = await page.evaluate(() => {
+      const kind = _ipc.pending?.kind || "playcall";
+      if (kind !== "playcall") { frnPlaycall("auto"); return null; }
+      const present = !!document.querySelector(".ipc-sheet");
+      const btns = document.querySelectorAll(".ipc-sheet .ipc-btn").length;
+      frnPlaycall("RUN_TOSS");
+      return { present, btns, last: _ipc.tape[_ipc.tape.length - 1] };
+    });
+  }
+  if (!sheetSeen) ok(false, "never reached an offensive playcall prompt in 24 prompts");
+  else {
+    ok(sheetSeen.present && sheetSeen.btns >= 13, `play sheet on playcall prompt (${sheetSeen.btns} calls)`);
+    ok(sheetSeen.last === "RUN_TOSS", "named run call recorded on the tape");
+  }
 
   // ── Walk to a DEFENSIVE prompt: shorter window, break-lead invariant,
   //    and the on-screen huddle actually breaks before the DC takes over ──

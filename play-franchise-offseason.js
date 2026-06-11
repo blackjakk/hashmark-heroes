@@ -4460,16 +4460,22 @@ function _ipcMaybePrompt() {
 
 // Your call, from the panel buttons (or keyboard). Four decision kinds share
 // the one tape (decisions replay in deterministic order): "playcall" snaps
-// take run/pass, "fourthDown" takes go/fg/punt, "pat" takes kick/two, and
+// take a play off the sheet (named pass concept / run variant) or the
+// generic run/pass, "fourthDown" takes go/fg/punt, "pat" takes kick/two, and
 // "defense" (V4 — your team defending) takes one of the six coverage shells.
 // Anything else (incl. "auto") records null = defer to the AI.
+const _IPC_SHEET_CALLS = [
+  "run", "pass",
+  "QUICK_GAME", "DRAG_MESH", "INTERMEDIATE", "VERTICAL", "SCREEN", "PA_SHOT",
+  "RUN_INSIDE", "RUN_OUTSIDE", "RUN_COUNTER", "RUN_TOSS",
+];
 function frnPlaycall(call) {
   if (!_ipc || _ipc.status !== "pending") return;
   const kind  = _ipc.pending?.kind || "playcall";
   const valid = kind === "fourthDown" ? ["go", "fg", "punt"]
               : kind === "pat"        ? ["kick", "two"]
               : kind === "defense"    ? ["C0_BLITZ", "C1_MAN", "C2_ZONE", "C3_ZONE", "C4_QUARTERS", "TAMPA_2"]
-              :                         ["run", "pass"];
+              :                         _IPC_SHEET_CALLS;
   // Network match (C.3) — the answer goes to the authoritative server
   // instead of the local tape; resolved plays come back over SSE.
   if (_ipc.mode === "net") {
@@ -4587,7 +4593,7 @@ function _ipcShowPanel() {
       <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let your DC call it [O]">🧠 DC CALL</button>
       ${coachBtn}`;
   } else {
-    badge = "🎙 YOUR CALL";
+    badge = "🎙 YOUR CALL — PICK A PLAY";
     // Network parallel windows prompt PRE-snap — the AI's passProb doesn't
     // exist yet (both coordinators are on the same clock).
     lean = c.passProb == null
@@ -4595,11 +4601,36 @@ function _ipcShowPanel() {
       : c.passProb >= 0.5
         ? `OC LEAN · PASS ${Math.round(c.passProb * 100)}%`
         : `OC LEAN · RUN ${Math.round((1 - c.passProb) * 100)}%`;
+    // The play sheet — named calls feed the engine's concept×coverage
+    // matchup tables (pass) and runType variants (run), the same model the
+    // AI rolls against. R/P stay available as "any run / any pass" (the OC
+    // picks the scheme), [O] defers entirely.
     btns = `
-      <button class="ipc-btn ipc-run" onclick="frnPlaycall('run')" title="Hand it off [R]">🏃 RUN</button>
-      <button class="ipc-btn ipc-pass" onclick="frnPlaycall('pass')" title="Drop back [P]">🎯 PASS</button>
-      <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let the OC call this one [O]">🧠 OC CALL</button>
-      ${coachBtn}`;
+      <div class="ipc-sheet">
+        <div class="ipc-sheet-row">
+          <span class="ipc-sheet-tag">RUN</span>
+          <button class="ipc-btn ipc-run" onclick="frnPlaycall('RUN_INSIDE')" title="Downhill between the tackles — the safe yards [1]">⛏ INSIDE</button>
+          <button class="ipc-btn ipc-run" onclick="frnPlaycall('RUN_OUTSIDE')" title="Outside zone — needs an athletic line, hits big when the edge seals [2]">🏃 OUTSIDE ZONE</button>
+          <button class="ipc-btn ipc-run" onclick="frnPlaycall('RUN_COUNTER')" title="Misdirection — boom or bust, punishes overpursuit [3]">🔄 COUNTER</button>
+          <button class="ipc-btn ipc-run" onclick="frnPlaycall('RUN_TOSS')" title="Pitch to the edge — chunk upside, TFL risk if it's read [4]">🌀 TOSS</button>
+        </div>
+        <div class="ipc-sheet-row">
+          <span class="ipc-sheet-tag">PASS</span>
+          <button class="ipc-btn ipc-pass" onclick="frnPlaycall('QUICK_GAME')" title="Slants &amp; hitches — ball out fast, eats the blitz [5]">⚡ QUICK GAME</button>
+          <button class="ipc-btn ipc-pass" onclick="frnPlaycall('DRAG_MESH')" title="Crossers — rubs beat man coverage [6]">🤝 MESH</button>
+          <button class="ipc-btn ipc-pass" onclick="frnPlaycall('INTERMEDIATE')" title="Digs &amp; outs at the sticks — carves zone [7]">🎯 DIG &amp; OUT</button>
+          <button class="ipc-btn ipc-pass" onclick="frnPlaycall('VERTICAL')" title="Shot deep — beats single-high, dies vs two-deep [8]">🚀 VERTS</button>
+          <button class="ipc-btn ipc-pass" onclick="frnPlaycall('SCREEN')" title="Manufactured YAC behind the rush — blitz killer [9]">🧱 SCREEN</button>
+          <button class="ipc-btn ipc-pass" onclick="frnPlaycall('PA_SHOT')" title="Play action — sells the run, hits over the top; longer dropback [0]">🎭 PLAY ACTION</button>
+        </div>
+        <div class="ipc-sheet-row">
+          <span class="ipc-sheet-tag"></span>
+          <button class="ipc-btn ipc-run ipc-generic" onclick="frnPlaycall('run')" title="Any run — your OC picks the scheme [R]">🏈 ANY RUN</button>
+          <button class="ipc-btn ipc-pass ipc-generic" onclick="frnPlaycall('pass')" title="Any dropback — your OC picks the concept [P]">🏈 ANY PASS</button>
+          <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let the OC call this one [O]">🧠 OC CALL</button>
+          ${coachBtn}
+        </div>
+      </div>`;
   }
   el.querySelector("#ipcBadge").textContent = badge;
   el.querySelector("#ipcSit").textContent  = kind === "pat"
@@ -4725,7 +4756,13 @@ function _ipcInstallKeys() {
       else if (k === "p") { e.preventDefault(); frnPlaycall("punt"); }
       else if (k === "o") { e.preventDefault(); frnPlaycall("auto"); }
     } else {
-      if (k === "r")      { e.preventDefault(); frnPlaycall("run"); }
+      // Play sheet — digits 1-4 = runs, 5-0 = pass concepts; R/P stay as
+      // the generic "any run / any pass" calls.
+      const sheet = { "1": "RUN_INSIDE", "2": "RUN_OUTSIDE", "3": "RUN_COUNTER", "4": "RUN_TOSS",
+                      "5": "QUICK_GAME", "6": "DRAG_MESH", "7": "INTERMEDIATE", "8": "VERTICAL",
+                      "9": "SCREEN", "0": "PA_SHOT" };
+      if (sheet[k])       { e.preventDefault(); frnPlaycall(sheet[k]); }
+      else if (k === "r") { e.preventDefault(); frnPlaycall("run"); }
       else if (k === "p") { e.preventDefault(); frnPlaycall("pass"); }
       else if (k === "o") { e.preventDefault(); frnPlaycall("auto"); }
     }
