@@ -657,6 +657,15 @@ function drawPlayer(ctx, x, y, color, secondary, label, pose, t, facing, style =
   // pose") → falls through to the suppressed procedural path →
   // player vanishes. Idle has a sprite for all 8 dirs.
   if (pose == null || pose === "") pose = "idle";
+  // ── POSE PROBE (audit instrumentation) ─────────────────────────────
+  // window.GC_POSE_PROBE = true → every drawn player's pose this frame is
+  // recorded into window._posesThisFrame keyed by name. The animation
+  // audit tools assert pose timelines through this (the carry-hand sink
+  // only writes for ball-holding poses, so it can't be the instrument).
+  // Zero cost when the flag is off.
+  if (typeof window !== "undefined" && window.GC_POSE_PROBE) {
+    (window._posesThisFrame = window._posesThisFrame || {})[(style && style.name) || label || "?"] = pose;
+  }
   // ── TOP-DOWN DOT MODE ─────────────────────────────────────────────────
   // In the flat top-down camera, draw each player as a simple dot instead
   // of the full sprite — a clean "tactical" read where you just track where
@@ -3319,6 +3328,44 @@ function jerseyForPlayer(p) {
   for (let i = 0; i < nm.length; i++) hash = (hash * 31 + nm.charCodeAt(i)) >>> 0;
   return pool[hash % pool.length];
 }
+// Re-dress ONE formation slot as a SPECIFIC player by name. The engine
+// rotates personnel mid-game (fatigue subs, the RB committee split), so
+// the play's actual receiver/carrier is often a different man than the
+// pre-game starter attachPlayerStyles dressed the slot with — the catch/
+// carry then animated on the WRONG PLAYER (jersey, name-seeded skin, and
+// every name-keyed system: carry-hand sink, continuity guard, pose probe).
+//
+// IDENTITY SWAP, not copy: if the wanted man already dresses ANOTHER slot
+// in this formation (he's the starter somewhere else), the two slots trade
+// identities — a copy would put the same name on two bodies, and every
+// name-keyed map silently reads whichever drew last ("twins on the field").
+// Pass formation to enable the swap; the displaced identity moves to the
+// donor slot.
+const _DRESS_FIELDS = ["runStyle", "celebStyle", "bodyType", "label",
+                       "archetype", "position", "elite", "nickname", "name"];
+function dressSlotAs(slot, name, lookup, formation) {
+  if (!slot || !name || !lookup) return;
+  if (slot.name === name) return;
+  const p = lookup.get(name);
+  if (!p) return;
+  const prev = {};
+  for (const f of _DRESS_FIELDS) prev[f] = slot[f];
+  // Donor: any other offense entry already wearing this name.
+  const donor = formation && formation.offense
+    ? formation.offense.find(e => e && e !== slot && e.name === name)
+    : null;
+  slot.runStyle = p.runStyle;
+  slot.celebStyle = p.celebStyle;
+  slot.bodyType = p.bodyType;
+  slot.label = jerseyForPlayer(p);
+  slot.archetype = p.archetype;
+  slot.position = p.position;
+  slot.elite = !!p.nickname;
+  slot.nickname = p.nickname;
+  slot.name = p.name;
+  if (donor) for (const f of _DRESS_FIELDS) donor[f] = prev[f];
+}
+
 function attachPlayerStyles(formation, offStarters, defStarters, lookup) {
   if (!lookup) return;
   const pickup = (name) => name ? lookup.get(name) : null;

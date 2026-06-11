@@ -155,6 +155,34 @@ otherwise take direction from the user.
     geometry; isLeapingCatch/catchRadius already emitted), torso/legs
     sprite layering for catch-in-stride, procedural lean/squash.
 
+19. **Catch matrix + WRONG-PLAYER bug (anim Phase 2)** (post-compact) —
+    catches now pick a variant from ball-arrival geometry: high_point
+    (engine isLeapingCatch → 10px softened-sine lift + 300ms hitstop),
+    dive (zero-YAC downfield grab, hash-thinned to ~45% of pool ≈ 2% of
+    catches → dive_forward + lunge, 280ms), in_stride (yac ≥ 4 or deep —
+    ~35% of catches: RUN until the final beat, lead 0.015, reach maps
+    0.55→1, 140ms hitstop), standard (lead tightened to 0.035, 200ms).
+    Variant hash MUST be stable per play (no RNG in render).
+    FOUND + FIXED systemic bug: formation slots are dressed from
+    PRE-GAME starters, but the engine rotates personnel (committee RBs,
+    fatigue subs) — so the catch/carry animated on the WRONG PLAYER
+    (sometimes the real receiver wasn't drawn at all). `dressSlotAs` in
+    play-render.js re-dresses the target slot from play.receiver /
+    play.rusher / play.passer as an IDENTITY SWAP (copying duplicated a
+    name onto two bodies — name-keyed maps then read whichever drew
+    last). Skipped on reverses. Teleport runaway IMPROVED 4→3 (the twin
+    collision was polluting the continuity guard).
+    NEW INSTRUMENTS for the full animation audit the user wants next:
+    `window.GC_POSE_PROBE` (drawPlayer records every drawn pose per
+    frame into window._posesThisFrame), `tools/_catch_matrix_probe.js`
+    (9 checks: pose timelines around the true arrival tick found via
+    the catch-flash one-shot; also asserts Phase-1 throw→idle flip),
+    `tools/_anim_contact_sheet.js` (24-family × 7-frame labeled review
+    grid → audit-results/anim_contact_sheet.png; only big_hit lacks an
+    exemplar). NEXT (Phase 3+, user-approved direction): full animation
+    audit family-by-family off the contact sheet, torso/legs sprite
+    layering, procedural lean/squash.
+
 ## OPEN THREADS (user picks)
 
 1. **Touch drag-and-drop** — HTML5 DnD doesn't fire on touchscreens;

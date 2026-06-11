@@ -1826,6 +1826,17 @@ function buildAnimForPlay(play, prevPlay) {
     const _counterSide = ((play.startYard * 11) % 2) === 0 ? 1 : -1;
     const _stretchSide = ((play.startYard * 17) % 2) === 0 ? 1 : -1;
     const _pitchSide   = ((play.startYard * 13) % 2) === 0 ? 1 : -1;
+    // The engine rotates personnel mid-game (RB committee carries ~30%+ of
+    // runs with rb2, fatigue subs swap starters) — the formation's RB slot
+    // is dressed with the PRE-GAME starter, so the carry animated on the
+    // wrong back. Re-dress the actual carrier's slot from play.rusher.
+    // Skipped on reverses (rusher is a WR; the reverse choreography draws
+    // its own sweep pair) — speed options dress whichever side kept it.
+    if (typeof dressSlotAs === "function" && gameResult && gameResult.playerLookup && !play.isReverse) {
+      const _qbCarries = !!play.isScramble || (!!play.isQBRun && !play.isPitch);
+      dressSlotAs(_qbCarries ? formation.qb : formation.rb, play.rusher, gameResult.playerLookup, formation);
+      if (!_qbCarries) dressSlotAs(formation.qb, play.passer || undefined, gameResult.playerLookup, formation);
+    }
     // Run-block engagement sim (built lazily on the first post-snap frame,
     // persists across render frames via this closure — like _passPro).
     let _runBlock = null;
@@ -3571,6 +3582,15 @@ function buildAnimForPlay(play, prevPlay) {
     // the ball arrived at a different y → visible teleport at catch.
     const _wrTrk = (play.motion && play.motion.tracks) ? play.motion.tracks[wrChoice] : null;
     const _wrBase = formation[wrChoice] || formation.rb;
+    // The engine rotates personnel mid-game (fatigue subs, RB committee),
+    // so the play's ACTUAL receiver/passer can differ from the pre-game
+    // starters the formation slots were dressed with — the catch animated
+    // on the WRONG PLAYER (and the real one sometimes wasn't drawn at
+    // all). Re-dress the target slot + QB as the men who made the play.
+    if (typeof dressSlotAs === "function" && gameResult && gameResult.playerLookup) {
+      dressSlotAs(_wrBase, play.receiver || play.intended, gameResult.playerLookup, formation);
+      dressSlotAs(formation.qb, play.passer, gameResult.playerLookup, formation);
+    }
     let _catchTargetY;
     if (_wrTrk && _wrBase && typeof MotionPlayback !== "undefined" && !isScreen) {
       // Sample at engine-emitted throwT (catch moment in action time).
@@ -5275,8 +5295,32 @@ function buildAnimForPlay(play, prevPlay) {
         }
       }
       const qbWithPose = { ...qb, x: qb.x + _qbStepIn, pose: qbPose, t: qbT, facing: dir };
-      // Target receiver pose — reach during the catch window, then carry the ball downfield
-      const isCatching = t > throwPhase - 0.05 && t < throwPhase + 0.10;
+      // ── CATCH MATRIX (Phase 2) — the catch variant is picked from the
+      // BALL-ARRIVAL GEOMETRY the engine already emits, instead of one
+      // generic reach for everything:
+      //   high_point — engine's contested/deep jump ball (isLeapingCatch):
+      //                vertical rise + hang through the leap window
+      //   dive       — downfield grab with ZERO run-after: the receiver
+      //                lays out (dive_forward) and hits the turf with it.
+      //                Thinned by a stable per-play hash to ~45% of the
+      //                zero-YAC pool (layout grabs are rare, ~3-4% of all
+      //                catches; hash not RNG — the variant must be
+      //                IDENTICAL on every re-render/scrub of the frame)
+      //   in_stride  — the receiver KEPT RUNNING (yac ≥ 4, or a deep rail
+      //                shot): run pose until the final beat, hands up
+      //                late, short hitstop — momentum never breaks
+      //   standard   — routine chest catch (old reach, lead tightened)
+      const _catchHash = (typeof _stableHash === "function")
+        ? _stableHash((play.receiver || "") + "|" + (play.yards || 0) + "|" + (play.startYard || 0)) % 100
+        : 50;
+      const _catchVariant = play.kind !== "complete" ? null
+        : play.isLeapingCatch ? "high_point"
+        : ((play.yac ?? 99) === 0 && (play.targetDepth ?? 0) >= 8 && _catchHash < 45) ? "dive"
+        : ((play.yac ?? 0) >= 4 || (play.targetDepth ?? 0) >= 18) ? "in_stride"
+        : "standard";
+      const _catchLead = _catchVariant === "in_stride" ? 0.015 : 0.035;
+      // Target receiver pose — variant catch during the window, then carry
+      const isCatching = t > throwPhase - _catchLead && t < throwPhase + 0.10;
       const isPostCatch = play.kind === "complete" && t > throwPhase + 0.10;
       // On an INT, the WR briefly reacts ("reach") then chases ("run") toward the defender,
       // facing the opposite direction since they're now playing defense.
@@ -5383,7 +5427,7 @@ function buildAnimForPlay(play, prevPlay) {
         : (wrIntPose
         || (inWRJukeWindow ? "juke"
         :  (inLeapWindow ? "leap"
-        :  (isCatching ? "reach"
+        :  (isCatching ? (_catchVariant === "dive" ? "dive_forward" : "reach")
         :  (isPostCatch && aT > 0.90 && passIsTD ? "celebrate"
         :  (isPostCatch && aT > 0.92 && isFirstDownPass ? "celebrate"
         :  (_isTackleNow ? _wrFallPose
@@ -5421,14 +5465,29 @@ function buildAnimForPlay(play, prevPlay) {
       // reach/catch animation every 333ms — looked like the WR was
       // catch-faking on a loop. Single-fire matches a real catch.
       const _isReachCatch = isCatching && !inLeapWindow;
-      const reachInternalT = _isReachCatch
-        ? Math.min(1, Math.max(0, (t - (throwPhase - 0.05)) / 0.15))
+      const _reachProg = _isReachCatch
+        ? Math.min(1, Math.max(0, (t - (throwPhase - _catchLead)) / (_catchLead + 0.10)))
         : 0;
+      // In-stride secure: skip the windup frames, hands go up on the
+      // final beat only (frames 2-3 of the catch art).
+      const reachInternalT = _catchVariant === "in_stride"
+        ? 0.55 + 0.45 * _reachProg
+        : _reachProg;
       const wrTackleT = wrIsTackled ? Math.min(1, (aT - TACKLE_START_AT) / (1 - TACKLE_START_AT))
                        : inLeapWindow ? leapInternalT
                        : _isReachCatch ? reachInternalT
                        : ((t * (dur / 1000)) * strideHz) % 1;
+      // HIGH POINT — vertical lift through the leap window (rise, hang at
+      // the apex via the softened sine, come down with the ball). DIVE —
+      // forward lunge into the layout. Drawn-position offsets only; the
+      // ground position (wr) that tacklers/blockers home on is untouched.
+      const _leapLift = inLeapWindow
+        ? Math.pow(Math.sin(Math.min(1, leapInternalT) * Math.PI), 0.7) * 10
+        : 0;
+      const _diveLunge = (_catchVariant === "dive" && isCatching) ? _reachProg * 9 : 0;
       const wrWithPose = { ...wr,
+        x: wr.x + dir * _diveLunge,
+        y: wr.y - _leapLift,
         pose: wrPose,
         t: wrTackleT,
         facing: (play.kind === "int" && t > throwPhase + 0.05) ? -dir : dir,
@@ -5885,7 +5944,13 @@ function buildAnimForPlay(play, prevPlay) {
         play._catchFlashFired = true;
         const _now = performance.now();
         if (typeof animState !== "undefined" && animState) {
-          animState.slowMoUntil = _now + 220;   // hold the frame ~0.22s
+          // Contact-weighted hitstop: the harder the catch, the longer the
+          // frame hangs. In-stride catches keep their momentum (short stop).
+          const _stopMs = _catchVariant === "high_point" ? 300
+                        : _catchVariant === "dive" ? 280
+                        : _catchVariant === "in_stride" ? 140
+                        : 200;
+          animState.slowMoUntil = _now + _stopMs;
           animState.slowMoMul = 0;                // total freeze (t doesn't advance)
         }
         play._catchFlashUntil = _now + 350;       // green tint a bit longer than the freeze
