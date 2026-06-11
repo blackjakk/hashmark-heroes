@@ -88,6 +88,23 @@ process.on("exit", () => children.forEach(c => { try { c.kill("SIGKILL"); } catc
     findings.push(...res);
   };
 
+  // Typography contract — the display/mono/prose faces must come from the
+  // SELF-HOSTED files (fonts/fonts.css). When they fail, every surface
+  // silently falls back to Courier New ("the dated look") and no styling
+  // audit below would notice.
+  const fontsOk = await page.evaluate(async () => {
+    await document.fonts.ready;
+    const out = {};
+    for (const f of ["Bebas Neue", "IBM Plex Mono", "Bricolage Grotesque"]) {
+      try { out[f] = (await document.fonts.load(`16px '${f}'`)).length > 0; }
+      catch { out[f] = false; }
+    }
+    return out;
+  });
+  for (const [fam, ok] of Object.entries(fontsOk)) {
+    if (!ok) findings.push({ kind: "font-missing", surface: "global", txt: fam });
+  }
+
   // Boot franchise with deterministic RNG.
   await page.evaluate(() => {
     let s = 0xBEEF;
@@ -122,6 +139,16 @@ process.on("exit", () => children.forEach(c => { try { c.kill("SIGKILL"); } catc
   await page.waitForTimeout(350);
   await scan("player-card");
   await page.evaluate(() => frnClosePlayerModal());
+
+  // Holdout center modal — EMPTY state first (the branch a seeded-only
+  // walk never reaches; the vintage "all demands resolved" card hid here).
+  await page.evaluate(() => {
+    franchise.holdoutDemands = [];
+    frnOpenHoldoutCenter();
+  });
+  await page.waitForTimeout(250);
+  await scan("holdout-center-empty");
+  await page.evaluate(() => frnCloseHoldoutCenter());
 
   // Holdout center modal (seeded).
   await page.evaluate(() => {

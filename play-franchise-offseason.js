@@ -7921,11 +7921,14 @@ function frnRefreshHoldoutCenter() {
 function _holdoutCenterInnerHtml() {
   const pending = _pendingHoldoutDemands();
   if (!pending.length) {
-    return `<div class="frn-resign-recap-card">
+    return `<div class="frn-resign-recap-card" style="max-width:560px">
       <button class="frn-resign-recap-close" onclick="frnCloseHoldoutCenter()">×</button>
       <div class="frn-resign-recap-eyebrow">WEEK ${franchise.week} · HOLDOUT CENTER</div>
-      <h2 class="frn-resign-recap-title">NO ACTIVE DEMANDS</h2>
-      <p style="color:var(--blgray);text-align:center;margin:1rem 0">All walk-year extension demands have been resolved.</p>
+      <h2 class="frn-resign-recap-title">🤝 NO ACTIVE DEMANDS</h2>
+      <div style="text-align:center;margin:.2rem 0 1rem">
+        <div style="font-family:var(--font-prose);font-size:.85rem;color:var(--white);margin-bottom:.35rem">Every walk-year extension demand has been settled.</div>
+        <div style="font-family:var(--font-prose);font-size:.72rem;color:var(--gray);max-width:42ch;margin:0 auto;line-height:1.45">Stars in the final year of their deal can demand a new contract any week of the season — the dashboard ribbon lights up when one does, and you'll have four weeks to extend, counter, trade, defer, or refuse.</div>
+      </div>
       <div class="frn-resign-recap-cta"><button class="btn btn-gold-big" onclick="frnCloseHoldoutCenter()">✓ Close</button></div>
     </div>`;
   }
