@@ -1,164 +1,165 @@
 # Next-session pickup message
 
-Paste this verbatim into the next chat to resume. **There is no single
-queued task — the recorded roadmap (V1-V5) is COMPLETE and all
-user-reported bugs from the last session are fixed.** Open threads are
-listed at the bottom; otherwise take direction from the user.
+Paste this verbatim into the next chat to resume. **No single queued
+task** — this session shipped a long run of user-driven features and
+fixes (all pushed, all detectored). Open threads at the bottom;
+otherwise take direction from the user.
 
 ---
 
 ## Repo + state
 
 - Repo: `/home/user/hashmark-heroes` (vanilla HTML/CSS/JS game, no build
-  step; optional Solidity layer in `contracts/` — MegaETH, opt-in, NOT
-  wired to gameplay).
+  step; optional Solidity layer in `contracts/` — NOT wired to gameplay).
 - Branch: `claude/charming-cray-ggpd7f` — pushed, tree clean, and
   **`main` is fast-forwarded to the same tip on every push** (standing,
   user-confirmed; they treat main as live).
-- Browser-globals loading (play.html order): play-data → play-player →
-  … → play-engine → franchise-core → season → stats → offseason →
-  **play-h2h-client** (last). Top-level const/function/let share one
-  global scope across files — `window.X = …` does NOT write a top-level
-  `let` binding (bare-name assignment does). This gotcha produced a real
-  bug once (frnReplayClip had never worked).
+- Browser-globals loading (play.html order): play-data → … → play-engine
+  → franchise-core → season → stats → offseason → play-h2h-client (last).
+  Top-level const/let share one global scope — `window.X = …` does NOT
+  write a top-level `let` binding (bare-name assignment does).
+- **Fonts are SELF-HOSTED** (`fonts/fonts.css`, 16 woff2, latin subsets).
+  The Google Fonts CDN is gone from play.html; the user's machine was
+  silently rendering Courier/Arial fallbacks for a long time, which
+  explained a string of "old looking font" reports. The artifact probe
+  asserts the three core faces load.
 - Gates (all law): `node --check <file>` per edit; `node _audit_gate.js`
-  (14 metrics, seed 1337, re-baseline intentional changes in the same
-  commit — `--fast` for the 1-min tier); `./_teleport_gate.sh` (seeded
-  render replay; egregious-jump baseline + the new OUT-OF-BOUNDS class);
-  realism deep-dives via `node _sim_audit.js [seasons] [seed]` (bands in
-  `AUDIT.md`). Manual verify: `npx http-server -p 5173` + Playwright at
-  `/opt/node22/lib/node_modules/playwright`.
+  (14 metrics, seed 1337, `--fast` 1-min tier; re-baseline intentional
+  changes in the same commit); `./_teleport_gate.sh` (egregious ≤ 4 AND
+  runaway ≤ 4 — both re-baselined this session); realism deep-dives via
+  `node _sim_audit.js [seasons] [seed]`.
+- Probe battery (tools/, each self-serves on its own port):
+  `_franchise_qol_probe.js` (30 checks), `_dc_dnd_probe.js` (18),
+  `_holdout_center_probe.js` (24), `_ipc_clock_probe.js` (7),
+  `_ui_artifact_probe.js` (17 surfaces; classes: white-control,
+  tiny-text, stray-font, undef-var, offscreen-x, font-missing),
+  `_kb_offseason_probe.js` (§F keyboard loop). pkill exit code 144
+  aborts compound shell commands — run it alone; ghost http-servers on
+  probe ports cause 404/EADDRINUSE — `fuser -k <port>/tcp`.
 
-## Where the project stands (all DONE, pushed, on main)
+## What this session shipped (chronological, all on main)
 
-- **Audit era** (`CODEBASE_AUDIT_PLAN.md`): all 9 workstreams + ticket
-  backlog closed. §F's last criterion (keyboard-only offseason) now met.
-- **V1 renderer unification** (`VISUAL_ENGINE.md`): live broadcast =
-  `#field-pixi` (sleeping static WebGL field) + `.gc-player-pixi` (THE
-  one per-frame render) + DOM callouts; `#field` is clearRect-only in
-  broadcast; `#field-uprights`/`.gc-pixi-fx` exist only as no-WebGL
-  fallbacks. PLAYING p50 **83ms** headless software (was 470 pre-audit).
-- **V3 replay-clip shrink**: clips 191KB → ~9KB (statsSnap stripped at
-  source + load-time backfill; motion tracks KEPT — they're the replay).
-- **V4 head-to-head, complete and playable browser-to-browser**:
-  - Four Coordinator seams in the engine — run/pass `"playcall"`,
-    `"fourthDown"` (go/fg/punt), `"pat"` (kick/two), `"defense"` (six
-    coverage shells, fires at snap top BEFORE the 4th-down branch).
-    Gate-safe contract: AI consumes its RNG first, coordinator overrides
-    the RESULT; defer = byte-identical (CI invariant, tol 0).
-  - Single-player interactive playcalling prompts BOTH sides of the ball
-    (keys: R/P, G/F/P, K/G, 1-6 shells, O = defer, Coach Mode hand-off).
-    Dashboard hero button = 🎙 CALL THE PLAYS (launches it directly).
-  - `server/h2h-server.js`: zero-dep Node authority. State =
-    (seed, roster snapshots, input tape); re-sims per call; parallel
-    same-snap windows under ONE clock (defense+offense prompt together;
-    tape commits atomically at window resolution = the durability
-    boundary); play-clock timeout → AI defer; JSONL persistence with
-    boot-time re-sim recovery; artifact = {seed,teams,rosters,tape} +
-    SHA-256 hash served at /api/artifact (the future chain-settlement
-    hook — v1 has NO chain dependency, user-confirmed); BYO franchise
-    rosters both seats; `H2H_STATIC=1` serves game+API one-origin;
-    `server/README.md` has the systemd/Caddy deploy recipe.
-  - `play-h2h-client.js`: the network session wears the `_ipc`
-    interface — same panels/keys/playback; `frnPlaycall` has a
-    `mode==="net"` branch; SSE decisions → `_ipc.pending`; waiting
-    banner with countdown; host modal via the 🌐 footer link; share link
-    `#h2h=matchId.joinCode.server`; wire-slimmed plays (statsSnap on a
-    ~8-carrier cadence + scores + final).
-  - Pacing model (user-ratified, in `INGAME_CLOCK_AND_MULTIPLAYER.md`):
-    simultaneous hidden calls, server-anchored deadline (deadline-as-data
-    → async leagues later), advance-on-both-ready, AI fallback.
-- **V5 realism**: one-score 42.7 → **45.0** [44-52 ✓] (canonical
-  40-season audit; the GATE's sim tier runs only 2 seasons → its reading
-  is ±2pp noise — don't chase it); OT 3.2 → ~4 [4-10 edge]. Levers:
-  PREVENT now CONCEDES underneath (passMul 0.92→1.16 — it was backwards
-  — sackMul 0.60, 14+ Q4 leads shell from 8:00), the down-8-16 Q4
-  FG-script, PAT chart kicks the tying XP (case -1: 0.35→0.10 lateGame),
-  kneel-to-OT + tied two-min-drill discipline, deeper Q4 leader run
-  tilts. Injury-by-position SHARE bands (11 chk detectors) in
-  `_brady_audit.js` — all pass. Keyboard-only offseason proven by
-  `tools/_kb_offseason_probe.js` (drafts a prospect + submits an FA
-  offer by keyboard; zero app fixes were needed).
-- **Last session's user-report fixes**: floating sprites (foot offset
-  0.35→0.23 — art's feet measured at ~0.73 of image height, not the
-  assumed 0.85; ball hand offset rebased -50→-38 with it); drawPlayer
-  bounds guard (nothing renders past the EZ backs / far past sidelines);
-  honest entry hierarchy (hero = interactive, Watch Game secondary).
+1. **Holdout Center negotiation** — always-on offer composer (AAV/years/
+   structure/chips/odds), real accept/concede/dig-in exchange (2 rounds,
+   tag-floor anchored), modernized screen + empty state.
+2. **Play clock (solo)** — 20s on every interactive prompt; expiry
+   defers to OC/DC (null tape entry = byte-identical to pressing O);
+   freezes while tab hidden; net games keep server authority.
+3. **Post-sack runaway defenders FIXED** (the long-open user report):
+   sack renderer's LB-scrape/DL-hold offsets read `_lastRenderedX`
+   (re-synced every frame) as their base → per-frame integration →
+   ~48yd/s sprints into the field edge. One-shot `_sackHoldBase` per
+   play. New RUNAWAY detector class in `_teleport_detect.js` (≥20yd
+   late-sprint ending ≥24yd from the dead ball), gated in
+   `_teleport_gate.sh` (baseline 4; egregious tightened 8→4).
+4. **Broadcast HUD anchored to the field** (down chip no longer covers
+   the play caption).
+5. **Player card vitals = the game's own sprite** (`sprites/idle/
+   south.png` pixelated in the SVG; wear glows ≥30, margin callout
+   chips, career scar dots, active-injury crosshair + banner).
+6. **App-wide type/artifact audit**: `:root` now defines `--fg/--text/
+   --bg1/--blgray` AND (latest) the **full bl\* palette** (`--blwhite/
+   --blgold/--blgreen/--blgreen-d/--blred/--blborder/--blbordr2`) — ~77
+   body-level inline usages (re-sign/demands ceremonies etc.) silently
+   resolved to nothing and rendered flat. Probe's `undef-var` class
+   guards it. Global `.btn` got `font-family: inherit` (was UA Arial).
+   All sub-8px font sizes raised.
+7. **Bye weeks** — 18-week calendar, 17 games/team, byes in W9/W10
+   (split middle Berger round). `GAMES_PER_TEAM = 17` vs
+   `FRANCHISE_WEEKS = 18` — use the right one. Dashboard bye hero card +
+   gauntlet BYE card.
+8. **Final cuts: AUTO-RESTRUCTURE TO CAP** + per-season cap-spread
+   tables in both restructure confirms.
+9. **IR player card fix** (`_findPlayer` now searches `franchise.ir`).
+10. **NEXT MAN UP** — `_emergencyDepthPatch` in `_frnBuildLiveSim`
+    converts a healthy neighbor (donor adjacency CB↔S, WR↔RB, K↔P…,
+    −18% OVR via `_EMERGENCY_OVR_MULT`) when a group is empty — no more
+    50-OVR ghosts. **Street FAs** — depth chart button → mid-season
+    1yr half-market signings; pool tops up (`_streetFATopUp`).
+11. **Depth chart rework** — drag-and-drop everywhere (cells, bench
+    trays, cross-position with OOP chips); **the chart now drives the
+    engine** (`_applyDepthChartToRoster` stamps `_depthRank`; engine's
+    three depth sorts use `_depthCmp` — rank first, OVR tiebreak;
+    byte-identical when no ranks → gate-safe). **Field view** — 🏟
+    formation diagram, uniform 108px depth stacks (★ starter pill bold,
+    ▸ backup indented), every pill an independent drag source/target.
+12. **SB-loss progression fix** — champion auto-crowned when the SB
+    result records; ELIMINATED recap shows first (dashboard heal defers
+    to `_frnPlayoffRecapPending`); bracket lands on one "🌟 AWARDS
+    CEREMONY" button (no CROWN-CHAMPION-behind-wrong-confirm trap).
+13. **WPA recap card** — headline says what the play did (GO-AHEAD
+    TOUCHDOWN etc., score journey "down 7 → up 1"), swing as display
+    number, play pinned on the WP sparkline. Fixed: the Sim Week path
+    never wrote the analytics playLog (`_mffAppendPlayLog` now shared by
+    both persist paths — every game feeds WPA/EPA).
+14. **Real replays everywhere** — `frnReplayHighlight` router: recorded
+    motion clip → playLog reconstruction (`_inflateCompactPlay` + shared
+    `_frnPlaySynthReplay`) → text modal only for old saves. Floating
+    ✕ EXIT REPLAY chip (`frnExitReplay`) restores the dashboard.
+15. **Box score de-ASCII'd** (modern footer, dead block-logo removed,
+    bracket nav links → chips) and **LIVE BIO panel fixed** — phantom
+    128px box per row (rows 210px→82px; the body-wear silhouette had
+    computed 0px wide since it shipped — `display: contents` wrapper +
+    explicit svg sizing).
 
-## OPEN THREADS (no commitments made — user picks)
+## OPEN THREADS (user picks)
 
-1. **The unreproduced "barrier" runaway** (user report: defenders
-   sprint to the endzone after sacks and keep going). Could NOT repro
-   across sacks/completes/turnover-returns with two detector styles.
-   Armed: the teleport detector's OUT-OF-BOUNDS class flags any player
-   draw past the field edges with kind/slot/frame (first catch: FG-def
-   FS at x=-5, minor). The renderer clamp hides the symptom meanwhile.
-   If the user gives a trigger (play kind / phase — during the play,
-   the hold, or next-play setup?), capture a battery around it
-   (`node _teleport_capture.js N SEED` → `node _teleport_detect.js`).
-2. **Defense-prompt toggle** (proposed, not shipped): a per-game "stop
-   prompting my defense" option on the call panel — between full
-   prompts (~140/game) and Coach Mode.
-3. **H2H beyond v1**: matchmaking/accounts, spectators, async-league
-   deadlines (protocol-ready — deadline is already data), parallel
-   window for 4th-down/PAT prompts, chain settlement (post artifact
-   hash to LeagueManager; optimistic wagers w/ challenge-by-re-sim).
-4. **Strict-AA WCAG badge** + landmarks/headings (§F leftovers, low).
+1. **Touch drag-and-drop** — HTML5 DnD doesn't fire on touchscreens;
+   depth chart on mobile = buttons only. Pointer-events rewrite if asked.
+2. **True per-slot 3rd string** — the chart holds starter+backup per
+   slot; deeper depth = group's later slots + bench. A literal third
+   pill row = data-model extension (user was told, hasn't asked).
+3. **Play screen geometry** — chrome cleaned up, but if the user still
+   dislikes the layout (scoreboard proportions, panel order), they were
+   invited to screenshot specifics.
+4. **H2H beyond v1** — matchmaking, spectators, async deadlines, chain
+   settlement (artifact + SHA-256 at /api/artifact is the bridge).
+5. **Defense-prompt toggle** (proposed): per-game "stop prompting my
+   defense" between full prompts and Coach Mode.
+6. **Strict-AA WCAG badge** + landmarks (low).
 
-## Architecture cheat-sheet (battle-tested this session)
+## Architecture cheat-sheet
 
-- **Determinism**: engine RNG `_setSimRng/_clearSimRng` (game seed);
-  franchise `_withWeekRng` (week seed). The interactive runner AND the
-  H2H server both = fresh seeded sim + flat input tape + sentinel throw
-  at the first unanswered coordinator call (`_ipcRun` /
-  `server/h2h-server.js step()`). Tape replay = byte-identical prefix.
-- **Renderer topology** (broadcast): GCField renders ONLY on change
-  (static key `home|away|camera`, dynamic key incl. 10Hz red-zone pulse,
-  `_shadowsDirty` for topdown); GCPlayer canvas per frame — under
-  container (ground shadows/trails projected per point: the CSS tilt IS
-  `projectBroadcast`, scaleY(1/cosθ)·cosθ=1), `_stage` (sprites + ball +
-  goalposts, zIndex=screenY; ragdoll rot/dy applied ON the sprite, never
-  baked into the texture cache), fxRoot (GCFx particles/chrome).
-  Callouts/result cards/weather badge = DOM `#fieldCalloutLayer`
-  (1700×720 design space scaled onto the wrap; `_fcClearAll` at play
-  boundaries). `engine-host.js` = the audit's DOM-shim bundle loader as
-  a module (keep FILES in sync with `_sim_audit.js`).
-- **Sprite ground truth**: PixelLab art is 104px, feet at ~0.73 height;
-  `_SPRITE_FOOT_OFFSET_Y = 0.23`; GCPlayer textures 96×192, anchor
-  (0.5, 0.82). Anchor-relative visual constants (ball hand) must be
-  rebased if the offset ever changes again.
+- **Determinism**: engine `_setSimRng/_clearSimRng`; franchise
+  `_withWeekRng`. Interactive runner + H2H server = fresh seeded sim +
+  flat decision tape + sentinel throw (`_ipcRun` / server `step()`).
+- **Depth pipeline** (NEW): `franchise.depthChart[teamId]` slots
+  (`{starter, backup}` pids) → `_applyDepthChartToRoster` (ranks +
+  OOP-converts) → `_emergencyDepthPatch` (next-man-up) → engine
+  `_depthCmp` sorts. AI auto-charts are OVR-ordered → unchanged.
+- **Replays**: `franchise.replayClips` (motion, top-7/game) +
+  `franchise.playLog[season]` (EVERY play, compact MFF records, both
+  persist paths) → `frnReplayHighlight` resolves, `_frnPlaySynthReplay`
+  plays through the broadcast renderer (slow-mo, `_replayMode`).
+- **Renderer**: GCField static + GCPlayer per-frame (V1 topology, 83ms);
+  teleport detector replays captured batteries through the REAL
+  renderer (egregious/OOB/RUNAWAY classes).
+- **Sack-anim hazard**: any `_lastRenderedX + f(t)·offset` pattern
+  compounds (Stage-4 sync rewrites the base every frame) — stamp a
+  one-shot base instead.
+- **Sprite ground truth**: 104px PixelLab frames; idle/south figure
+  bbox x38-68/y28-77; `_SPRITE_FOOT_OFFSET_Y = 0.23`.
 
-## Verification recipes that keep paying off
+## Verification recipes
 
-- **Measure before building** (V3's lesson: the "180KB of waypoints"
-  was actually statsSnap; tracks were 3-8KB and load-bearing).
-- **H2H probes** (all ALL-PASS, run after any engine/server change):
-  `node server/h2h-probe.js` (wire + independent artifact re-sim),
-  `h2h-recovery-probe.js` (SIGKILL → exact state restore),
-  `h2h-client-probe.js` (two real browsers through the UI).
-- **Keyboard walkthrough**: `node tools/_kb_offseason_probe.js`.
-- **Deterministic frame screenshots**: freeze `Math.random` AND
-  `performance.now` to constants for pixel-comparable runs; RNG-stream
-  interleave otherwise shifts body-type picks and fakes diffs.
-- **Pre-V1 baselines are shadowless in single-frame probes** (shadows
-  composited a frame late back then) — compare LIVE frames across eras.
-- **In-page coordinate hooks beat pixel-hunting**: monkeypatch
-  GCPlayer.render/addShadow to log positions; crop screenshots at
-  logged coords.
-- **Gate noise**: `sim_one_score_game_pct` at the gate's 2-season tier
-  swings ±2pp between content-shifted runs; the 40-season number is the
-  realism truth. Tolerances absorb it — don't re-tune off the gate read.
+- Headless boots: `startFranchise(1)` + seeded `Math.random`; phase
+  gates matter (`franchise.phase = "regular"` to skip preseason/FA).
+- `frnPlayGame(homeId, awayId)` needs explicit ids.
+- Playwright `page.dragAndDrop(srcSel, tgtSel)` drives real HTML5 DnD
+  (the dc probes rely on it).
+- `_frnConfirm` is an in-DOM modal — buttons "Cancel"/"Continue";
+  auto-accept in probes via `window._frnConfirm = async () => true`.
+- `document.fonts.check()` lies for unregistered families — use
+  `document.fonts.load()` length instead.
+- innerText can miss text that textContent sees (probe assertions).
 
 ## Conventions
 
 - Commit messages end with the session URL line; never put the model id
   in commits/PRs/code. Push branch, then fast-forward `main` (standing).
 - Scratch scripts `_c_*.cjs` at /tmp only — never commit. Probes live in
-  `tools/` (or `server/` for the H2H ones); root `_*` files are the live
-  gate + calibration suites.
-- Findings → fixes split; every fix ships with its detector; the audit
-  gate is law for anything engine-adjacent; pkill exit code 144 aborts
-  compound shell commands (run it alone).
+  `tools/`; root `_*` files are the live gates + calibration suites.
+- Findings → fixes split; every fix ships with its detector.
 
 ---
 
