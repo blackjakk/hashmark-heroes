@@ -2308,16 +2308,25 @@ function frnReplayClip(highlightId) {
   // may have only a standalone `play`.
   const synthPlays = h ? (h.ctxPlays?.length ? h.ctxPlays : (h.play ? [h.play] : null)) : null;
   if (!synthPlays) { alert("Highlight not found."); return; }
-  const homeTeam = getTeam(h.homeId);
-  const awayTeam = getTeam(h.awayId);
+  _frnPlaySynthReplay(h.homeId, h.awayId, h.homeScore, h.awayScore, synthPlays,
+    `${h.type.replace(/_/g, " ")} — ${h.desc.slice(0, 80)}`);
+}
+
+// Shared animated-replay playback: builds a self-contained gameResult
+// and runs it through the REAL broadcast renderer in slow-mo. Used by
+// recorded motion clips (frnReplayClip) AND playLog reconstructions
+// (frnReplayHighlight) — every "replay" in the game is a real replay.
+function _frnPlaySynthReplay(homeId, awayId, homeScore, awayScore, synthPlays, label) {
+  const homeTeam = getTeam(homeId);
+  const awayTeam = getTeam(awayId);
   if (!homeTeam || !awayTeam) { alert("Teams missing."); return; }
   // Ratings + player lookup — buildAnimForPlay reads
   // gameResult.homeRatings.starters (jersey numbers, run styles) and the
   // hover tooltips read playerLookup. Built from the CURRENT franchise
   // rosters; for older clips the roster may have drifted, which only
   // degrades cosmetic lookups (the stored plays carry their own names).
-  const _hRoster = franchise?.rosters?.[h.homeId] || [];
-  const _aRoster = franchise?.rosters?.[h.awayId] || [];
+  const _hRoster = franchise?.rosters?.[homeId] || [];
+  const _aRoster = franchise?.rosters?.[awayId] || [];
   let homeRatings, awayRatings;
   try { homeRatings = buildRatings(_hRoster); } catch (_) { homeRatings = { starters: {} }; }
   try { awayRatings = buildRatings(_aRoster); } catch (_) { awayRatings = { starters: {} }; }
@@ -2327,7 +2336,7 @@ function frnReplayClip(highlightId) {
   // Build a self-contained gameResult-shaped object
   const synth = {
     homeTeam, awayTeam,
-    homeScore: h.homeScore, awayScore: h.awayScore,
+    homeScore, awayScore,
     plays: synthPlays,
     homeRatings, awayRatings, playerLookup: _lookup,
     weather: null, isRivalry: false,
@@ -2350,9 +2359,132 @@ function frnReplayClip(highlightId) {
   // Flag the FX layer so film grain / replay treatment kicks in.
   window._replayMode = true;
   if (typeof startNextPlay === "function") startNextPlay();
-  // Surface a small banner so the user knows this is a replay
-  _pushNews?.({ type: "news",
-    label: `▶ Replaying: ${h.type.replace(/_/g," ")} — ${h.desc.slice(0,80)}` });
+  // Floating exit back to wherever the user came from.
+  _frnShowReplayExit();
+  if (label) {
+    _pushNews?.({ type: "news", label: `▶ Replaying: ${label}` });
+  }
+}
+
+// Exit chip for replay playback — replays borrow the live-game shell,
+// and without this the only way back was hunting for a nav tab.
+function _frnShowReplayExit() {
+  let btn = document.getElementById("frnReplayExitBtn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.id = "frnReplayExitBtn";
+    btn.className = "frn-replay-exit-btn";
+    btn.onclick = () => frnExitReplay();
+    document.body.appendChild(btn);
+  }
+  btn.textContent = "✕ EXIT REPLAY";
+  btn.style.display = "block";
+}
+function frnExitReplay() {
+  playing = false;
+  if (typeof rafId !== "undefined") cancelAnimationFrame(rafId);
+  animState = null;
+  speedMul = 1.0;
+  window._replayMode = false;
+  const btn = document.getElementById("frnReplayExitBtn");
+  if (btn) btn.style.display = "none";
+  const bar = document.getElementById("frn-hl-reel-bar");
+  if (bar) bar.remove();
+  const ga = (typeof gameArea !== "undefined") ? gameArea : document.getElementById("gameArea");
+  if (ga) { ga.classList.add("empty"); ga.innerHTML = ""; }
+  const pc = document.getElementById("playbackControls");
+  if (pc) pc.style.display = "none";
+  const fh = document.getElementById("franchiseHome");
+  if (fh) fh.style.display = "block";
+  if (typeof showFranchiseDashboard === "function") showFranchiseDashboard();
+}
+
+// Inflate an MFF compact play-log record back into a play-shaped object
+// the broadcast renderer can animate. Sparse but sufficient — the
+// procedural animation paths fall back gracefully on missing fields
+// (same contract as legacy {play} clips).
+function _inflateCompactPlay(c) {
+  if (!c || c.__g) return null;
+  const out = {
+    kind: c.k, yards: c.yd || 0, poss: c.p, quarter: c.q, time: c.t,
+    down: c.d, ytg: c.y, yardLine: c.yl,
+    startYard: c.yl,
+    endYard: Math.max(0, Math.min(100, (c.yl || 0) + (c.yd || 0))),
+    homeScore: c.hs || 0, awayScore: c.as || 0,
+  };
+  if (c.qb) out.passer = c.qb;
+  if (c.rc) out.receiver = c.rc;
+  if (c.ru) out.rusher = c.ru;
+  if (c.tk) out.tackler = c.tk;
+  if (c.k === "sack") out.sackLoss = Math.abs(c.yd || 0);
+  return out;
+}
+
+// THE replay router for season highlights — every highlight plays a REAL
+// animated replay. Resolution order:
+//   1. Recorded motion clip from the same game at the same moment
+//      (franchise.replayClips — actual recorded player motion).
+//   2. Reconstruction from the analytics play log (every play of every
+//      game is retained in compact form) — procedural re-animation of
+//      the real play + two plays of lead-up context.
+//   3. The legacy text modal, only when neither source exists (old saves).
+function frnReplayHighlight(idx) {
+  const h = (franchise?.seasonHighlights || [])[idx];
+  if (!h) return;
+  const weekNum = typeof h.week === "number" ? h.week
+                : parseInt(String(h.week || "").replace(/\D/g, ""), 10) || null;
+  const t0 = (h.quarter != null && h.time != null) ? h.quarter * 10000 - h.time : null;
+  // 1) recorded motion clip — nearest same-game clip within ~40s of game clock.
+  const clips = (franchise.replayClips || []).filter(c =>
+    c.homeId === h.homeId && c.awayId === h.awayId &&
+    (weekNum == null || c.week === weekNum));
+  if (clips.length && t0 != null) {
+    let best = null, bd = Infinity;
+    for (const c of clips) {
+      if (c.quarter == null) continue;
+      const d = Math.abs((c.quarter * 10000 - (c.time || 0)) - t0);
+      if (d < bd) { bd = d; best = c; }
+    }
+    if (best && bd <= 40) { frnReplayClip(best.id); return; }
+  }
+  // 2) playLog reconstruction.
+  const season = franchise.season ?? 1;
+  const log = franchise.playLog?.[season];
+  if (Array.isArray(log) && log.length && h.quarter != null) {
+    let start = -1, end = log.length;
+    for (let i = 0; i < log.length; i++) {
+      const e = log[i];
+      if (!e.__g) continue;
+      if (start !== -1) { end = i; break; }
+      if (e.homeId === h.homeId && e.awayId === h.awayId &&
+          (weekNum == null || e.week === weekNum)) start = i + 1;
+    }
+    if (start !== -1) {
+      let bestI = -1, bd = Infinity;
+      for (let i = start; i < end; i++) {
+        const c = log[i];
+        if (c.q !== h.quarter) continue;
+        let d = Math.abs((c.t || 0) - (h.time || 0));
+        // Prefer entries naming the highlight's players.
+        const names = `${c.qb || ""}|${c.rc || ""}|${c.ru || ""}`;
+        if (h.label && names.length > 3 && [c.qb, c.rc, c.ru].some(n => n && h.label.includes(n))) d -= 1000;
+        if (d < bd) { bd = d; bestI = i; }
+      }
+      if (bestI !== -1 && bd < 90) {
+        const ctx = [];
+        for (let i = Math.max(start, bestI - 2); i <= bestI; i++) {
+          const p = _inflateCompactPlay(log[i]);
+          if (p) ctx.push(p);
+        }
+        if (ctx.length) {
+          _frnPlaySynthReplay(h.homeId, h.awayId, h.finalHome ?? 0, h.finalAway ?? 0, ctx, h.label?.slice(0, 80));
+          return;
+        }
+      }
+    }
+  }
+  // 3) old saves only — the text modal.
+  if (typeof renderHighlightReplay === "function") renderHighlightReplay(idx);
 }
 
 function _extractScoringTimeline(plays, finalHome, finalAway) {

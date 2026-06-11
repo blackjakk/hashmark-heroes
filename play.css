@@ -3319,8 +3319,18 @@
     color: var(--blgray); font-size: .72rem; letter-spacing: 1.5px;
     font-weight: 700;
   }
-  .bspnlive-nav-item { color: var(--blgray); }
-  .bspnlive-nav-item.active { color: var(--blred); border-bottom: 2px solid var(--blred); padding-bottom: .15rem; }
+  .bspnlive-nav-item {
+    color: var(--blgray);
+    background: transparent; border: 1px solid transparent; cursor: pointer;
+    font-family: inherit; font-size: .68rem; font-weight: 700;
+    letter-spacing: 1.2px; padding: .26rem .65rem; border-radius: 999px;
+    transition: color .12s, border-color .12s, background .12s;
+  }
+  .bspnlive-nav-item:hover { color: var(--blwhite); border-color: var(--blbordr2); }
+  .bspnlive-nav-item.active {
+    color: var(--blwhite); background: rgba(255,57,57,.14);
+    border-color: rgba(255,57,57,.45);
+  }
 
   /* Scoreboard strip */
   .bspnlive-score-strip {
@@ -3658,14 +3668,19 @@
   }
   .livebio-injury-chip { background: rgba(220,50,50,.18); color: #ff9090; }
   .livebio-hit-chip { background: rgba(255,90,90,.12); color: #ffb0b0; }
-  .livebio-content { display: flex; gap: .4rem; align-items: stretch; }
-  .livebio-content .livebio-bars { flex: 1; }
-  .livebio-bodyhot-col {
-    display: flex; align-items: center; justify-content: center;
-    width: 32px; flex-shrink: 0;
-    opacity: 1; transition: opacity .2s;
+  /* flex-start (not stretch) — a stretch feedback loop inflated each
+     row to ~210px of dead space (user-visible as a mostly-empty panel). */
+  .livebio-content { display: flex; flex-direction: row; flex-wrap: nowrap; gap: .5rem; align-items: center; }
+  .livebio-content .livebio-bars { flex: 1; min-height: 0; }
+  /* display:contents — the wrapper kept computing a phantom 128px box
+     (inflating every row to ~3x its content); promoting the svg to the
+     flex item directly sidesteps it. */
+  .livebio-bodyhot-col { display: contents; }
+  .livebio-bodyhot {
+    width: 32px !important; height: 56px !important;
+    min-width: 32px; flex: 0 0 32px; display: block; align-self: center;
   }
-  .livebio-bodyhot-col.empty { opacity: 0.30; }
+  .livebio-bodyhot-col.empty > .livebio-bodyhot { opacity: 0.30; }
   .livebio-bars { display: flex; flex-direction: column; gap: .15rem; }
   .livebio-bar-row {
     display: flex; align-items: center; gap: .3rem;
@@ -10366,6 +10381,19 @@
   }
   .frn-counter-odds-bar > div { height: 100%; transition: width .2s; }
 
+  /* Floating exit chip for animated replay playback (replays borrow the
+     live-game shell). */
+  .frn-replay-exit-btn {
+    position: fixed; top: 14px; right: 14px; z-index: 9999;
+    display: none;
+    background: rgba(8, 12, 9, .92); color: var(--gold-lt);
+    border: 1px solid var(--gold); border-radius: 999px;
+    font-family: inherit; font-size: .68rem; font-weight: 800;
+    letter-spacing: 1px; padding: .45rem .9rem; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,.5);
+  }
+  .frn-replay-exit-btn:hover { background: var(--gold); color: #141414; }
+
   /* Holdout Center — always-on offer composer (right rail of each demand row) */
   .frn-offer-panel {
     background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
@@ -10749,15 +10777,21 @@
     align-items: center; gap: 1rem;
     background: var(--bspn-bg2); font-family: "IBM Plex Mono", monospace;
   }
-  .bspn-footer-field { color: var(--bspn-gray-dim); font-size: .55rem; white-space: pre; overflow: hidden; }
-  .bspn-footer-field.right { text-align: right; }
-  .bspn-footer-center {
-    text-align: center; color: var(--bspn-terminal);
-    letter-spacing: 3px; font-weight: 700; font-size: .8rem;
+  .bspn-footer.modern {
+    grid-template-columns: 1fr auto 1fr; padding: .7rem 1.4rem;
   }
-  .bspn-footer-center .sub {
-    display: block; color: var(--bspn-gray); font-size: .56rem;
-    letter-spacing: 2.5px; margin-top: .25rem; font-weight: 600;
+  .bspn-footer-brand {
+    font-family: "Bebas Neue","Anton",sans-serif; font-size: 1.05rem;
+    letter-spacing: 1px; color: var(--bspn-red); font-style: italic;
+  }
+  .bspn-footer-brand em { color: var(--bspn-gray); font-style: normal; letter-spacing: 2.5px; font-size: .8rem; }
+  .bspn-footer-tag {
+    text-align: center; color: var(--bspn-gray); font-size: .58rem;
+    letter-spacing: 2.5px; font-weight: 600;
+  }
+  .bspn-footer-season {
+    text-align: right; color: var(--bspn-gray-dim); font-size: .6rem;
+    letter-spacing: 1.5px; font-weight: 700;
   }
 
   /* ── Weekly Dashboard redesign ──────────────────────────────────────────── */

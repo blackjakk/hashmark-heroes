@@ -242,6 +242,32 @@ const ok = (c, l) => { if (c) { pass++; console.log("  ✓ " + l); } else { fail
     ok(sb.phase === "awards", `phase advanced to awards (${sb.phase})`);
   }
 
+  console.log("— 7. real replays: every highlight plays an animated replay —");
+  const rp = await page.evaluate(async () => {
+    // exit any prior shell state
+    if (typeof frnExitReplay === "function") frnExitReplay();
+    await new Promise(r => setTimeout(r, 200));
+    const hl = franchise.seasonHighlights || [];
+    if (!hl.length) return { skip: true };
+    // pick a highlight WITHOUT relying on a recorded clip: use the last one
+    const idx = hl.length - 1;
+    frnReplayHighlight(idx);
+    await new Promise(r => setTimeout(r, 600));
+    const animated = !!window._replayMode && !!gameResult && Array.isArray(gameResult.plays) && gameResult.plays.length >= 1;
+    const textModal = !!document.getElementById("frn-replay-modal");
+    const exitChip = document.getElementById("frnReplayExitBtn")?.style.display === "block";
+    if (typeof frnExitReplay === "function") frnExitReplay();
+    await new Promise(r => setTimeout(r, 300));
+    const exited = !window._replayMode;
+    return { skip: false, animated, textModal, exitChip, exited, hlCount: hl.length };
+  });
+  if (rp.skip) ok(false, "no highlights to test");
+  else {
+    ok(rp.animated && !rp.textModal, `highlight plays an ANIMATED replay, not the text modal (${rp.hlCount} highlights)`);
+    ok(rp.exitChip, "exit chip shown during replay");
+    ok(rp.exited, "frnExitReplay restores the dashboard");
+  }
+
   ok(errors.length === 0, errors.length ? "page errors: " + errors.slice(0, 3).join(" | ") : "zero page errors");
   console.log(fail === 0 ? `\nALL-PASS (${pass} checks)` : `\n${fail} FAILURES / ${pass + fail}`);
   await browser.close();

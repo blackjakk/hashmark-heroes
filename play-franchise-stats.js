@@ -2702,10 +2702,9 @@ const _BSPN_NAV_LINKS = [
   { id: "WIRE",        action: "renderFrnNewsArchive()" },
 ];
 function _bspnNavHtml(activeId) {
+  // Chip-style nav (was bracketed [TEXT] links — ASCII-era look).
   return _BSPN_NAV_LINKS.map(({ id, action }) =>
-    `<button class="bspnlive-nav-item ${id === activeId ? "active" : ""}"
-      style="background:transparent;border:0;font-family:inherit;cursor:pointer;padding:0;${id===activeId?"color:var(--blwhite)":""}"
-      onclick="${action}">[${id}]</button>`
+    `<button class="bspnlive-nav-item ${id === activeId ? "active" : ""}" onclick="${action}">${id}</button>`
   ).join(" ");
 }
 
@@ -5452,19 +5451,12 @@ function _bspnRenderNotes(notes) {
   </section>`;
 }
 function _bspnRenderFooter() {
-  const fieldL = ` x x x x x  ──────  ┊───┊
-                 ┊   ┊
- x x x x x  ──────  ┊───┊`;
-  const fieldR = ` ┊───┊  ──────  x x x x x
- ┊   ┊
- ┊───┊  ──────  x x x x x`;
-  return `<footer class="bspn-footer">
-    <pre class="bspn-footer-field">${fieldL}</pre>
-    <div class="bspn-footer-center">
-      BSPN ASCII FOOTBALL v1.0
-      <span class="sub">GRIDIRON. CODE. GLORY.</span>
-    </div>
-    <pre class="bspn-footer-field right">${fieldR}</pre>
+  // Modern game-credits bar (the ASCII field art + "ASCII FOOTBALL v1.0"
+  // parody footer retired per user feedback).
+  return `<footer class="bspn-footer modern">
+    <span class="bspn-footer-brand">BSPN <em>GAME CENTER</em></span>
+    <span class="bspn-footer-tag">BALL · STRATEGY · PASSION · NOW</span>
+    <span class="bspn-footer-season">SEASON ${franchise?.season ?? 1}</span>
   </footer>`;
 }
 
@@ -5760,15 +5752,6 @@ function _frnHoverTipPgHide() {
   const tip = document.getElementById("frn-pg-tip");
   if (tip) tip.style.display = "none";
 }
-
-// ESPN-parody logo for the box-score header. Block-letter ASCII
-// using Unicode box-drawing chars. (Bootleg Sports Programming Network.)
-const BSPN_LOGO = `██████╗ ███████╗██████╗ ███╗   ██╗
-██╔══██╗██╔════╝██╔══██╗████╗  ██║
-██████╔╝███████╗██████╔╝██╔██╗ ██║
-██╔══██╗╚════██║██╔═══╝ ██║╚██╗██║
-██████╔╝███████║██║     ██║ ╚████║
-╚═════╝ ╚══════╝╚═╝     ╚═╝  ╚═══╝`;
 
 function _wxIcon(label) {
   switch (label) {
@@ -6371,7 +6354,7 @@ function _buildHighlightsSidebar(teamId, seasonHighlights) {
       <div style="font-size:.6rem;color:var(--gray);margin-bottom:.3rem">${hlCtx(feat)}</div>
       <div style="font-size:.8rem;color:var(--blwhite);font-weight:700;line-height:1.3">${feat.label}</div>
       ${feat.isClutch ? `<div style="font-size:.57rem;color:#f87171;margin-top:.22rem;letter-spacing:.5px">⚡ CLUTCH MOMENT</div>` : ""}
-      <button class="frn-replay-btn" onclick="renderHighlightReplay(${featIdx})" style="margin-top:.4rem">▶ Replay</button>
+      <button class="frn-replay-btn" onclick="frnReplayHighlight(${featIdx})" style="margin-top:.4rem">▶ Replay</button>
     </div>`;
 
   // ── Compact rows: top pick from each prior game (up to 4) ────────────────
@@ -6381,7 +6364,7 @@ function _buildHighlightsSidebar(teamId, seasonHighlights) {
   const compactHtml = priorBests.map(({ h, i }) => {
     const { badge, color } = typeCfg(h);
     return `
-      <div class="frn-hl-row2" style="cursor:pointer" onclick="renderHighlightReplay(${i})">
+      <div class="frn-hl-row2" style="cursor:pointer" onclick="frnReplayHighlight(${i})">
         <span class="frn-hl2-badge" style="color:${color}">${badge}</span>
         <span class="frn-hl2-label">${h.label}</span>
         <span class="frn-hl2-week">${h.week}</span>
@@ -6415,11 +6398,14 @@ function frnReelStep(delta) {
 }
 function frnReelExit() {
   _frnReelIdx = null;
-  // Tear down the modal + reel bar before the next render.
+  // Tear down the modal + reel bar before the next render. The reel now
+  // steps through ANIMATED replays in the game shell, so exit must also
+  // restore the dashboard chrome (frnExitReplay no-ops on the modal path).
   const m = document.getElementById("frn-replay-modal");
   if (m) m.remove();
   const b = document.getElementById("frn-hl-reel-bar");
   if (b) b.remove();
+  if (typeof frnExitReplay === "function" && window._replayMode) frnExitReplay();
   renderFrnHighlightsAll();
 }
 
@@ -6462,7 +6448,7 @@ function renderFrnHighlightsAll() {
       // the reel control bar on top. Both are cleared / replaced each step.
       const oldBar = document.getElementById("frn-hl-reel-bar");
       if (oldBar) oldBar.remove();
-      renderHighlightReplay(i);
+      frnReplayHighlight(i);
       const reelBar = document.createElement("div");
       reelBar.id = "frn-hl-reel-bar";
       reelBar.className = "frn-hl-reel-bar";
@@ -6496,7 +6482,7 @@ function renderFrnHighlightsAll() {
       <div class="frn-hl-moment-label">${h.label}</div>
       <div class="frn-hl-moment-ctx">${ctxLine}</div>
       <div class="frn-hl-moment-actions">
-        <button class="frn-hl-moment-btn primary" onclick="renderHighlightReplay(${i})">▶ Watch the play</button>
+        <button class="frn-hl-moment-btn primary" onclick="frnReplayHighlight(${i})">▶ Watch the play</button>
         <button class="frn-hl-moment-btn" onclick="frnStartHighlightReel(0)">🎬 Play full reel (${filtered.length})</button>
       </div>
     </div>`;
@@ -6567,7 +6553,7 @@ function renderFrnHighlightsAll() {
     const rows = sorted.map(({ h, i }) => {
       const { badge, color } = typeCfg(h);
       return `
-        <div class="frn-hl-row2" style="padding:.35rem 0;cursor:pointer" onclick="renderHighlightReplay(${i})">
+        <div class="frn-hl-row2" style="padding:.35rem 0;cursor:pointer" onclick="frnReplayHighlight(${i})">
           <span class="frn-hl2-badge" style="color:${color}">${badge}</span>
           <span class="frn-hl2-label" style="white-space:normal">${h.label}</span>
           ${h.isClutch ? `<span style="font-size:.57rem;color:#f87171">⚡</span>` : ""}
