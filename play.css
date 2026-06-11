@@ -5038,6 +5038,22 @@
   .ipc-sheet .ipc-btn.ipc-auto, .ipc-sheet .ipc-btn.ipc-coach { flex: 0 1 auto; }
   .ipc-sheet .ipc-btn.ipc-generic { flex: 0 1 auto; opacity: .85; }
 
+  /* Play cards — Madden-style art diagrams on the call sheet */
+  .ipc-btn.ipc-card {
+    display: flex; flex-direction: column; align-items: center; gap: .3rem;
+    position: relative; padding: .35rem .4rem .4rem;
+    max-width: 150px; min-width: 96px;
+  }
+  .ipc-card-art { width: 100%; max-width: 118px; height: auto; display: block; border-radius: 4px; }
+  .ipc-card-name { font-size: .78rem; letter-spacing: 1px; line-height: 1; }
+  .ipc-card-key {
+    position: absolute; top: 3px; right: 5px;
+    font-family: 'IBM Plex Mono', monospace; font-size: .55rem; font-weight: 700;
+    color: var(--blgray, #9aa7b8); opacity: .8;
+  }
+  .ipc-btn.ipc-card.ipc-generic { max-width: 110px; }
+  .ipc-btn.ipc-card.ipc-generic .ipc-card-art { max-width: 80px; opacity: .75; }
+
   /* Hero entry button for the interactive mode */
   .frn-sim-btn.frn-callplays-btn {
     color: var(--blgold, #f5c542);

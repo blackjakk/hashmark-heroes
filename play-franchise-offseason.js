@@ -4511,6 +4511,185 @@ function frnPlaycallCoachMode() {
 }
 
 // ── Call-panel chrome (injected under the field, deck-styled) ───────────────
+
+// ── Play-art (Madden-style card diagrams) ───────────────────────────────────
+// Tiny procedural SVGs on every call card: route trees for the pass concepts,
+// run-lane arrows for the ground game, zone shells / man hookups / blitz
+// arrows for the defensive calls. Pure presentation — the diagrams are drawn
+// from the same play identities the engine models, no assets, no DOM ids.
+// Offense reads bottom→up (LOS y=48); defense reads top→down (LOS y=16,
+// zones drop toward the bottom of the card).
+const _IPA = {
+  gold: "#f5c542", white: "#dde6f2", dim: "#8b98ab", red: "#ff6b6b",
+  zoneFill: "rgba(77,189,189,.16)", zoneLine: "rgba(96,205,205,.55)",
+};
+// Polyline route with an arrowhead at the last point.
+function _ipaRoute(pts, o = {}) {
+  const c = o.color || _IPA.white, w = o.w || 2;
+  const dash = o.dash ? ` stroke-dasharray="${o.dash}"` : "";
+  const [x1, y1] = pts[pts.length - 2], [x2, y2] = pts[pts.length - 1];
+  const ang = Math.atan2(y2 - y1, x2 - x1), a = o.head || 5;
+  const head = o.noHead ? "" :
+    `<polygon points="${x2},${y2} ${(x2 - a * Math.cos(ang - 0.46)).toFixed(1)},${(y2 - a * Math.sin(ang - 0.46)).toFixed(1)} ${(x2 - a * Math.cos(ang + 0.46)).toFixed(1)},${(y2 - a * Math.sin(ang + 0.46)).toFixed(1)}" fill="${c}"/>`;
+  return `<polyline points="${pts.map(p => p.join(",")).join(" ")}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"${dash}/>` + head;
+}
+function _ipaDot(x, y, o = {}) {
+  const c = o.color || _IPA.dim;
+  if (o.x) {  // defender "✕"
+    return `<path d="M${x - 2.4} ${y - 2.4} l4.8 4.8 M${x + 2.4} ${y - 2.4} l-4.8 4.8" stroke="${c}" stroke-width="1.7" stroke-linecap="round"/>`;
+  }
+  return `<circle cx="${x}" cy="${y}" r="${o.r || 2.4}" fill="${o.fill || "none"}" stroke="${c}" stroke-width="1.6"/>`;
+}
+function _ipaZone(x, y, rx, ry) {
+  return `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${_IPA.zoneFill}" stroke="${_IPA.zoneLine}" stroke-width="1" stroke-dasharray="3,2"/>`;
+}
+function _ipcPlayArt(call) {
+  const G = _IPA.gold, W = _IPA.white, D = _IPA.dim, R = _IPA.red;
+  let inner = "";
+  const isDef = /^C\d|^TAMPA/.test(call);
+  if (!isDef) {
+    // Offensive scaffold: LOS + 5 OL + QB(shotgun) + skill spots.
+    const los = `<line x1="3" y1="48" x2="97" y2="48" stroke="rgba(255,255,255,.22)" stroke-width="1"/>`;
+    let ol = "";
+    for (const x of [38, 44, 50, 56, 62]) ol += _ipaDot(x, 51, { color: D });
+    const qb = _ipaDot(50, 58, { color: W });
+    const wr = (x) => _ipaDot(x, 51, { color: W });
+    const rb = (x, y) => _ipaDot(x ?? 44, y ?? 64, { color: W });
+    switch (call) {
+      case "RUN_INSIDE":
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(92)
+              + _ipaRoute([[44, 64], [50, 56], [50, 30]], { color: G, w: 3, head: 6 });
+        break;
+      case "RUN_OUTSIDE":
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(92)
+              + _ipaRoute([[44, 64], [62, 59], [80, 48], [86, 32]], { color: G, w: 3, head: 6 });
+        break;
+      case "RUN_COUNTER":
+        inner = los + ol + qb + rb(48, 64) + wr(8) + wr(92)
+              + _ipaRoute([[48, 64], [38, 60], [40, 55], [62, 44], [66, 30]], { color: G, w: 3, head: 6 });
+        break;
+      case "RUN_TOSS":
+        inner = los + ol + qb + rb(58, 63) + wr(8) + wr(92)
+              + _ipaRoute([[50, 58], [57, 62]], { color: D, w: 1.4, dash: "2,2", noHead: true })
+              + _ipaRoute([[58, 63], [78, 58], [89, 44], [90, 30]], { color: G, w: 3, head: 6 });
+        break;
+      case "QUICK_GAME":
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(23) + wr(77) + wr(92)
+              + _ipaRoute([[8, 51], [8, 44], [28, 32]], { color: G, w: 2.4 })
+              + _ipaRoute([[92, 51], [92, 44], [72, 32]], { color: W })
+              + _ipaRoute([[23, 51], [23, 39], [19, 43]], { color: D, w: 1.6 })
+              + _ipaRoute([[77, 51], [77, 39], [81, 43]], { color: D, w: 1.6 });
+        break;
+      case "DRAG_MESH":
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(77) + wr(92)
+              + _ipaRoute([[8, 51], [8, 45], [62, 36]], { color: G, w: 2.4 })
+              + _ipaRoute([[92, 51], [92, 42], [34, 28]], { color: W })
+              + _ipaRoute([[77, 51], [77, 40]], { color: D, w: 1.6 });
+        break;
+      case "INTERMEDIATE":
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(77) + wr(92)
+              + _ipaRoute([[8, 51], [8, 22], [44, 22]], { color: G, w: 2.4 })
+              + _ipaRoute([[77, 51], [77, 30], [96, 30]], { color: W })
+              + _ipaRoute([[92, 51], [92, 26], [78, 14]], { color: D, w: 1.6 });
+        break;
+      case "VERTICAL":
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(23) + wr(77) + wr(92)
+              + _ipaRoute([[8, 51], [8, 10]], { color: W })
+              + _ipaRoute([[23, 51], [23, 8]], { color: G, w: 2.4 })
+              + _ipaRoute([[77, 51], [77, 8]], { color: W })
+              + _ipaRoute([[92, 51], [92, 10]], { color: W });
+        break;
+      case "SCREEN":
+        inner = los + ol + qb + rb(46, 63) + wr(8) + wr(92)
+              + _ipaRoute([[50, 58], [26, 57]], { color: D, w: 1.2, dash: "2,2", noHead: true })
+              + _ipaRoute([[46, 63], [34, 62], [22, 56]], { color: G, w: 2.6 })
+              + _ipaRoute([[44, 51], [31, 43]], { color: D, w: 1.6 })
+              + _ipaRoute([[50, 51], [37, 41]], { color: D, w: 1.6 })
+              + _ipaRoute([[8, 51], [8, 32]], { color: D, w: 1.4 });
+        break;
+      case "PA_SHOT":
+        inner = los + ol + qb + rb(44, 63) + wr(8) + wr(92)
+              + _ipaRoute([[50, 58], [45, 62]], { color: D, w: 1.4, dash: "2,2", noHead: true })
+              + _ipaRoute([[44, 63], [49, 53]], { color: D, w: 1.6, dash: "2,2" })
+              + _ipaRoute([[8, 51], [8, 22], [32, 9]], { color: G, w: 2.4 })
+              + _ipaRoute([[92, 51], [92, 10]], { color: W })
+              + _ipaRoute([[67, 51], [67, 41], [44, 32]], { color: D, w: 1.6 });
+        break;
+      case "run":   // generic — three faded lanes
+        inner = los + ol + qb + rb(44, 64)
+              + _ipaRoute([[44, 64], [44, 34]], { color: D, w: 2 })
+              + _ipaRoute([[44, 64], [62, 52], [72, 36]], { color: D, w: 2 })
+              + _ipaRoute([[44, 64], [28, 52], [20, 36]], { color: D, w: 2 });
+        break;
+      case "pass":  // generic — faded tree
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(92)
+              + _ipaRoute([[8, 51], [8, 18]], { color: D, w: 1.8 })
+              + _ipaRoute([[92, 51], [92, 30], [70, 18]], { color: D, w: 1.8 })
+              + _ipaRoute([[67, 51], [67, 40], [50, 32]], { color: D, w: 1.8 });
+        break;
+    }
+  } else {
+    // Defensive scaffold: faded offense above the LOS, your front below it,
+    // coverage dropping toward the bottom of the card.
+    const los = `<line x1="3" y1="16" x2="97" y2="16" stroke="rgba(255,255,255,.22)" stroke-width="1"/>`;
+    let off = "";
+    for (const x of [8, 38, 44, 50, 56, 62, 92]) off += _ipaDot(x, 12, { color: "rgba(139,152,171,.45)", r: 2 });
+    let dl = "";
+    for (const x of [38, 46, 54, 62]) dl += _ipaDot(x, 21, { x: true, color: W });
+    const lb = (x, y) => _ipaDot(x, y ?? 30, { x: true, color: W });
+    const db = (x, y) => _ipaDot(x, y, { x: true, color: W });
+    const base = los + off + dl;
+    switch (call) {
+      case "C0_BLITZ":
+        inner = base + lb(30) + lb(50) + lb(70) + db(10, 20) + db(90, 20)
+              + _ipaRoute([[30, 30], [34, 12]], { color: R, w: 2.4 })
+              + _ipaRoute([[50, 30], [50, 11]], { color: R, w: 2.4 })
+              + _ipaRoute([[70, 30], [66, 12]], { color: R, w: 2.4 })
+              + _ipaRoute([[46, 21], [44, 11]], { color: R, w: 1.8 })
+              + _ipaRoute([[54, 21], [56, 11]], { color: R, w: 1.8 });
+        break;
+      case "C1_MAN":
+        inner = base + lb(32) + lb(68) + db(10, 22) + db(90, 22) + db(50, 42)
+              + _ipaRoute([[10, 22], [9, 15]], { color: G, w: 1.8 })
+              + _ipaRoute([[90, 22], [91, 15]], { color: G, w: 1.8 })
+              + _ipaRoute([[32, 30], [39, 15]], { color: G, w: 1.6 })
+              + _ipaRoute([[68, 30], [61, 15]], { color: G, w: 1.6 })
+              + _ipaZone(50, 52, 26, 9);
+        break;
+      case "C2_ZONE":
+        inner = base + lb(32) + lb(50) + lb(68) + db(10, 24) + db(90, 24)
+              + _ipaZone(28, 50, 21, 11) + _ipaZone(72, 50, 21, 11)
+              + _ipaZone(11, 28, 8, 6) + _ipaZone(89, 28, 8, 6);
+        break;
+      case "C3_ZONE":
+        inner = base + lb(32) + lb(50) + lb(68) + db(12, 26) + db(88, 26)
+              + _ipaZone(17, 50, 14, 11) + _ipaZone(50, 50, 14, 11) + _ipaZone(83, 50, 14, 11)
+              + _ipaZone(32, 32, 9, 5) + _ipaZone(68, 32, 9, 5);
+        break;
+      case "C4_QUARTERS":
+        inner = base + lb(40) + lb(60) + db(12, 24) + db(88, 24)
+              + _ipaZone(14, 50, 11, 11) + _ipaZone(38, 50, 11, 11)
+              + _ipaZone(62, 50, 11, 11) + _ipaZone(86, 50, 11, 11);
+        break;
+      case "TAMPA_2":
+        inner = base + lb(32) + lb(50) + lb(68) + db(10, 24) + db(90, 24)
+              + _ipaZone(26, 50, 19, 10) + _ipaZone(74, 50, 19, 10)
+              + _ipaRoute([[50, 30], [50, 46]], { color: G, w: 2.2 })
+              + _ipaZone(50, 52, 10, 7);
+        break;
+    }
+  }
+  return `<svg class="ipc-card-art" viewBox="0 0 100 70" aria-hidden="true">`
+       + `<rect x="0" y="0" width="100" height="70" rx="4" fill="#0c151d" stroke="rgba(255,255,255,.07)"/>`
+       + inner + `</svg>`;
+}
+// One call card: art + name + hotkey badge.
+function _ipcCard(call, cls, name, key, title) {
+  return `<button class="ipc-btn ipc-card ${cls}" onclick="frnPlaycall('${call}')" title="${title} [${key}]">`
+       + `<span class="ipc-card-key">${key}</span>${_ipcPlayArt(call)}`
+       + `<span class="ipc-card-name">${name}</span></button>`;
+}
+
 function _ipcEnsurePanel() {
   let el = document.getElementById("ipcPanel");
   if (el && document.body.contains(el)) return el;
@@ -4584,14 +4763,22 @@ function _ipcShowPanel() {
     badge = "🛡 THEIR BALL — YOUR DEFENSE";
     lean = `THEY SHOW · ${String(c.offPersonnel || "BASE").replace(/_/g, " ")}`;
     btns = `
-      <button class="ipc-btn ipc-go" onclick="frnPlaycall('C0_BLITZ')" title="Send the house — eats slow routes and runs, dies to quick game/screens [1]">🔥 BLITZ</button>
-      <button class="ipc-btn ipc-run" onclick="frnPlaycall('C1_MAN')" title="Press man — jams short routes, vulnerable to mesh/rubs [2]">🤝 MAN</button>
-      <button class="ipc-btn ipc-run" onclick="frnPlaycall('C3_ZONE')" title="Single-high zone — the balanced base call [3]">🛡 COVER 3</button>
-      <button class="ipc-btn ipc-fg" onclick="frnPlaycall('C2_ZONE')" title="Two-deep zone — takes away verticals, soft underneath [4]">✌ COVER 2</button>
-      <button class="ipc-btn ipc-fg" onclick="frnPlaycall('C4_QUARTERS')" title="Quarters — max deep help, light box vs the run [5]">🏰 QUARTERS</button>
-      <button class="ipc-btn ipc-fg" onclick="frnPlaycall('TAMPA_2')" title="Tampa 2 — MLB carries the deep middle [6]">🕸 TAMPA 2</button>
-      <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let your DC call it [O]">🧠 DC CALL</button>
-      ${coachBtn}`;
+      <div class="ipc-sheet">
+        <div class="ipc-sheet-row">
+          <span class="ipc-sheet-tag">CALL</span>
+          ${_ipcCard("C0_BLITZ", "ipc-go", "🔥 BLITZ", 1, "Send the house — eats slow routes and runs, dies to quick game/screens")}
+          ${_ipcCard("C1_MAN", "ipc-run", "🤝 MAN", 2, "Press man — jams short routes, vulnerable to mesh/rubs")}
+          ${_ipcCard("C3_ZONE", "ipc-run", "🛡 COVER 3", 3, "Single-high zone — the balanced base call")}
+          ${_ipcCard("C2_ZONE", "ipc-fg", "✌ COVER 2", 4, "Two-deep zone — takes away verticals, soft underneath")}
+          ${_ipcCard("C4_QUARTERS", "ipc-fg", "🏰 QUARTERS", 5, "Quarters — max deep help, light box vs the run")}
+          ${_ipcCard("TAMPA_2", "ipc-fg", "🕸 TAMPA 2", 6, "Tampa 2 — MLB carries the deep middle")}
+        </div>
+        <div class="ipc-sheet-row">
+          <span class="ipc-sheet-tag"></span>
+          <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let your DC call it [O]">🧠 DC CALL</button>
+          ${coachBtn}
+        </div>
+      </div>`;
   } else {
     badge = "🎙 YOUR CALL — PICK A PLAY";
     // Network parallel windows prompt PRE-snap — the AI's passProb doesn't
@@ -4609,24 +4796,24 @@ function _ipcShowPanel() {
       <div class="ipc-sheet">
         <div class="ipc-sheet-row">
           <span class="ipc-sheet-tag">RUN</span>
-          <button class="ipc-btn ipc-run" onclick="frnPlaycall('RUN_INSIDE')" title="Downhill between the tackles — the safe yards [1]">⛏ INSIDE</button>
-          <button class="ipc-btn ipc-run" onclick="frnPlaycall('RUN_OUTSIDE')" title="Outside zone — needs an athletic line, hits big when the edge seals [2]">🏃 OUTSIDE ZONE</button>
-          <button class="ipc-btn ipc-run" onclick="frnPlaycall('RUN_COUNTER')" title="Misdirection — boom or bust, punishes overpursuit [3]">🔄 COUNTER</button>
-          <button class="ipc-btn ipc-run" onclick="frnPlaycall('RUN_TOSS')" title="Pitch to the edge — chunk upside, TFL risk if it's read [4]">🌀 TOSS</button>
+          ${_ipcCard("RUN_INSIDE", "ipc-run", "⛏ INSIDE", 1, "Downhill between the tackles — the safe yards")}
+          ${_ipcCard("RUN_OUTSIDE", "ipc-run", "🏃 OUTSIDE ZONE", 2, "Outside zone — needs an athletic line, hits big when the edge seals")}
+          ${_ipcCard("RUN_COUNTER", "ipc-run", "🔄 COUNTER", 3, "Misdirection — boom or bust, punishes overpursuit")}
+          ${_ipcCard("RUN_TOSS", "ipc-run", "🌀 TOSS", 4, "Pitch to the edge — chunk upside, TFL risk if it's read")}
         </div>
         <div class="ipc-sheet-row">
           <span class="ipc-sheet-tag">PASS</span>
-          <button class="ipc-btn ipc-pass" onclick="frnPlaycall('QUICK_GAME')" title="Slants &amp; hitches — ball out fast, eats the blitz [5]">⚡ QUICK GAME</button>
-          <button class="ipc-btn ipc-pass" onclick="frnPlaycall('DRAG_MESH')" title="Crossers — rubs beat man coverage [6]">🤝 MESH</button>
-          <button class="ipc-btn ipc-pass" onclick="frnPlaycall('INTERMEDIATE')" title="Digs &amp; outs at the sticks — carves zone [7]">🎯 DIG &amp; OUT</button>
-          <button class="ipc-btn ipc-pass" onclick="frnPlaycall('VERTICAL')" title="Shot deep — beats single-high, dies vs two-deep [8]">🚀 VERTS</button>
-          <button class="ipc-btn ipc-pass" onclick="frnPlaycall('SCREEN')" title="Manufactured YAC behind the rush — blitz killer [9]">🧱 SCREEN</button>
-          <button class="ipc-btn ipc-pass" onclick="frnPlaycall('PA_SHOT')" title="Play action — sells the run, hits over the top; longer dropback [0]">🎭 PLAY ACTION</button>
+          ${_ipcCard("QUICK_GAME", "ipc-pass", "⚡ QUICK GAME", 5, "Slants &amp; hitches — ball out fast, eats the blitz")}
+          ${_ipcCard("DRAG_MESH", "ipc-pass", "🤝 MESH", 6, "Crossers — rubs beat man coverage")}
+          ${_ipcCard("INTERMEDIATE", "ipc-pass", "🎯 DIG &amp; OUT", 7, "Digs &amp; outs at the sticks — carves zone")}
+          ${_ipcCard("VERTICAL", "ipc-pass", "🚀 VERTS", 8, "Shot deep — beats single-high, dies vs two-deep")}
+          ${_ipcCard("SCREEN", "ipc-pass", "🧱 SCREEN", 9, "Manufactured YAC behind the rush — blitz killer")}
+          ${_ipcCard("PA_SHOT", "ipc-pass", "🎭 PLAY ACTION", 0, "Play action — sells the run, hits over the top; longer dropback")}
         </div>
         <div class="ipc-sheet-row">
           <span class="ipc-sheet-tag"></span>
-          <button class="ipc-btn ipc-run ipc-generic" onclick="frnPlaycall('run')" title="Any run — your OC picks the scheme [R]">🏈 ANY RUN</button>
-          <button class="ipc-btn ipc-pass ipc-generic" onclick="frnPlaycall('pass')" title="Any dropback — your OC picks the concept [P]">🏈 ANY PASS</button>
+          ${_ipcCard("run", "ipc-run ipc-generic", "🏈 ANY RUN", "R", "Any run — your OC picks the scheme")}
+          ${_ipcCard("pass", "ipc-pass ipc-generic", "🏈 ANY PASS", "P", "Any dropback — your OC picks the concept")}
           <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let the OC call this one [O]">🧠 OC CALL</button>
           ${coachBtn}
         </div>
