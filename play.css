@@ -170,6 +170,9 @@
   .btn {
     padding: .65rem 1.25rem; border-radius: 6px; cursor: pointer;
     border: none; font-weight: 700; font-size: .9rem;
+    /* Buttons don't inherit font-family from the page — without this,
+       every plain .btn rendered the UA default (Arial). */
+    font-family: inherit;
     transition: all .15s; display: inline-flex; align-items: center; gap: .4rem;
   }
   .btn-gold {
@@ -3156,6 +3159,7 @@
   .frn-pcard-close {
     position: absolute; top: .25rem; right: .35rem;
     background: transparent; border: none;
+    font-family: inherit;
     color: var(--gray); font-size: 1.4rem; font-weight: 400;
     width: 1.6rem; height: 1.6rem; cursor: pointer; line-height: 1;
     padding: 0; z-index: 2;
@@ -3348,6 +3352,9 @@
     display: flex; align-items: center; justify-content: center;
     color: var(--team-color, var(--blgold));
     white-space: pre; font-size: 1rem; line-height: 1; overflow: hidden;
+    /* <pre> defaults to the UA's generic monospace (Courier on most
+       systems) — pin the ASCII mark to the app face. */
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
   }
   .bspnlive-score-num {
     font-family: "Anton","Teko","Arial Black",system-ui,sans-serif;
@@ -4190,7 +4197,10 @@
   .fc-chip {
     top: 92px; height: 28px; line-height: 28px;
     background: rgba(0,0,0,0.78);
-    color: #fff; font: 900 18px sans-serif;
+    /* Was bare `sans-serif` — a generic-fallback island on the play
+       screen. Anton is the broadcast chrome face and now self-hosted. */
+    color: #fff; font: 900 18px "Anton", "Teko", sans-serif;
+    letter-spacing: .5px;
     padding: 0 14px; white-space: nowrap;
   }
   .fc-chip-off { left: 16px; border-left: 4px solid #ffd54d; }
@@ -4199,7 +4209,9 @@
     left: 0; width: 100%; top: 670px;
     transform: translateY(-50%);
     text-align: center;
-    font-family: Impact, "Arial Black", sans-serif;
+    /* Anton first — Impact only exists on some systems (Windows), so the
+       cadence text looked different per OS. Self-hosted = same everywhere. */
+    font-family: "Anton", "Teko", Impact, "Arial Black", sans-serif;
     font-weight: 900;
     -webkit-text-stroke: 3px rgba(0,0,0,0.85);
     paint-order: stroke fill;
@@ -4287,6 +4299,7 @@
     border: 0;
     color: #ddd;
     cursor: pointer;
+    font-family: inherit; /* buttons don't inherit by default — was UA Arial */
     font-size: .85rem;
     line-height: 1;
     padding: 2px 4px;
@@ -10078,6 +10091,7 @@
   .frn-resign-recap-close {
     position: absolute; top: .55rem; right: .65rem;
     background: transparent; border: 0; color: var(--gray);
+    font-family: inherit;
     font-size: 1.5rem; cursor: pointer; padding: .1rem .5rem;
   }
   .frn-resign-recap-close:hover { color: var(--white); }

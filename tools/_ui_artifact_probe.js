@@ -57,16 +57,25 @@ process.on("exit", () => children.forEach(c => { try { c.kill("SIGKILL"); } catc
           bg: cs.backgroundColor });
       }
     }
+    // Loaded faces (fonts/fonts.css) — any visible text whose stack leads
+    // with something else renders a system/generic fallback ("the dated
+    // look") on at least some machines.
+    const FACES = ["bebas neue", "anton", "ibm plex mono", "teko", "bricolage grotesque"];
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     let n;
     while ((n = walker.nextNode())) {
       if (!n.textContent.trim()) continue;
       const el = n.parentElement;
       if (!el || !el.offsetParent) continue;
-      const fs = parseFloat(getComputedStyle(el).fontSize);
+      const cs = getComputedStyle(el);
+      const fs = parseFloat(cs.fontSize);
       if (fs < 8) push({ kind: "tiny-text", surface, fs: +fs.toFixed(1),
         cls: String(el.className).slice(0, 70),
         txt: n.textContent.trim().replace(/\\s+/g, " ").slice(0, 50) });
+      const first = cs.fontFamily.split(",")[0].trim().replace(/['"]/g, "").toLowerCase();
+      if (!FACES.includes(first)) push({ kind: "stray-font", surface,
+        cls: String(el.className).slice(0, 70), bg: cs.fontFamily.slice(0, 50),
+        txt: n.textContent.trim().replace(/\\s+/g, " ").slice(0, 40) });
     }
     const vw = document.documentElement.clientWidth;
     for (const el of document.querySelectorAll("body *")) {
