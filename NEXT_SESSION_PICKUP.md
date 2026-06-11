@@ -101,7 +101,25 @@ otherwise take direction from the user.
     128px box per row (rows 210px→82px; the body-wear silhouette had
     computed 0px wide since it shipped — `display: contents` wrapper +
     explicit svg sizing).
-16. **Play sheet — named plays** (post-compact) — the offensive prompt
+16. **Play sheet — THE FULL BOOK** (post-compact, three commits) — the
+    offensive prompt offers 16 named plays + generics: 5 runs (…+ DRAW,
+    call-only runType), 5 dropbacks, and a SHOTS row (PA, RPO with a
+    real give/pull read off the called shell, READ_OPTION forcing the
+    speed-option pitch read, REVERSE, FLEA_FLICKER, HAIL_MARY — a
+    call-only PASS_CONCEPTS entry absent from the FREQ table). Defense
+    adds RUN_COMMIT + PREVENT (readSuccessVs columns on every concept +
+    run-yardage shading; coordinator-only). 4th down adds fake_punt /
+    fake_fg (new fake-FG holder model in the fg branch). NEW "kickoff"
+    decision kind → callable onside (seam in _kickoffAfterScore); the
+    franchise decide-cb auto-answers routine kickoffs BEFORE tape
+    consumption (ctx-only gate → tape indices stay aligned; prompts only
+    Q4 or trailing-from-Q3). Every forced site overrides ROLL RESULTS
+    only — defer/no-coordinator is byte-identical (probe check #1 +
+    audit gate 0-drift). Madden-style procedural SVG play art on every
+    card (_ipcPlayArt; routes/zones/blitz arrows/kick arcs). Keys:
+    1-5 runs, 6-0 passes, QWEASD shots, T/K fakes, K/S kickoff,
+    7/8 new shells. Probes: tools/_playsheet_probe.js (28 headless
+    engine checks), _ipc_clock_probe.js (19). — the offensive prompt
     offers REAL plays, not run/pass: 4 run variants (RUN_INSIDE/OUTSIDE/
     COUNTER/TOSS → engine runTypes via `RUN_CALL_VARIANTS`) + the 6
     PASS_CONCEPTS (QUICK_GAME…PA_SHOT), plus generic run/pass and OC

@@ -116,32 +116,39 @@ const PASS_CONCEPTS = {
   QUICK_GAME: {  // slants, hitches, RPO — quick read, beats blitz
     primaryDepth: 4,  primarySd: 1.5,
     fallbackDepth: 3, fallbackSd: 1.0,
-    readSuccessVs: { C0_BLITZ: 0.82, C1_MAN: 0.62, C2_ZONE: 0.55, C3_ZONE: 0.66, C4_QUARTERS: 0.55, TAMPA_2: 0.55 },
+    readSuccessVs: { C0_BLITZ: 0.82, C1_MAN: 0.62, C2_ZONE: 0.55, C3_ZONE: 0.66, C4_QUARTERS: 0.55, TAMPA_2: 0.55, RUN_COMMIT: 0.70, PREVENT: 0.80 },
   },
   DRAG_MESH: {   // crossers — beats man, vulnerable to gap zones
     primaryDepth: 7,  primarySd: 2.0,
     fallbackDepth: 4, fallbackSd: 1.5,
-    readSuccessVs: { C0_BLITZ: 0.55, C1_MAN: 0.78, C2_ZONE: 0.55, C3_ZONE: 0.52, C4_QUARTERS: 0.50, TAMPA_2: 0.48 },
+    readSuccessVs: { C0_BLITZ: 0.55, C1_MAN: 0.78, C2_ZONE: 0.55, C3_ZONE: 0.52, C4_QUARTERS: 0.50, TAMPA_2: 0.48, RUN_COMMIT: 0.62, PREVENT: 0.72 },
   },
   INTERMEDIATE: {  // digs/outs/post-corner — beats zone, vulnerable to man + pressure
     primaryDepth: 12, primarySd: 2.5,
     fallbackDepth: 6, fallbackSd: 2.0,
-    readSuccessVs: { C0_BLITZ: 0.42, C1_MAN: 0.52, C2_ZONE: 0.68, C3_ZONE: 0.62, C4_QUARTERS: 0.48, TAMPA_2: 0.55 },
+    readSuccessVs: { C0_BLITZ: 0.42, C1_MAN: 0.52, C2_ZONE: 0.68, C3_ZONE: 0.62, C4_QUARTERS: 0.48, TAMPA_2: 0.55, RUN_COMMIT: 0.60, PREVENT: 0.60 },
   },
   VERTICAL: {    // go/deep post — beats single-high, dies vs 2-deep
     primaryDepth: 22, primarySd: 3.5,
     fallbackDepth: 8, fallbackSd: 2.5,
-    readSuccessVs: { C0_BLITZ: 0.75, C1_MAN: 0.55, C2_ZONE: 0.40, C3_ZONE: 0.38, C4_QUARTERS: 0.30, TAMPA_2: 0.40 },
+    readSuccessVs: { C0_BLITZ: 0.75, C1_MAN: 0.55, C2_ZONE: 0.40, C3_ZONE: 0.38, C4_QUARTERS: 0.30, TAMPA_2: 0.40, RUN_COMMIT: 0.72, PREVENT: 0.22 },
   },
   SCREEN: {      // behind/at LOS — manufactured YAC, beats blitz, vulnerable to disciplined zone
     primaryDepth: -1, primarySd: 1.5,
     fallbackDepth: 2, fallbackSd: 1.5,
-    readSuccessVs: { C0_BLITZ: 0.85, C1_MAN: 0.65, C2_ZONE: 0.52, C3_ZONE: 0.55, C4_QUARTERS: 0.55, TAMPA_2: 0.65 },
+    readSuccessVs: { C0_BLITZ: 0.85, C1_MAN: 0.65, C2_ZONE: 0.52, C3_ZONE: 0.55, C4_QUARTERS: 0.55, TAMPA_2: 0.65, RUN_COMMIT: 0.55, PREVENT: 0.75 },
   },
   PA_SHOT: {     // play-action vertical — slow developing, beats single-high
     primaryDepth: 18, primarySd: 4.0,
     fallbackDepth: 9, fallbackSd: 2.5,
-    readSuccessVs: { C0_BLITZ: 0.40, C1_MAN: 0.65, C2_ZONE: 0.55, C3_ZONE: 0.52, C4_QUARTERS: 0.42, TAMPA_2: 0.48 },
+    readSuccessVs: { C0_BLITZ: 0.40, C1_MAN: 0.65, C2_ZONE: 0.55, C3_ZONE: 0.52, C4_QUARTERS: 0.42, TAMPA_2: 0.48, RUN_COMMIT: 0.85, PREVENT: 0.35 },
+  },
+  HAIL_MARY: {   // end-of-half heave — jump ball into a crowd. CALL-ONLY:
+                 // absent from PASS_CONCEPT_FREQ, so the AI's weighted roll
+                 // can never produce it and calibration is untouched.
+    primaryDepth: 46, primarySd: 5,
+    fallbackDepth: 40, fallbackSd: 6,
+    readSuccessVs: { C0_BLITZ: 0.34, C1_MAN: 0.26, C2_ZONE: 0.20, C3_ZONE: 0.22, C4_QUARTERS: 0.16, TAMPA_2: 0.20, RUN_COMMIT: 0.32, PREVENT: 0.10 },
   },
 };
 const PASS_CONCEPT_FREQ = {  // base offensive concept call distribution
@@ -154,10 +161,17 @@ const PASS_COVERAGE_FREQ = { // base defensive coverage distribution
   C0_BLITZ: 0.05, C1_MAN: 0.22, C2_ZONE: 0.18, C3_ZONE: 0.32, C4_QUARTERS: 0.15, TAMPA_2: 0.08,
 };
 // Play-sheet RUN calls (interactive playcalling) → engine runType variants.
-// The pass side of the sheet is PASS_CONCEPTS' own keys.
+// The pass side of the sheet is PASS_CONCEPTS' own keys. "draw" is call-only
+// (the AI's variant roll never produces it).
 const RUN_CALL_VARIANTS = {
-  RUN_INSIDE: "inside", RUN_OUTSIDE: "stretch", RUN_COUNTER: "counter", RUN_TOSS: "pitch",
+  RUN_INSIDE: "inside", RUN_OUTSIDE: "stretch", RUN_COUNTER: "counter",
+  RUN_TOSS: "pitch", RUN_DRAW: "draw",
 };
+// Defensive play-sheet calls beyond the six coverage shells. RUN_COMMIT
+// sells out vs the run (sold-out box, man-free behind — play action kills
+// it); PREVENT concedes the underneath to erase the deep ball. Both are
+// coordinator-only (the AI never calls them), so calibration is untouched.
+const DEF_EXTRA_CALLS = new Set(["RUN_COMMIT", "PREVENT"]);
 
 const _YAC_TACKLER_ZONES = {
   short: { S: 0.40, CB: 0.35, LB: 0.25 },              // catch + immediate wrap
@@ -2757,7 +2771,25 @@ class GameSimulator {
     // Kicking team only tries an onside if they're STILL behind (or just
     // tied with little time), since recovering an onside is rare and a
     // failed onside hands the opponent great field position.
-    const tryOnside = (lateGame  && scoreDiff <  0)
+    //
+    // COORDINATOR SEAM — the kicking side's coordinator (interactive
+    // playcalling / H2H) may order "onside" or "normal" and override the
+    // AI logic; null/foreign defers. Consumes no RNG.
+    let _koCall = null;
+    {
+      const _kC = this._coordinators && this._coordinators[scoringTeamKey];
+      if (_kC) {
+        const c = _kC({
+          kind: "kickoff", side: scoringTeamKey,
+          quarter: this.quarter, time: this.time,
+          score: { home: this.score.home, away: this.score.away },
+          diff: scoreDiff,
+        });
+        if (c === "onside" || c === "normal") _koCall = c;
+      }
+    }
+    const tryOnside = _koCall ? _koCall === "onside"
+                    : (lateGame  && scoreDiff <  0)
                    || (desperate && scoreDiff <= 0 && this.time < 60);
     if (tryOnside) {
       const recovered = _rand() < 0.13;     // ~13% under modern rules
@@ -3257,7 +3289,7 @@ class GameSimulator {
           offPersonnel: this._currentPersonnel,
           defPackage: this._currentDefPackage,
         });
-        if (_shell && PASS_COVERAGE_FREQ[_shell] != null) this._defShellCall = _shell;
+        if (_shell && (PASS_COVERAGE_FREQ[_shell] != null || DEF_EXTRA_CALLS.has(_shell))) this._defShellCall = _shell;
       }
     }
     // RZ team-stat: count the trip when offense first crosses into the 20.
@@ -3480,6 +3512,7 @@ class GameSimulator {
       // any plausible range (>68-yd attempt) falls back to the AI action
       // rather than staging a cartoon kick.
       let _coordDrove4th = false;
+      this._fourthFakeCall = null;   // "fake_punt" | "fake_fg" — special-teams trickery
       {
         const _c4 = this._coordinators && this._coordinators[this.poss];
         if (_c4) {
@@ -3493,6 +3526,15 @@ class GameSimulator {
           if (call === "go" || call === "punt" || (call === "fg" && (toEZ + 17) <= 68)) {
             _coordDrove4th = call !== action;
             action = call;
+          } else if (call === "fake_punt") {
+            // Line up in punt formation, run the fake (forced downstream).
+            _coordDrove4th = true;
+            action = "punt";
+            this._fourthFakeCall = "fake_punt";
+          } else if (call === "fake_fg" && (toEZ + 17) <= 68) {
+            _coordDrove4th = true;
+            action = "fg";
+            this._fourthFakeCall = "fake_fg";
           }
         }
       }
@@ -3524,6 +3566,53 @@ class GameSimulator {
       }
       if (action === "fg") {
         const dist = toEZ + 17;
+        // ── FAKE FIELD GOAL (call-only — the AI never fakes a kick) ──
+        // The holder (the punter) pulls it: pass to the TE off the leak
+        // (60%) or a keeper around the edge. Tighter quarters than a fake
+        // punt — the FG defense is compact — so the completion/run math
+        // runs a notch lower. Returns the generic {yards} shape and lets
+        // _drive() resolve the conversion exactly like a go-for-it.
+        if (this._fourthFakeCall === "fake_fg") {
+          const H = this.offR.starters.p || this.offR.starters.qb;
+          const hPlayer = this._playerByName.get(H);
+          const hAwr = hPlayer?.stats?.[3] ?? 60;
+          const hSpd = hPlayer?.stats?.[0] ?? 55;
+          const hAgi = hPlayer?.stats?.[2] ?? 55;
+          if (_rand() < 0.60) {
+            const compPct = clamp(0.36 + (hAwr - 60) / 160 + (this.ytg <= 2 ? 0.08 : 0), 0.18, 0.66);
+            const isComp = _rand() < compPct;
+            const tgtName = this.offR.starters.te || this.offR.starters.rb;
+            const fakeYards = isComp ? clamp(Math.round(normal(8, 4)), -2, 25) : 0;
+            const success = isComp && fakeYards >= this.ytg;
+            this._pushVisual({
+              kind: isComp ? "complete" : "incomplete",
+              desc: isComp
+                ? `🎩 FAKE FIELD GOAL! Holder ${H} throws to ${tgtName} for ${fakeYards} — ${success ? "FIRST DOWN!" : "stopped short"}`
+                : `🎩 FAKE FIELD GOAL! Holder ${H} throws — INCOMPLETE`,
+              startYard,
+              endYard: clamp(startYard + (isComp ? fakeYards : 0), 0, 100),
+              isFakeFG: true,
+              passer: H, receiver: tgtName,
+              yards: isComp ? fakeYards : 0,
+              targetDepth: 7,
+            });
+            return { yards: isComp ? fakeYards : 0, incomplete: !isComp };
+          } else {
+            const fakeMean = 3 + (hSpd - 60) * 0.06 + (hAgi - 60) * 0.04;
+            const fakeYards = clamp(Math.round(normal(fakeMean, 3.5)), -4, 28);
+            const success = fakeYards >= this.ytg;
+            this._pushVisual({
+              kind: "run",
+              desc: `🎩 FAKE FIELD GOAL! Holder ${H} keeps it for ${fakeYards} yds — ${success ? "FIRST DOWN!" : "stopped short"}`,
+              startYard,
+              endYard: clamp(startYard + fakeYards, 0, 100),
+              isFakeFG: true,
+              rusher: H,
+              yards: fakeYards,
+            });
+            return { yards: fakeYards };
+          }
+        }
         // ── ICE THE KICKER ──
         // Late game, defense burns a TO right before a tying / lead-changing FG.
         // Has a small accuracy effect (kicker has time to overthink).
@@ -3713,10 +3802,13 @@ class GameSimulator {
         const fakeShortYTG = this.ytg <= 4;
         const fakeMidfield = this.yardLine >= 40 && this.yardLine <= 75;
         const fakeEligible = pArch === "ATHLETE" && fakeShortYTG && fakeMidfield;
-        if (fakeEligible) {
+        // A CALLED fake punt bypasses the eligibility gate (your gamble,
+        // any punter, any spot); the organic roll below is unchanged.
+        const _forcedFakePunt = this._fourthFakeCall === "fake_punt";
+        if (fakeEligible || _forcedFakePunt) {
           const aggTilt = this._aggTilt(this._qbAggression());
           const fakeChance = clamp(0.18 * aggTilt, 0.06, 0.32);
-          if (_rand() < fakeChance) {
+          if (_forcedFakePunt || _rand() < fakeChance) {
             // FAKE PUNT! Decide run (60%) vs pass (40%) — heavier on run since
             // punters aren't really QBs. Run uses SPD+AGI, pass uses AWR.
             const isPass = _rand() < 0.40;
@@ -4072,6 +4164,9 @@ class GameSimulator {
     let playType;
     this._offConceptCall = null;   // forced pass concept for this snap
     this._offRunCall = null;       // forced run variant for this snap
+    this._offQBCall = false;       // READ_OPTION — force the QB-keeper/option path
+    this._offTrickCall = null;     // "REVERSE" | "FLEA_FLICKER"
+    this._offRpoCall = null;       // "pull" | "give" — RPO resolution for this snap
     const _offSideKey = this.poss;
     const _coord = this._coordinators && this._coordinators[_offSideKey];
     if (_coord) {
@@ -4090,6 +4185,30 @@ class GameSimulator {
       } else if (call && RUN_CALL_VARIANTS[call]) {
         playType = "run";
         this._offRunCall = RUN_CALL_VARIANTS[call];
+      } else if (call === "READ_OPTION") {
+        playType = "run";
+        this._offQBCall = true;
+      } else if (call === "REVERSE") {
+        playType = "run";
+        this._offTrickCall = "REVERSE";
+      } else if (call === "FLEA_FLICKER") {
+        // Flea flicker rides the PA_SHOT concept (deep shot off the fake);
+        // the trick flag forces the RB pitch-back below.
+        playType = "pass";
+        this._offTrickCall = "FLEA_FLICKER";
+        this._offConceptCall = "PA_SHOT";
+      } else if (call === "RPO") {
+        // Packaged run-pass option: read the defense's pre-snap disposition.
+        // An aggressive look (a CALLED blitz/man/run-commit) → PULL and
+        // throw the quick game into the vacated grass; a soft look → GIVE
+        // on inside zone vs a light box. With no shell called, the read is
+        // a coin-weighted roll (consumed only on this called path).
+        const _shell = this._defShellCall;
+        const _pull = _shell
+          ? (_shell === "C0_BLITZ" || _shell === "C1_MAN" || _shell === "RUN_COMMIT")
+          : _rand() < 0.45;
+        if (_pull) { playType = "pass"; this._offConceptCall = "QUICK_GAME"; this._offRpoCall = "pull"; }
+        else       { playType = "run";  this._offRunCall = "inside";         this._offRpoCall = "give"; }
       } else {
         playType = _rand() < passProb ? "pass" : "run";
       }
@@ -4416,7 +4535,12 @@ class GameSimulator {
       // FLEA FLICKER — rare trick play, only on PA setups in good run threat.
       // RB takes the fake handoff, then pitches the ball BACK to the QB who
       // throws deep. Big play upside, big-time risk if it breaks down.
-      const isFleaFlicker = isPlayAction && runThreat > 0.35 && (this.ytg >= 6 || !isThird) && _rand() < 0.06;
+      // A called FLEA_FLICKER forces the pitch-back (the PA fake is already
+      // forced via its PA_SHOT concept). Roll-order discipline: the forced
+      // check sits OUTSIDE the && chain's _rand() so the organic draw still
+      // happens exactly when it used to.
+      const isFleaFlicker = (isPlayAction && runThreat > 0.35 && (this.ytg >= 6 || !isThird) && _rand() < 0.06)
+                         || this._offTrickCall === "FLEA_FLICKER";
       if (isPlayAction) {
         paCompMod = 0.025 + paQbSkill * 0.030;     // up to +5.5% comp
         paAirMod  = 1.5  + paQbSkill * 2.5 + runThreat * 1.5;  // up to +5 air yds
@@ -5422,7 +5546,8 @@ class GameSimulator {
       // the AGGREGATE comp% is preserved (mean airYds ≈ 8 = the pivot). It also lets
       // the audit bucket attempts/completions by true air yards instead of the blend.
       const _conceptDef = PASS_CONCEPTS[_hoistedConcept];
-      const _readBase = (_conceptDef?.readSuccessVs?.[_hoistedCoverage] ?? 0.50) + 0.04;
+      const _readBase = (_conceptDef?.readSuccessVs?.[_hoistedCoverage] ?? 0.50) + 0.04
+                      + (this._offRpoCall === "pull" ? 0.08 : 0);   // RPO pull = schemed throw into vacated grass
       const _qbAwr = this._playerByName?.get?.(QB?.name)?.stats?.[3] ?? 70;
       const _qbReadMod = (_qbAwr - 70) / 200;
       const _pressReadCut = clamp(pressure * 0.10, 0, 0.20);
@@ -6142,7 +6267,9 @@ class GameSimulator {
       else if (pb.id === "OPTION")      twoBackPct = 0.22;
       if (this.ytg <= 2) twoBackPct += 0.20;     // power short yardage
       if (startYard >= 95) twoBackPct += 0.15;   // goal line
-      useTwoBack = _rand() < twoBackPct;
+      // Reverses never run from two-back — a called REVERSE forces the
+      // single-back look (roll still consumed; result-only override).
+      useTwoBack = _rand() < twoBackPct && this._offTrickCall !== "REVERSE";
     }
     // FB lead-block bonus — bumps rush yardage, reduces stuff risk
     const fbBoost = useTwoBack ? 0.9 : 0;
@@ -6174,9 +6301,11 @@ class GameSimulator {
       }
     }
     // A called run off the play sheet means the BACK gets the ball — the
-    // QB-keeper conversion is suppressed. Check sits AFTER the _rand() so
-    // the draw order is identical in every path.
-    let isQBRun = qbRushPct > 0 && _rand() < qbRushPct && !this._offRunCall;
+    // QB-keeper conversion is suppressed (so do trick calls; the reverse
+    // needs the RB sweep). A called READ_OPTION forces the keeper path.
+    // Checks sit AFTER the _rand() so the draw order is identical.
+    let isQBRun = (qbRushPct > 0 && _rand() < qbRushPct && !this._offRunCall && !this._offTrickCall)
+               || this._offQBCall;
     // SPEED OPTION — a subset of QB-run calls where the RB trails the QB
     // as a live pitch threat. The QB sprints to the option side and either
     // KEEPS the ball or PITCHES to the trailing back. Option-heavy
@@ -6188,7 +6317,9 @@ class GameSimulator {
       const speedOptPct = pb.id === "OPTION"       ? 0.40
                         : pb.id === "DUAL_THREAT" ? 0.22
                         : 0.10;
-      if (_rand() < speedOptPct) {
+      // READ_OPTION call = the full pitch-read mechanic, always (the roll
+      // still runs first, keeping draw order identical when not called).
+      if (_rand() < speedOptPct || this._offQBCall) {
         isSpeedOption = true;
         // Deterministic play-side (matches the animation's optSide).
         const optSide = ((startYard * 19) >>> 0) % 2 === 0 ? 1 : -1;
@@ -6237,10 +6368,11 @@ class GameSimulator {
     // High variance: bigger gains AND bigger losses if it gets read.
     // Never on two-back — fullbacks don't run reverses.
     // A called run off the play sheet suppresses the reverse (you called
-    // INSIDE, you get a handoff — not a trick play). The check sits AFTER
-    // the _rand() so the draw order is identical in every path.
-    const isReverse = !isQBRun && !useTwoBack && !isSpeedOption && _rand() < 0.015
-                   && !this._offRunCall;
+    // INSIDE, you get a handoff — not a trick play); a called REVERSE
+    // forces it. Checks sit AFTER the _rand() so draw order is identical.
+    const isReverse = (!isQBRun && !useTwoBack && !isSpeedOption && _rand() < 0.015
+                       && !this._offRunCall)
+                   || this._offTrickCall === "REVERSE";
     // ── RUN-PLAY VARIANTS (counter / stretch / pitch) ──────────────────
     // Pick a runType for the non-reverse, non-QB runs. Distribution favors
     // GROUND_AND_POUND and OPTION schemes for counter / pitch, AIR_RAID
@@ -6281,6 +6413,15 @@ class GameSimulator {
     } else if (runType === "pitch") {
       runVarMean = 0.6;                                 // get on the edge fast
       runVarSd   = 1.45;                                // big plays + big losses
+    } else if (runType === "draw") {
+      // Delay draw (call-only) — feasts on a pass-rushing look (the front
+      // flies upfield past the mesh), dies into a loaded box.
+      const _shellD = this._defShellCall;
+      const _passLean = (this.down >= 3 && this.ytg >= 7)
+                     || _shellD === "C0_BLITZ" || _shellD === "PREVENT"
+                     || _shellD === "C2_ZONE" || _shellD === "C4_QUARTERS" || _shellD === "TAMPA_2";
+      runVarMean = _shellD === "RUN_COMMIT" ? -1.6 : _passLean ? 1.6 : 0.2;
+      runVarSd   = 1.3;
     }
     // SPEED OPTION yardage — now driven by whether the QB made the
     // CORRECT read of the edge defender. A correct read means the defense
@@ -6297,6 +6438,16 @@ class GameSimulator {
         else          { runVarMean = -1.8; runVarSd = 0.90; }
       }
     }
+    // Called defensive fronts shade the ground game (applied AFTER the
+    // variant/option assignments so they layer on every run flavor): a
+    // sold-out box stuffs it, a prevent shell concedes it, an all-out
+    // blitz gambles into it. Coordinator-only (the AI never calls
+    // RUN_COMMIT/PREVENT) → the no-call stream is untouched.
+    if (this._defShellCall === "RUN_COMMIT")      { runVarMean -= 1.7; runVarSd *= 0.9; }
+    else if (this._defShellCall === "PREVENT")    runVarMean += 1.4;
+    else if (this._defShellCall === "C0_BLITZ")   runVarMean -= 0.7;
+    // RPO give = the box honored the pass — a half-man lighter front.
+    if (this._offRpoCall === "give") runVarMean += 0.6;
     // Committee split — give the change-of-pace back (rb2) a real share of
     // carries on standard runs. Previously rb2 only ever LEAD-BLOCKED in
     // two-back sets, so rb1 hogged ~98% of RB carries (lead share ~81% of the

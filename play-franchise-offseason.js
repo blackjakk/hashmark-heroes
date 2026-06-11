@@ -4377,6 +4377,17 @@ function _ipcRun(commitReal) {
     let di = 0; // decision index — tape answers are consumed in order
     sim._coordinators = {
       [_ipc.userSide]: (ctx) => {
+        // Routine kickoffs never prompt (and never consume tape) — the
+        // special-teams coach kicks deep. The gate depends ONLY on ctx, so
+        // every re-sim recomputes it identically and tape indices stay
+        // aligned. Q4 (or trailing from Q3 on) falls through to the prompt
+        // where the ONSIDE call is live.
+        if (ctx.kind === "kickoff") {
+          const my  = ctx.score?.[_ipc.userSide] ?? 0;
+          const opp = ctx.score?.[_ipc.userSide === "home" ? "away" : "home"] ?? 0;
+          const live = ctx.quarter >= 4 || (ctx.quarter === 3 && my <= opp);
+          if (!live) return null;
+        }
         if (di < _ipc.tape.length) return _ipc.tape[di++];
         if (_ipc.coachMode) return null; // AI rolls its own passProb
         _ipc.pending = ctx;
@@ -4467,14 +4478,16 @@ function _ipcMaybePrompt() {
 const _IPC_SHEET_CALLS = [
   "run", "pass",
   "QUICK_GAME", "DRAG_MESH", "INTERMEDIATE", "VERTICAL", "SCREEN", "PA_SHOT",
-  "RUN_INSIDE", "RUN_OUTSIDE", "RUN_COUNTER", "RUN_TOSS",
+  "RUN_INSIDE", "RUN_OUTSIDE", "RUN_COUNTER", "RUN_TOSS", "RUN_DRAW",
+  "RPO", "READ_OPTION", "REVERSE", "FLEA_FLICKER", "HAIL_MARY",
 ];
 function frnPlaycall(call) {
   if (!_ipc || _ipc.status !== "pending") return;
   const kind  = _ipc.pending?.kind || "playcall";
-  const valid = kind === "fourthDown" ? ["go", "fg", "punt"]
+  const valid = kind === "fourthDown" ? ["go", "fg", "punt", "fake_punt", "fake_fg"]
               : kind === "pat"        ? ["kick", "two"]
-              : kind === "defense"    ? ["C0_BLITZ", "C1_MAN", "C2_ZONE", "C3_ZONE", "C4_QUARTERS", "TAMPA_2"]
+              : kind === "kickoff"    ? ["normal", "onside"]
+              : kind === "defense"    ? ["C0_BLITZ", "C1_MAN", "C2_ZONE", "C3_ZONE", "C4_QUARTERS", "TAMPA_2", "RUN_COMMIT", "PREVENT"]
               :                         _IPC_SHEET_CALLS;
   // Network match (C.3) — the answer goes to the authoritative server
   // instead of the local tape; resolved plays come back over SSE.
@@ -4546,8 +4559,23 @@ function _ipaZone(x, y, rx, ry) {
 function _ipcPlayArt(call) {
   const G = _IPA.gold, W = _IPA.white, D = _IPA.dim, R = _IPA.red;
   let inner = "";
-  const isDef = /^C\d|^TAMPA/.test(call);
-  if (!isDef) {
+  const isDef = /^C\d|^TAMPA|^RUN_COMMIT|^PREVENT/.test(call);
+  if (call === "normal" || call === "onside") {
+    // Kickoff art — tee at the bottom of the card, ball flight upfield.
+    const tee = _ipaDot(50, 62, { color: G, fill: G, r: 2 });
+    if (call === "normal") {
+      inner = tee
+            + `<line x1="3" y1="14" x2="97" y2="14" stroke="rgba(255,255,255,.22)" stroke-width="1"/>`
+            + _ipaDot(50, 10, { color: W })
+            + _ipaRoute([[50, 62], [49, 46], [46, 30], [42, 16]], { color: G, w: 2.4, head: 6 });
+    } else {
+      inner = tee
+            + `<line x1="3" y1="40" x2="97" y2="40" stroke="rgba(255,255,255,.22)" stroke-width="1"/>`
+            + _ipaRoute([[50, 62], [44, 55], [47, 50], [40, 46], [43, 42], [34, 38]], { color: G, w: 2.2, head: 5 })
+            + _ipaDot(30, 34, { x: true, color: W }) + _ipaDot(38, 32, { x: true, color: W })
+            + _ipaDot(26, 40, { color: _IPA.dim }) + _ipaDot(34, 42, { color: _IPA.dim });
+    }
+  } else if (!isDef) {
     // Offensive scaffold: LOS + 5 OL + QB(shotgun) + skill spots.
     const los = `<line x1="3" y1="48" x2="97" y2="48" stroke="rgba(255,255,255,.22)" stroke-width="1"/>`;
     let ol = "";
@@ -4615,6 +4643,49 @@ function _ipcPlayArt(call) {
               + _ipaRoute([[92, 51], [92, 10]], { color: W })
               + _ipaRoute([[67, 51], [67, 41], [44, 32]], { color: D, w: 1.6 });
         break;
+      case "RUN_DRAW":
+        // Delay: QB shows pass (dashed drop), then the late handoff up the gut.
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(92)
+              + _ipaRoute([[50, 58], [50, 64]], { color: D, w: 1.4, dash: "2,2", noHead: true })
+              + _ipaRoute([[8, 51], [8, 34]], { color: D, w: 1.4 })
+              + _ipaRoute([[92, 51], [92, 34]], { color: D, w: 1.4 })
+              + _ipaRoute([[44, 64], [44, 58], [50, 50], [50, 30]], { color: G, w: 3, head: 6 });
+        break;
+      case "RPO":
+        // Packaged: solid give lane + dashed pull-and-throw branch.
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(92)
+              + _ipaRoute([[44, 64], [49, 54], [49, 36]], { color: G, w: 2.6, head: 5 })
+              + _ipaRoute([[8, 51], [8, 44], [28, 33]], { color: W, w: 2, dash: "3,2" })
+              + _ipaRoute([[92, 51], [92, 40]], { color: D, w: 1.4, dash: "3,2" });
+        break;
+      case "READ_OPTION":
+        // QB attacks the edge, RB trails as the live pitch.
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(92)
+              + _ipaRoute([[50, 58], [62, 56], [76, 46], [80, 34]], { color: G, w: 2.8, head: 6 })
+              + _ipaRoute([[44, 64], [58, 63], [70, 59]], { color: W, w: 1.8, dash: "3,2" });
+        break;
+      case "REVERSE":
+        // RB sweeps one way, WR takes it back against the grain.
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(92)
+              + _ipaRoute([[44, 64], [58, 61], [68, 57]], { color: W, w: 1.8, noHead: true })
+              + _ipaRoute([[92, 51], [80, 56], [68, 57], [36, 58], [18, 48], [12, 32]], { color: G, w: 2.8, head: 6 });
+        break;
+      case "FLEA_FLICKER":
+        // RB takes the mesh forward… then pitches it BACK for the bomb.
+        inner = los + ol + qb + rb(44, 63) + wr(8) + wr(92)
+              + _ipaRoute([[44, 63], [48, 54]], { color: W, w: 1.8, noHead: true })
+              + _ipaRoute([[48, 54], [50, 61]], { color: W, w: 1.6, dash: "2,2" })
+              + _ipaRoute([[8, 51], [8, 8]], { color: G, w: 2.4 })
+              + _ipaRoute([[92, 51], [92, 24], [76, 12]], { color: W, w: 1.8 });
+        break;
+      case "HAIL_MARY":
+        // Everyone deep, converging on the same patch of grass.
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(23) + wr(77) + wr(92)
+              + _ipaRoute([[8, 51], [38, 10]], { color: G, w: 2.2 })
+              + _ipaRoute([[23, 51], [45, 9]], { color: G, w: 2.2 })
+              + _ipaRoute([[77, 51], [55, 9]], { color: G, w: 2.2 })
+              + _ipaRoute([[92, 51], [62, 10]], { color: G, w: 2.2 });
+        break;
       case "run":   // generic — three faded lanes
         inner = los + ol + qb + rb(44, 64)
               + _ipaRoute([[44, 64], [44, 34]], { color: D, w: 2 })
@@ -4676,6 +4747,26 @@ function _ipcPlayArt(call) {
               + _ipaZone(26, 50, 19, 10) + _ipaZone(74, 50, 19, 10)
               + _ipaRoute([[50, 30], [50, 46]], { color: G, w: 2.2 })
               + _ipaZone(50, 52, 10, 7);
+        break;
+      case "RUN_COMMIT":
+        // Everybody downhill — extra bodies in the box, lone deep help.
+        inner = base + lb(26) + lb(38, 29) + lb(50) + lb(62, 29) + lb(74)
+              + db(10, 20) + db(90, 20) + db(50, 44)
+              + _ipaRoute([[26, 30], [30, 13]], { color: R, w: 2.2 })
+              + _ipaRoute([[38, 29], [40, 13]], { color: R, w: 2.2 })
+              + _ipaRoute([[50, 30], [50, 12]], { color: R, w: 2.2 })
+              + _ipaRoute([[62, 29], [60, 13]], { color: R, w: 2.2 })
+              + _ipaRoute([[74, 30], [70, 13]], { color: R, w: 2.2 })
+              + _ipaZone(50, 54, 13, 7);
+        break;
+      case "PREVENT":
+        // Three-man rush, everyone else parked on the goal-line umbrella.
+        inner = los + off
+              + _ipaDot(42, 21, { x: true, color: W }) + _ipaDot(50, 21, { x: true, color: W }) + _ipaDot(58, 21, { x: true, color: W })
+              + lb(30, 34) + lb(50, 34) + lb(70, 34)
+              + db(14, 30) + db(86, 30)
+              + _ipaZone(20, 55, 16, 10) + _ipaZone(50, 56, 16, 10) + _ipaZone(80, 55, 16, 10)
+              + _ipaZone(33, 38, 10, 5) + _ipaZone(67, 38, 10, 5);
         break;
     }
   }
@@ -4754,8 +4845,28 @@ function _ipcShowPanel() {
       <button class="ipc-btn ipc-go" onclick="frnPlaycall('go')" title="Keep the offense out there [G]">💪 GO FOR IT</button>
       <button class="ipc-btn ipc-fg${c.inFGRange ? "" : " ipc-longshot"}" ${fgOk ? "" : "disabled"} onclick="frnPlaycall('fg')" title="${fgTitle}">🥅 FIELD GOAL · ${c.fgDist} YD</button>
       <button class="ipc-btn ipc-punt" onclick="frnPlaycall('punt')" title="Flip the field [P]">🦶 PUNT</button>
+      <button class="ipc-btn ipc-punt ipc-longshot" onclick="frnPlaycall('fake_punt')" title="Punt formation, but the punter pulls it — run or throw for the sticks [T]">🎩 FAKE PUNT</button>
+      <button class="ipc-btn ipc-fg ipc-longshot" ${fgOk ? "" : "disabled"} onclick="frnPlaycall('fake_fg')" title="FG formation, but the holder pulls it — keeper or pop pass to the TE [K]">🎩 FAKE FG</button>
       <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let your coach decide [O]">🧠 COACH CALL</button>
       ${coachBtn}`;
+  } else if (kind === "kickoff") {
+    badge = "🦵 KICKOFF — YOUR CALL";
+    lean = c.diff != null
+      ? (c.diff < 0 ? `YOU TRAIL BY ${-c.diff} — NEED THE BALL BACK?` : c.diff > 0 ? "YOU LEAD — PROTECT THE FIELD" : "TIED GAME")
+      : "";
+    btns = `
+      <div class="ipc-sheet">
+        <div class="ipc-sheet-row">
+          <span class="ipc-sheet-tag">KICK</span>
+          ${_ipcCard("normal", "ipc-fg", "🦵 KICK DEEP", "K", "Boot it away — coverage unit takes the field")}
+          ${_ipcCard("onside", "ipc-go", "🎲 ONSIDE KICK", "S", "Short hop into the scrum — ~13% recovery, but a fail gifts them midfield")}
+        </div>
+        <div class="ipc-sheet-row">
+          <span class="ipc-sheet-tag"></span>
+          <button class="ipc-btn ipc-auto" onclick="frnPlaycall('auto')" title="Let your special-teams coach decide [O]">🧠 STC CALL</button>
+          ${coachBtn}
+        </div>
+      </div>`;
   } else if (kind === "defense") {
     // V4 — defensive shell call. The opponent has the ball; you see their
     // personnel (subs are visible pre-snap) and pick one of the six
@@ -4772,6 +4883,8 @@ function _ipcShowPanel() {
           ${_ipcCard("C2_ZONE", "ipc-fg", "✌ COVER 2", 4, "Two-deep zone — takes away verticals, soft underneath")}
           ${_ipcCard("C4_QUARTERS", "ipc-fg", "🏰 QUARTERS", 5, "Quarters — max deep help, light box vs the run")}
           ${_ipcCard("TAMPA_2", "ipc-fg", "🕸 TAMPA 2", 6, "Tampa 2 — MLB carries the deep middle")}
+          ${_ipcCard("RUN_COMMIT", "ipc-go", "🧱 RUN COMMIT", 7, "Sell out on the run — stacked box stuffs it, but play action over the top is death")}
+          ${_ipcCard("PREVENT", "ipc-fg", "☂ PREVENT", 8, "Deep umbrella — erases the bomb, concedes everything underneath")}
         </div>
         <div class="ipc-sheet-row">
           <span class="ipc-sheet-tag"></span>
@@ -4800,15 +4913,24 @@ function _ipcShowPanel() {
           ${_ipcCard("RUN_OUTSIDE", "ipc-run", "🏃 OUTSIDE ZONE", 2, "Outside zone — needs an athletic line, hits big when the edge seals")}
           ${_ipcCard("RUN_COUNTER", "ipc-run", "🔄 COUNTER", 3, "Misdirection — boom or bust, punishes overpursuit")}
           ${_ipcCard("RUN_TOSS", "ipc-run", "🌀 TOSS", 4, "Pitch to the edge — chunk upside, TFL risk if it's read")}
+          ${_ipcCard("RUN_DRAW", "ipc-run", "⏳ DRAW", 5, "Delay handoff — feasts on a pass rush flying upfield, dies vs a loaded box")}
         </div>
         <div class="ipc-sheet-row">
           <span class="ipc-sheet-tag">PASS</span>
-          ${_ipcCard("QUICK_GAME", "ipc-pass", "⚡ QUICK GAME", 5, "Slants &amp; hitches — ball out fast, eats the blitz")}
-          ${_ipcCard("DRAG_MESH", "ipc-pass", "🤝 MESH", 6, "Crossers — rubs beat man coverage")}
-          ${_ipcCard("INTERMEDIATE", "ipc-pass", "🎯 DIG &amp; OUT", 7, "Digs &amp; outs at the sticks — carves zone")}
-          ${_ipcCard("VERTICAL", "ipc-pass", "🚀 VERTS", 8, "Shot deep — beats single-high, dies vs two-deep")}
-          ${_ipcCard("SCREEN", "ipc-pass", "🧱 SCREEN", 9, "Manufactured YAC behind the rush — blitz killer")}
-          ${_ipcCard("PA_SHOT", "ipc-pass", "🎭 PLAY ACTION", 0, "Play action — sells the run, hits over the top; longer dropback")}
+          ${_ipcCard("QUICK_GAME", "ipc-pass", "⚡ QUICK GAME", 6, "Slants &amp; hitches — ball out fast, eats the blitz")}
+          ${_ipcCard("DRAG_MESH", "ipc-pass", "🤝 MESH", 7, "Crossers — rubs beat man coverage")}
+          ${_ipcCard("INTERMEDIATE", "ipc-pass", "🎯 DIG &amp; OUT", 8, "Digs &amp; outs at the sticks — carves zone")}
+          ${_ipcCard("VERTICAL", "ipc-pass", "🚀 VERTS", 9, "Shot deep — beats single-high, dies vs two-deep")}
+          ${_ipcCard("SCREEN", "ipc-pass", "🧱 SCREEN", 0, "Manufactured YAC behind the rush — blitz killer")}
+        </div>
+        <div class="ipc-sheet-row">
+          <span class="ipc-sheet-tag">SHOTS</span>
+          ${_ipcCard("PA_SHOT", "ipc-pass", "🎭 PLAY ACTION", "Q", "Play action — sells the run, hits over the top; longer dropback")}
+          ${_ipcCard("RPO", "ipc-run", "🔀 RPO", "W", "Packaged play — QB reads the box: give vs soft looks, pull &amp; throw vs pressure")}
+          ${_ipcCard("READ_OPTION", "ipc-run", "🏇 READ OPTION", "E", "QB attacks the edge with the RB as a live pitch — the read decides keep or pitch")}
+          ${_ipcCard("REVERSE", "ipc-go", "🪃 REVERSE", "A", "WR coming back against the grain — huge if the pursuit overruns it")}
+          ${_ipcCard("FLEA_FLICKER", "ipc-go", "🎪 FLEA FLICKER", "S", "RB pitches it BACK to the QB for the bomb — big risk, bigger grass")}
+          ${_ipcCard("HAIL_MARY", "ipc-go", "🙏 HAIL MARY", "D", "Heave it into the crowd — end-of-half desperation")}
         </div>
         <div class="ipc-sheet-row">
           <span class="ipc-sheet-tag"></span>
@@ -4822,17 +4944,20 @@ function _ipcShowPanel() {
   el.querySelector("#ipcBadge").textContent = badge;
   el.querySelector("#ipcSit").textContent  = kind === "pat"
     ? `AFTER THE TD · ${qlab} ${mm}:${ss} · ${lead} ${my}-${opp}`
+    : kind === "kickoff"
+    ? `KICKING OFF · ${qlab} ${mm}:${ss} · ${lead} ${my}-${opp}`
     : `${down} & ${dist} · ${spot} · ${qlab} ${mm}:${ss} · ${lead} ${my}-${opp}`;
   el.querySelector("#ipcLean").textContent = lean;
   el.querySelector("#ipcBtns").innerHTML = btns;
   el.style.display = "flex";
   _ipcClockStart();
   // Field scene — both squads huddle at the new LOS while the call is in
-  // (PAT prompts keep the TD aftermath on screen instead). On defensive
-  // prompts the scene reads _ipcHuddleBreakAt (armed by the clock above):
-  // the opposing offense breaks the huddle when their OC's play is in.
+  // (PAT prompts keep the TD aftermath on screen, kickoff prompts the
+  // score's aftermath — neither has a huddle). On defensive prompts the
+  // scene reads _ipcHuddleBreakAt (armed by the clock above): the
+  // opposing offense breaks the huddle when their OC's play is in.
   if (typeof ipcHuddleStart === "function") {
-    if (kind === "pat") ipcHuddleStop();
+    if (kind === "pat" || kind === "kickoff") ipcHuddleStop();
     else {
       const offSide = kind === "defense"
         ? (_ipc.userSide === "home" ? "away" : "home")
@@ -4931,8 +5056,15 @@ function _ipcInstallKeys() {
     }
     if (kindK === "defense") {
       const map = { "1": "C0_BLITZ", "2": "C1_MAN", "3": "C3_ZONE",
-                    "4": "C2_ZONE", "5": "C4_QUARTERS", "6": "TAMPA_2" };
+                    "4": "C2_ZONE", "5": "C4_QUARTERS", "6": "TAMPA_2",
+                    "7": "RUN_COMMIT", "8": "PREVENT" };
       if (map[k])         { e.preventDefault(); frnPlaycall(map[k]); }
+      else if (k === "o") { e.preventDefault(); frnPlaycall("auto"); }
+      return;
+    }
+    if (kindK === "kickoff") {
+      if (k === "k")      { e.preventDefault(); frnPlaycall("normal"); }
+      else if (k === "s") { e.preventDefault(); frnPlaycall("onside"); }
       else if (k === "o") { e.preventDefault(); frnPlaycall("auto"); }
       return;
     }
@@ -4941,13 +5073,18 @@ function _ipcInstallKeys() {
       if (k === "g")      { e.preventDefault(); frnPlaycall("go"); }
       else if (k === "f") { e.preventDefault(); frnPlaycall("fg"); }
       else if (k === "p") { e.preventDefault(); frnPlaycall("punt"); }
+      else if (k === "t") { e.preventDefault(); frnPlaycall("fake_punt"); }
+      else if (k === "k") { e.preventDefault(); frnPlaycall("fake_fg"); }
       else if (k === "o") { e.preventDefault(); frnPlaycall("auto"); }
     } else {
-      // Play sheet — digits 1-4 = runs, 5-0 = pass concepts; R/P stay as
-      // the generic "any run / any pass" calls.
+      // Play sheet — digits 1-5 = runs, 6-0 = dropbacks, Q/W/E/A/S/D = the
+      // shots & tricks row; R/P stay as the generic "any run / any pass".
       const sheet = { "1": "RUN_INSIDE", "2": "RUN_OUTSIDE", "3": "RUN_COUNTER", "4": "RUN_TOSS",
-                      "5": "QUICK_GAME", "6": "DRAG_MESH", "7": "INTERMEDIATE", "8": "VERTICAL",
-                      "9": "SCREEN", "0": "PA_SHOT" };
+                      "5": "RUN_DRAW",
+                      "6": "QUICK_GAME", "7": "DRAG_MESH", "8": "INTERMEDIATE", "9": "VERTICAL",
+                      "0": "SCREEN",
+                      "q": "PA_SHOT", "w": "RPO", "e": "READ_OPTION",
+                      "a": "REVERSE", "s": "FLEA_FLICKER", "d": "HAIL_MARY" };
       if (sheet[k])       { e.preventDefault(); frnPlaycall(sheet[k]); }
       else if (k === "r") { e.preventDefault(); frnPlaycall("run"); }
       else if (k === "p") { e.preventDefault(); frnPlaycall("pass"); }
