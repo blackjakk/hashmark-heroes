@@ -10194,6 +10194,16 @@ const BROADCAST_PERSPECTIVE_PX = 1100;
 // overlay canvas and sets _uprightCtx so drawPlayer/drawBall route
 // there in broadcast mode.
 function _frameStartBroadcast() {
+  // Stale-geometry guard — layout can reflow without a window resize
+  // (side panels, scrollbars). One clientWidth read per frame is cheap;
+  // a mismatch drops the cache so this frame re-projects correctly.
+  if (_bcastGeom) {
+    const _gw = document.querySelector(".bspnlive-field-wrap");
+    if (!_gw || _gw.clientWidth !== _bcastGeom.wrapW
+             || _gw.clientHeight !== _bcastGeom.wrapH) {
+      _bcastGeom = null;
+    }
+  }
   if (cameraMode !== "broadcast") {
     _uprightCtx = null;
     _spriteQueue.length = 0;
@@ -10431,11 +10441,23 @@ function setCameraMode(mode) {
 }
 
 // Cached wrap/field geometry for projectBroadcast — rebuilt on camera mode
-// change and window resize.
+// change, window resize, ANY wrap element resize (ResizeObserver), and a
+// per-frame dimension check in _frameStartBroadcast. Window-resize alone
+// was not enough: opening a side panel (roster wear/stress) reflows the
+// field wrap WITHOUT a window resize, and every projected player/goalpost
+// kept using the old geometry — "the entire field is shifted" (players
+// drawn off the field, goalposts floating in the dark).
 let _bcastGeom = null;
+let _bcastGeomObserved = null;   // wrap element the ResizeObserver watches
 function _updateBroadcastGeom() {
   const wrap = document.querySelector(".bspnlive-field-wrap");
   if (!wrap) { _bcastGeom = null; return; }
+  if (_bcastGeomObserved !== wrap && typeof ResizeObserver !== "undefined") {
+    try {
+      new ResizeObserver(() => { _bcastGeom = null; }).observe(wrap);
+      _bcastGeomObserved = wrap;
+    } catch (e) { /* defensive */ }
+  }
   const cs = getComputedStyle(wrap);
   const padL = parseFloat(cs.paddingLeft) || 0;
   const padT = parseFloat(cs.paddingTop) || 0;
