@@ -7825,6 +7825,68 @@ function buildAnimForPlay(play, prevPlay) {
     }};
   }
 
+  if (play.kind === "kneel") {
+    // VICTORY FORMATION — was the generic everyone-stands-idle fallback
+    // (audit polish list). Real beat: snap back to the QB, one step back,
+    // QB TAKES A KNEE (early fall frame, frozen — reads as the kneel at
+    // pixel scale), linemen hold their blocks, defense stands down.
+    const dur = 2600;
+    PRE = PRE_MS / dur;
+    const centerX = losX - dir * 2;
+    return { duration: dur, kind: "kneel", render: (t, c) => {
+      ctx = c;
+      drawField(ctx, homeTeam, awayTeam, fieldState);
+      const qb = { ...formation.qb };
+      if (typeof dressSlotAs === "function" && gameResult && gameResult.playerLookup) {
+        dressSlotAs(formation.qb, play.passer || play.rusher, gameResult.playerLookup, formation);
+      }
+      const aT = t < PRE ? 0 : (t - PRE) / (1 - PRE);
+      // Phases: snap (0-0.06) → settle step back (0.06-0.30) → KNEE
+      // (0.30-0.55, eased into the held fall frame) → hold (rest).
+      let ballX = centerX, ballY = cy;
+      let qbPose = "idle", qbT = 0, qbX = qb.x;
+      if (t >= PRE) {
+        if (aT < 0.06) {
+          const s = aT / 0.06;
+          ballX = centerX + (qb.x - centerX) * s;
+        } else {
+          const back = Math.min(1, Math.max(0, (aT - 0.06) / 0.24));
+          qbX = qb.x - dir * back * 6;
+          ballX = qbX;
+          ballY = cy - 4;
+          if (aT >= 0.30) {
+            qbPose = "tackled";   // early fall frames read as the knee
+            qbT = 0.28 * Math.min(1, (aT - 0.30) / 0.25);   // ease down, hold
+            ballY = cy;
+          }
+        }
+      }
+      const off = formation.offense.map(p => {
+        if (p.role === "QB") return { ...p, x: qbX, pose: qbPose, t: qbT, facing: dir, fallDir: -1 };
+        // Line holds a soft set; backs/receivers stand relaxed.
+        const isLine = p.role === "OL" || p.role === "TE1" || p.role === "TE2";
+        return { ...p, pose: isLine ? "stance" : "idle", t: 0, facing: dir };
+      });
+      const def = formation.defense.map(d => ({ ...d, pose: "idle", t: 0, facing: -dir }));
+      _syncDefRendered(def);
+      drawPlayers(off, def);
+      // Ball is in the QB's hands from the snap until the knee is down.
+      if (t < PRE || aT < 0.30) drawBall(ctx, ballX, ballY, 1, { skipCarryShift: t < PRE });
+      drawPreSnapCallouts(ctx, t, dur);
+      if (aT >= 0.45) {
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.font = "900 22px sans-serif";
+        ctx.fillStyle = "rgba(0,0,0,0.65)";
+        ctx.fillRect(FIELD.W / 2 - 150, 8, 300, 30);
+        ctx.fillStyle = "#ffd54d";
+        ctx.textBaseline = "middle";
+        ctx.fillText("🏆 VICTORY FORMATION", FIELD.W / 2, 23);
+        ctx.restore();
+      }
+    }};
+  }
+
   // Default: just show the field with formation
   return { duration: 800, kind: play.kind, render: (t, c) => {
     ctx = c;

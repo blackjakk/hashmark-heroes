@@ -217,10 +217,13 @@ otherwise take direction from the user.
     coordinator game), EXPECTED-POSE table per family (kicker must
     kick, sacked QB must go down…), exit 1 on any flag; big_hit
     optional. PASS at 0 flags. Run it after ANY animation change.
-    Polish backlog (known, unfixed): kneel shows plain idle (no kneel
-    art; falls through to a generic branch), punt scene fields only 9
-    bodies by design, kickoff_touchback/onside have no name-checkable
-    actors beyond the kicker.
+    SWEEP 3: kneel got a real VICTORY FORMATION scene (snap → settle
+    step → QB takes a knee via the early tackled-fall frame held at
+    t≈0.28 + banner; audit expects passer:["tackled"]). Polish backlog
+    (known, unfixed): punt scene fields only 9 bodies by design;
+    kickoff_touchback/onside have no name-checkable actors; NEXT BIG
+    ITEMS from the AAA plan (user-approved direction): procedural
+    lean/squash secondary motion, torso/legs sprite layering.
 
 ## OPEN THREADS (user picks)
 

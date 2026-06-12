@@ -77,6 +77,7 @@ const EXPECT = `{
   fg_good:          { kicker: ["kick"] },
   fg_miss:          { kicker: ["kick"] },
   kickoff_return:   { returner: ["catch", "carry"], kickerName: ["kick"] },
+  kneel:            { passer: ["tackled"] },
 }`;
 
 (async () => {
