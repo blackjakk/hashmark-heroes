@@ -300,7 +300,7 @@ function _loadSprite(pose, dir, frame, base) {
   const fname = frame == null
     ? `${dir}.png`
     : `${dir}_${frame}.png`;
-  const url = `${base || _SPRITE_BASE_URL}${folder}/${fname}`;
+  const url = `${base || _SPRITE_BASE_URL}${folder}/${fname}${_buildQ()}`;
   const img = new Image();
   img.crossOrigin = "anonymous";
   img.onload  = () => { _spriteCache[key] = img; _spritesEnabled = true; };
@@ -319,6 +319,12 @@ function _loadSprite(pose, dir, frame, base) {
 // draw time. Kill switch back to the old character, from devtools:
 //   localStorage.GC_SPRITE_V2 = "off"   (then reload)
 const _SPRITE_V2_URL = "sprites2/";
+// Cache-buster — play.html stamps window.GC_BUILD per push
+// (tools/_stamp_build.sh); without it browsers serve stale art mixed
+// with fresh JS across pushes.
+function _buildQ() {
+  return (typeof window !== "undefined" && window.GC_BUILD) ? `?v=${window.GC_BUILD}` : "";
+}
 let _v2Manifest = null;
 function _v2Enabled() {
   try {
@@ -358,7 +364,7 @@ function _applyV2Manifest(man) {
 
 function _preloadAllSprites() {
   if (_v2Enabled() && typeof fetch === "function") {
-    fetch(_SPRITE_V2_URL + "manifest.json")
+    fetch(_SPRITE_V2_URL + "manifest.json" + _buildQ(), { cache: "no-cache" })
       .then(r => (r.ok ? r.json() : null))
       .then(man => { if (man) _applyV2Manifest(man); })
       .catch(() => {});
@@ -397,7 +403,7 @@ function _probeOptionalPose(pose, def, probeDir) {
     if (probeDir === "east") _probeOptionalPose(pose, def, "south");
     else if (_optionalPoseLive[pose] !== true) _optionalPoseLive[pose] = false;
   };
-  img.src = `${_SPRITE_BASE_URL}${def.folder}/${probeDir}_0.png`;
+  img.src = `${_SPRITE_BASE_URL}${def.folder}/${probeDir}_0.png${_buildQ()}`;
 }
 
 // Last-call diagnostic — populated by drawPlayerSprite for debug.

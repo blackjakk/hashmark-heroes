@@ -88,6 +88,12 @@ const GCPlayer = (() => {
         antialias: true,
         autoStart: false,
         preserveDrawingBuffer: true,
+        // Native-density rendering — the layer was a fixed 1700x720
+        // backing stretched across the wrap, a ~2x upscale blur on hiDPI
+        // displays ("looks low res compared to the sprite"). Render at
+        // device pixels (capped 2x) and let autoDensity manage CSS size.
+        resolution: Math.min(2, (typeof window !== "undefined" && window.devicePixelRatio) || 1),
+        autoDensity: true,
       });
       _stage = new PIXI.Container();
       _stage.sortableChildren = true;   // depth sort via child.zIndex
