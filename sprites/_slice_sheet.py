@@ -143,21 +143,28 @@ def defringe(im, iters=2):
     return im
 
 
-def reink(im, lum_thresh=100, ink=(38, 36, 40)):
+def reink(im, ink=(38, 36, 40)):
     """Restore the dark outline lost to NEAREST downscale.
 
     Sampling at ~0.27x randomly drops pixels of the art's thin outline,
-    leaving light jersey pixels directly on the silhouette edge. In-game
+    leaving body pixels directly on the silhouette edge. In-game
     (linear-filtered, premultiplied) those blend straight into the field
     — the green "seeps" into the player, differently on every frame
-    (reads as color flicker). Two repairs:
-      • any opaque edge pixel still light → darken to the ink tone
-        (a complete 1px outline, like the source art had)
+    (reads as color flicker). Three repairs:
+      • EVERY opaque silhouette-edge pixel → the ink tone. (An earlier
+        version skipped pixels already darker than lum 100; greys at
+        89-100 survived and still tinged green over the field.)
+      • 1px outward ink dilation: the outline must survive mipmap
+        minification — at far-field scale the GPU samples mip levels
+        that average a 1px outline away, letting jersey/helmet white
+        bleed against the field. 2px of ink keeps the boundary dark
+        at every LOD the game uses.
       • RGB under fully-transparent pixels → ink tone, so texture
         filtering can never pull stray light grey through the alpha edge
     """
     px = im.load()
     w, h = im.size
+    # Pass A+B: transparent RGB → ink; opaque boundary pixels → ink.
     for y in range(h):
         for x in range(w):
             r, g, b, a = px[x, y]
@@ -165,12 +172,25 @@ def reink(im, lum_thresh=100, ink=(38, 36, 40)):
                 if (r, g, b) != ink:
                     px[x, y] = (ink[0], ink[1], ink[2], 0)
                 continue
-            if (r + g + b) / 3 <= lum_thresh:
+            if (r, g, b) == ink:
                 continue
             for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
                 if 0 <= nx < w and 0 <= ny < h and px[nx, ny][3] == 0:
                     px[x, y] = (ink[0], ink[1], ink[2], 255)
                     break
+    # Pass C: dilate the silhouette outward by 1px of opaque ink.
+    # Collect before mutating so the dilation can't cascade.
+    grow = []
+    for y in range(h):
+        for x in range(w):
+            if px[x, y][3] != 0:
+                continue
+            for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if 0 <= nx < w and 0 <= ny < h and px[nx, ny][3] == 255:
+                    grow.append((x, y))
+                    break
+    for x, y in grow:
+        px[x, y] = (ink[0], ink[1], ink[2], 255)
     return im
 
 

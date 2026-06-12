@@ -3647,7 +3647,7 @@ function buildAnimForPlay(play, prevPlay) {
         _catchTargetY = _wrBase.y + toMidSign * catchSample.dyYd * FIELD.PX_PER_YARD;
       }
     }
-    const targetY = isScreen ? cy + screenSide * 50
+    const _targetYRaw = isScreen ? cy + screenSide * 50
                   : _catchTargetY != null ? _catchTargetY
                   : wrChoice === "wr1" ? cy - 70
                   : wrChoice === "wr2" ? cy + 65
@@ -3655,6 +3655,15 @@ function buildAnimForPlay(play, prevPlay) {
                   : wrChoice === "rb"  ? cy - 10
                   : formation[wrChoice] ? formation[wrChoice].y   // slot WR / te2 fallback
                   :                       cy - 10;
+    // OOB ROOT CAUSE (user report: "guys lining up out of bounds", catch
+    // clusters past the far sideline): out-breaking route tracks have
+    // negative dyYd, so _catchTargetY = base + toMidSign*dyYd can land
+    // BEYOND the sideline for a wide-split WR. The ball is thrown there,
+    // the WR route tweens there, and every defender converges there —
+    // a whole pile assembles in the crowd. Clamp the catch point to a
+    // sideline toe-tap (~0.6yd inside); the ball arc, route end, YAC
+    // start, and pursuit all inherit the legal spot.
+    const targetY = Math.max(FIELD.TOP + 9, Math.min(FIELD.BOT - 9, _targetYRaw));
     const isComplete = play.kind === "complete";
     // Push TD catches INTO the endzone (~5 yards past the goal line) so
     // the WR runs THROUGH the goal line + celebrates in the EZ instead

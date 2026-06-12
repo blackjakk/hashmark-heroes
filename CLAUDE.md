@@ -62,11 +62,14 @@ Generation spec/prompts/ball rules: `sprites/SPRITE_REQUEST.md`.
 
 ## Pending
 
-- User QA outstanding on commit b41d39c (bounds clamp + cel tint + despeckle):
-  confirm out-of-bounds lineups gone, helmet color stable, tint clean. Speck
-  threshold (min_size=25) is the knob if flicker persists.
-- Out-of-bounds ROOT CAUSE unidentified (clamp is a band-aid; kickoff/punt/pass/run
-  hunts found nothing — suspect substitution scene or similar).
+- User QA outstanding: (a) ink-sealed outlines + 1px dilation (reink rewrite —
+  every silhouette boundary pixel is now ink, kills green seep at all mip
+  levels), (b) pass catch-point clamp `targetY ∈ [TOP+9, BOT-9]` in
+  play-animation (out-breaking route dyYd could put the catch beyond the
+  sideline — ball, WR route, and pursuit all converged OOB). Confirm: helmet
+  color stable, no green tinge, no catch piles in the crowd.
+- drawPlayer clamp (TOP-6/BOT+24) stays as the universal backstop for any
+  remaining OOB source (e.g. formation lineups).
 - Wave 3 art when user generates it: juke/spin/truck/stiff_arm/hurdle/tumble/
   spin_fall/qb_carry (ball), jam/celebrate/scrape/release/dodge/strip_swat (no
   ball), kick + handoff, refs.
