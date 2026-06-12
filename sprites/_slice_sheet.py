@@ -39,30 +39,99 @@ GAME_DIRS = ["east", "north-east", "north", "north-west",
 CELL = 104
 
 
-def remove_bg(im, tol=28):
-    """Flood-fill transparent from the corners (solid-ish backgrounds)."""
+def remove_bg(im, tol=10):
+    """Clear the background by flood-fill from the sheet border.
+
+    Handles SOLID backgrounds and BAKED CHECKERBOARDS (ChatGPT's habit):
+    collects the dominant border tones (a checker contributes two), then
+    BFS-clears every border-connected pixel within tolerance of any of
+    them. The character survives because its dark OUTLINE blocks the
+    flood — which also means art with broken outlines can leak; inspect
+    the first slices. Interior gaps (between legs) may keep a few checker
+    pixels; at the game's 104px scale they are sub-pixel noise.
+    """
     im = im.convert("RGBA")
     px = im.load()
     w, h = im.size
-    seen = [[False] * h for _ in range(w)]
-    for cx, cy in [(0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)]:
-        base = px[cx, cy][:3]
-        if px[cx, cy][3] == 0:
-            continue
-        q = deque([(cx, cy)])
-        while q:
-            x, y = q.popleft()
-            if x < 0 or y < 0 or x >= w or y >= h or seen[x][y]:
-                continue
-            seen[x][y] = True
-            r, g, b, a = px[x, y]
-            if a == 0:
-                continue
-            if abs(r - base[0]) + abs(g - base[1]) + abs(b - base[2]) > tol * 3:
-                continue
-            px[x, y] = (r, g, b, 0)
-            q.extend([(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)])
+    from collections import Counter
+    cnt = Counter()
+    for x in range(w):
+        cnt[px[x, 0][:3]] += 1
+        cnt[px[x, h - 1][:3]] += 1
+    for y in range(h):
+        cnt[px[0, y][:3]] += 1
+        cnt[px[w - 1, y][:3]] += 1
+    tones = []
+    for c, n in cnt.most_common(10):
+        if n < (w + h) * 0.02:
+            break
+        if all(sum(abs(a - b) for a, b in zip(c, t)) > tol * 3 for t in tones):
+            tones.append(c)
+    if not tones:
+        return im
+
+    def is_bg(p):
+        if p[3] == 0:
+            return False
+        return any(sum(abs(a - b) for a, b in zip(p[:3], t)) <= tol * 3 for t in tones)
+
+    seen = bytearray(w * h)
+    q = deque()
+    for x in range(w):
+        for y in (0, h - 1):
+            if not seen[y * w + x] and is_bg(px[x, y]):
+                seen[y * w + x] = 1
+                q.append((x, y))
+    for y in range(h):
+        for x in (0, w - 1):
+            if not seen[y * w + x] and is_bg(px[x, y]):
+                seen[y * w + x] = 1
+                q.append((x, y))
+    while q:
+        x, y = q.popleft()
+        r, g, b, a = px[x, y]
+        px[x, y] = (r, g, b, 0)
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx] and is_bg(px[nx, ny]):
+                seen[ny * w + nx] = 1
+                q.append((nx, ny))
     return im
+
+
+def _bands(profile, expected, label):
+    """Contiguous non-zero bands in an opacity projection → (start, end)."""
+    bands = []
+    start = None
+    for i, v in enumerate(profile):
+        if v > 0 and start is None:
+            start = i
+        elif v == 0 and start is not None:
+            bands.append((start, i))
+            start = None
+    if start is not None:
+        bands.append((start, len(profile)))
+    # Merge bands separated by tiny gaps (anti-aliasing crumbs)
+    merged = []
+    for b in bands:
+        if merged and b[0] - merged[-1][1] < 6:
+            merged[-1] = (merged[-1][0], b[1])
+        else:
+            merged.append(list(b))
+    # Drop slivers (stray pixels)
+    merged = [b for b in merged if b[1] - b[0] >= 12]
+    if len(merged) != expected:
+        sys.exit(f"found {len(merged)} {label} bands, expected {expected} — "
+                 f"is the sheet a clean grid? (bands: {merged})")
+    return merged
+
+
+# Body-height contract: v1 sprites are 104px cells where the BODY occupies
+# ~50px with its feet at ~y76 (the renderer's foot anchor / scale / hand
+# offsets are tuned to that). AI sheets fill their cells edge-to-edge, so
+# figures are normalized: one global scale per sheet (median figure height
+# → BODY_H), each row's common ground baseline placed at FOOT_Y.
+BODY_H = 50
+FOOT_Y = 76
 
 
 def main():
@@ -73,6 +142,8 @@ def main():
     ap.add_argument("--dirs", default=None)
     ap.add_argument("--row", default=None, help="single-direction strip mode")
     ap.add_argument("--keep-bg", action="store_true")
+    ap.add_argument("--body-h", type=int, default=BODY_H,
+                    help=f"normalized body height in the 104px frame (default {BODY_H})")
     ap.add_argument("--out", default=os.path.dirname(os.path.abspath(__file__)))
     args = ap.parse_args()
 
@@ -83,30 +154,62 @@ def main():
         if d not in GAME_DIRS:
             sys.exit(f"unknown direction '{d}' — valid: {', '.join(GAME_DIRS)}")
 
-    rows = len(dirs)
-    cw = sheet.width // args.cols
-    ch = sheet.height // rows
-    print(f"sheet {sheet.width}x{sheet.height} → {rows} rows x {args.cols} cols "
-          f"(cell {cw}x{ch})")
-    if cw < 32 or ch < 32:
-        sys.exit("cells under 32px — wrong --cols/--dirs for this sheet?")
+    if not args.keep_bg:
+        sheet = remove_bg(sheet)
+    alpha = sheet.getchannel("A")
+    w, h = sheet.size
+    adata = list(alpha.get_flattened_data()) if hasattr(alpha, "get_flattened_data") else list(alpha.getdata())
+    rowsum = [0] * h
+    for y in range(h):
+        base = y * w
+        rowsum[y] = 1 if any(adata[base + x] > 16 for x in range(0, w, 2)) else 0
+    row_bands = _bands(rowsum, len(dirs), "row")
+    print(f"sheet {w}x{h} → detected {len(row_bands)} figure rows")
 
+    # Figure cells: per row, column bands of the alpha projection.
+    cells = []   # (rowIdx, colIdx, bbox)
+    for ri, (y0, y1) in enumerate(row_bands):
+        colsum = [0] * w
+        for x in range(w):
+            colsum[x] = 1 if any(adata[y * w + x] > 16 for y in range(y0, y1, 2)) else 0
+        col_bands = _bands(colsum, args.cols, f"column (row {ri})")
+        for ci, (x0, x1) in enumerate(col_bands):
+            crop = sheet.crop((x0, y0, x1, y1))
+            bb = crop.getchannel("A").getbbox()
+            if not bb:
+                sys.exit(f"empty cell at row {ri} col {ci}")
+            cells.append((ri, ci, crop.crop(bb)))
+
+    heights = sorted(c[2].height for c in cells)
+    median_h = heights[len(heights) // 2]
+    scale = args.body_h / median_h
+    print(f"figure median height {median_h}px → scale {scale:.3f} "
+          f"(body {args.body_h}px in the 104 frame)")
+
+    # Per-row ground baseline: tallest scaled bottom in the row sits at
+    # FOOT_Y; airborne frames keep their lift relative to it.
     out_dir = os.path.join(args.out, args.pose)
     os.makedirs(out_dir, exist_ok=True)
     wrote = 0
-    for r, direction in enumerate(dirs):
-        for c in range(args.cols):
-            cell = sheet.crop((c * cw, r * ch, (c + 1) * cw, (r + 1) * ch))
-            if not args.keep_bg:
-                cell = remove_bg(cell)
-            # Square-pad on the larger axis, then NEAREST to the game's
-            # 104x104 (pixel art must never be smoothed).
-            side = max(cell.size)
-            sq = Image.new("RGBA", (side, side), (0, 0, 0, 0))
-            sq.paste(cell, ((side - cell.width) // 2, (side - cell.height) // 2))
-            sq = sq.resize((CELL, CELL), Image.NEAREST)
-            out = os.path.join(out_dir, f"{direction}_{c}.png")
-            sq.save(out)
+    for ri in range(len(row_bands)):
+        row_cells = [c for c in cells if c[0] == ri]
+        row_bottoms = []
+        scaled = {}
+        for (_, ci, fig) in row_cells:
+            sw_, sh_ = max(1, round(fig.width * scale)), max(1, round(fig.height * scale))
+            fig2 = fig.resize((sw_, sh_), Image.NEAREST)
+            scaled[ci] = fig2
+            row_bottoms.append(sh_)
+        baseline = max(row_bottoms)
+        for (_, ci, _fig) in row_cells:
+            fig2 = scaled[ci]
+            frame = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
+            ox = (CELL - fig2.width) // 2
+            # Pin every frame's bottom to the foot line — pixel run cycles
+            # encode the bounce in the body, not by floating off the ground.
+            oy = FOOT_Y - fig2.height
+            frame.paste(fig2, (ox, max(0, oy)))
+            frame.save(os.path.join(out_dir, f"{dirs[ri]}_{ci}.png"))
             wrote += 1
     print(f"wrote {wrote} frames → {out_dir}/")
     # Manifest — the v2 loader (sprites2/manifest.json) reads {pose: frames}
