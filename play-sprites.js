@@ -329,10 +329,14 @@ function _v2Enabled() {
 }
 function _applyV2Manifest(man) {
   _v2Manifest = man || {};
-  for (const pose of Object.keys(_v2Manifest)) {
+  for (const pose of Object.keys(_SPRITE_POSES)) {
     const def = _SPRITE_POSES[pose];
-    if (!def) continue;
-    const entry = _v2Manifest[pose];
+    // A manifest entry matches by POSE KEY or by FOLDER — folder matching
+    // covers the aliases (reach/catch/leap share folder "catch"; the
+    // throw windup's pose key is "throw" but its folder is "pass").
+    const entry = _v2Manifest[pose] !== undefined ? _v2Manifest[pose]
+                : _v2Manifest[def.folder || pose];
+    if (entry === undefined) continue;
     const frames = (typeof entry === "number" ? entry : entry.frames) || def.frames;
     def._v2Frames = frames;
     if (def.optional) _optionalPoseLive[pose] = true;
@@ -387,9 +391,11 @@ function _probeOptionalPose(pose, def, probeDir) {
   };
   img.onerror = () => {
     // A set sliced without an east row may still have south — try once
-    // more before declaring the pack absent.
+    // more before declaring the pack absent. NEVER overwrite a true: the
+    // v2 manifest can grant the pose while this v1 probe chain is still
+    // 404ing (the probe resolves later and was stomping the grant).
     if (probeDir === "east") _probeOptionalPose(pose, def, "south");
-    else _optionalPoseLive[pose] = false;
+    else if (_optionalPoseLive[pose] !== true) _optionalPoseLive[pose] = false;
   };
   img.src = `${_SPRITE_BASE_URL}${def.folder}/${probeDir}_0.png`;
 }

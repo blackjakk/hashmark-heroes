@@ -142,7 +142,9 @@ const ok = (c, l) => { if (c) { pass++; console.log("  ✓ " + l); } else { fail
       return { sawThrow, flipAt, after };
     }, th);
     ok(flip.sawThrow, `QB winds up in the throw pose — ${th.desc}`);
-    ok(flip.flipAt > 0 && flip.after === "idle",
+    // After release the QB is EMPTY-HANDED: either the idle fallback or
+    // the dedicated throw_release art (upgrade pack / v2 manifest).
+    ok(flip.flipAt > 0 && (flip.after === "idle" || flip.after === "throw_release"),
        `QB EMPTY-HANDED after release (throw → ${flip.after} at t=${flip.flipAt > 0 ? flip.flipAt.toFixed(2) : "?"}) — no painted ball through flight`);
   } else ok(false, "no throw exemplar");
 

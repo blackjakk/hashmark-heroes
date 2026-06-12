@@ -1,3 +1,9 @@
 {
- "run": 4
+ "carry": 4,
+ "catch": 6,
+ "idle": 1,
+ "pass": 4,
+ "run": 4,
+ "stance": 4,
+ "throw_release": 6
 }

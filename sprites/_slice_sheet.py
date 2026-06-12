@@ -70,9 +70,20 @@ def remove_bg(im, tol=10):
     if not tones:
         return im
 
+    # Light-dominated border (white/grey checkerboards): accept the WHOLE
+    # light-grey family as background, not just the sampled tones — ChatGPT
+    # checkers drift across several grey families (243/246/254) with
+    # anti-aliased seams that otherwise wall off the flood. The character
+    # survives on its dark OUTLINE, not on color separation.
+    border_light = all(c >= 230 for c in tones[0])
+
     def is_bg(p):
         if p[3] == 0:
             return False
+        r, g, b = p[:3]
+        if border_light and r >= 230 and g >= 230 and b >= 230 \
+           and (max(r, g, b) - min(r, g, b)) <= 14:
+            return True
         return any(sum(abs(a - b) for a, b in zip(p[:3], t)) <= tol * 3 for t in tones)
 
     seen = bytearray(w * h)
