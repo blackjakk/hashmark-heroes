@@ -251,11 +251,19 @@ const GCPlayer = (() => {
       rd = style._ragdoll;
       style = { ...style, _ragdoll: null };
     }
+    // Secondary motion (lean + stretch) — same contract as _ragdoll:
+    // per-frame SPRITE transforms that must never bake into the cached
+    // texture (no lean bucket in the cache key — the first frame's tilt
+    // would freeze for every player sharing it). Strip from the style,
+    // apply on the sprite; rotation pivots at the foot anchor.
+    const _ln = (style && style._lean) || 0;
+    const _st = (style && style._stretch) || 0;
+    if (_ln || _st) style = { ...style, _lean: 0, _stretch: 0 };
     const tex = _getTexture(color, secondary, label, pose, t || 0, facing, style, vx, vy);
     sprite.texture = tex;
     sprite.position.set(screenX, screenY + (rd ? (rd.dy || 0) * scale : 0));
-    sprite.rotation = rd ? (rd.rot || 0) : 0;
-    sprite.scale.set(scale, scale);
+    sprite.rotation = rd ? (rd.rot || 0) : _ln;
+    sprite.scale.set(scale * (1 + _st), scale * (1 - _st));
     sprite.zIndex = screenY;        // depth sort: lower-on-screen = closer = on top
     sprite.visible = true;
     sprite._lastFrame = _frameMarker;

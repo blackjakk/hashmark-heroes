@@ -485,6 +485,22 @@ function _locoState(x, y, pose, style, label, facing) {
   return { state: s, dist, dx, dy, teleport: false };
 }
 
+// ── PROCEDURAL SECONDARY MOTION (lean + stretch) ────────────────────────
+// Locomotion poses tip into their direction of travel (pivoted at the
+// feet) and stretch a few percent along the run — the classic animation
+// principle that makes sprites read as carrying WEIGHT. Speed comes from
+// the same per-player vxEMA the direction picker uses (already smoothed,
+// so the lean can't jitter). Applied at DRAW TIME only: the canvas path
+// rotates around the foot origin, the PIXI path sets sprite.rotation and
+// strips the fields before the texture cache (same contract as _ragdoll).
+// Kill switch: window.GC_LEAN = false.
+const _LEAN_POSES = new Set(["run", "carry", "churn", "truck", "qb_scramble",
+                             "release", "scrape", "stiff"]);
+const _LEAN_MAX = 0.13;          // ~7.5° at full sprint
+const _LEAN_PER_PX = 0.05;       // rad per px/frame of horizontal EMA velocity
+const _STRETCH_PER_PX = 0.016;   // axis stretch per px/frame of speed
+const _STRETCH_MAX = 0.05;
+
 function _locomotionT(loco, pose, style) {
   if (!_LOCOMOTION_POSES.has(pose)) return null;
   if (loco.teleport) return 0;
@@ -711,6 +727,25 @@ function drawPlayer(ctx, x, y, color, secondary, label, pose, t, facing, style =
   const tOverride = _locomotionT(loco, pose, style);
   if (tOverride != null) t = tOverride;
   facing = _locomotionFacing(loco, pose, facing);
+  // Secondary motion — set the per-frame lean/stretch hints on the style
+  // (ALWAYS set, so a pose transition can't leave a stale lean behind).
+  // Both render paths consume them; the PIXI path strips them before its
+  // texture cache.
+  if (style) {
+    let _ln = 0, _st = 0;
+    if ((typeof window === "undefined" || window.GC_LEAN !== false)
+        && _LEAN_POSES.has(pose) && loco && loco.state && !loco.teleport) {
+      _ln = Math.max(-_LEAN_MAX, Math.min(_LEAN_MAX, loco.state.vxEMA * _LEAN_PER_PX));
+      _st = Math.min(_STRETCH_MAX,
+        Math.hypot(loco.state.vxEMA, loco.state.vyEMA) * _STRETCH_PER_PX);
+    }
+    style._lean = _ln;
+    style._stretch = _st;
+    // Audit telemetry — pairs with the GC_POSE_PROBE pose map.
+    if (typeof window !== "undefined" && window.GC_POSE_PROBE) {
+      (window._leansThisFrame = window._leansThisFrame || {})[(style && style.name) || label || "?"] = _ln;
+    }
+  }
   // CARRY-HAND ESTIMATE — populated for every drawn player so the ball
   // can be positioned at the carrier's tuck hand instead of body center
   // when the sprite path skips _drawPlayerImpl. The procedural renderer

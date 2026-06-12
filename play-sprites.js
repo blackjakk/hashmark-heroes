@@ -538,7 +538,20 @@ function drawPlayerSprite(ctx, pose, t, vx, vy, teamPrimary, facing, label, seco
     ctx.drawImage(tinted, -fw / 2, top, fw, fh);
     ctx.restore();
   } else {
-    ctx.drawImage(tinted, -fw / 2, top, fw, fh);
+    // Secondary motion (lean + stretch) — drawPlayer computes the hints
+    // per frame for locomotion poses; the local origin is the FOOT, so
+    // rotating here tips the body over the ground contact.
+    const _ln = (style && style._lean) || 0;
+    const _st = (style && style._stretch) || 0;
+    if (_ln || _st) {
+      ctx.save();
+      if (_ln) ctx.rotate(_ln);
+      if (_st) ctx.scale(1 + _st, 1 - _st);
+      ctx.drawImage(tinted, -fw / 2, top, fw, fh);
+      ctx.restore();
+    } else {
+      ctx.drawImage(tinted, -fw / 2, top, fw, fh);
+    }
   }
   // ── Jersey-number overlay at the ACTUAL back-of-jersey position ──
   // Sample the source image to find where the body sits in THIS frame,
