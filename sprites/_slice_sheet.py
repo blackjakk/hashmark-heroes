@@ -109,6 +109,40 @@ def remove_bg(im, tol=10):
     return im
 
 
+def defringe(im, iters=2):
+    """Erode the anti-aliased matte ring left after background removal.
+
+    The boundary between a baked background and the character outline is
+    a 1-2px blend of the two (light greys ~150-225): too dark for the
+    background test, too light to be outline. In-game it reads as a
+    "green-screen" halo — and the team tint COLORS it (lum > 180 counts
+    as jersey). Kill edge-adjacent light, unsaturated pixels; dark
+    outlines and saturated skin/ball pixels are untouched.
+    """
+    px = im.load()
+    w, h = im.size
+    for _ in range(iters):
+        kill = []
+        for y in range(h):
+            for x in range(w):
+                p = px[x, y]
+                if p[3] == 0:
+                    continue
+                r, g, b = p[:3]
+                if (r + g + b) / 3 < 140 or (max(r, g, b) - min(r, g, b)) > 28:
+                    continue
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and px[nx, ny][3] == 0:
+                        kill.append((x, y))
+                        break
+        if not kill:
+            break
+        for x, y in kill:
+            p = px[x, y]
+            px[x, y] = (p[0], p[1], p[2], 0)
+    return im
+
+
 def _bands(profile, expected, label):
     """Contiguous non-zero bands in an opacity projection → (start, end)."""
     bands = []
@@ -167,6 +201,7 @@ def main():
 
     if not args.keep_bg:
         sheet = remove_bg(sheet)
+        sheet = defringe(sheet)
     alpha = sheet.getchannel("A")
     w, h = sheet.size
     adata = list(alpha.get_flattened_data()) if hasattr(alpha, "get_flattened_data") else list(alpha.getdata())
@@ -220,6 +255,10 @@ def main():
             # encode the bounce in the body, not by floating off the ground.
             oy = FOOT_Y - fig2.height
             frame.paste(fig2, (ox, max(0, oy)))
+            # NEAREST downscale resamples some interior light pixels onto
+            # the new silhouette edge — one more erosion at frame scale.
+            if not args.keep_bg:
+                defringe(frame, iters=1)
             frame.save(os.path.join(out_dir, f"{dirs[ri]}_{ci}.png"))
             wrote += 1
     print(f"wrote {wrote} frames → {out_dir}/")
