@@ -619,8 +619,12 @@ function drawPlayer(ctx, x, y, color, secondary, label, pose, t, facing, style =
   // through drawPlayer, so no camera-pan exemption is needed.
   if (x < 10) x = 10;
   else if (x > FIELD.W - 10) x = FIELD.W - 10;
-  if (y < FIELD.TOP - 30) y = FIELD.TOP - 30;
-  else if (y > FIELD.BOT + 30) y = FIELD.BOT + 30;
+  // Vertical clamp: the old TOP-30 allowance let bodies render INTO the
+  // broadcast sky band above the far sideline ("guys lining up out of
+  // bounds") — whatever upstream computed, nobody stands in the crowd.
+  // A small 6px grace keeps sideline momentum overshoot believable.
+  if (y < FIELD.TOP - 6) y = FIELD.TOP - 6;
+  else if (y > FIELD.BOT + 24) y = FIELD.BOT + 24;
   // ── CONTINUITY GUARD (anti-teleport) ──────────────────────────────
   // First-principles backstop for the whole class of phase-boundary
   // teleports (catch frame, sim re-init, pursuit hand-off, etc.). The

@@ -174,6 +174,43 @@ def reink(im, lum_thresh=100, ink=(38, 36, 40)):
     return im
 
 
+def despeckle(im, min_size=25):
+    """Drop stray disconnected pixel clusters.
+
+    NEAREST downscale shatters thin diagonal outline runs into orphan
+    specks floating around the figure (the run set carried 7-13 per
+    frame) — in-game they read as flickering dots around the helmet.
+    Keep the main body and anything ball-sized or bigger; clear the rest.
+    """
+    px = im.load()
+    w, h = im.size
+    seen = bytearray(w * h)
+    comps = []
+    for y in range(h):
+        for x in range(w):
+            if px[x, y][3] > 0 and not seen[y * w + x]:
+                q = deque([(x, y)])
+                seen[y * w + x] = 1
+                cells = []
+                while q:
+                    cx, cy = q.popleft()
+                    cells.append((cx, cy))
+                    for nx, ny in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+                        if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx] and px[nx, ny][3] > 0:
+                            seen[ny * w + nx] = 1
+                            q.append((nx, ny))
+                comps.append(cells)
+    if not comps:
+        return im
+    biggest = max(len(c) for c in comps)
+    for cells in comps:
+        if len(cells) < min_size and len(cells) < biggest:
+            for x, y in cells:
+                r, g, b, a = px[x, y]
+                px[x, y] = (r, g, b, 0)
+    return im
+
+
 def _bands(profile, expected, label):
     """Contiguous non-zero bands in an opacity projection → (start, end)."""
     bands = []
@@ -308,6 +345,7 @@ def main():
             # then re-ink the outline the downscale broke.
             if not args.keep_bg:
                 defringe(frame, iters=1)
+            despeckle(frame)
             reink(frame)
             frame.save(os.path.join(out_dir, f"{dirs[ri]}_{ci}.png"))
             wrote += 1

@@ -486,10 +486,17 @@ function _tintedSprite(srcImg, key, hexColor) {
       if (a === 0) continue;
       // Treat near-white (R,G,B all > 180 AND all within 30 of each other) as jersey/pad surface.
       // Replace with tint color but preserve relative brightness.
-      if (r > 180 && g > 180 && b > 180 &&
+      if (r > 170 && g > 170 && b > 170 &&
           Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && Math.abs(r - b) < 30) {
-        // Brightness factor: 1.0 for pure white, ~0.72 for the darkest "white" (180/255).
-        const brightness = (r + g + b) / (3 * 255);
+        // CEL-BANDED tint: the AI-generated art shades its whites across
+        // many close tones (216-254); a continuous brightness multiply
+        // turned that into mottled team color ("color looks sloppy").
+        // Quantize to three clean bands — highlight / base / shade —
+        // the classic pixel-art jersey ramp. Threshold extended 180→170
+        // so jersey fold-shadows join the shade band instead of staying
+        // grey patches inside a colored jersey.
+        const lum = (r + g + b) / (3 * 255);
+        const brightness = lum >= 0.94 ? 1.0 : lum >= 0.82 ? 0.86 : 0.72;
         d[i]   = Math.round(cr * brightness);
         d[i+1] = Math.round(cg * brightness);
         d[i+2] = Math.round(cb * brightness);
