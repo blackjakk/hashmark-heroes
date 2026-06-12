@@ -6772,13 +6772,17 @@ class GameSimulator {
                      : tacklerName ? `, tackled by ${tacklerName}` : "";
     const desc = isSpeedOption
       ? (isPitch
-          ? `${QB} pitches to ${this.offR.starters.rb} on the speed option for ${yards} yds${brokeNote}${rushEndTag}`
+          ? `${QB} pitches to ${carrier} on the speed option for ${yards} yds${brokeNote}${rushEndTag}`
           : `${QB} keeps on the speed option for ${yards} yds${brokeNote}${rushEndTag}`)
       : isQBRun
         ? `${QB} keeps it for ${yards} yds${brokeNote}${rushEndTag}`
         : runVariantTag
-          ? `${this.offR.starters.rb} ${runVariantTag} for ${yards} yds${brokeNote}${rushEndTag}`
-          : `${this.offR.starters.rb} runs for ${yards} yds${brokeNote}${rushEndTag}`;
+          // `carrier`, NOT starters.rb — the committee split hands ~a third
+          // of carries to rb2, and the stats credit `carrier`. Using the
+          // starter here printed one back's name while another got the
+          // yards (caught by the anim pose audit).
+          ? `${carrier} ${runVariantTag} for ${yards} yds${brokeNote}${rushEndTag}`
+          : `${carrier} runs for ${yards} yds${brokeNote}${rushEndTag}`;
     // ── PATH B: motion intent for animation playback ─────────────
     // play.motion carries decisions the engine makes about the play's
     // visual shape. Animation reads these instead of inferring (which

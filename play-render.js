@@ -3350,10 +3350,11 @@ function dressSlotAs(slot, name, lookup, formation) {
   if (!p) return;
   const prev = {};
   for (const f of _DRESS_FIELDS) prev[f] = slot[f];
-  // Donor: any other offense entry already wearing this name.
-  const donor = formation && formation.offense
-    ? formation.offense.find(e => e && e !== slot && e.name === name)
-    : null;
+  // Donor: any other entry (either side) already wearing this name.
+  const _all = formation
+    ? [...(formation.offense || []), ...(formation.defense || [])]
+    : [];
+  const donor = _all.find(e => e && e !== slot && e.name === name) || null;
   slot.runStyle = p.runStyle;
   slot.celebStyle = p.celebStyle;
   slot.bodyType = p.bodyType;

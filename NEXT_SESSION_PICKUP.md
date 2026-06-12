@@ -183,6 +183,32 @@ otherwise take direction from the user.
     audit family-by-family off the contact sheet, torso/legs sprite
     layering, procedural lean/squash.
 
+20. **Animation audit, sweep 1** (post-compact) — NEW instrument
+    `tools/_anim_pose_audit.js`: 24 families × 24 fractions through the
+    real renderer; reports key-actor draw coverage (rusher/receiver/
+    passer/kicker/returner/tackler), post-snap body-count range, and
+    SpriteAtlas miss deltas. First run raised 7 flags, ALL FIXED →
+    0 flags:
+    • ENGINE: variant-run descs printed `starters.rb` while stats went
+      to `carrier` (committee back) — desc now uses carrier.
+    • Reverse carrier identity (the whole sweep animates on the rb slot
+      — the isReverse dressing skip was wrong, removed).
+    • Pass-play TACKLER dressed from motion.tacklerName+tacklerSlot at
+      the top of buildPlayAnimation (slot→index map; the pass branch
+      resolves the tackler BY NAME for the contact fall — credited
+      tacklers were sometimes not on the drawn field).
+    • Fumble carrier dressed by position (QB strip → qb slot).
+    • ST key actors get REAL identities via `_stIdentity(name, fallback,
+      role, extra)` — FG kicker (play.kicker), punter (play.kicker),
+      punt returner (play.returner); synthetic cast stays generic.
+    • dressSlotAs swap now searches offense+defense for the donor.
+    KNOWN GAPS: kickoff visuals carry no actor names (engine doesn't
+    emit returner/kicker on kind:"kickoff" — audit can't regress-check
+    them); speed_option has no organic exemplar in the 4 seeded games
+    (probe it via forced READ_OPTION coordinator if needed); big_hit
+    family uncovered. All gates green after sweep (audit 0-drift,
+    teleport 4/4+3/4, playsheet 28, catch matrix 9).
+
 ## OPEN THREADS (user picks)
 
 1. **Touch drag-and-drop** — HTML5 DnD doesn't fire on touchscreens;

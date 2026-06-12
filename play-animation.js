@@ -1198,6 +1198,48 @@ function buildAnimForPlay(play, prevPlay) {
   const idxS1    = idxCB1 + _cbN;
   const idxS2    = idxS1 + 1;
 
+  // ── PLAY-ACTUAL TACKLER IDENTITY ────────────────────────────────────
+  // The defense is dressed from the pre-game starters snapshot, but the
+  // engine rotates personnel mid-game — the credited tackler
+  // (motion.tacklerName) was sometimes NOT on the drawn field at all,
+  // and the pass branch resolves him BY NAME for the contact-driven
+  // fall (no name match → the carrier fell with nobody near him).
+  // Dress the credited slot as the credited man (identity swap).
+  {
+    const _tkName = play.motion && play.motion.tacklerName;
+    const _tkSlot = play.motion && play.motion.tacklerSlot;
+    if (_tkName && typeof dressSlotAs === "function" && gameResult && gameResult.playerLookup
+        && !formation.defense.some(d => d && d.name === _tkName)) {
+      const _tkIdx = _tkSlot === "cb1" ? idxCB1 : _tkSlot === "cb2" ? idxCB2
+                   : _tkSlot === "nb"  ? idxNB  : _tkSlot === "fs"  ? idxS1
+                   : _tkSlot === "ss"  ? idxS2  : _tkSlot === "lb1" ? idxLB1
+                   : _tkSlot === "lb2" ? idxLBmid : _tkSlot === "lb3" ? idxLB3
+                   : idxLBmid;
+      const _tkEntry = (_tkIdx < formation.defense.length) ? formation.defense[_tkIdx] : null;
+      if (_tkEntry) dressSlotAs(_tkEntry, _tkName, gameResult.playerLookup, formation);
+    }
+  }
+
+  // Real identity for a special-teams entity. The ST scenes draw synthetic
+  // bodies ("punter", "fg-ol-3") — fine for the interchangeable cast, but
+  // the KEY actors (kicker, punter, returner) must wear the actual man's
+  // identity: name-seeded skin, jersey number, body type. Falls back to
+  // the synthetic name when the play didn't emit one (old saves).
+  function _stIdentity(name, fallbackName, role, extra) {
+    const base = extra ? { ...extra } : {};
+    const p = name && gameResult && gameResult.playerLookup && gameResult.playerLookup.get(name);
+    if (!p) return { ...base, role, name: fallbackName };
+    return {
+      ...base, role,
+      name: p.name,
+      label: (typeof jerseyForPlayer === "function") ? jerseyForPlayer(p) : "",
+      bodyType: p.bodyType, runStyle: p.runStyle,
+      celebStyle: p.celebStyle || base.celebStyle,
+      archetype: p.archetype, position: p.position,
+      elite: !!p.nickname, nickname: p.nickname,
+    };
+  }
+
   // First down marker abs X
   let firstDownAbs = null;
   if (play.down > 0) {
@@ -1830,9 +1872,10 @@ function buildAnimForPlay(play, prevPlay) {
     // runs with rb2, fatigue subs swap starters) — the formation's RB slot
     // is dressed with the PRE-GAME starter, so the carry animated on the
     // wrong back. Re-dress the actual carrier's slot from play.rusher.
-    // Skipped on reverses (rusher is a WR; the reverse choreography draws
-    // its own sweep pair) — speed options dress whichever side kept it.
-    if (typeof dressSlotAs === "function" && gameResult && gameResult.playerLookup && !play.isReverse) {
+    // Reverses included: the choreography animates the whole sweep on the
+    // rb slot (single flipping carrier), so it must wear play.rusher too.
+    // Speed options dress whichever side kept it.
+    if (typeof dressSlotAs === "function" && gameResult && gameResult.playerLookup) {
       const _qbCarries = !!play.isScramble || (!!play.isQBRun && !play.isPitch);
       dressSlotAs(_qbCarries ? formation.qb : formation.rb, play.rusher, gameResult.playerLookup, formation);
       if (!_qbCarries) dressSlotAs(formation.qb, play.passer || undefined, gameResult.playerLookup, formation);
@@ -6850,6 +6893,15 @@ function buildAnimForPlay(play, prevPlay) {
       const offPlayers = [...formation.offense];
       const defPlayers = [...formation.defense];
       const rusherName = play.rusher;
+      // Dress the collapsing carrier as the man who actually fumbled —
+      // by position (a QB strip-fumble collapses on the QB slot, a back's
+      // fumble on the RB slot). Same rotation-identity class as the
+      // catch/carry fix; the audit flagged the fumbler drawn 0%.
+      if (rusherName && typeof dressSlotAs === "function" && gameResult && gameResult.playerLookup) {
+        const _fp = gameResult.playerLookup.get(rusherName);
+        const _slot = _fp && _fp.position === "QB" ? formation.qb : formation.rb;
+        dressSlotAs(_slot, rusherName, gameResult.playerLookup, formation);
+      }
       const matchesCarrier = (p) =>
         (p.role === "RB" || p.role === "QB") && rusherName;
 
@@ -7300,7 +7352,7 @@ function buildAnimForPlay(play, prevPlay) {
       }
       // Kicker celebrates his own make once the ball clears.
       if (_kickCheer) kickerPose = "celebrate";
-      drawPlayer(ctx, kickerPoseX, kickerPoseY, possColor, team.secondary, "", kickerPose, t, dir, { role: "K", celebStyle: "fist_pump" });
+      drawPlayer(ctx, kickerPoseX, kickerPoseY, possColor, team.secondary, "", kickerPose, t, dir, _stIdentity(play.kicker, "fg-kicker", "K", { celebStyle: "fist_pump" }));
 
       // Holder kneeling at the spot (drawn behind ball during placement)
       if (t < 0.85) {
@@ -7499,7 +7551,7 @@ function buildAnimForPlay(play, prevPlay) {
       if (t < T_WIND_END)        { punterPose = "idle";  punterT = 0; }
       else if (t < T_BLOCK)      { punterPose = "kick";  punterT = (t - T_WIND_END) / (T_BLOCK - T_WIND_END); }
       else                       { punterPose = "stiff"; punterT = 0; }
-      drawPlayer(ctx, startX, cy, possColor, team.secondary, "", punterPose, punterT, dir, { name: "punter" });
+      drawPlayer(ctx, startX, cy, possColor, team.secondary, "", punterPose, punterT, dir, _stIdentity(play.kicker, "punter", "P"));
       // Rusher — sprints from LOS toward the punter, dives at the
       // block point.
       const rusherStartX = losX + dir * 1;
@@ -7635,7 +7687,7 @@ function buildAnimForPlay(play, prevPlay) {
       else if (t < 0.18)   { punterPose = "kick";  punterT = (t - 0.08) / 0.10 * 0.5; }
       else if (t < 0.30)   { punterPose = "kick";  punterT = 0.5 + (t - 0.18) / 0.12 * 0.5; }
       else                 { punterPose = "stiff"; punterT = 0; }
-      drawPlayer(ctx, startX, cy, possColor, team.secondary, "", punterPose, punterT, dir, { name: "punter" });
+      drawPlayer(ctx, startX, cy, possColor, team.secondary, "", punterPose, punterT, dir, _stIdentity(play.kicker, "punter", "P"));
       // ── 4 COVERAGE PLAYERS — 3 get engaged by blockers, 1 stays free for the tackle ──
       const laneYs = [returnerY - 38, returnerY - 14, returnerY + 14, returnerY + 38];
       const chaserPositions = [];
@@ -7716,7 +7768,7 @@ function buildAnimForPlay(play, prevPlay) {
       // the catch then SNAPPED 180° to -dir on the return (a visible flip on
       // the ball-carrier). snap/wind (pre-kick) still face the line.
       const returnerFacing = (phase === "snap" || phase === "wind") ? dir : -dir;
-      drawPlayer(ctx, returnerX, returnerDrawY, oppColor, oppTeam.secondary, "", returnerPose, (t < 0.95 ? ((performance.now() / 333)) % 1 : 0), returnerFacing, { name: "punt-returner" });
+      drawPlayer(ctx, returnerX, returnerDrawY, oppColor, oppTeam.secondary, "", returnerPose, (t < 0.95 ? ((performance.now() / 333)) % 1 : 0), returnerFacing, _stIdentity(play.returner, "punt-returner", "KR"));
       // SINGLE BALL — once the returner fields it ("catch") and runs it back
       // ("carry"), those sprites draw the ball in hand/tuck; the standalone
       // would double it. Show the standalone only while the ball is in the
