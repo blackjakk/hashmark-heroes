@@ -234,9 +234,25 @@ otherwise take direction from the user.
     anim audit 0 flags, teleport green, contact sheet re-baselined.
     Polish backlog (known, unfixed): punt scene fields only 9 bodies by
     design; kickoff_touchback/onside have no name-checkable actors;
-    big_hit exemplar uncovered. REMAINING from the AAA plan: torso/legs
-    sprite layering — BLOCKED on new art (no PixelLab API in-repo; the
-    user generates ZIPs manually → sprites/_extract.py).
+    big_hit exemplar uncovered.
+    SWEEP 5 — CONTACT-MOMENT ART PACK PRE-WIRED (user generates art):
+    sprites/SPRITE_REQUEST.md = paste-ready PixelLab prompts for 4 sets
+    (qb_release→throw_release, high_point_catch→catch_high,
+    over_shoulder→catch_over_shoulder, low_scoop→catch_low; Default
+    char 6f395002, 8 dirs × 4 frames, prompt MUST start with the slug
+    token). sprites/_extract.py RECREATED (the original was eaten by
+    sprites/.gitignore's _* rule — now excepted with !_extract.py).
+    Registration: _SPRITE_POSES entries with `optional: true` → preload
+    probes east_0 only (4 requests, no 404 storm); on hit the set loads
+    and SpriteAtlas.hasPose() flips → QB release window (tf*0.55-0.80)
+    plays throw_release, high-point plays catch_high, in-stride plays
+    catch_over_shoulder with full 0→1 timing. catch_low registered but
+    unrouted (needs arrival-height data). ZERO behavior change until
+    art lands (verified: hasPose gating, 4 boot probes, audits green).
+    WHEN ART LANDS: python3 sprites/_extract.py, refresh, re-run anim
+    audit + contact sheet, tune frame timings to the actual art.
+    REMAINING from the AAA plan: torso/legs sprite layering (the bigger
+    art ask — hold until the 4 sets are judged).
 
 ## OPEN THREADS (user picks)
 

@@ -2,3 +2,4 @@
 *.zip
 *.py
 _*
+!_extract.py

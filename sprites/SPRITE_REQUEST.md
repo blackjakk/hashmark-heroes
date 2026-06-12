@@ -1,0 +1,110 @@
+# Sprite generation request — contact-moment upgrade pack
+
+Four new animation sets that lift the throw + catch from "pose swap" to
+real contact animation. The renderer is **already wired** for all four:
+drop the frames into `sprites/<pose>/` (via `_extract.py`) and they go
+live on refresh — no code changes. Until they exist, the game keeps its
+current behavior.
+
+## How to generate (PixelLab, v3 animation mode)
+
+- **Character:** the base "Default" character (`6f395002`) — same one the
+  run/idle/catch sets use, so style and proportions match.
+- **Mode:** 8-direction animation, 4 frames (the standard template).
+- **IMPORTANT — prompt naming:** start each animation prompt with the
+  exact token below (e.g. `qb_release: …`). The downloaded folder name is
+  slugged from the prompt, and `sprites/_extract.py` maps it by that
+  prefix.
+- When done: download the ZIP(s) into `sprites/`, run
+  `python3 sprites/_extract.py`, refresh the game.
+
+---
+
+## 1. `qb_release` → sprites/throw_release/  (the missing throw release)
+
+Quarterback releasing a pass. **Empty hands in every frame — no ball**
+(the engine draws the real ball leaving the hand).
+
+- **frame 1:** throwing arm whipping forward beside the helmet, elbow
+  leading, chest opening toward the target, back foot driving
+- **frame 2:** arm fully extended forward at shoulder height, fingers
+  spread (ball just released), weight on the front foot
+- **frame 3:** follow-through — throwing arm swept down across the body,
+  shoulders rotated through, back heel off the ground
+- **frame 4:** recovering to balanced stance, both arms relaxing, eyes
+  downfield
+
+Suggested prompt: `qb_release: quarterback throwing motion follow
+through, empty hands no ball, arm whips forward then sweeps across body,
+football uniform`
+
+## 2. `high_point_catch` → sprites/catch_high/  (jump ball)
+
+Receiver high-pointing a catch at the apex of a jump. Ball appears only
+in frames 3–4.
+
+- **frame 1:** knees bent, arms loading down-back, eyes up (gather before
+  the jump)
+- **frame 2:** airborne, body extended, both arms fully stretched
+  overhead, hands open, **no ball yet**
+- **frame 3:** ball secured in both hands above the helmet, body still
+  airborne, legs trailing
+- **frame 4:** landing — knees absorbing, ball pulled down to the chest
+  with both arms
+
+Suggested prompt: `high_point_catch: football receiver leaping vertical
+jump catch, arms stretched overhead, catches ball at highest point, lands
+pulling ball to chest`
+
+## 3. `over_shoulder` → sprites/catch_over_shoulder/  (in-stride deep ball)
+
+Receiver catching over his shoulder **without breaking stride** — running
+posture in every frame. Ball appears in frames 3–4.
+
+- **frame 1:** full running stride, head turned looking back over the
+  shoulder
+- **frame 2:** still striding, both arms raised up-and-back forming a
+  basket over one shoulder, hands open, **no ball yet**
+- **frame 3:** ball settling into the hands over the shoulder, still
+  running
+- **frame 4:** ball tucked under the near arm, head turning forward,
+  back to a sprint
+
+Suggested prompt: `over_shoulder: football receiver running catching ball
+over shoulder without stopping, looking back while sprinting, ball lands
+in hands then tucked, full stride`
+
+## 4. `low_scoop` → sprites/catch_low/  (shoetop grab)
+
+Receiver scooping a low throw at the shoetops. Ball appears in frames
+2–4.
+
+- **frame 1:** bending sharply at knees and waist, arms shooting down,
+  fingers near the grass
+- **frame 2:** hands slid under the arriving ball just off the turf
+- **frame 3:** ball cradled low against the shins/knees, body still bent
+- **frame 4:** rising back upright, ball being tucked away
+
+Suggested prompt: `low_scoop: football receiver bending low scooping
+catch at shoe level, hands under ball near ground, rises tucking ball`
+
+---
+
+## Wiring already in place (for reference)
+
+| Set | Used by | Fallback until art exists |
+|---|---|---|
+| throw_release | QB release window (tf·0.55→0.80), single-fire | empty-hand idle swap + streak |
+| catch_high | high-point variant (leap window + lift) | generic `leap` alias |
+| catch_over_shoulder | in-stride variant, full 0→1 timing | late-reach on generic catch art |
+| catch_low | registered, not yet routed (needs arrival-height data) | — |
+
+Registration: `_SPRITE_POSES` in `play-sprites.js` (`optional: true` — a
+single probe request at boot; the full set loads only once frame files
+exist). Live check from devtools: `SpriteAtlas.hasPose("throw_release")`.
+
+### Future (bigger ask, discussed separately)
+Torso/legs **layered** sets for throw-on-the-run and catch-in-stride
+composition — needs the same characters exported as separate torso and
+legs layers per frame. Hold off until the four sets above are in and
+judged.

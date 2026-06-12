@@ -5322,6 +5322,13 @@ function buildAnimForPlay(play, prevPlay) {
         } else if (at < tf * 0.55) {
           qbPose = "throw";
           qbT = Math.min(0.99, (at - tf * 0.35) / (tf * 0.20));
+        } else if (at < tf * 0.80 && typeof SpriteAtlas !== "undefined"
+                   && SpriteAtlas.hasPose && SpriteAtlas.hasPose("throw_release")) {
+          // Dedicated release art (upgrade pack): arm whip → extension →
+          // follow-through → recovery, single-fire across the window.
+          // Empty-handed frames — the real ball + streak own the flight.
+          qbPose = "throw_release";
+          qbT = Math.min(0.99, (at - tf * 0.55) / (tf * 0.25));
         } else {
           qbPose = "idle";   // ball is gone — empty hands, eyes downfield
           qbT = 0;
@@ -5466,12 +5473,21 @@ function buildAnimForPlay(play, prevPlay) {
       const isFirstDownPass = !passIsTD && play.kind === "complete"
                               && (play.down ?? 0) > 0 && (play.yards ?? 0) >= (play.ytg ?? 0)
                               && (play.yards ?? 0) < 25;
+      // Upgrade-pack art (sprites/SPRITE_REQUEST.md) — when the dedicated
+      // catch sets exist the variants use them; until then the generic
+      // catch-folder behavior is unchanged.
+      const _hasHP = typeof SpriteAtlas !== "undefined" && SpriteAtlas.hasPose
+                   && SpriteAtlas.hasPose("catch_high");
+      const _hasOS = typeof SpriteAtlas !== "undefined" && SpriteAtlas.hasPose
+                   && SpriteAtlas.hasPose("catch_over_shoulder");
       const wrPose = t < PRE
         ? "idle"
         : (wrIntPose
         || (inWRJukeWindow ? "juke"
-        :  (inLeapWindow ? "leap"
-        :  (isCatching ? (_catchVariant === "dive" ? "dive_forward" : "reach")
+        :  (inLeapWindow ? (_hasHP ? "catch_high" : "leap")
+        :  (isCatching ? (_catchVariant === "dive" ? "dive_forward"
+                        : _catchVariant === "in_stride" && _hasOS ? "catch_over_shoulder"
+                        : "reach")
         :  (isPostCatch && aT > 0.90 && passIsTD ? "celebrate"
         :  (isPostCatch && aT > 0.92 && isFirstDownPass ? "celebrate"
         :  (_isTackleNow ? _wrFallPose
@@ -5512,10 +5528,11 @@ function buildAnimForPlay(play, prevPlay) {
       const _reachProg = _isReachCatch
         ? Math.min(1, Math.max(0, (t - (throwPhase - _catchLead)) / (_catchLead + 0.10)))
         : 0;
-      // In-stride secure: skip the windup frames, hands go up on the
-      // final beat only (frames 2-3 of the catch art).
+      // In-stride secure with the GENERIC art: skip the windup frames,
+      // hands go up on the final beat only (frames 2-3). The dedicated
+      // over-shoulder set is authored as a full 0→1 sequence.
       const reachInternalT = _catchVariant === "in_stride"
-        ? 0.55 + 0.45 * _reachProg
+        ? (_hasOS ? _reachProg : 0.55 + 0.45 * _reachProg)
         : _reachProg;
       const wrTackleT = wrIsTackled ? Math.min(1, (aT - TACKLE_START_AT) / (1 - TACKLE_START_AT))
                        : inLeapWindow ? leapInternalT

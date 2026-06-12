@@ -112,6 +112,17 @@ const _SPRITE_POSES = {
   truck:     { folder: "truck",     frames: 4, dirs: _DIRECTIONS },  // running through hit (ball in hand)
   churn:     { folder: "carry",     frames: 4, dirs: _DIRECTIONS },  // legs churning (ball in hand)
   stiff:     { folder: "stiff_arm", frames: 4, dirs: _DIRECTIONS },  // RB stiff-arm (ball in hand, free arm extended)
+
+  // ── OPTIONAL pose sets (contact-moment upgrade pack) ──────────────
+  // Art the user generates on PixelLab per sprites/SPRITE_REQUEST.md.
+  // `optional: true` → preload PROBES one frame instead of loading the
+  // full set (no 404 storm while the art doesn't exist); when the probe
+  // hits, the set loads and SpriteAtlas.hasPose() flips true — the
+  // choreography upgrades itself on the next play, zero code changes.
+  throw_release:       { folder: "throw_release",       frames: 4, dirs: _DIRECTIONS, optional: true },  // arm whip → extension → follow-through → recovery (EMPTY hands)
+  catch_high:          { folder: "catch_high",          frames: 4, dirs: _DIRECTIONS, optional: true },  // gather → leap reach → secure overhead → land+tuck
+  catch_over_shoulder: { folder: "catch_over_shoulder", frames: 4, dirs: _DIRECTIONS, optional: true },  // in-stride basket catch over the shoulder
+  catch_low:           { folder: "catch_low",           frames: 4, dirs: _DIRECTIONS, optional: true },  // low scoop at the shoetops
   stiff_arm: { folder: "stiff_arm", frames: 4, dirs: _DIRECTIONS },  // alt key
   release:   { folder: "release",   frames: 4, dirs: _DIRECTIONS },  // WR release off line — dedicated
   scrape:    { folder: "scrape",    frames: 4, dirs: _DIRECTIONS },  // LB lateral shuffle pursuit — dedicated
@@ -294,6 +305,7 @@ function _loadSprite(pose, dir, frame) {
 function _preloadAllSprites() {
   for (const pose of Object.keys(_SPRITE_POSES)) {
     const def = _SPRITE_POSES[pose];
+    if (def.optional) { _probeOptionalPose(pose, def); continue; }
     for (const dir of def.dirs) {
       if (def.frames === 1) {
         _loadSprite(pose, dir, null);
@@ -302,6 +314,22 @@ function _preloadAllSprites() {
       }
     }
   }
+}
+
+// OPTIONAL pose sets — probe ONE frame; only when it exists does the full
+// set load (and hasPose() flip true). Lets not-yet-generated art register
+// without a 404 per frame at boot, and lets new ZIPs go live on refresh.
+const _optionalPoseLive = Object.create(null);
+function _probeOptionalPose(pose, def) {
+  const img = new Image();
+  img.onload = () => {
+    _optionalPoseLive[pose] = true;
+    for (const dir of def.dirs) {
+      for (let f = 0; f < def.frames; f++) _loadSprite(pose, dir, f);
+    }
+  };
+  img.onerror = () => { _optionalPoseLive[pose] = false; };
+  img.src = `${_SPRITE_BASE_URL}${def.folder}/east_0.png`;
 }
 
 // Last-call diagnostic — populated by drawPlayerSprite for debug.
@@ -319,6 +347,15 @@ function _bumpMiss(pose, reason) {
 const SpriteAtlas = {
   preload: _preloadAllSprites,
   anyLoaded: () => _spritesEnabled,
+  // Is this pose's art actually available? Registered non-optional poses
+  // ship with the repo (always true); optional packs are live only after
+  // their probe hit. Choreography uses this to upgrade itself the moment
+  // new art lands — and to keep today's behavior when it hasn't.
+  hasPose: (pose) => {
+    const def = _SPRITE_POSES[pose];
+    if (!def) return false;
+    return def.optional ? !!_optionalPoseLive[pose] : true;
+  },
   // Diagnostic — report what's loaded and what's not. Call from devtools:
   //   SpriteAtlas.stats()
   stats: () => {
