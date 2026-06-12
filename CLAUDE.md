@@ -60,25 +60,23 @@ defringe(1) → despeckle(min_size=25) → reink (bare edge pixels → ink) → 
 frames + manifest merge. Source sheets committed as `sprites/v2_src_*.png`.
 Generation spec/prompts/ball rules: `sprites/SPRITE_REQUEST.md`.
 
-## Head consistency (sprites/_fix_heads.py)
+## Helmet-vanishing root cause (SOLVED — gated flood)
 
-AI sheets draw the same figure helmeted in some frames, bare-headed in others
-(the "helmet color in and out" bug). After ANY re-slice, run
-`python3 sprites/_fix_heads.py` — most-helmeted frame per pose×dir donates its
-head to bare frames (validated: head zone ≤50% of body, pixel growth ≤35%).
-celebrate + kick_slide are excluded (raised arms / non-head whites break the
-shoulder heuristic). run/north-east_0 source art is malformed — after re-slice,
-copy north-east_2 over it. reink now floods OUTSIDE transparency from the
-border: seals interior arm/torso pockets with ink, inks+dilates only the true
-silhouette (interior dilation made seams 3px dark veins).
+The "helmet color in and out" bug: remove_bg's flood leaked through 1-2px
+breaks in the dark outline and deleted the WHITE HELMET DOME as background on
+random frames (the helmet is in every source frame). Fix in remove_bg: erode
+the bg-acceptable mask 1px before flooding (flood can't pass passages ≤2px),
+then dilate the flooded region 2x within the mask. Also: mode_downscale
+(majority-color per dest box, replaces NEAREST sampling lottery) and reink
+floods OUTSIDE transparency — seals interior pockets, inks only mid/dark
+silhouette pixels (whites stay; the 1px dilation ring seals them), so small
+white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
+— do not run it; keep as a detector (`--report`) only.
 
 ## Pending
 
-- User QA outstanding: helmet color stability (head transplants), wave 3 poses
+- User QA outstanding: helmet color stability (gated flood), wave 3 poses
   in live play, OOB catch piles (targetY clamp ∈ [TOP+9, BOT-9]).
-- Known leftover art quirks: run/east heads keep a dark hair tuft from source;
-  strip_swat/east_1, throw_release/north_2, backpedal/east_3 left unrepaired
-  (transplant made them worse — restored from clean slice).
 - drawPlayer clamp (TOP-6/BOT+24) stays as the universal backstop for any
   remaining OOB source (e.g. formation lineups).
 - Backlog: torso/legs layered sprites (hold until waves judged), punt full-22 cast,

@@ -86,26 +86,67 @@ def remove_bg(im, tol=10):
             return True
         return any(sum(abs(a - b) for a, b in zip(p[:3], t)) <= tol * 3 for t in tones)
 
+    # Morphologically GATED flood. A raw flood leaks through 1-2px breaks
+    # in the character's dark outline and deletes white features wholesale
+    # — the white helmet dome vanished from random frames (the helmet IS
+    # in every source frame; the flood was eating it). Gate: erode the
+    # bg-acceptable mask by 1px so the flood cannot pass passages ≤2px
+    # wide (an outline break), then dilate the flooded region back out
+    # within the mask so the 1px ring at legitimate boundaries still
+    # clears.
+    L = bytearray(w * h)
+    for y in range(h):
+        for x in range(w):
+            if is_bg(px[x, y]):
+                L[y * w + x] = 1
+    L1 = bytearray(w * h)
+    for y in range(h):
+        for x in range(w):
+            if not L[y * w + x]:
+                continue
+            ok = True
+            for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if 0 <= nx < w and 0 <= ny < h and not L[ny * w + nx]:
+                    ok = False
+                    break
+            if ok:
+                L1[y * w + x] = 1
     seen = bytearray(w * h)
     q = deque()
     for x in range(w):
         for y in (0, h - 1):
-            if not seen[y * w + x] and is_bg(px[x, y]):
+            if not seen[y * w + x] and L1[y * w + x]:
                 seen[y * w + x] = 1
                 q.append((x, y))
     for y in range(h):
         for x in (0, w - 1):
-            if not seen[y * w + x] and is_bg(px[x, y]):
+            if not seen[y * w + x] and L1[y * w + x]:
                 seen[y * w + x] = 1
                 q.append((x, y))
     while q:
         x, y = q.popleft()
-        r, g, b, a = px[x, y]
-        px[x, y] = (r, g, b, 0)
         for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
-            if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx] and is_bg(px[nx, ny]):
+            if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx] and L1[ny * w + nx]:
                 seen[ny * w + nx] = 1
                 q.append((nx, ny))
+    # Recover the eroded boundary ring: dilate flood within the full mask.
+    for _ in range(2):
+        grow = []
+        for y in range(h):
+            for x in range(w):
+                if seen[y * w + x] or not L[y * w + x]:
+                    continue
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and seen[ny * w + nx]:
+                        grow.append((x, y))
+                        break
+        for x, y in grow:
+            seen[y * w + x] = 1
+    for y in range(h):
+        for x in range(w):
+            if seen[y * w + x]:
+                r, g, b, a = px[x, y]
+                px[x, y] = (r, g, b, 0)
     return im
 
 
@@ -190,11 +231,17 @@ def reink(im, ink=(38, 36, 40)):
         for x in range(w):
             if px[x, y][3] == 0 and not outside[y * w + x]:
                 px[x, y] = (ink[0], ink[1], ink[2], 255)
-    # Outline: opaque pixels touching OUTSIDE → ink.
+    # Outline: mid/dark opaque pixels touching OUTSIDE → ink. Near-white
+    # pixels are LEFT ALONE — on small features (the helmet shell is a
+    # 1-2px ring at frame scale) every shell pixel is a boundary pixel,
+    # and inking them blacked out entire helmets. The 1px dilation ring
+    # below is what seals whites from the field instead.
     for y in range(h):
         for x in range(w):
             r, g, b, a = px[x, y]
             if a == 0 or (r, g, b) == ink:
+                continue
+            if r > 170 and g > 170 and b > 170:
                 continue
             for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
                 if 0 <= nx < w and 0 <= ny < h and outside[ny * w + nx]:
@@ -255,6 +302,52 @@ def despeckle(im, min_size=25):
                 r, g, b, a = px[x, y]
                 px[x, y] = (r, g, b, 0)
     return im
+
+
+def mode_downscale(im, sw, sh):
+    """Majority-color downscale (pixel-art aware).
+
+    NEAREST at ~0.27x is a sampling lottery: each destination pixel keeps
+    ONE source pixel, so thin light features lose to the dark outline and
+    facemask around them — the white helmet shell survived only on
+    head-on frames where it was chunky ("there's literally a helmet in
+    every frame" — and there is, the downscale was dropping it). Instead,
+    each destination pixel takes the MAJORITY color class of its source
+    box (mean within the winning class), so whichever feature dominates
+    the box wins, regardless of where the sample grid lands. Flat areas
+    stay flat — no cross-class blending, no new colors.
+    """
+    w, h = im.size
+    px = im.load()
+    out = Image.new("RGBA", (sw, sh), (0, 0, 0, 0))
+    op = out.load()
+    for dy in range(sh):
+        y0 = (dy * h) // sh
+        y1 = max(y0 + 1, ((dy + 1) * h) // sh)
+        for dx in range(sw):
+            x0 = (dx * w) // sw
+            x1 = max(x0 + 1, ((dx + 1) * w) // sw)
+            buckets = {}
+            total = opaque = 0
+            for sy in range(y0, y1):
+                for sx in range(x0, x1):
+                    r, g, b, a = px[sx, sy]
+                    total += 1
+                    if a < 128:
+                        continue
+                    opaque += 1
+                    k = (r // 48, g // 48, b // 48)
+                    e = buckets.get(k)
+                    if e:
+                        e[0] += r; e[1] += g; e[2] += b; e[3] += 1
+                    else:
+                        buckets[k] = [r, g, b, 1]
+            if opaque * 2 < total or not buckets:
+                continue
+            br, bg, bb, bn = max(buckets.values(), key=lambda e: e[3])
+            op[dx, dy] = (br // bn, bg // bn, bb // bn, 255)
+    return out
+
 
 
 def _bands(profile, expected, label):
@@ -380,7 +473,7 @@ def main():
         scaled = {}
         for (_, ci, fig) in row_cells:
             sw_, sh_ = max(1, round(fig.width * scale)), max(1, round(fig.height * scale))
-            fig2 = fig.resize((sw_, sh_), Image.NEAREST)
+            fig2 = mode_downscale(fig, sw_, sh_)
             scaled[ci] = fig2
             row_bottoms.append(sh_)
         baseline = max(row_bottoms)
