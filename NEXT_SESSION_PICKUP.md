@@ -219,11 +219,24 @@ otherwise take direction from the user.
     optional. PASS at 0 flags. Run it after ANY animation change.
     SWEEP 3: kneel got a real VICTORY FORMATION scene (snap → settle
     step → QB takes a knee via the early tackled-fall frame held at
-    t≈0.28 + banner; audit expects passer:["tackled"]). Polish backlog
-    (known, unfixed): punt scene fields only 9 bodies by design;
-    kickoff_touchback/onside have no name-checkable actors; NEXT BIG
-    ITEMS from the AAA plan (user-approved direction): procedural
-    lean/squash secondary motion, torso/legs sprite layering.
+    t≈0.28 + banner; audit expects passer:["tackled"]).
+    SWEEP 4 — PROCEDURAL LEAN/STRETCH SHIPPED: locomotion poses (run/
+    carry/churn/truck/qb_scramble/release/scrape/stiff) tip into their
+    horizontal travel (≤7.5° at sprint, foot-pivot) + stretch ≤5% along
+    the run. Source: vxEMA from _locoState (already smoothed). Hints
+    set per-frame in drawPlayer as style._lean/_stretch (ALWAYS set so
+    pose transitions can't strand a stale tilt); canvas path rotates in
+    drawPlayerSprite around the foot origin; PIXI path STRIPS them
+    before _getTexture (same contract as _ragdoll — never bake into the
+    texture cache) and applies sprite.rotation + scale. Kill switch
+    window.GC_LEAN = false. GC_POSE_PROBE also fills
+    window._leansThisFrame. Verified 7.4° at sprint / hard 0 killed;
+    anim audit 0 flags, teleport green, contact sheet re-baselined.
+    Polish backlog (known, unfixed): punt scene fields only 9 bodies by
+    design; kickoff_touchback/onside have no name-checkable actors;
+    big_hit exemplar uncovered. REMAINING from the AAA plan: torso/legs
+    sprite layering — BLOCKED on new art (no PixelLab API in-repo; the
+    user generates ZIPs manually → sprites/_extract.py).
 
 ## OPEN THREADS (user picks)
 
