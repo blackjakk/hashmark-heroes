@@ -111,6 +111,27 @@ const GCPlayer = (() => {
   // 18% margin at the bottom gives room for the shadow + foot dust.
   const TEX_FOOT_FX = 0.5;
   const TEX_FOOT_FY = 0.82;
+  // Pixel-art textures must NOT be linear-filtered: under minification
+  // and subpixel motion (the lean rotates the helmet on the longest
+  // lever arm from the foot pivot) the GPU re-blends the white-helmet/
+  // outline/transparent edge differently every frame — reported as
+  // "colors flicker in and out and the field green seeps the players".
+  // NEAREST keeps texels crisp and stable. Handles PIXI v5-v7
+  // (baseTexture.scaleMode) and v8 (source.scaleMode).
+  function _crispTexture(canvas) {
+    const tex = PIXI.Texture.from(canvas);
+    try {
+      if (tex.baseTexture) {
+        tex.baseTexture.scaleMode = (PIXI.SCALE_MODES && PIXI.SCALE_MODES.NEAREST != null)
+          ? PIXI.SCALE_MODES.NEAREST : 0;
+        if (tex.baseTexture.update) tex.baseTexture.update();
+      } else if (tex.source) {
+        tex.source.scaleMode = "nearest";
+      }
+    } catch (e) { /* defensive — filtering stays linear on exotic builds */ }
+    return tex;
+  }
+
   function _renderPoseToTexture(color, secondary, label, pose, t, facing, style, vx, vy) {
     const canvas = document.createElement("canvas");
     canvas.width = TEX_W;
@@ -149,7 +170,7 @@ const GCPlayer = (() => {
     } finally {
       window._useFieldPixi = prev;
     }
-    return PIXI.Texture.from(canvas);
+    return _crispTexture(canvas);
   }
 
   // Quantize t to a finite set of frames per pose. 12 frames per pose
@@ -297,7 +318,7 @@ const GCPlayer = (() => {
     } catch (e) {
       console.warn("offscreen ball render failed:", e);
     }
-    return PIXI.Texture.from(canvas);
+    return _crispTexture(canvas);
   }
   let _ballSprite = null;
   let _ballTexGlow = null, _ballTexPlain = null;

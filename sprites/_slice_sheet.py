@@ -281,7 +281,24 @@ def main():
         for (_, ci, _fig) in row_cells:
             fig2 = scaled[ci]
             frame = Image.new("RGBA", (CELL, CELL), (0, 0, 0, 0))
+            # Horizontal anchor: bbox centering shifts the whole body
+            # whenever an arm/ball/stride extends the box on one side —
+            # frame-to-frame the helmet visibly jittered sideways
+            # ("flicker, mostly in the helmet"). For UPRIGHT figures the
+            # stable visual column is the HEAD (top third centroid) —
+            # feet stride and arms swing by design, the head shouldn't.
+            # Horizontal figures (prone/dive frames) keep bbox centering.
+            fpx = fig2.load()
             ox = (CELL - fig2.width) // 2
+            if fig2.height > fig2.width:
+                hxs = []
+                for y in range(0, max(4, fig2.height // 3)):
+                    for x in range(fig2.width):
+                        if fpx[x, y][3] > 0:
+                            hxs.append(x)
+                if hxs:
+                    ox = int(round(CELL / 2 - sum(hxs) / len(hxs)))
+            ox = max(0, min(CELL - fig2.width, ox))
             # Pin every frame's bottom to the foot line — pixel run cycles
             # encode the bounce in the body, not by floating off the ground.
             oy = FOOT_Y - fig2.height
