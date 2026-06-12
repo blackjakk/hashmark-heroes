@@ -1,9 +1,18 @@
 {
+ "backpedal": 4,
+ "block": 4,
  "carry": 4,
  "catch": 6,
+ "drop_step": 4,
+ "fall": 6,
  "idle": 1,
+ "kick_slide": 4,
  "pass": 4,
+ "qb_scramble": 4,
+ "ragdoll": 6,
  "run": 4,
  "stance": 4,
+ "tackle": 6,
+ "tackled_carry": 6,
  "throw_release": 6
 }
