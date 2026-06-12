@@ -111,32 +111,36 @@ const GCPlayer = (() => {
   // 18% margin at the bottom gives room for the shadow + foot dust.
   const TEX_FOOT_FX = 0.5;
   const TEX_FOOT_FY = 0.82;
-  // Pixel-art textures must NOT be linear-filtered: under minification
-  // and subpixel motion (the lean rotates the helmet on the longest
-  // lever arm from the foot pivot) the GPU re-blends the white-helmet/
-  // outline/transparent edge differently every frame — reported as
-  // "colors flicker in and out and the field green seeps the players".
-  // NEAREST keeps texels crisp and stable. Handles PIXI v5-v7
-  // (baseTexture.scaleMode) and v8 (source.scaleMode).
-  function _crispTexture(canvas) {
-    const tex = PIXI.Texture.from(canvas);
+  // Texture filtering, third iteration (the first two are instructive):
+  //   plain LINEAR (original) — at the camera's fractional scales with
+  //     no mip chain, the white-helmet/outline/field edge re-blends
+  //     differently every subpixel move → shimmer + green bleed.
+  //   NEAREST — stable texels but FRAYED: fractional minification drops
+  //     texels irregularly and the ragged edge crawls in motion.
+  //   Now: 2x SUPERSAMPLED source + mipmapped LINEAR — proper area-
+  //     averaged minification at every depth. Crisp, stable, no fray.
+  function _crispTexture(canvas, resolution) {
     try {
-      if (tex.baseTexture) {
-        tex.baseTexture.scaleMode = (PIXI.SCALE_MODES && PIXI.SCALE_MODES.NEAREST != null)
-          ? PIXI.SCALE_MODES.NEAREST : 0;
-        if (tex.baseTexture.update) tex.baseTexture.update();
-      } else if (tex.source) {
-        tex.source.scaleMode = "nearest";
-      }
-    } catch (e) { /* defensive — filtering stays linear on exotic builds */ }
-    return tex;
+      return PIXI.Texture.from(canvas, {
+        resolution: resolution || 1,
+        scaleMode: PIXI.SCALE_MODES.LINEAR,
+        mipmap: (PIXI.MIPMAP_MODES && PIXI.MIPMAP_MODES.ON != null) ? PIXI.MIPMAP_MODES.ON : true,
+      });
+    } catch (e) {
+      return PIXI.Texture.from(canvas);
+    }
   }
 
+  const TEX_SS = 2;   // supersample factor — see _crispTexture
   function _renderPoseToTexture(color, secondary, label, pose, t, facing, style, vx, vy) {
     const canvas = document.createElement("canvas");
-    canvas.width = TEX_W;
-    canvas.height = TEX_H;
+    canvas.width = TEX_W * TEX_SS;
+    canvas.height = TEX_H * TEX_SS;
     const offCtx = canvas.getContext("2d");
+    offCtx.scale(TEX_SS, TEX_SS);
+    // Crisp integer upscale of the pixel art into the supersampled
+    // canvas — smoothing here would pre-blur the source.
+    offCtx.imageSmoothingEnabled = false;
     // Inhibit the PIXI-shadow side-effect so the shadow paints onto
     // this offscreen canvas in canvas2D (where it belongs in the
     // texture).
@@ -170,7 +174,7 @@ const GCPlayer = (() => {
     } finally {
       window._useFieldPixi = prev;
     }
-    return _crispTexture(canvas);
+    return _crispTexture(canvas, TEX_SS);
   }
 
   // Quantize t to a finite set of frames per pose. 12 frames per pose
