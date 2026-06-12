@@ -2855,6 +2855,9 @@ class GameSimulator {
     // be ideal but most rosters don't tag one, so we use RB1 / WR1.
     const receiverR = receiverKey === "home" ? this.homeR : this.awayR;
     const receiverStats = this.stats[receiverKey];
+    // The kicking K's NAME for the renderer/audit (the `kicker` field on
+    // kickoff visuals is the SIDE string — punt's `kicker` is a name).
+    const kickerName = (kickerKey === "home" ? this.homeR : this.awayR).starters?.k || null;
     const returnerName = receiverR.starters?.kr
                        || receiverR.starters?.rb
                        || receiverR.starters?.wr1
@@ -2901,7 +2904,7 @@ class GameSimulator {
         kind: "kickoff",
         desc: `${returnerName} returns the kickoff ALL THE WAY — TOUCHDOWN!`,
         startYard: 35, endYard: 100,
-        kicker: kickerKey, returner: returnerName,
+        kicker: kickerKey, kickerName, returner: returnerName,
         isReturnTD: true,
         motion: { result: "returnTD", contactT: 0.05, catchT: 0.48, tackleT: null },
       });
@@ -2937,7 +2940,7 @@ class GameSimulator {
       kind: "kickoff",
       desc: `${returnerName} returns the kick to the own ${endYL}`,
       startYard: 35, endYard: endYL,
-      kicker: kickerKey, returner: returnerName,
+      kicker: kickerKey, kickerName, returner: returnerName,
       retYds: ret,
       motion: { result: "returned", contactT: 0.05, catchT: 0.48, tackleT: 0.85 },
     });

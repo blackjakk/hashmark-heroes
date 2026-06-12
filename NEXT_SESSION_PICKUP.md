@@ -208,6 +208,19 @@ otherwise take direction from the user.
     (probe it via forced READ_OPTION coordinator if needed); big_hit
     family uncovered. All gates green after sweep (audit 0-drift,
     teleport 4/4+3/4, playsheet 28, catch matrix 9).
+    SWEEP 2 (same session): kickoff visuals now stamp `kickerName`
+    (kicker field on kickoffs is the SIDE string — punt's is a name) +
+    `returner` was already there; renderer kickoff scene dresses
+    ko-kicker/ko-returner via _stIdentity. The audit became a GATE:
+    27 families (kickoff split return/touchback, + onside_kick,
+    speed_option/reverse/onside guaranteed via a forced-call
+    coordinator game), EXPECTED-POSE table per family (kicker must
+    kick, sacked QB must go down…), exit 1 on any flag; big_hit
+    optional. PASS at 0 flags. Run it after ANY animation change.
+    Polish backlog (known, unfixed): kneel shows plain idle (no kneel
+    art; falls through to a generic branch), punt scene fields only 9
+    bodies by design, kickoff_touchback/onside have no name-checkable
+    actors beyond the kicker.
 
 ## OPEN THREADS (user picks)
 

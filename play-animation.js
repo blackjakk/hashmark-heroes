@@ -1103,7 +1103,7 @@ function buildAnimForPlay(play, prevPlay) {
       drawPlayer(ctx, kickerLineX - recvDir * 4, cy, kickTeam.primary, kickTeam.secondary,
                  "K", t < FLIGHT_END * 0.08 ? "kick" : "idle",
                  t < FLIGHT_END * 0.08 ? Math.min(1, t / (FLIGHT_END * 0.08)) : 0, -recvDir,
-                 { name: "ko-kicker" });
+                 _stIdentity(play.kickerName, "ko-kicker", "K"));
 
       // ── Draw blockers ──
       // Pose by role + engagement (engagement = "is some cov tagged with
@@ -1140,7 +1140,8 @@ function buildAnimForPlay(play, prevPlay) {
 
       // ── Returner (last so he draws on top) ──
       drawPlayer(ctx, returnerX, returnerY, recvTeam.primary, recvTeam.secondary,
-                 "", returnerPose, returnerT, returnerFacing, { name: "ko-returner" });
+                 "", returnerPose, returnerT, returnerFacing,
+                 _stIdentity(play.returner, "ko-returner", "KR"));
 
       // Ball — only show if not held by the returner pose
       drawBall(ctx, ballX, ballY, 1 + (t < FLIGHT_END ? Math.sin((t/FLIGHT_END) * Math.PI) * 0.3 : 0));

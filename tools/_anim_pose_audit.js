@@ -1,16 +1,18 @@
-// _anim_pose_audit.js — systematic animation audit sweep. For every play
-// family (same exemplar finder as the contact sheet), renders the full play
-// at 24 fractions through the REAL renderer and reports, per family:
-//   • key-actor coverage — % of frames each emitted name (rusher/receiver/
-//     passer/kicker/defender/tackler) was actually DRAWN, + poses seen.
+// _anim_pose_audit.js — systematic animation audit GATE. For every play
+// family, renders a real exemplar play at 24 fractions through the REAL
+// renderer and asserts:
+//   • key-actor coverage — every emitted name (rusher/receiver/passer/
+//     kicker/kickerName/returner/tackler) must be DRAWN ≥50% of frames.
 //     Low coverage = the wrong-player identity class of bug.
-//   • drawn-player count range — scrimmage plays should hold ~22 bodies;
+//   • EXPECTED POSES — each family's key actor must show at least one of
+//     its signature poses (a kicker must kick, a sacked QB must go down…).
+//   • drawn-player count — scrimmage plays hold ~22 bodies post-snap;
 //     dips mean someone vanished mid-play.
-//   • sprite-miss deltas — pose/direction lookups that fell through to the
-//     procedural fallback (broken pose mappings, missing art).
-// Pure discovery instrument: prints a table + FLAG lines. Exit 1 only on
-// render errors. Companion to tools/_anim_contact_sheet.js (the eyeball
-// half of the audit).
+//   • sprite-miss deltas — pose/dir lookups that fell to the procedural
+//     fallback (broken pose mappings, missing art).
+// Rare/call-only families (speed option, reverse, onside) are guaranteed
+// an exemplar via a forced-call coordinator game. Exit 1 on ANY flag.
+// Companion: tools/_anim_contact_sheet.js (the eyeball half of the audit).
 //
 //   node tools/_anim_pose_audit.js        (starts its own server :5195)
 const PW_LIB = process.env.PLAYWRIGHT_LIB || "/opt/node22/lib/node_modules/playwright";
@@ -22,31 +24,60 @@ const children = [];
 process.on("exit", () => children.forEach(c => { try { c.kill("SIGKILL"); } catch {} }));
 
 const FAMILIES = `[
-  ["run_inside",       p => p.kind === "run" && (p.runType || "inside") === "inside" && !p.isQBRun && !p.isReverse && !p.isScramble && !p.isTwoBack],
-  ["run_stretch",      p => p.kind === "run" && p.runType === "stretch"],
-  ["run_counter",      p => p.kind === "run" && p.runType === "counter"],
-  ["run_pitch",        p => p.kind === "run" && p.runType === "pitch"],
-  ["two_back_run",     p => p.kind === "run" && p.isTwoBack],
-  ["qb_scramble",      p => p.kind === "run" && p.isScramble],
-  ["qb_run",           p => p.kind === "run" && p.isQBRun && !p.isSpeedOption && !p.isScramble],
-  ["speed_option",     p => p.kind === "run" && p.isSpeedOption],
-  ["reverse",          p => p.kind === "run" && p.isReverse],
-  ["catch_standard",   p => p.kind === "complete" && !p.isScreen && !p.isLeapingCatch && (p.yac ?? 0) > 0 && (p.yac ?? 0) < 4],
-  ["catch_in_stride",  p => p.kind === "complete" && (p.yac ?? 0) >= 4 && !p.isLeapingCatch && !p.isScreen],
-  ["catch_high_point", p => p.kind === "complete" && p.isLeapingCatch],
-  ["screen",           p => p.kind === "complete" && p.isScreen],
-  ["incomplete",       p => p.kind === "incomplete" && !p.isScreen && !p.isLeapMiss],
-  ["incomplete_leap",  p => p.kind === "incomplete" && p.isLeapMiss],
-  ["interception",     p => p.kind === "int"],
-  ["sack",             p => p.kind === "sack"],
-  ["fumble",           p => p.kind === "fumble"],
-  ["punt",             p => p.kind === "punt"],
-  ["fg_good",          p => p.kind === "fg_good"],
-  ["fg_miss",          p => p.kind === "fg_miss"],
-  ["kickoff",          p => p.kind === "kickoff" && !p.isOnside],
-  ["kneel",            p => p.kind === "kneel"],
-  ["spike",            p => p.kind === "spike"],
+  ["run_inside",        p => p.kind === "run" && (p.runType || "inside") === "inside" && !p.isQBRun && !p.isReverse && !p.isScramble && !p.isTwoBack],
+  ["run_stretch",       p => p.kind === "run" && p.runType === "stretch"],
+  ["run_counter",       p => p.kind === "run" && p.runType === "counter"],
+  ["run_pitch",         p => p.kind === "run" && p.runType === "pitch"],
+  ["two_back_run",      p => p.kind === "run" && p.isTwoBack],
+  ["qb_scramble",       p => p.kind === "run" && p.isScramble],
+  ["qb_run",            p => p.kind === "run" && p.isQBRun && !p.isSpeedOption && !p.isScramble],
+  ["speed_option",      p => p.kind === "run" && p.isSpeedOption],
+  ["reverse",           p => p.kind === "run" && p.isReverse],
+  ["catch_standard",    p => p.kind === "complete" && !p.isScreen && !p.isLeapingCatch && (p.yac ?? 0) > 0 && (p.yac ?? 0) < 4],
+  ["catch_in_stride",   p => p.kind === "complete" && (p.yac ?? 0) >= 4 && !p.isLeapingCatch && !p.isScreen],
+  ["catch_high_point",  p => p.kind === "complete" && p.isLeapingCatch],
+  ["screen",            p => p.kind === "complete" && p.isScreen],
+  ["incomplete",        p => p.kind === "incomplete" && !p.isScreen && !p.isLeapMiss],
+  ["incomplete_leap",   p => p.kind === "incomplete" && p.isLeapMiss],
+  ["interception",      p => p.kind === "int"],
+  ["sack",              p => p.kind === "sack"],
+  ["fumble",            p => p.kind === "fumble"],
+  ["punt",              p => p.kind === "punt"],
+  ["fg_good",           p => p.kind === "fg_good"],
+  ["fg_miss",           p => p.kind === "fg_miss"],
+  ["kickoff_return",    p => p.kind === "kickoff" && !p.isOnside && p.returner],
+  ["kickoff_touchback", p => p.kind === "kickoff" && !p.isOnside && !p.returner && !p.onsideRecovered],
+  ["onside_kick",       p => p.kind === "kickoff" && p.isOnside],
+  ["kneel",             p => p.kind === "kneel"],
+  ["spike",             p => p.kind === "spike"],
+  ["big_hit",           p => p.kind === "big_hit"],
 ]`;
+
+// Signature poses per family — the key actor must show at least one.
+const EXPECT = `{
+  run_inside:       { rusher: ["run", "churn", "carry"] },
+  run_stretch:      { rusher: ["run", "churn", "carry"] },
+  run_counter:      { rusher: ["run", "churn", "carry"] },
+  run_pitch:        { rusher: ["run", "churn", "carry"] },
+  two_back_run:     { rusher: ["run", "churn", "carry"] },
+  qb_scramble:      { rusher: ["qb_scramble", "truck", "run"] },
+  qb_run:           { rusher: ["qb_scramble", "run", "carry", "juke"] },
+  speed_option:     { rusher: ["run", "carry", "qb_scramble", "churn"] },
+  reverse:          { rusher: ["run", "churn", "carry"] },
+  catch_standard:   { receiver: ["reach", "catch", "leap", "dive_forward"] },
+  catch_in_stride:  { receiver: ["reach", "catch", "leap"] },
+  catch_high_point: { receiver: ["leap", "reach", "catch"] },
+  screen:           { receiver: ["reach", "catch", "carry"] },
+  incomplete:       { intended: ["reach", "catch", "leap"], passer: ["throw"] },
+  incomplete_leap:  { intended: ["leap", "reach"], passer: ["throw"] },
+  interception:     { defender: ["carry", "catch", "reach"] },
+  sack:             { passer: ["tackled", "sack"] },
+  fumble:           { rusher: ["tackled", "reach", "carry"] },
+  punt:             { kicker: ["kick"], returner: ["catch", "carry"] },
+  fg_good:          { kicker: ["kick"] },
+  fg_miss:          { kicker: ["kick"] },
+  kickoff_return:   { returner: ["catch", "carry"], kickerName: ["kick"] },
+}`;
 
 (async () => {
   children.push(spawn("npx", ["http-server", "-p", String(PORT), "-s", path.join(__dirname, "..")], { stdio: "ignore" }));
@@ -67,14 +98,33 @@ const FAMILIES = `[
     franchise.phase = "regular";
     window.GC_POSE_PROBE = true;
     const games = [];
-    for (const pr of [[1, 2], [3, 4], [5, 6], [7, 8]]) {
+    for (const pr of [[1, 2], [3, 4], [5, 6], [7, 8], [9, 10]]) {
       frnPlayGame(pr[0], pr[1]);
       playing = false; cancelAnimationFrame(rafId);
       games.push(gameResult);
     }
+    // Forced-call game — guarantees exemplars for the rare/call-only
+    // families (speed option, reverse, onside kick) regardless of seeds.
+    {
+      const calls = ["READ_OPTION", "REVERSE", "RUN_COUNTER", "RUN_TOSS"];
+      let ci = 0;
+      _setSimRng(777);
+      const sim = new GameSimulator(TEAMS[10], TEAMS[11],
+        JSON.parse(JSON.stringify(franchise.rosters[11])), JSON.parse(JSON.stringify(franchise.rosters[12])));
+      sim._coordinators = { home: (c) =>
+        c.kind === "playcall" ? calls[(ci++) % calls.length]
+        : c.kind === "kickoff" ? "onside"
+        : null };
+      const res = sim.simulate();
+      _clearSimRng();
+      res.playerLookup = new Map();
+      for (const p of res.homeRoster) res.playerLookup.set(p.name, { ...p, team: "home" });
+      for (const p of res.awayRoster) res.playerLookup.set(p.name, { ...p, team: "away" });
+      games.push(res);
+    }
     const out = [];
     const ACTOR_FIELDS = ["rusher", "receiver", "intended", "passer", "kicker",
-                          "defender", "tackler", "returner", "punter"];
+                          "kickerName", "defender", "tackler", "returner"];
     for (const [fam, fn] of FAMS) {
       let pick = null;
       for (let g = 0; g < games.length && !pick; g++) {
@@ -93,12 +143,14 @@ const FAMILIES = `[
       SpriteAtlas.resetCounters();
       const actors = {};
       for (const f of ACTOR_FIELDS) {
-        if (play[f] && typeof play[f] === "string") actors[f + ":" + play[f]] = { drawn: 0, poses: new Set() };
+        const v = play[f];
+        // kickoff's \`kicker\` is a SIDE string, not a name — skip those.
+        if (v && typeof v === "string" && v !== "home" && v !== "away") {
+          actors[f + ":" + v] = { field: f, drawn: 0, poses: new Set() };
+        }
       }
       let frames = 0, minDrawn = 99, maxDrawn = 0, renderErr = null;
-      const FR = [];
-      for (let f = 0.04; f <= 0.99; f += 0.04) FR.push(f);
-      for (const f of FR) {
+      for (let f = 0.04; f <= 0.99; f += 0.04) {
         window._posesThisFrame = {};
         _frameStartBroadcast();
         try { animState.anim.render(f, ctx); } catch (e) { renderErr = String(e.message).slice(0, 80); break; }
@@ -106,7 +158,6 @@ const FAMILIES = `[
         animState.slowMoUntil = 0;
         frames++;
         const names = Object.keys(window._posesThisFrame);
-        // Ignore pure pre-snap frames for the body count (formation builds)
         if (f > 0.30) {
           minDrawn = Math.min(minDrawn, names.length);
           maxDrawn = Math.max(maxDrawn, names.length);
@@ -122,34 +173,48 @@ const FAMILIES = `[
         fam, desc: (play.desc || "").slice(0, 60), renderErr,
         frames, minDrawn, maxDrawn,
         actors: Object.fromEntries(Object.entries(actors).map(([k, v]) =>
-          [k, { cov: Math.round(v.drawn / frames * 100), poses: [...v.poses].join("/") }])),
-        misses: Object.entries(misses).filter(([k, v]) => !k.includes("still-loading"))
+          [k, { field: v.field, cov: Math.round(v.drawn / frames * 100), poses: [...v.poses] }])),
+        misses: Object.entries(misses).filter(([k]) => !k.includes("still-loading"))
           .map(([k, v]) => k + "×" + v).join(", "),
       });
     }
     return out;
   })()`);
 
-  // ── Report + flags ────────────────────────────────────────────────────
+  // ── Report + gate ─────────────────────────────────────────────────────
+  const EXPECT_T = eval(`(${EXPECT})`);
   let flags = 0;
+  const OPTIONAL_FAMS = new Set(["big_hit"]);   // too rare to demand an exemplar
   for (const r of report) {
-    if (r.missing) { console.log(`── ${r.fam}: NO EXEMPLAR`); continue; }
+    if (r.missing) {
+      console.log(`── ${r.fam}: NO EXEMPLAR${OPTIONAL_FAMS.has(r.fam) ? " (optional)" : "  ⚑"}`);
+      if (!OPTIONAL_FAMS.has(r.fam)) flags++;
+      continue;
+    }
     console.log(`── ${r.fam} — ${r.desc}`);
     console.log(`   bodies drawn (post-snap): ${r.minDrawn}–${r.maxDrawn}`);
     if (r.renderErr) { console.log(`   ⚑ RENDER ERROR: ${r.renderErr}`); flags++; }
+    const expect = EXPECT_T[r.fam] || {};
     for (const [k, v] of Object.entries(r.actors)) {
-      const flag = v.cov < 50 ? "  ⚑ LOW COVERAGE" : "";
-      console.log(`   ${k} — drawn ${v.cov}% [${v.poses}]${flag}`);
-      if (v.cov < 50) flags++;
+      const want = expect[v.field];
+      const hasSig = !want || v.poses.some(p => want.includes(p));
+      const lowCov = v.cov < 50;
+      console.log(`   ${k} — drawn ${v.cov}% [${v.poses.join("/")}]`
+        + (lowCov ? "  ⚑ LOW COVERAGE" : "")
+        + (!hasSig ? `  ⚑ MISSING SIGNATURE POSE (want one of: ${want.join("/")})` : ""));
+      if (lowCov) flags++;
+      if (!hasSig) flags++;
     }
-    if (r.minDrawn < 20 && !["kneel", "spike", "kickoff", "punt", "fg_good", "fg_miss"].includes(r.fam)) {
+    if (r.minDrawn < 20 && !["kneel", "spike", "kickoff_return", "kickoff_touchback",
+                             "onside_kick", "punt", "fg_good", "fg_miss"].includes(r.fam)) {
       console.log(`   ⚑ BODY-COUNT DIP (min ${r.minDrawn} — someone vanished?)`);
       flags++;
     }
     if (r.misses) { console.log(`   ⚑ sprite misses: ${r.misses}`); flags++; }
   }
-  console.log(`\n${flags} flag(s) raised across ${report.length} families`);
+  console.log(`\n${flags} flag(s) across ${report.length} families`);
   if (errors.length) { console.log("page errors: " + errors.join(" | ")); }
+  console.log(flags === 0 && !errors.length ? "ANIM AUDIT PASS" : "ANIM AUDIT FAIL");
   await browser.close();
-  process.exit(errors.length ? 1 : 0);
+  process.exit(flags || errors.length ? 1 : 0);
 })().catch(e => { console.error("AUDIT CRASH:", e); process.exit(2); });
