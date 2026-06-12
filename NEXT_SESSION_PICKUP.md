@@ -251,8 +251,28 @@ otherwise take direction from the user.
     art lands (verified: hasPose gating, 4 boot probes, audits green).
     WHEN ART LANDS: python3 sprites/_extract.py, refresh, re-run anim
     audit + contact sheet, tune frame timings to the actual art.
-    REMAINING from the AAA plan: torso/legs sprite layering (the bigger
-    art ask — hold until the 4 sets are judged).
+    SWEEP 6 — CHARACTER V2 + ChatGPT PATH: user generates art in
+    ChatGPT now (sheets, not PixelLab ZIPs) and may REPLACE the whole
+    character. Built: sprites/_slice_sheet.py (Pillow; grid → 104x104
+    frames, corner flood-fill bg removal, NEAREST, writes/merges
+    <out>/manifest.json {pose: cols}); lateral MIRROR fallback in
+    drawPlayerSprite (5 dirs suffice: south,north,east,SE,NE — west
+    flips from east AFTER the lean rotation); optional-pose probe
+    chains east_0→south_0. V2 TREE: sprites2/manifest.json fetched at
+    preload (1 request = existence marker); listed poses load from
+    sprites2/ with DECLARED frame count (def._v2Frames — 6-frame
+    contact anims supported; drawPlayerSprite uses _fcount everywhere),
+    purging stale sprite+tint cache entries (v1 preload races the
+    fetch); unlisted poses stay v1 (pose-by-pose migration, never
+    breaks). Kill switch: localStorage.GC_SPRITE_V2 = "off" + reload.
+    SPRITE_REQUEST.md has the full ChatGPT spec: turnaround-reference
+    workflow (Step 0 — lock the character, attach to every gen), white
+    jersey tint contract, frame-count tiers (6 contact / 4 cycles / 1
+    idle), 3 migration waves, slice commands. LIVE-TESTED with
+    synthetic sheets: optional pack (throw_release in a real pass,
+    mirror clean) AND v2 6-frame run takeover + kill switch. All
+    synthetic art removed after tests; anim audit 0 flags.
+    REMAINING: torso/legs sprite layering (hold until waves judged).
 
 ## OPEN THREADS (user picks)
 

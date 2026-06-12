@@ -287,7 +287,7 @@ function _computeBodyCenter(img) {
   return result;
 }
 
-function _loadSprite(pose, dir, frame) {
+function _loadSprite(pose, dir, frame, base) {
   const def = _SPRITE_POSES[pose];
   if (!def) return;
   const folder = def.folder || pose;
@@ -300,7 +300,7 @@ function _loadSprite(pose, dir, frame) {
   const fname = frame == null
     ? `${dir}.png`
     : `${dir}_${frame}.png`;
-  const url = `${_SPRITE_BASE_URL}${folder}/${fname}`;
+  const url = `${base || _SPRITE_BASE_URL}${folder}/${fname}`;
   const img = new Image();
   img.crossOrigin = "anonymous";
   img.onload  = () => { _spriteCache[key] = img; _spritesEnabled = true; };
@@ -309,7 +309,56 @@ function _loadSprite(pose, dir, frame) {
   _spriteCache[key] = "loading";
 }
 
+// ── CHARACTER V2 (full-replacement migration) ──────────────────────────
+// A second sprite tree at sprites2/ can take over POSE BY POSE: the
+// slicer writes sprites2/manifest.json declaring {pose: frames}; preload
+// fetches it (one request — also the "does v2 exist at all" marker) and
+// loads listed poses from sprites2 with the DECLARED frame count (so new
+// art can be 6-frame where the old was 4). Unlisted poses keep v1 — the
+// game never breaks mid-migration. Missing lateral directions mirror at
+// draw time. Kill switch back to the old character, from devtools:
+//   localStorage.GC_SPRITE_V2 = "off"   (then reload)
+const _SPRITE_V2_URL = "sprites2/";
+let _v2Manifest = null;
+function _v2Enabled() {
+  try {
+    if (typeof window !== "undefined" && window.GC_SPRITE_V2 === false) return false;
+    if (typeof localStorage !== "undefined" && localStorage.GC_SPRITE_V2 === "off") return false;
+  } catch (e) {}
+  return true;
+}
+function _applyV2Manifest(man) {
+  _v2Manifest = man || {};
+  for (const pose of Object.keys(_v2Manifest)) {
+    const def = _SPRITE_POSES[pose];
+    if (!def) continue;
+    const entry = _v2Manifest[pose];
+    const frames = (typeof entry === "number" ? entry : entry.frames) || def.frames;
+    def._v2Frames = frames;
+    if (def.optional) _optionalPoseLive[pose] = true;
+    // The v1 preload races this fetch and has already cached these keys —
+    // purge sprite AND tint entries for the pose so v2 actually replaces
+    // (the tint cache is keyed by the same pose|dir|frame|color string).
+    for (const k of Object.keys(_spriteCache)) {
+      if (k.startsWith(pose + "|")) delete _spriteCache[k];
+    }
+    for (const k of [..._tintCache.keys()]) {
+      if (k.startsWith(pose + "|")) _tintCache.delete(k);
+    }
+    for (const dir of def.dirs) {
+      if (frames === 1) _loadSprite(pose, dir, null, _SPRITE_V2_URL);
+      else for (let f = 0; f < frames; f++) _loadSprite(pose, dir, f, _SPRITE_V2_URL);
+    }
+  }
+}
+
 function _preloadAllSprites() {
+  if (_v2Enabled() && typeof fetch === "function") {
+    fetch(_SPRITE_V2_URL + "manifest.json")
+      .then(r => (r.ok ? r.json() : null))
+      .then(man => { if (man) _applyV2Manifest(man); })
+      .catch(() => {});
+  }
   for (const pose of Object.keys(_SPRITE_POSES)) {
     const def = _SPRITE_POSES[pose];
     if (def.optional) { _probeOptionalPose(pose, def); continue; }
@@ -548,17 +597,20 @@ function drawPlayerSprite(ctx, pose, t, vx, vy, teamPrimary, facing, label, seco
       ? (facing == null || facing >= 0 ? "east" : "west")
       : _velocityToDirection(vx || 0, vy || 0, facing);
   if (!def.dirs.includes(dir)) { _lastMiss.pose=pose; _lastMiss.dir=dir; _lastMiss.reason="dir-not-in-pose"; _lastMiss.count++; _bumpMiss(pose,"dir-not-in-pose"); return false; }
-  const frameIdx = def.frames > 1
+  // Effective frame count — a v2 manifest can declare MORE frames than
+  // the v1 set had (6-frame contact animations vs the old 4).
+  const _fcount = def._v2Frames || def.frames;
+  const frameIdx = _fcount > 1
     ? (_SETTLED_POSES.has(pose)
-        ? _settledFrame(pose, label, def.frames, style && style.role)
-        : Math.floor(Math.max(0, Math.min(0.999, t)) * def.frames))
+        ? _settledFrame(pose, label, _fcount, style && style.role)
+        : Math.floor(Math.max(0, Math.min(0.999, t)) * _fcount))
     : null;
   const key = `${pose}|${dir}|${frameIdx == null ? "" : frameIdx}`;
   let src = _spriteCache[key];
-  // OPTIONAL packs may ship only one lateral side (e.g. east-family only)
+  // Partial packs (optional sets, v2 sets) may ship one lateral side only
   // — mirror the missing side at draw time. North/south have no twin.
   let _flipX = false;
-  if ((!src || src === "loading") && def.optional && _MIRROR_DIR[dir]) {
+  if ((!src || src === "loading") && (def.optional || def._v2Frames) && _MIRROR_DIR[dir]) {
     const alt = _spriteCache[`${pose}|${_MIRROR_DIR[dir]}|${frameIdx == null ? "" : frameIdx}`];
     if (alt && alt !== "loading") { src = alt; _flipX = true; }
   }
@@ -634,7 +686,7 @@ function drawPlayerSprite(ctx, pose, t, vx, vy, teamPrimary, facing, label, seco
   if (_backVisible && label != null && label !== "") {
     // Reference shoulder Y from south frame 0 (consistent across all
     // directions/frames of a pose; avoids cluster-of-players Y drift).
-    const _refKey = `${pose}|south|${def.frames > 1 ? "0" : ""}`;
+    const _refKey = `${pose}|south|${_fcount > 1 ? "0" : ""}`;
     const _refImg = _spriteCache[_refKey];
     const _refSrc = (_refImg && _refImg !== "loading") ? _refImg : src;
     const bcRef = _computeBodyCenter(_refSrc);

@@ -109,6 +109,20 @@ def main():
             sq.save(out)
             wrote += 1
     print(f"wrote {wrote} frames → {out_dir}/")
+    # Manifest — the v2 loader (sprites2/manifest.json) reads {pose: frames}
+    # to know each set's frame count (new art may be 6-frame where the old
+    # was 4). Merge-update so multiple slices accumulate.
+    import json
+    man_path = os.path.join(args.out, "manifest.json")
+    man = {}
+    if os.path.exists(man_path):
+        try:
+            man = json.load(open(man_path))
+        except Exception:
+            man = {}
+    man[args.pose] = args.cols
+    json.dump(man, open(man_path, "w"), indent=1, sort_keys=True)
+    print(f"manifest updated → {man_path}")
     missing = [d for d in GAME_DIRS if d not in dirs]
     if missing:
         mirrors = {"west": "east", "north-west": "north-east", "south-west": "south-east"}

@@ -147,8 +147,72 @@ Registration: `_SPRITE_POSES` in `play-sprites.js` (`optional: true` — a
 single probe request at boot; the full set loads only once frame files
 exist). Live check from devtools: `SpriteAtlas.hasPose("throw_release")`.
 
+---
+
+# Character v2 — FULL REPLACEMENT (optional, user-approved direction)
+
+If ChatGPT produces a nicer character than the current PixelLab one, the
+whole cast can migrate. The engine supports this **pose-by-pose** via a
+parallel tree — nothing breaks mid-migration:
+
+- Slice new-character sheets with `--out sprites2` — the slicer keeps
+  `sprites2/manifest.json` up to date, and the game loads any pose listed
+  there from `sprites2/`, **falling back to the current art for
+  everything else**.
+- Instant rollback from devtools: `localStorage.GC_SPRITE_V2 = "off"`
+  then reload (delete the key to re-enable).
+- Caveat while partially migrated: two art styles share the field. Get
+  through Wave 1 quickly or expect a mixed look.
+
+## Step 0 — lock the character (do this FIRST)
+
+Generate ONE image: the new character standing idle, seen from all 8
+directions in a row (a "turnaround sheet"), 104px-scale pixel art,
+**white jersey, grey pants, transparent background**, proportions close
+to the current character (body ≈ 30-40px of the 104px frame, feet near
+the bottom). Iterate until you love it — then **attach this turnaround
+to EVERY subsequent generation** as the character reference. This is the
+single biggest factor in cross-sheet consistency.
+
+Renderer contract the character must keep:
+- white jersey (team tint replaces white pixels)
+- feet at the bottom-center of the cell (the foot anchor, ball-hand
+  offsets, and nameplates are tuned to that)
+- similar overall proportions — a much taller/wider body needs constant
+  retuning (possible, but say so and we'll do it deliberately)
+
+## Frame counts — yes, MORE frames where they matter
+
+The engine reads frame count per pose from the manifest, so new sets are
+not stuck at 4. Use:
+
+| Tier | Poses | Frames |
+|---|---|---|
+| Contact moments | throw_release, catch_high, catch_over_shoulder, catch_low, hit/tackle, juke | **6** (`--cols 6`) |
+| Cycles | run, carry, backpedal, kick_slide, stance | **4** — they loop fast; 4 reads fine at this scale |
+| Single poses | idle | 1 |
+
+(6-column sheets: watch that ChatGPT keeps every cell the same size —
+ask for "equal-size cells in a strict grid".)
+
+## Migration waves (priority order)
+
+1. **Wave 1 — 90% of screen time:** idle, run, carry, stance, pass
+   (windup), throw_release, catch. Judge consistency hard here.
+2. **Wave 2 — contact:** fall (tackled), tackled_carry, block, tackle,
+   ragdoll, backpedal, kick_slide, qb_scramble, drop_step.
+3. **Wave 3 — flavor:** juke, spin, truck, stiff_arm, hurdle, jam,
+   celebrate, kick, handoff, scrape, release, dodge, tumble, spin_fall,
+   strip_swat, qb_carry, refs.
+
+Slice command per sheet (note `--out sprites2` and the folder name —
+use the FOLDER names from this table, e.g. the throw windup is `pass`,
+tackled is `fall`):
+
+    python3 sprites/_slice_sheet.py wave1_run.png run \
+        --dirs south,north,east,south-east,north-east --out sprites2
+
 ### Future (bigger ask, discussed separately)
 Torso/legs **layered** sets for throw-on-the-run and catch-in-stride
 composition — needs the same characters exported as separate torso and
-legs layers per frame. Hold off until the four sets above are in and
-judged.
+legs layers per frame. Hold off until the waves above are judged.
