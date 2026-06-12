@@ -3,3 +3,4 @@
 *.py
 _*
 !_extract.py
+!_slice_sheet.py

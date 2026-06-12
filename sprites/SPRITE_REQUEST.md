@@ -90,6 +90,50 @@ catch at shoe level, hands under ball near ground, rises tucking ball`
 
 ---
 
+## Generating with ChatGPT instead (sprite-sheet path)
+
+Works fine — the slicer (`sprites/_slice_sheet.py`, needs Pillow) cuts a
+grid sheet into the game's per-frame files. The rules that matter:
+
+1. **Match the existing character.** Attach 2–3 reference frames to the
+   chat (e.g. `sprites/run/east_0.png`, `sprites/idle/south.png`,
+   `sprites/catch/east_3.png`) and say: *"match this exact pixel-art
+   character — same proportions, palette, helmet, and pixel density."*
+   Style drift is the #1 risk; judge the first sheet harshly.
+2. **WHITE jersey, always.** The game tints team colors by replacing
+   white pixels — a colored jersey breaks every team's look.
+3. **Transparent background** (or a flat solid color — the slicer
+   flood-fills it away from the corners). NO checkerboard patterns.
+4. **Grid layout, equal cells:** one POSE per sheet, **rows =
+   directions** top-to-bottom, **4 columns** = the 4 frames left-to-right
+   (frame descriptions in each section above).
+5. **You only need 5 directions** — rows in this order:
+   `south, north, east, south-east, north-east`.
+   The renderer mirrors the west side from the east side automatically.
+   (Generate all 8 if quality holds; row order then must be
+   `east, north-east, north, north-west, west, south-west, south,
+   south-east`.)
+
+Then per sheet:
+
+    python3 sprites/_slice_sheet.py qb_release.png throw_release \
+        --dirs south,north,east,south-east,north-east
+
+…and refresh the game. Start with ONE pose (`throw_release`), check it
+in a live game before generating the rest.
+
+Suggested ChatGPT prompt skeleton:
+
+> Using the attached pixel-art football player as the exact character
+> reference (same proportions, palette, white jersey, pixel density),
+> generate a sprite sheet on a transparent background: 5 rows × 4
+> columns of equal-size cells. Each row is the same 4-frame animation
+> seen from a different angle, rows top to bottom: facing camera
+> (south), facing away (north), facing right (east), facing
+> down-right (south-east), facing up-right (north-east).
+> The animation, frame by frame: [paste the 4 frame descriptions from
+> the section above].
+
 ## Wiring already in place (for reference)
 
 | Set | Used by | Fallback until art exists |

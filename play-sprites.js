@@ -57,6 +57,13 @@ const _DIRECTIONS = [
   "east", "north-east", "north", "north-west",
   "west", "south-west", "south", "south-east",
 ];
+// Lateral mirror pairs — optional packs can ship one side only and the
+// renderer flips the twin at draw time. North/south have no twin.
+const _MIRROR_DIR = {
+  west: "east", east: "west",
+  "north-west": "north-east", "north-east": "north-west",
+  "south-west": "south-east", "south-east": "south-west",
+};
 // Kick has no head-on/away frames (leg swing doesn't read top-down).
 const _KICK_DIRS = [
   "south-east", "east", "north-east",
@@ -320,7 +327,8 @@ function _preloadAllSprites() {
 // set load (and hasPose() flip true). Lets not-yet-generated art register
 // without a 404 per frame at boot, and lets new ZIPs go live on refresh.
 const _optionalPoseLive = Object.create(null);
-function _probeOptionalPose(pose, def) {
+function _probeOptionalPose(pose, def, probeDir) {
+  probeDir = probeDir || "east";
   const img = new Image();
   img.onload = () => {
     _optionalPoseLive[pose] = true;
@@ -328,8 +336,13 @@ function _probeOptionalPose(pose, def) {
       for (let f = 0; f < def.frames; f++) _loadSprite(pose, dir, f);
     }
   };
-  img.onerror = () => { _optionalPoseLive[pose] = false; };
-  img.src = `${_SPRITE_BASE_URL}${def.folder}/east_0.png`;
+  img.onerror = () => {
+    // A set sliced without an east row may still have south — try once
+    // more before declaring the pack absent.
+    if (probeDir === "east") _probeOptionalPose(pose, def, "south");
+    else _optionalPoseLive[pose] = false;
+  };
+  img.src = `${_SPRITE_BASE_URL}${def.folder}/${probeDir}_0.png`;
 }
 
 // Last-call diagnostic — populated by drawPlayerSprite for debug.
@@ -541,11 +554,18 @@ function drawPlayerSprite(ctx, pose, t, vx, vy, teamPrimary, facing, label, seco
         : Math.floor(Math.max(0, Math.min(0.999, t)) * def.frames))
     : null;
   const key = `${pose}|${dir}|${frameIdx == null ? "" : frameIdx}`;
-  const src = _spriteCache[key];
+  let src = _spriteCache[key];
+  // OPTIONAL packs may ship only one lateral side (e.g. east-family only)
+  // — mirror the missing side at draw time. North/south have no twin.
+  let _flipX = false;
+  if ((!src || src === "loading") && def.optional && _MIRROR_DIR[dir]) {
+    const alt = _spriteCache[`${pose}|${_MIRROR_DIR[dir]}|${frameIdx == null ? "" : frameIdx}`];
+    if (alt && alt !== "loading") { src = alt; _flipX = true; }
+  }
   if (!src || src === "loading") { _lastMiss.pose=pose; _lastMiss.dir=dir; _lastMiss.reason=src==="loading"?"still-loading":"404-or-missing"; _lastMiss.count++; _bumpMiss(pose,src==="loading"?"still-loading":"404-or-missing"); return false; }
   _bumpHit(pose);
   const tinted = teamPrimary
-    ? _tintedSprite(src, `${key}|${teamPrimary}`, teamPrimary)
+    ? _tintedSprite(src, `${pose}|${_flipX ? _MIRROR_DIR[dir] : dir}|${frameIdx == null ? "" : frameIdx}|${teamPrimary}`, teamPrimary)
     : src;
   const scale = (typeof window !== "undefined" && window.GC_SPRITE_SCALE)
     ? window.GC_SPRITE_SCALE
@@ -577,13 +597,16 @@ function drawPlayerSprite(ctx, pose, t, vx, vy, teamPrimary, facing, label, seco
   } else {
     // Secondary motion (lean + stretch) — drawPlayer computes the hints
     // per frame for locomotion poses; the local origin is the FOOT, so
-    // rotating here tips the body over the ground contact.
+    // rotating here tips the body over the ground contact. _flipX is the
+    // optional-pack mirror (rotate FIRST so the lean still tips toward
+    // the real travel direction, then flip the image).
     const _ln = (style && style._lean) || 0;
     const _st = (style && style._stretch) || 0;
-    if (_ln || _st) {
+    if (_ln || _st || _flipX) {
       ctx.save();
       if (_ln) ctx.rotate(_ln);
       if (_st) ctx.scale(1 + _st, 1 - _st);
+      if (_flipX) ctx.scale(-1, 1);
       ctx.drawImage(tinted, -fw / 2, top, fw, fh);
       ctx.restore();
     } else {
