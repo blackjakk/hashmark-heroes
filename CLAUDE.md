@@ -52,6 +52,10 @@ python3 sprites/_slice_sheet.py "sprites/v2_src_X.png" X --cols N \
   --dirs south,north,east,south-east,north-east --out sprites2
 ```
 
+`--flip-east` for sheets whose profile rows were DRAWN facing left (west
+family): carry, refs. (hurdle/qb_carry face right — do NOT flip them.)
+Check facing on every new sheet: east row must face RIGHT.
+
 Pipeline: remove_bg (flood + light-family checkerboard acceptance; dark outline is
 the protection boundary) → defringe(2) → alpha-projection band detection (NOT equal
 grid division — AI sheets are uneven) → scale-normalize body to ~50px (BODY_H=50,
@@ -75,8 +79,14 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
 
 ## Pending
 
-- User QA outstanding: helmet color stability (gated flood), wave 3 poses
-  in live play, OOB catch piles (targetY clamp ∈ [TOP+9, BOT-9]).
+- User QA outstanding: carry/KR facing (carry sheet was drawn mirrored —
+  flipped at slice), kickoff lineup bounds (lanes squeezed to
+  [TOP+110, BOT-30]; far-side clamps TOP+58 account for body height over
+  the broadcast wall), catch targetY clamp now [TOP+55, BOT-12].
+- "Defense doesn't move" / mid-play freezes: NOT reproduced in 200+
+  rendered plays (tools/_behavior_probe.js) nor forced named calls —
+  only penalty/4th-down cards (static by design) and fumble piles
+  (lying down post-strip). Need a live repro: which play kind/moment.
 - drawPlayer clamp (TOP-6/BOT+24) stays as the universal backstop for any
   remaining OOB source (e.g. formation lineups).
 - Backlog: torso/legs layered sprites (hold until waves judged), punt full-22 cast,

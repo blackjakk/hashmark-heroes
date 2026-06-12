@@ -417,6 +417,11 @@ def main():
     ap.add_argument("--dirs", default=None)
     ap.add_argument("--row", default=None, help="single-direction strip mode")
     ap.add_argument("--keep-bg", action="store_true")
+    ap.add_argument("--flip-east", action="store_true",
+                    help="sheet's profile/diagonal rows were drawn facing "
+                         "LEFT (west family) — flip east/south-east/"
+                         "north-east frames horizontally so 'east' truly "
+                         "faces east (carry, hurdle, qb_carry, refs sheets)")
     ap.add_argument("--body-h", type=int, default=BODY_H,
                     help=f"normalized body height in the 104px frame (default {BODY_H})")
     ap.add_argument("--out", default=os.path.dirname(os.path.abspath(__file__)))
@@ -509,6 +514,8 @@ def main():
                 defringe(frame, iters=1)
             despeckle(frame)
             reink(frame)
+            if args.flip_east and dirs[ri] in ("east", "south-east", "north-east"):
+                frame = frame.transpose(Image.FLIP_LEFT_RIGHT)
             frame.save(os.path.join(out_dir, f"{dirs[ri]}_{ci}.png"))
             wrote += 1
     print(f"wrote {wrote} frames → {out_dir}/")

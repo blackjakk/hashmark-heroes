@@ -697,7 +697,7 @@ function _simulateKickoffAgents(opts) {
     for (let i = 0; i < NUM_COVER; i++) {
       const c = cover[i];
       c.x = Math.max(FIELD.EZ_PX * 0.5, Math.min(FIELD.W - FIELD.EZ_PX * 0.5, c.x));
-      c.y = Math.max(FIELD.TOP + 10, Math.min(FIELD.BOT - 10, c.y));
+      c.y = Math.max(FIELD.TOP + 58, Math.min(FIELD.BOT - 10, c.y));
     }
     // === BLOCKERS — SPREAD-POCKET MODEL + ENGAGEMENT ===
     // Real KR blocking: blockers SPREAD ACROSS the field in front of
@@ -714,7 +714,7 @@ function _simulateKickoffAgents(opts) {
     // of the endzone).
     const _fieldMinX = FIELD.EZ_PX * 0.5;             // tiny buffer in endzone
     const _fieldMaxX = FIELD.W - FIELD.EZ_PX * 0.5;
-    const _fieldMinY = FIELD.TOP + 10;
+    const _fieldMinY = FIELD.TOP + 58;   // body height — keep helmets on the grass
     const _fieldMaxY = FIELD.BOT - 10;
     for (let i = 0; i < NUM_COVER; i++) { cover[i].engaged = false; cover[i].engagedBy = -1; }
     for (let i = 0; i < NUM_BLOCKERS; i++) {
@@ -954,15 +954,20 @@ function buildAnimForPlay(play, prevPlay) {
     // Lane positions for 10 kicking-team coverage players (skipping kicker).
     // Spread vertically across the field.
     const NUM_COVER = 10;
+    // Lane band squeezed off the FAR sideline: a body is ~55 world-px
+    // tall above the feet, so any lineup within ~55px of FIELD.TOP
+    // renders the helmet over the broadcast wall ("guys lining up out
+    // of bounds"). Band = [TOP+110, BOT-30].
+    const _laneTopY = FIELD.TOP + 110, _laneBotY = FIELD.BOT - 30;
     const coverLanes = [];
     for (let i = 0; i < NUM_COVER; i++) {
-      coverLanes.push(cy + ((i - (NUM_COVER - 1) / 2) * (FIELD.BOT - FIELD.TOP - 80) / NUM_COVER));
+      coverLanes.push(_laneTopY + (i * (_laneBotY - _laneTopY)) / (NUM_COVER - 1));
     }
     // Lane positions for 10 receiving-team blockers (returner is the 11th, deeper).
     const NUM_BLOCKERS = 10;
     const blockerLanes = [];
     for (let i = 0; i < NUM_BLOCKERS; i++) {
-      blockerLanes.push(cy + ((i - (NUM_BLOCKERS - 1) / 2) * (FIELD.BOT - FIELD.TOP - 100) / NUM_BLOCKERS));
+      blockerLanes.push((_laneTopY + 12) + (i * (_laneBotY - 24 - _laneTopY)) / (NUM_BLOCKERS - 1));
     }
     // Blockers start ~20 yds in front of the returner, spread across.
     const blockerStartX = yardToAbsX(40, recvPoss);   // receiving team's 40
@@ -3663,7 +3668,10 @@ function buildAnimForPlay(play, prevPlay) {
     // a whole pile assembles in the crowd. Clamp the catch point to a
     // sideline toe-tap (~0.6yd inside); the ball arc, route end, YAC
     // start, and pursuit all inherit the legal spot.
-    const targetY = Math.max(FIELD.TOP + 9, Math.min(FIELD.BOT - 9, _targetYRaw));
+    // Far side needs ~55px clearance (body height above the feet) so the
+    // catch cluster doesn't tower over the broadcast wall; near side a
+    // body only overlaps grass apron, so a toe-tap margin is enough.
+    const targetY = Math.max(FIELD.TOP + 55, Math.min(FIELD.BOT - 12, _targetYRaw));
     const isComplete = play.kind === "complete";
     // Push TD catches INTO the endzone (~5 yards past the goal line) so
     // the WR runs THROUGH the goal line + celebrates in the EZ instead
