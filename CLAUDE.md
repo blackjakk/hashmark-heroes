@@ -79,10 +79,15 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
 
 ## Pending
 
-- User QA outstanding: carry/KR facing (carry sheet was drawn mirrored —
-  flipped at slice), kickoff lineup bounds (lanes squeezed to
-  [TOP+110, BOT-30]; far-side clamps TOP+58 account for body height over
-  the broadcast wall), catch targetY clamp now [TOP+55, BOT-12].
+- REAL OOB root cause found: stale _bcastGeom — side panels reflow the
+  field wrap without a window resize; players/posts projected through old
+  geometry = whole player layer shifted ("lining up out of bounds",
+  "entire field is shifted"). Fixed: ResizeObserver on the wrap + per-frame
+  dimension check in _frameStartBroadcast. The earlier lane squeezes /
+  clamps (kickoff [TOP+110,BOT-30], catch [TOP+55,BOT-12]) remain as
+  far-side body-height presentation polish.
+- User QA outstanding: field alignment with side panel open, carry/KR
+  facing (carry sheet was drawn mirrored — flipped at slice).
 - "Defense doesn't move" / mid-play freezes: NOT reproduced in 200+
   rendered plays (tools/_behavior_probe.js) nor forced named calls —
   only penalty/4th-down cards (static by design) and fumble piles
