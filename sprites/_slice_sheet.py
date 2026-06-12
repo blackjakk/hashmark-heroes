@@ -144,46 +144,67 @@ def defringe(im, iters=2):
 
 
 def reink(im, ink=(38, 36, 40)):
-    """Restore the dark outline lost to NEAREST downscale.
+    """Seal the silhouette so field green can never blend into the figure.
 
-    Sampling at ~0.27x randomly drops pixels of the art's thin outline,
-    leaving body pixels directly on the silhouette edge. In-game
-    (linear-filtered, premultiplied) those blend straight into the field
-    — the green "seeps" into the player, differently on every frame
-    (reads as color flicker). Three repairs:
-      • EVERY opaque silhouette-edge pixel → the ink tone. (An earlier
-        version skipped pixels already darker than lum 100; greys at
-        89-100 survived and still tinged green over the field.)
-      • 1px outward ink dilation: the outline must survive mipmap
-        minification — at far-field scale the GPU samples mip levels
-        that average a 1px outline away, letting jersey/helmet white
-        bleed against the field. 2px of ink keeps the boundary dark
-        at every LOD the game uses.
-      • RGB under fully-transparent pixels → ink tone, so texture
-        filtering can never pull stray light grey through the alpha edge
+    NEAREST downscale drops the art's thin outline and opens hairline
+    transparent gaps between limbs and torso. In-game (linear-filtered,
+    premultiplied) light pixels on the silhouette edge blend straight
+    into the field — green "seeps", differently per frame (color
+    flicker). Repairs, in order:
+      • OUTSIDE = transparency flood-filled from the frame border.
+        Interior transparent pockets (arm/torso seams) are NOT outside.
+      • Interior pockets → solid ink (the source art draws these as
+        dark seam lines; sealing also stops green showing through the
+        body at minification).
+      • Every opaque pixel touching OUTSIDE → ink (complete outline,
+        no luminance exemption — greys at lum 89-100 still tinged).
+      • 1px ink dilation into OUTSIDE only, so the outline survives
+        mipmap minification. (Dilating into interior gaps too made
+        every seam a 3px dark vein across the jersey — heavy, sloppy.)
+      • RGB under remaining transparent pixels → ink, so filtering
+        can never pull stray light grey through the alpha edge.
     """
     px = im.load()
     w, h = im.size
-    # Pass A+B: transparent RGB → ink; opaque boundary pixels → ink.
+    # Flood the OUTSIDE transparency from the border.
+    outside = bytearray(w * h)
+    stack = []
+    for x in range(w):
+        for y in (0, h - 1):
+            if px[x, y][3] == 0 and not outside[y * w + x]:
+                outside[y * w + x] = 1
+                stack.append((x, y))
+    for y in range(h):
+        for x in (0, w - 1):
+            if px[x, y][3] == 0 and not outside[y * w + x]:
+                outside[y * w + x] = 1
+                stack.append((x, y))
+    while stack:
+        cx, cy = stack.pop()
+        for nx, ny in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+            if 0 <= nx < w and 0 <= ny < h and not outside[ny * w + nx] and px[nx, ny][3] == 0:
+                outside[ny * w + nx] = 1
+                stack.append((nx, ny))
+    # Seal interior transparent pockets with solid ink.
+    for y in range(h):
+        for x in range(w):
+            if px[x, y][3] == 0 and not outside[y * w + x]:
+                px[x, y] = (ink[0], ink[1], ink[2], 255)
+    # Outline: opaque pixels touching OUTSIDE → ink.
     for y in range(h):
         for x in range(w):
             r, g, b, a = px[x, y]
-            if a == 0:
-                if (r, g, b) != ink:
-                    px[x, y] = (ink[0], ink[1], ink[2], 0)
-                continue
-            if (r, g, b) == ink:
+            if a == 0 or (r, g, b) == ink:
                 continue
             for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
-                if 0 <= nx < w and 0 <= ny < h and px[nx, ny][3] == 0:
+                if 0 <= nx < w and 0 <= ny < h and outside[ny * w + nx]:
                     px[x, y] = (ink[0], ink[1], ink[2], 255)
                     break
-    # Pass C: dilate the silhouette outward by 1px of opaque ink.
-    # Collect before mutating so the dilation can't cascade.
+    # Dilate 1px into OUTSIDE (collect first so it can't cascade).
     grow = []
     for y in range(h):
         for x in range(w):
-            if px[x, y][3] != 0:
+            if not outside[y * w + x]:
                 continue
             for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
                 if 0 <= nx < w and 0 <= ny < h and px[nx, ny][3] == 255:
@@ -191,6 +212,11 @@ def reink(im, ink=(38, 36, 40)):
                     break
     for x, y in grow:
         px[x, y] = (ink[0], ink[1], ink[2], 255)
+    # Ink RGB under whatever transparency remains.
+    for y in range(h):
+        for x in range(w):
+            if px[x, y][3] == 0 and px[x, y][:3] != ink:
+                px[x, y] = (ink[0], ink[1], ink[2], 0)
     return im
 
 
@@ -252,6 +278,29 @@ def _bands(profile, expected, label):
             merged.append(list(b))
     # Drop slivers (stray pixels)
     merged = [b for b in merged if b[1] - b[0] >= 12]
+    # Detached-prop absorption: a kicked/flipped ball mid-air projects as
+    # its own small band between figures. While over count, merge the
+    # narrowest band into whichever neighbor is closer — but only if it's
+    # clearly prop-sized (< half the median band width), so a genuinely
+    # mis-gridded sheet still errors out.
+    while len(merged) > expected:
+        widths = sorted(b[1] - b[0] for b in merged)
+        median = widths[len(widths) // 2]
+        k = min(range(len(merged)), key=lambda i: merged[i][1] - merged[i][0])
+        if merged[k][1] - merged[k][0] >= median / 2:
+            break
+        if k == 0:
+            merged[1] = [merged[0][0], merged[1][1]]
+        elif k == len(merged) - 1:
+            merged[-2] = [merged[-2][0], merged[-1][1]]
+        else:
+            gapL = merged[k][0] - merged[k - 1][1]
+            gapR = merged[k + 1][0] - merged[k][1]
+            if gapL <= gapR:
+                merged[k - 1] = [merged[k - 1][0], merged[k][1]]
+            else:
+                merged[k + 1] = [merged[k][0], merged[k + 1][1]]
+        merged.pop(k)
     if len(merged) != expected:
         sys.exit(f"found {len(merged)} {label} bands, expected {expected} — "
                  f"is the sheet a clean grid? (bands: {merged})")
