@@ -143,6 +143,37 @@ def defringe(im, iters=2):
     return im
 
 
+def reink(im, lum_thresh=100, ink=(38, 36, 40)):
+    """Restore the dark outline lost to NEAREST downscale.
+
+    Sampling at ~0.27x randomly drops pixels of the art's thin outline,
+    leaving light jersey pixels directly on the silhouette edge. In-game
+    (linear-filtered, premultiplied) those blend straight into the field
+    — the green "seeps" into the player, differently on every frame
+    (reads as color flicker). Two repairs:
+      • any opaque edge pixel still light → darken to the ink tone
+        (a complete 1px outline, like the source art had)
+      • RGB under fully-transparent pixels → ink tone, so texture
+        filtering can never pull stray light grey through the alpha edge
+    """
+    px = im.load()
+    w, h = im.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a == 0:
+                if (r, g, b) != ink:
+                    px[x, y] = (ink[0], ink[1], ink[2], 0)
+                continue
+            if (r + g + b) / 3 <= lum_thresh:
+                continue
+            for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if 0 <= nx < w and 0 <= ny < h and px[nx, ny][3] == 0:
+                    px[x, y] = (ink[0], ink[1], ink[2], 255)
+                    break
+    return im
+
+
 def _bands(profile, expected, label):
     """Contiguous non-zero bands in an opacity projection → (start, end)."""
     bands = []
@@ -256,9 +287,11 @@ def main():
             oy = FOOT_Y - fig2.height
             frame.paste(fig2, (ox, max(0, oy)))
             # NEAREST downscale resamples some interior light pixels onto
-            # the new silhouette edge — one more erosion at frame scale.
+            # the new silhouette edge — one more erosion at frame scale,
+            # then re-ink the outline the downscale broke.
             if not args.keep_bg:
                 defringe(frame, iters=1)
+            reink(frame)
             frame.save(os.path.join(out_dir, f"{dirs[ri]}_{ci}.png"))
             wrote += 1
     print(f"wrote {wrote} frames → {out_dir}/")
