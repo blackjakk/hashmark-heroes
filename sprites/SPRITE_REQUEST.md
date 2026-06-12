@@ -197,13 +197,32 @@ ask for "equal-size cells in a strict grid".)
 
 ## Migration waves (priority order)
 
-1. **Wave 1 — 90% of screen time:** idle, run, carry, stance, pass
-   (windup), throw_release, catch. Judge consistency hard here.
-2. **Wave 2 — contact:** fall (tackled), tackled_carry, block, tackle,
-   ragdoll, backpedal, kick_slide, qb_scramble, drop_step.
-3. **Wave 3 — flavor:** juke, spin, truck, stiff_arm, hurdle, jam,
-   celebrate, kick, handoff, scrape, release, dodge, tumble, spin_fall,
-   strip_swat, qb_carry, refs.
+**The ball rule:** the engine draws the REAL ball whenever it's in the
+air / loose / spotted, and hides it whenever a sprite visibly holds one.
+So paint a ball ONLY in frames where the player possesses it — a ball in
+the wrong frames = double ball on screen; a missing ball in carry frames
+= the carrier runs empty-handed.
+
+1. **Wave 1 — 90% of screen time:**
+
+   | sheet | frames | ball |
+   |---|---|---|
+   | idle | 1 | no |
+   | run | 4 | NO — used by every player, not just carriers |
+   | carry | 4 | YES, all frames, tucked under one arm |
+   | stance | 4 | no |
+   | pass (throw windup) | 4 | YES, all frames — cradled → cocked at the ear |
+   | throw_release | 6 | NO — empty hands every frame (real ball launches at release) |
+   | catch | 6 | frames 1-3 NO (track/reach, hands open) → frames 4-6 YES (secure/tuck) |
+
+2. **Wave 2 — contact:** fall (tackled — no ball), tackled_carry (ball
+   wrapped, all frames), block (no), tackle (no), ragdoll (no),
+   backpedal (no), kick_slide (no), qb_scramble (ball in both hands /
+   tucking, all frames), drop_step (ball cradled, all frames).
+3. **Wave 3 — flavor:** juke / spin / truck / stiff_arm / hurdle /
+   tumble / spin_fall / qb_carry (ball, all frames); jam / celebrate /
+   scrape / release / dodge / strip_swat (no ball); kick + handoff
+   (ball per the action); refs (no ball).
 
 Slice command per sheet (note `--out sprites2` and the folder name —
 use the FOLDER names from this table, e.g. the throw windup is `pass`,
