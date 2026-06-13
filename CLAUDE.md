@@ -105,6 +105,24 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
 
 ## Pending
 
+- Season-screen flow fixes (SOLVED, this pass):
+  - Awards-reel highlight cards ("▶ Watch", hlCard in renderFrnAwards/offseason)
+    called `renderHighlightReplay` (the TEXT-card modal) directly instead of
+    `frnReplayHighlight` (the animated router: recorded clip → playLog re-anim →
+    text only as old-save fallback). Repointed to frnReplayHighlight. Every other
+    highlight watcher already uses it; that card was the lone bypass.
+  - Season-recap PLAYOFF BRACKET preview drew a FAKE league-wide 8-team single
+    bracket (1v8 … "win 3 in a row"), so the #1 overall seed showed a wild-card
+    game with no bye — contradicting the real format. Rebuilt from the actual
+    seeding (per conference: #1 BYE + 2v7/3v6/4v5). New CSS: `.frn-recap-bracket-confs/
+    -conf-title/-match.bye/-bye-tag`.
+  - Overview tab showed "REGULAR SEASON COMPLETE / START PLAYOFFS" AFTER winning
+    the Super Bowl. frnSetTab → `_frnRenderActiveTab` overview case only handled
+    phase "playoffs"; in "offseason" it fell to renderFrnRegular (seasonDone →
+    START PLAYOFFS). Extracted `_frnRenderOverviewTab` mirroring the phase
+    dispatch (offseason → re-signings/offseason hub, awards → awards, playoffs →
+    bracket). RULE: any new "what does Overview show" logic must branch on
+    franchise.phase, not assume in-season.
 - In-game ↻ REPLAY did nothing useful (SOLVED): frnReplayLastPlay wrote
   `window.playHead/animState/speedMul/playing`, but those are top-level
   `let` bindings (play-render.js) that do NOT alias onto `window` in the
