@@ -534,13 +534,25 @@ function _tintedSprite(srcImg, key, hexColor) {
     // applying the skin-adjacency skip there left the jersey edges white
     // (a red/white polka-dot jersey). The face/mask only live up top.
     const headLine = _upright ? minY + 0.40 * (maxY - minY) : minY + 0.50 * (maxY - minY);
-    // Team color applied as a translucent WASH over the original white
-    // (A = strength), not a hard replace — lighter, less opaque ("can we
-    // do transparent colors"). Cel-banded brightness keeps clean
-    // highlight/base/shade ramps; bands raised (0.92/0.82, was 0.86/0.72)
-    // so the shadows aren't muddy navy.
-    const A = (typeof window !== "undefined" && window.GC_TINT_STRENGTH != null)
-      ? window.GC_TINT_STRENGTH : 0.72;
+    // FULL-COLOR cel ramp with depth. The earlier white-wash read flat and
+    // washed out, and lerping the highlight toward white desaturated it
+    // (red went pink). Instead BRIGHTEN the team color for the highlight
+    // (keeps the hue saturated, just lit) and DARKEN it for the shadow:
+    //   highlight = teamColor × 1.40 (clamped) — lit top of helmet / pads
+    //   mid       = teamColor             — full saturation
+    //   shadow    = teamColor × 0.74      — under-curve
+    // The highlight↔shadow spread is the 3D form; the midtone keeps it
+    // full color. GC_TINT_HI (brighten mul) / GC_TINT_SHADOW (darken mul).
+    const _hiMul = (typeof window !== "undefined" && window.GC_TINT_HI != null)
+      ? window.GC_TINT_HI : 1.40;
+    const _shMul = (typeof window !== "undefined" && window.GC_TINT_SHADOW != null)
+      ? window.GC_TINT_SHADOW : 0.74;
+    const hiR = Math.min(255, Math.round(cr * _hiMul));
+    const hiG = Math.min(255, Math.round(cg * _hiMul));
+    const hiB = Math.min(255, Math.round(cb * _hiMul));
+    const shR = Math.round(cr * _shMul);
+    const shG = Math.round(cg * _shMul);
+    const shB = Math.round(cb * _shMul);
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const i = (y * W + x) * 4;
@@ -560,10 +572,9 @@ function _tintedSprite(srcImg, key, hexColor) {
           if (nearSkin) continue;
         }
         const lum = (r + g + b) / (3 * 255);
-        const brightness = lum >= 0.94 ? 1.0 : lum >= 0.82 ? 0.92 : 0.82;
-        d[i]     = Math.round(r * (1 - A) + cr * brightness * A);
-        d[i + 1] = Math.round(g * (1 - A) + cg * brightness * A);
-        d[i + 2] = Math.round(b * (1 - A) + cb * brightness * A);
+        if (lum >= 0.90) { d[i] = hiR; d[i + 1] = hiG; d[i + 2] = hiB; }   // highlight
+        else if (lum >= 0.78) { d[i] = cr; d[i + 1] = cg; d[i + 2] = cb; } // full color
+        else { d[i] = shR; d[i + 1] = shG; d[i + 2] = shB; }              // shadow
       }
     }
     octx.putImageData(img, 0, 0);
