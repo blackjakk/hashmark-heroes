@@ -7865,39 +7865,59 @@ function renderFrnSeasonRecap() {
     </div>`;
 
   // ── Bracket reveal ─────────────────────────────────────────────────────
-  // Show the seeded 8-team bracket pre-render (1v8, 4v5, 2v7, 3v6 → semis → final)
-  const top8 = sorted.slice(0, PLAYOFF_TEAMS);
-  const mkBracketMatchup = (highSeedIdx, lowSeedIdx) => {
-    const hi = top8[highSeedIdx], lo = top8[lowSeedIdx];
-    if (!hi || !lo) return `<div class="frn-recap-bracket-match empty">TBD</div>`;
-    const hiMine = hi.id === myId, loMine = lo.id === myId;
-    const userMatch = hiMine || loMine;
-    return `<div class="frn-recap-bracket-match${userMatch?" mine":""}">
-      ${userMatch?`<div class="user-tag">⭐ YOUR MATCHUP</div>`:""}
-      <div class="team" style="--accent:${hi.team.primary};--accent-ink:${_teamInk(hi.team.primary)}">
-        <span class="seed">${highSeedIdx+1}</span>
-        <span class="name">${hi.team.abbr || hi.team.name.slice(0,3).toUpperCase()}</span>
-        <span class="rec">${hi.w}-${hi.l}</span>
-      </div>
-      <div class="vs">vs</div>
-      <div class="team" style="--accent:${lo.team.primary};--accent-ink:${_teamInk(lo.team.primary)}">
-        <span class="seed">${lowSeedIdx+1}</span>
-        <span class="name">${lo.team.abbr || lo.team.name.slice(0,3).toUpperCase()}</span>
-        <span class="rec">${lo.w}-${lo.l}</span>
-      </div>
+  // Mirror the REAL seeding (startFrnPlayoffs): per conference, the top
+  // PLAYOFF_PER_CONF teams; the #1 seed BYES the Wild Card round and the rest
+  // pair 2v7, 3v6, 4v5 (higher seed hosts). The old preview drew a fake
+  // league-wide 8-team single bracket (1v8…) that put the #1 overall seed in
+  // a wild-card game with NO bye — contradicting the actual format the user
+  // then plays.
+  const _bracketConfs = ["AFC", "NFC"];
+  const mkTeamRow = (s, seedNum) =>
+    `<div class="team" style="--accent:${s.team.primary};--accent-ink:${_teamInk(s.team.primary)}">
+      <span class="seed">${seedNum}</span>
+      <span class="name">${s.team.abbr || s.team.name.slice(0,3).toUpperCase()}</span>
+      <span class="rec">${s.w}-${s.l}${s.t?`-${s.t}`:""}</span>
     </div>`;
-  };
-  // Round 1 in seed pairing: 1v8, 4v5, 2v7, 3v6
-  const r1Pairs = [[0,7],[3,4],[1,6],[2,5]];
+  const confBlocks = _bracketConfs.map(conf => {
+    const confTeams = sorted.filter(s => s.team?.conference === conf).slice(0, PLAYOFF_PER_CONF);
+    if (confTeams.length < 2) return "";
+    const byeT = confTeams[0];
+    const byeMine = byeT.id === myId;
+    const byeCard = `<div class="frn-recap-bracket-match bye${byeMine?" mine":""}">
+      ${byeMine?`<div class="user-tag">YOU · BYE</div>`:""}
+      ${mkTeamRow(byeT, 1)}
+      <div class="vs frn-recap-bye-tag">FIRST-ROUND BYE</div>
+    </div>`;
+    // Wild Card: 2v7, 3v6, 4v5 (indices 1v6, 2v5, 3v4)
+    const wcCards = [[1,6],[2,5],[3,4]].map(([hiIdx, loIdx]) => {
+      const hi = confTeams[hiIdx], lo = confTeams[loIdx];
+      if (!hi || !lo) return `<div class="frn-recap-bracket-match empty">TBD</div>`;
+      const userMatch = hi.id === myId || lo.id === myId;
+      return `<div class="frn-recap-bracket-match${userMatch?" mine":""}">
+        ${userMatch?`<div class="user-tag">⭐ YOUR MATCHUP</div>`:""}
+        ${mkTeamRow(hi, hiIdx+1)}
+        <div class="vs">vs</div>
+        ${mkTeamRow(lo, loIdx+1)}
+      </div>`;
+    }).join("");
+    return `<div class="frn-recap-bracket-conf">
+      <div class="frn-recap-bracket-conf-title">${conf}</div>
+      <div class="frn-recap-bracket-grid">${byeCard}${wcCards}</div>
+    </div>`;
+  }).join("");
+  // Path tailored to the user's conference seed: a #1 seed byes and plays 3;
+  // everyone else plays 4. Non-playoff users still see the bracket (no path).
+  const _myConf = getTeam(myId)?.conference;
+  const _myConfTeams = sorted.filter(s => s.team?.conference === _myConf).slice(0, PLAYOFF_PER_CONF);
+  const _mySeed = _myConfTeams.findIndex(s => s.id === myId) + 1;
+  const pathLine = _mySeed === 1
+    ? `#1 SEED · BYE → win 3 in a row → SEASON ${franchise.season} CHAMPION`
+    : `Win 4 in a row → SEASON ${franchise.season} CHAMPION`;
   const bracketHtml = `
     <div class="frn-recap-card frn-recap-bracket">
       <div class="frn-recap-card-title">PLAYOFF BRACKET <span class="sub">wild card weekend</span></div>
-      <div class="frn-recap-bracket-grid">
-        ${r1Pairs.map(([h,l]) => mkBracketMatchup(h,l)).join("")}
-      </div>
-      ${inPlayoffs ? `<div class="frn-recap-bracket-path">
-        Win 3 in a row → SEASON ${franchise.season} CHAMPION
-      </div>` : ""}
+      <div class="frn-recap-bracket-confs">${confBlocks}</div>
+      ${inPlayoffs ? `<div class="frn-recap-bracket-path">${pathLine}</div>` : ""}
     </div>`;
 
   // ── CTA ────────────────────────────────────────────────────────────────

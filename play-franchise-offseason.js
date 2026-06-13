@@ -10724,7 +10724,7 @@ function renderFrnAwards() {
     if (!h) return "";
     const { badge, color } = typeCfg(h);
     return `<button class="frn-awards-hl-card ${size || ""}"
-        style="--accent:${color}" onclick="renderHighlightReplay(${i})">
+        style="--accent:${color}" onclick="frnReplayHighlight(${i})">
       <div class="frn-awards-hl-meta">
         <span class="frn-awards-hl-badge" style="color:${color};border-color:${color}55">${badge}</span>
         <span class="frn-awards-hl-when">${h.week}${h.isPlayoff?" · PLAYOFF":""}</span>
