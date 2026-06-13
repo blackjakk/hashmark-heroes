@@ -2174,10 +2174,16 @@ function frnReplayLastPlay() {
   let target = playHead - 2;  // -1 was the play just shown; -2 = previous
   while (target > 0 && NON_SNAP.has(gameResult.plays[target]?.kind)) target--;
   target = Math.max(0, target);
-  window.playHead = target;
-  if (typeof animState !== "undefined") window.animState = null;
-  if (typeof speedMul !== "undefined") window.speedMul = 0.4;
-  if (typeof playing !== "undefined") window.playing = true;
+  // DIRECT assignments — playHead/animState/speedMul/playing are top-level
+  // `let` bindings (play-render.js), which in the browser do NOT alias onto
+  // `window`. The old `window.X = …` writes here created inert window props
+  // and never touched the real bindings, so the ↻ REPLAY button never
+  // rewound the head or entered slow-mo (it re-ran the current play at full
+  // speed). Same trap that bit _frnPlaySynthReplay.
+  playHead = target;
+  animState = null;
+  speedMul = 0.4;
+  playing = true;
   if (typeof startNextPlay === "function") startNextPlay();
 }
 
