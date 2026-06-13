@@ -3727,6 +3727,7 @@ function buildAnimForPlay(play, prevPlay) {
     // so the same defenders continue chasing instead of swapping.
     let _postCatchPursuerSet = null;
     let _committedSet = null;        // tackle-committed subset of the rally tier
+    let _wrCarryPrevX = null, _wrCarryPrevY = null;   // per-frame carrier step cap
     // Diagnostic one-shot guard (see [pass-setup] log below).
     let _dbgPassLogged = false;
     // Sim-driven WR motion post-catch (replaces the time-based linear
@@ -3958,11 +3959,17 @@ function buildAnimForPlay(play, prevPlay) {
         }
       }
 
-      // Receiver runs route — starts AT the snap, reaches catch point by throwPhase
-      const wrBase = wrChoice === "wr1" ? formation.wr1
-                   : wrChoice === "wr2" ? formation.wr2
-                   : wrChoice === "te"  ? formation.te
-                   :                       formation.rb;
+      // Receiver runs route — starts AT the snap, reaches catch point by throwPhase.
+      // Build the carrier from the ACTUAL targeted slot. The old ternary only
+      // named wr1/wr2/te and defaulted EVERYTHING ELSE to formation.rb — so an
+      // engine target of wr3/wr4/wr5/te2 built the catcher from the RB's
+      // identity and position. Result: the RB got drawn TWICE (once as the
+      // mis-identified downfield catcher, once as the real backfield pass-
+      // blocker), and the true receiver never appeared — a phantom "RB runs a
+      // huge looping route" (user traced #27's path as a loop). Use the same
+      // slot _wrBase / dressSlotAs already resolved so the catcher IS the
+      // dressed receiver and the RB stays a single blocker.
+      const wrBase = formation[wrChoice] || formation.rb;
       const wr = { ...wrBase };
       // Route progression: 0 → 1 from snap to throwPhase. In press
       // coverage (C0/C1) the route start is delayed by the jam window
@@ -5652,6 +5659,24 @@ function buildAnimForPlay(play, prevPlay) {
         ? Math.pow(Math.sin(Math.min(1, leapInternalT) * Math.PI), 0.7) * 10
         : 0;
       const _diveLunge = (_catchVariant === "dive" && isCatching) ? _reachProg * 9 : 0;
+      // Per-frame carrier step cap — runs every frame the receiver is drawn,
+      // so it catches a hard pop from ANY source: the route→YAC-sim handoff
+      // at the catch, a late route break, or the _effEndX overshoot clamp.
+      // Capped at ~4.7yd/frame: far above legit motion (deep route / 13yps
+      // YAC ≈ 3-6px/frame) but below the continuity guard's 80px SNAP, so a
+      // pop glides across frames instead of teleporting. Only post-snap, and
+      // never across the catch FREEZE (dt=0 there). The deep-WR catch-frame
+      // teleport surfaced when carriers stopped being mis-built from the RB.
+      if (aT > 0 && _wrCarryPrevX != null) {
+        const _cdx = wr.x - _wrCarryPrevX, _cdy = wr.y - _wrCarryPrevY;
+        const _cd = Math.hypot(_cdx, _cdy);
+        const _CAP = 70;
+        if (_cd > _CAP) {
+          wr.x = _wrCarryPrevX + (_cdx / _cd) * _CAP;
+          wr.y = _wrCarryPrevY + (_cdy / _cd) * _CAP;
+        }
+      }
+      if (aT > 0) { _wrCarryPrevX = wr.x; _wrCarryPrevY = wr.y; }
       const wrWithPose = { ...wr,
         x: wr.x + dir * _diveLunge,
         y: wr.y - _leapLift,

@@ -104,6 +104,17 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   for probes. Mid-play freezes beyond this: not reproduced.
 - drawPlayer clamp (TOP-6/BOT+24) stays as the universal backstop for any
   remaining OOB source (e.g. formation lineups).
+- Duplicate/phantom RB ("RB runs a huge looping route", user traced #27):
+  the carrier object `wrBase` (line ~3962) only named wr1/wr2/te and
+  DEFAULTED wr3/wr4/wr5/te2 → formation.rb. So an engine target of wr3+
+  built the catcher from the RB's identity+position: the RB was drawn
+  TWICE (mis-IDed downfield catcher + real backfield blocker) and the
+  true WR never appeared. Fix: `wrBase = formation[wrChoice] || formation.rb`
+  (same slot dressSlotAs already resolved). Exposed a latent deep-WR
+  catch-frame teleport (carrier now starts at the WR split, not the RB) —
+  fixed with a per-frame carrier step cap (≤70px/frame, just before
+  wrWithPose; glides any route→YAC-sim pop under the continuity SNAP).
+  Teleport gate egregious 4→3 after.
 - CB "ran off the top of the field instead of covering": the Cover-2/4/
   Tampa deep-half corner landmark used lateral 22yd = cy±330px, but the
   half-field is only ~20.7yd (sideline 310px from center) — so the TOP
