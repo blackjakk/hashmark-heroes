@@ -3726,6 +3726,7 @@ function buildAnimForPlay(play, prevPlay) {
     // first frame after the catch, kept stable for the rest of the play
     // so the same defenders continue chasing instead of swapping.
     let _postCatchPursuerSet = null;
+    let _committedSet = null;        // tackle-committed subset of the rally tier
     // Diagnostic one-shot guard (see [pass-setup] log below).
     let _dbgPassLogged = false;
     // Sim-driven WR motion post-catch (replaces the time-based linear
@@ -5017,7 +5018,17 @@ function buildAnimForPlay(play, prevPlay) {
         const _isIntCarrier         = play.kind === "int" && i === intDefIdx;
         if (play.kind === "complete" && t > throwPhase
             && !_isIntCarrier && !_isDroppedPickDropper) {
-          // Build pursuit set ONCE on first post-throw frame.
+          // Build pursuit set ONCE on first post-throw frame. TWO TIERS:
+          //   • COMMITTED — the closest defenders + named tackler + cover
+          //     man (+ both safeties on long plays). They auto-scale their
+          //     speed to ARRIVE at the carrier by the tackle window; they
+          //     make the actual tackle.
+          //   • RALLY — every OTHER back-seven coverage defender. After the
+          //     catch the whole defense flows to the ball; they pursue at
+          //     natural speed (no arrival sprint) and simply don't reach a
+          //     short play. Without this the deep corners/safeties who
+          //     bailed downfield just STOOD there ("what are those
+          //     defenders doing at the top right?") while two men chased.
           const POST_CATCH_PURSUERS = 2;
           if (!_postCatchPursuerSet) {
             const candidates = [];
@@ -5029,25 +5040,25 @@ function buildAnimForPlay(play, prevPlay) {
               candidates.push({ j, dist: Math.hypot(cx - ballX, cy_ - ballY) });
             }
             candidates.sort((a, b) => a.dist - b.dist);
-            _postCatchPursuerSet = new Set(candidates.slice(0, POST_CATCH_PURSUERS).map(c => c.j));
-            // Cover defender always pursues — they're already next to the
-            // WR at catch. Excluding them used to leave them parked in the
-            // zone-drop position when the engine emitted a track for a
-            // different tackler; they then never reached the carrier and
-            // the unified tackle block couldn't see them as close.
-            _postCatchPursuerSet.add(intDefIdx);
+            _committedSet = new Set(candidates.slice(0, POST_CATCH_PURSUERS).map(c => c.j));
+            // Cover defender always commits — already next to the WR at
+            // catch. Excluding them left them parked in the zone-drop
+            // position when the engine named a different tackler.
+            _committedSet.add(intDefIdx);
             // SAFETIES on deep / extended plays — last line of defense
-            // must commit. Was leaving safeties parked at deep zone
-            // even when the WR ran past them into a 30yd gain. Both
-            // safeties join the pursuit on plays of 10+ yards.
+            // must commit to arrive even from deep zone on a 30yd gain.
             const _projectedYards = play.yards ?? 0;
             if (_projectedYards > 10) {
-              _postCatchPursuerSet.add(idxS1);
-              _postCatchPursuerSet.add(idxS2);
+              _committedSet.add(idxS1);
+              _committedSet.add(idxS2);
             }
+            // RALLY tier = everyone in the back seven (committed included).
+            _postCatchPursuerSet = new Set(candidates.map(c => c.j));
+            for (const j of _committedSet) _postCatchPursuerSet.add(j);
           }
 
           const isPursuer = _postCatchPursuerSet.has(i) || _isPassTacklerByName;
+          const isCommitted = _committedSet.has(i) || _isPassTacklerByName;
           if (isPursuer) {
             // Sync sim once on first pursuit frame. CRITICAL: if d._sim
             // doesn't exist yet (defender didn't run pursue() during
@@ -5076,15 +5087,20 @@ function buildAnimForPlay(play, prevPlay) {
             // Other pursuers use a fixed base factor.
             const isCB  = i === idxCB1 || i === idxCB2;
             const isSaf = i === idxS1  || i === idxS2;
+            // RALLY-only defenders (flowing to the ball but not committed
+            // to the tackle) pursue at a relaxed pace so they converge
+            // naturally instead of sprinting superhuman from deep coverage.
             let factor = _isPassTacklerByName ? 1.25
+                       : !isCommitted ? 0.82
                        : isCB ? 1.05 : isSaf ? 1.0 : 0.95;
-            // ALL pursuers auto-scale — not just named tackler + cover.
+            // COMMITTED pursuers auto-scale to ARRIVE by the tackle window.
             // WR sim caps at 13 yps; DB base factor caps at ~1.05x×9.5 =
             // 10 yps. Without auto-scale, convergers fall ~3 yps behind
-            // the WR every second of YAC and arrive after the tackle.
+            // the WR every second of YAC and arrive after the tackle. Rally
+            // defenders are EXCLUDED — they shouldn't teleport-sprint 40yd.
             const _needArrival = _isPassTacklerByName
                               || i === intDefIdx
-                              || _postCatchPursuerSet.has(i);
+                              || isCommitted;
             if (_needArrival) {
               const distRemaining = Math.hypot(ballX - dd.x, ballY - dd.y);
               const timeRemaining = (tackleEvent.fallStartT - aT) * dur;

@@ -104,6 +104,17 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   for probes. Mid-play freezes beyond this: not reproduced.
 - drawPlayer clamp (TOP-6/BOT+24) stays as the universal backstop for any
   remaining OOB source (e.g. formation lineups).
+- Post-catch RALLY: the pursuit set was only the 2 closest defenders +
+  named tackler (+ safeties on 10+yd), so deep corners/safeties who
+  bailed downfield just STOOD there ("what are those defenders doing at
+  the top right?"). Now two tiers in the complete-pass defender map:
+  COMMITTED (closest 2 + tackler + situational safeties) auto-scale to
+  arrive and make the tackle; RALLY (every other back-seven coverage
+  defender) pursues at a relaxed factor 0.82 with intercept angles —
+  flows to the ball, doesn't teleport-sprint, just doesn't reach a short
+  play. _committedSet drives _needArrival; _postCatchPursuerSet = all
+  candidates. Verified: 0 still back-seven defenders post-catch (was
+  ~5 moving / rest frozen).
 - Trackless-completes catch teleport SOLVED: completes with hasMotion=false
   (no engine track) fell back to a hardcoded targetY (cy±N) that ignored the
   receiver's split — a wide WR (cy+240) catching at cy+65 had to break 175px
