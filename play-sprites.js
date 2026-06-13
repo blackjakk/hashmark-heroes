@@ -492,9 +492,18 @@ function _tintedSprite(srcImg, key, hexColor) {
     const W = srcImg.width, H = srcImg.height;
     const img = octx.getImageData(0, 0, W, H);
     const d = img.data;
+    // Tintable = a NEUTRAL light pixel (the jersey/helmet fabric, incl. its
+    // anti-aliased edge). Threshold dropped 170→132: the AA ring between the
+    // dark outline and the bright fill is mid-grey (lum ~0.45-0.65) and was
+    // failing the old >170 cut, leaving a white/grey halo peeking between the
+    // ink and the color. Catching it (it maps to the shadow band by lum)
+    // seals the edge. Spread widened to 42 for the same AA pixels; ink
+    // (max<90) and warm skin are still excluded by their own tests.
+    const _whiteMin = (typeof window !== "undefined" && window.GC_TINT_WHITE_MIN != null)
+      ? window.GC_TINT_WHITE_MIN : 132;
     const isWhite = (r, g, b) =>
-      r > 170 && g > 170 && b > 170 &&
-      Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && Math.abs(r - b) < 30;
+      r > _whiteMin && g > _whiteMin && b > _whiteMin &&
+      Math.abs(r - g) < 42 && Math.abs(g - b) < 42 && Math.abs(r - b) < 42;
     // Skin = warm brown (face under the facemask, bare arms). Used to spare
     // the FACEMASK: its white chin-guard / cage-highlight pixels sit right
     // against the face, so a white pixel touching skin is mask, not helmet
