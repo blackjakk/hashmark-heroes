@@ -88,10 +88,12 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   far-side body-height presentation polish.
 - User QA outstanding: field alignment with side panel open, carry/KR
   facing (carry sheet was drawn mirrored — flipped at slice).
-- "Defense doesn't move" / mid-play freezes: NOT reproduced in 200+
-  rendered plays (tools/_behavior_probe.js) nor forced named calls —
-  only penalty/4th-down cards (static by design) and fumble piles
-  (lying down post-strip). Need a live repro: which play kind/moment.
+- "Defense doesn't move" (pass plays) SOLVED: parked zone defenders had
+  dd.t=0 + track-held position = literal statues through the QB's whole
+  scan. Now: slow scrape cycle + seeded ±3-4px sway at the landmark
+  (LB/S track path AND CB zone bail). window.GC_FORCE_AUDIBLE debug
+  hook pins the audible path for probes. Mid-play freezes beyond this:
+  not reproduced (fumble piles lie down by design).
 - drawPlayer clamp (TOP-6/BOT+24) stays as the universal backstop for any
   remaining OOB source (e.g. formation lineups).
 - Backlog: torso/legs layered sprites (hold until waves judged), punt full-22 cast,

@@ -1330,7 +1330,11 @@ function buildAnimForPlay(play, prevPlay) {
   // Aggressive QBs audible more often — cap raised to 0.38 for high-agg QBs.
   const audibleChance = clamp(((qbAwr - 60) / 180) * (1 + (qbAgg - 50) / 100), 0, 0.38);
   const audibleSeed = (((play.startYard * 31) ^ ((play.time || 0) * 7)) >>> 0) % 1000 / 1000;
-  const isAudible = audibleSeed < audibleChance;
+  // Debug override: window.GC_FORCE_AUDIBLE = true/false pins the audible
+  // path for probes ("defense didn't move — maybe audible?" repros).
+  const isAudible = (typeof window !== "undefined" && window.GC_FORCE_AUDIBLE != null)
+    ? !!window.GC_FORCE_AUDIBLE
+    : audibleSeed < audibleChance;
   // Extra pre-snap time when audibling (gives the play call space to breathe)
   // PRE will be computed per-play once dur is known (PRE = PRE_MS / dur)
   let PRE = 0.24;
@@ -4726,6 +4730,12 @@ function buildAnimForPlay(play, prevPlay) {
               const _eb = _bailT * _bailT * (3 - 2 * _bailT);
               _cbTargetX = dd.x + (_landX - dd.x) * _eb;
               _cbTargetY = dd.y + (_landY - dd.y) * _eb;
+              // Parked-at-landmark sway (fades in with the bail) — a held
+              // deep zone read as a statue while the QB scanned. Runs
+              // through the follow accumulator below, so the drift stays
+              // organic rather than a position snap.
+              _cbTargetX += Math.sin(aT * 8 + i * 1.9) * 3 * _eb;
+              _cbTargetY += Math.sin(aT * 6.3 + i * 1.1) * 4 * _eb;
             } else if (cbSlot && trk && typeof MotionPlayback !== "undefined" && wrTarget) {
               const sample = MotionPlayback.sampleTrack(trk, aT);
               if (sample) {
@@ -4934,7 +4944,18 @@ function buildAnimForPlay(play, prevPlay) {
             // don't clobber it with the LB scrape).
             const _isSafetyRot = (i === idxS1 || i === idxS2);
             if (aT < 0.78 && !_isSafetyRot) dd.pose = "scrape";
-            if (!MotionPlayback.isMoving(_passSecondaryTrack, aT)) dd.t = 0;
+            if (!MotionPlayback.isMoving(_passSecondaryTrack, aT)) {
+              // PARKED AT THE ZONE LANDMARK — keep him alive. dd.t=0
+              // froze the pose cycle while the track held position: a
+              // perfect statue for the QB's whole scan ("the entire
+              // defense literally doesn't move" on pass plays). Slow
+              // shuffle cycle + small seeded sway around the landmark
+              // (applied after the sim sync above, so pursuit physics
+              // never inherits the cosmetic wobble).
+              dd.t = (aT * 1.4 + i * 0.13) % 1;
+              dd.x += Math.sin(aT * 9 + i * 2.1) * 3;
+              dd.y += Math.sin(aT * 7 + i * 1.37) * 4;
+            }
             // ── ZONE READ-AND-BREAK ──────────────────────────────────
             // In a ZONE shell the LB/safety isn't man-shadowing — he drops
             // to his landmark (the track above), READS the QB, and BREAKS
