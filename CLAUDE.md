@@ -80,13 +80,16 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
 
 ## Pending
 
-- REAL OOB root cause found: stale _bcastGeom — side panels reflow the
-  field wrap without a window resize; players/posts projected through old
-  geometry = whole player layer shifted ("lining up out of bounds",
-  "entire field is shifted"). Fixed: ResizeObserver on the wrap + per-frame
-  dimension check in _frameStartBroadcast. The earlier lane squeezes /
-  clamps (kickoff [TOP+110,BOT-30], catch [TOP+55,BOT-12]) remain as
-  far-side body-height presentation polish.
+- "Entire field is shifted" TRUE root cause: PIXI player canvas had
+  autoDensity:true, which writes inline style.height=FIELD.H(720)px onto
+  the canvas, overriding our height:100%. projectBroadcast back-maps
+  players assuming the canvas spans the WRAP (clientHeight), so a 720px
+  canvas over a shorter wrap (472px on a short window) scaled every Y by
+  ~1.5x — squad jammed toward the far sideline. Worse on short/hiDPI
+  windows (error = 720/wrapH). Fixed: autoDensity:false + force cv CSS
+  100%/100% (backing stays FIELD×resolution = crisp). The _bcastGeom
+  ResizeObserver/per-frame-check + lane squeezes remain (correct, but
+  were treating a symptom).
 - User QA outstanding: field alignment with side panel open, carry/KR
   facing (carry sheet was drawn mirrored — flipped at slice).
 - "Defense doesn't move" (pass plays) SOLVED: parked zone defenders had

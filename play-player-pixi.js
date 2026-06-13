@@ -91,10 +91,22 @@ const GCPlayer = (() => {
         // Native-density rendering — the layer was a fixed 1700x720
         // backing stretched across the wrap, a ~2x upscale blur on hiDPI
         // displays ("looks low res compared to the sprite"). Render at
-        // device pixels (capped 2x) and let autoDensity manage CSS size.
+        // device pixels (capped 2x). The backing = FIELD.W/H × resolution
+        // stays crisp; CSS size is OURS (100% of the wrap), set below.
         resolution: Math.min(2, (typeof window !== "undefined" && window.devicePixelRatio) || 1),
-        autoDensity: true,
+        // autoDensity is OFF on purpose. With it on, PIXI writes an inline
+        // style.height = FIELD.H px (720) onto the canvas, overriding our
+        // height:100%. projectBroadcast back-maps players assuming the
+        // canvas spans the WRAP (clientHeight), so a 720px-tall canvas over
+        // a shorter wrap (e.g. 472px on a short window) scaled every
+        // player's Y by 720/472 ≈ 1.5× — the whole squad jammed toward the
+        // far sideline ("the entire field is shifted"). Forcing CSS 100%
+        // keeps the canvas exactly congruent with the wrap at any size.
+        autoDensity: false,
       });
+      // Re-assert our CSS box (PIXI may have written inline width/height).
+      cv.style.width = "100%";
+      cv.style.height = "100%";
       _stage = new PIXI.Container();
       _stage.sortableChildren = true;   // depth sort via child.zIndex
       _app.stage.addChild(_stage);
