@@ -515,16 +515,28 @@ function _tintedSprite(srcImg, key, hexColor) {
     // frozen original mask breaks that feedback (blue never tripped it).
     const skinMask = new Uint8Array(W * H);
     let minX = W, minY = H, maxX = 0, maxY = 0;
+    const lums = [];   // luminance of every TINTABLE white pixel
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const i0 = (y * W + x) * 4;
         if (d[i0 + 3] > 0) {
           if (x < minX) minX = x; if (x > maxX) maxX = x;
           if (y < minY) minY = y; if (y > maxY) maxY = y;
-          if (isSkin(d[i0], d[i0 + 1], d[i0 + 2])) skinMask[y * W + x] = 1;
+          const r0 = d[i0], g0 = d[i0 + 1], b0 = d[i0 + 2];
+          if (isSkin(r0, g0, b0)) skinMask[y * W + x] = 1;
+          else if (isWhite(r0, g0, b0)) lums.push((r0 + g0 + b0) / 765);
         }
       }
     }
+    // PERCENTILE bands. The AI art's whites are mostly bright (~64% sit
+    // above a fixed 0.90 cut), so fixed thresholds dumped the whole jersey
+    // into ONE band — flat "filled in paint" color. Split by the sprite's
+    // OWN luminance distribution instead: bottom ~38% → shadow, top ~28% →
+    // highlight, middle → full color. Guarantees real shape on every
+    // sprite regardless of how subtly it's shaded.
+    lums.sort((a, b) => a - b);
+    const _shCut = lums.length ? lums[Math.floor(lums.length * 0.38)] : 0.84;
+    const _hiCut = lums.length ? lums[Math.floor(lums.length * 0.72)] : 0.93;
     const _upright = (maxY - minY) >= (maxX - minX);
     const _waistFrac = (typeof window !== "undefined" && window.GC_TINT_WAIST != null)
       ? window.GC_TINT_WAIST : 0.56;
@@ -571,10 +583,10 @@ function _tintedSprite(srcImg, key, hexColor) {
           }
           if (nearSkin) continue;
         }
-        const lum = (r + g + b) / (3 * 255);
-        if (lum >= 0.90) { d[i] = hiR; d[i + 1] = hiG; d[i + 2] = hiB; }   // highlight
-        else if (lum >= 0.78) { d[i] = cr; d[i + 1] = cg; d[i + 2] = cb; } // full color
-        else { d[i] = shR; d[i + 1] = shG; d[i + 2] = shB; }              // shadow
+        const lum = (r + g + b) / 765;
+        if (lum >= _hiCut) { d[i] = hiR; d[i + 1] = hiG; d[i + 2] = hiB; }   // highlight
+        else if (lum >= _shCut) { d[i] = cr; d[i + 1] = cg; d[i + 2] = cb; } // full color
+        else { d[i] = shR; d[i + 1] = shG; d[i + 2] = shB; }                // shadow
       }
     }
     octx.putImageData(img, 0, 0);

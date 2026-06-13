@@ -6760,7 +6760,7 @@ function buildAnimForPlay(play, prevPlay) {
               dd.y = d._sackHoldBase.y + wig;
             }
             dd.pose = "engage";
-            dd.t = 0;
+            dd.t = (tt * 2.4 + i * 0.13) % 1;   // churn legs in the block
           }
         } else if (i >= 4 && i <= 6) {
           // LBs hold their drop depth with a slow scrape — slight
@@ -6778,11 +6778,26 @@ function buildAnimForPlay(play, prevPlay) {
             y: (typeof d._lastRenderedY === "number") ? d._lastRenderedY : d.y,
           };
           const lbProg = Math.min(1, tt * 1.2);
-          const wigLB = Math.sin(tt * Math.PI * 1.0 + i * 0.5) * 0.8;
           dd.x = d._sackHoldBase.x - dir * lbProg * 12;
-          dd.y = d._sackHoldBase.y + wigLB;
+          dd.y = d._sackHoldBase.y;
           dd.pose = "scrape";
-          dd.t = 0;
+          dd.t = (tt * 2.6 + i * 0.13) % 1;   // shuffle the feet, don't freeze
+        } else {
+          // CB / NICKEL / SAFETY in coverage during the scan — they were
+          // NEVER handled in the sack defender map, so they held their
+          // frozen pre-snap stance the whole play ("on a sack the defense
+          // just freezes"). Bail to a shallow backpedal off the snap, then
+          // hold the spot with a live leg cycle (backpedal → scrape).
+          if (!d._sackHoldBase) d._sackHoldBase = {
+            x: (typeof d._lastRenderedX === "number") ? d._lastRenderedX : d.x,
+            y: (typeof d._lastRenderedY === "number") ? d._lastRenderedY : d.y,
+          };
+          const _bp = Math.min(1, tt / 0.30);
+          dd.x = d._sackHoldBase.x + dir * _bp * 2 * FIELD.PX_PER_YARD;  // ride off the LOS
+          dd.y = d._sackHoldBase.y;
+          dd.pose = tt < 0.32 ? "backpedal" : "scrape";
+          dd.t = (tt * 2.6 + i * 0.17) % 1;
+          dd.facing = -dir;
         }
         return dd;
       });

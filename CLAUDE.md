@@ -39,16 +39,17 @@ Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
   overwrite a manifest-granted true.
 - Mirror fallback: 5-direction minimum (south, north, east, south-east, north-east);
   west family flips at draw (rotation applied before flip).
-- Tint (`_tintedSprite`): FULL-COLOR cel ramp with depth — near-white pixels
-  → 3 bands by the art's own lum: highlight = teamColor×1.40 clamped
-  (GC_TINT_HI), mid = full teamColor, shadow = teamColor×0.74
-  (GC_TINT_SHADOW). Highlight BRIGHTENS the hue (don't lerp to white — that
-  desaturates red→pink). PANTS stay white (skip white below waist
+- Tint (`_tintedSprite`): FULL-COLOR cel ramp with depth. 3 bands split by
+  PERCENTILE of the sprite's own white luminance (bottom 38% → shadow, top
+  28% → highlight, middle → full color) — a FIXED lum cut dumped ~64% of
+  the AI art's bright whites into one band = flat "filled in paint". Colors:
+  highlight = teamColor×1.40 clamped (GC_TINT_HI, BRIGHTENS the hue — don't
+  lerp to white, that pinks red), mid = full teamColor, shadow = teamColor×
+  0.74 (GC_TINT_SHADOW). PANTS stay white (skip white below waist
   minY+0.56*h, upright only; GC_TINT_WAIST). FACEMASK spared: skip white
-  touching skin in the HEAD band (top 40%) only — below that the bare arms
-  are skin too and a body-wide skip made a polka-dot jersey. Skin mask
-  snapshotted from ORIGINAL pixels (a warm tint passes isSkin and would
-  cascade-exclude itself → dotted helmet).
+  touching skin in the HEAD band (top 40%) only — bare arms below are skin
+  too and a body-wide skip made a polka-dot jersey. Skin mask snapshotted
+  from ORIGINAL pixels (a warm tint passes isSkin → cascade-dots otherwise).
 - Textures: 2x supersampled canvas (TEX_SS=2, smoothing off) + `_crispTexture`
   (resolution 2, LINEAR, mipmaps). PIXI app resolution `min(2, devicePixelRatio)`,
   autoDensity. Don't revert to NEAREST (frays) or plain LINEAR (shimmers).
@@ -124,6 +125,11 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   pose (dd.t) only — animates feet in place, never translates the body.
   Verified frame-rate independent: defender path ratio 240fps/30fps =
   1.01 (was growing with fps).
+- Sack-play defense froze: the sack defender map gave DL/LB dd.t=0 (frozen
+  pose frame) and NEVER handled CB/NB/S (i>=7) at all → whole secondary
+  held its pre-snap stance. Fix: leg-cycle dd.t on DL engage + LB scrape,
+  and a new CB/S branch (shallow backpedal off the snap → scrape, live leg
+  cycle). All sack defenders animate now (probe: 9/9, was frozen).
 - STILL OPEN: user reports "#24 teleports to the top" — may be the same
   sway-feedback drift culminating in a snap (now removed) or a separate
   coverage teleport; needs confirm after this build.
