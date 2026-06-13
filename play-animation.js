@@ -5137,7 +5137,16 @@ function buildAnimForPlay(play, prevPlay) {
             const elapsedMs = Math.max(0, (t - throwPhase) * dur);
             const _carVx = (_wrSim && play.kind === "complete") ? _wrSim.vx : 0;
             const _carVy = (_wrSim && play.kind === "complete") ? _wrSim.vy : 0;
+            // Intercept lead is for COMMITTED tacklers only. A far RALLY
+            // defender given an intercept aim chases the carrier's PROJECTED
+            // future spot, which swings every time the carrier cuts during
+            // YAC; with the defender's own momentum that traces a wandering
+            // loop across the field (user traced a defender "#27" running a
+            // big loop). Rally defenders flow DIRECTLY at the carrier's
+            // current spot — a clean converging line that simply doesn't
+            // reach a short play.
             const _useIntercept = i !== intDefIdx
+                               && isCommitted
                                && Math.hypot(_carVx, _carVy) > 1
                                && Math.hypot(ballX - dd.x, ballY - dd.y) > 18;
             const _pursOpts = _useIntercept

@@ -104,6 +104,15 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   for probes. Mid-play freezes beyond this: not reproduced.
 - drawPlayer clamp (TOP-6/BOT+24) stays as the universal backstop for any
   remaining OOB source (e.g. formation lineups).
+- Defender "#27 ran a big loop" (user-traced): the post-catch RALLY tier
+  gave EVERY back-seven defender an intercept-lead aim (carrier's
+  PROJECTED future spot). For a far rally defender the projected point
+  swings each time the carrier cuts during YAC, and with the defender's
+  own momentum that traces a wandering loop across the field. Fix:
+  intercept lead is now COMMITTED-tacklers-only; rally defenders aim
+  DIRECTLY at the carrier's current spot (clean converging line, just
+  doesn't reach a short play). NOTE: not reproduced in the test seed
+  (game 1,2) — shipped as the most-likely cause; needs user confirm.
 - Duplicate/phantom RB ("RB runs a huge looping route", user traced #27):
   the carrier object `wrBase` (line ~3962) only named wr1/wr2/te and
   DEFAULTED wr3/wr4/wr5/te2 → formation.rb. So an engine target of wr3+
