@@ -2355,7 +2355,16 @@ function _frnPlaySynthReplay(homeId, awayId, homeScore, awayScore, synthPlays, l
   // re-ran the stale previous game. (Found by the V3 clip-slimming
   // probe.)
   gameResult = synth;
-  // Show the live-game shell so playback controls + canvas exist
+  // Swap to the live-game shell — same screen flip as _frnEnterLiveGameScreen:
+  // HIDE the franchise dashboard and SHOW the playback controls. Without this
+  // the dashboard (e.g. the Replays tab's highlight list) stayed mounted on
+  // top and the broadcast rendered off-screen BELOW it, so clicking ▶ REPLAY
+  // looked like it did nothing. frnExitReplay already restores both — this is
+  // the matching "enter" that was missing.
+  const _fhEl = document.getElementById("franchiseHome");
+  if (_fhEl) _fhEl.style.display = "none";
+  const _pcEl = document.getElementById("playbackControls");
+  if (_pcEl) _pcEl.style.display = "flex";
   if (typeof gameArea !== "undefined") gameArea.classList.remove("empty");
   if (typeof renderGameLayout === "function") renderGameLayout();
   playHead = 0;
