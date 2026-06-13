@@ -6892,12 +6892,45 @@ class GameSimulator {
     const _dTot = Math.max(1, _d01 + _d12 + _d23);
     const _tMesh = (_d01 / _dTot) * 0.78;
     const _tRead = ((_d01 + _d12) / _dTot) * 0.78;
+    // ── RUN ANGLES (Path B Phase 2b) ────────────────────────────────
+    // The read→tackle segment was a single straight line — carriers ran
+    // pure north-south with no angles ("players just run north south
+    // and dont try and take any angles"). Insert seeded bend waypoints:
+    // every meaningful run angles toward a side coming out of the hole,
+    // then cuts back upfield toward the tackle spot; long runs get a
+    // second cut (S-curve into the open field). Pure hash math — no RNG
+    // draws, so defer/no-coordinator stays byte-identical (gate-safe).
+    const _bendSeed = (((startYard * 13) ^ ((yards | 0) * 29) ^ ((this._playCount || 0) * 7)) >>> 0);
+    const _bendSide = (_bendSeed & 1) ? 1 : -1;
+    const _runLenYd = Math.abs(_carrierEndDxYd - _carrierReadDxYd);
+    const _bendWps = [];
+    if (_runLenYd >= 3 && yards > 0) {
+      // Bend magnitude grows with run length: 1.75yd on a 3-yd plunge,
+      // up to 6yd on a breakaway. Apex ~40% through the post-LOS run.
+      const _bendMag = Math.min(6, 1 + _runLenYd * 0.25) * _bendSide;
+      const _bendFrac = 0.40;
+      _bendWps.push({
+        t: _tRead + (0.78 - _tRead) * _bendFrac,
+        dxYd: _carrierReadDxYd + (_carrierEndDxYd - _carrierReadDxYd) * _bendFrac,
+        dyYd: 0.50 + _bendMag,
+      });
+      if (_runLenYd >= 13) {
+        // Breakaway: cut back across the grain at ~72% before finishing
+        // at the true tackle-spot lateral.
+        _bendWps.push({
+          t: _tRead + (0.78 - _tRead) * 0.72,
+          dxYd: _carrierReadDxYd + (_carrierEndDxYd - _carrierReadDxYd) * 0.72,
+          dyYd: _carrierLateralEndYd - _bendMag * 0.5,
+        });
+      }
+    }
     const _carrierTrack = {
       role: isQBRun ? "QB" : "RB",
       waypoints: [
         { t: 0.00,    dxYd: _startDxYd,          dyYd: _startDyYd },             // formation
         { t: _tMesh,  dxYd: -4,                  dyYd: 1.00 },                   // mesh / handoff
         { t: _tRead,  dxYd: _carrierReadDxYd,    dyYd: 0.50 },                   // read at LOS
+        ..._bendWps,                                                             // angle out of the hole (+ cutback)
         { t: 0.78,    dxYd: _carrierEndDxYd,     dyYd: _carrierLateralEndYd },   // goal line / tackle spot
         { t: 1.00,    dxYd: _carrierEndDxYd,     dyYd: _carrierLateralEndYd },   // settled (in EZ on a TD)
       ],
