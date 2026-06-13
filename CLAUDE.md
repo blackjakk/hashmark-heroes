@@ -112,9 +112,19 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   full speed instead of rewinding to the previous play in slow-mo. Fixed with
   bare assignments (same trap _frnPlaySynthReplay already documents). The
   other replay paths (Replays tab `frnReplayClip`, season `frnReplayHighlight`,
-  week-recap) tested clean — they already use direct assignment. RULE: never
+  week-recap) share `_frnPlaySynthReplay` and use direct assignment. RULE: never
   `window.X =` for gameResult/playHead/playing/speedMul/animState — assign the
   bare name so the real `let` binding moves.
+- Dashboard replays rendered OFF-SCREEN (SOLVED): clicking ▶ REPLAY on the
+  Replays tab / a season highlight / the week-recap reel looked dead.
+  `_frnPlaySynthReplay` built the synth gameResult and started playback but
+  skipped the live-game SCREEN SWAP — it left `#franchiseHome` visible and
+  `#playbackControls` hidden, so the broadcast rendered into `#gameArea`
+  stacked BELOW the still-mounted dashboard list, past the fold. Fixed by
+  doing the same flip `_frnEnterLiveGameScreen` does (hide franchiseHome, show
+  playbackControls); `frnExitReplay` already restored both. When adding a new
+  full-screen-game entry point, mirror that enter/exit pair or it renders
+  under the dashboard.
 - "Entire field is shifted" TRUE root cause: PIXI player canvas had
   autoDensity:true, which writes inline style.height=FIELD.H(720)px onto
   the canvas, overriding our height:100%. projectBroadcast back-maps
