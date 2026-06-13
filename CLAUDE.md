@@ -104,6 +104,14 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   for probes. Mid-play freezes beyond this: not reproduced.
 - drawPlayer clamp (TOP-6/BOT+24) stays as the universal backstop for any
   remaining OOB source (e.g. formation lineups).
+- CB "ran off the top of the field instead of covering": the Cover-2/4/
+  Tampa deep-half corner landmark used lateral 22yd = cy±330px, but the
+  half-field is only ~20.7yd (sideline 310px from center) — so the TOP
+  corner bailed to y=30, 20px PAST the sideline, and chased that
+  off-field spot into the corner. Fixed: lateral capped 22→17yd + landY
+  clamped to [TOP+40, BOT-40] so no coverage drop ever routes a defender
+  off the field. Min CB Y now 74 (was 30); only corner-blitz CBs go
+  near the line now (legit).
 - Post-catch RALLY: the pursuit set was only the 2 closest defenders +
   named tackler (+ safeties on 10+yd), so deep corners/safeties who
   bailed downfield just STOOD there ("what are those defenders doing at

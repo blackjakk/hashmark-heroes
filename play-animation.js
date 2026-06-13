@@ -4733,9 +4733,19 @@ function buildAnimForPlay(play, prevPlay) {
               // backpedal, then held — the read-and-break takes over on the
               // throw. Long-yardage pushes the landmark deeper.
               const _cbZoneDepth = (cov === "C3_ZONE" ? 13 : 11) + (formation.isLongYd ? 3 : 0);
-              const _cbZoneLat = (cov === "C3_ZONE" ? 18 : 22);   // yd off the middle, toward the sideline
+              // Lateral landmark off the middle. CAP at 17yd: the half-
+              // field is only ~20.7yd (sideline = 310px from center), so
+              // the old 22yd put the deep-half corner at cy±330 = 20px
+              // PAST the top/bottom sideline. He chased that out-of-bounds
+              // spot up into the corner — "CB ran around the top of the
+              // field instead of covering." 17yd sits him on the numbers,
+              // safely inbounds.
+              const _cbZoneLat = (cov === "C3_ZONE" ? 18 : 17);   // yd off the middle, toward the sideline
               const _landX = losX + dir * _cbZoneDepth * FIELD.PX_PER_YARD;
-              const _landY = cy + _cbSide * _cbZoneLat * FIELD.PX_PER_YARD;
+              // Clamp the landmark a body-width inside the sideline so no
+              // coverage drop ever routes a defender off the field.
+              const _landY = Math.max(FIELD.TOP + 40, Math.min(FIELD.BOT - 40,
+                              cy + _cbSide * _cbZoneLat * FIELD.PX_PER_YARD));
               // Ease from the CB's current spot to the landmark over the
               // backpedal window so he turns and bails, not teleports.
               const _bailT = Math.min(1, aT / Math.max(0.001, backpedalT));
