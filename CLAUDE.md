@@ -105,6 +105,16 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
 
 ## Pending
 
+- In-game ↻ REPLAY did nothing useful (SOLVED): frnReplayLastPlay wrote
+  `window.playHead/animState/speedMul/playing`, but those are top-level
+  `let` bindings (play-render.js) that do NOT alias onto `window` in the
+  browser — every write was inert, so the button re-ran the CURRENT play at
+  full speed instead of rewinding to the previous play in slow-mo. Fixed with
+  bare assignments (same trap _frnPlaySynthReplay already documents). The
+  other replay paths (Replays tab `frnReplayClip`, season `frnReplayHighlight`,
+  week-recap) tested clean — they already use direct assignment. RULE: never
+  `window.X =` for gameResult/playHead/playing/speedMul/animState — assign the
+  bare name so the real `let` binding moves.
 - "Entire field is shifted" TRUE root cause: PIXI player canvas had
   autoDensity:true, which writes inline style.height=FIELD.H(720)px onto
   the canvas, overriding our height:100%. projectBroadcast back-maps
