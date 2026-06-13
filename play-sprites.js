@@ -489,29 +489,82 @@ function _tintedSprite(srcImg, key, hexColor) {
   octx.drawImage(srcImg, 0, 0);
   // Read pixels and selectively tint white-ish ones
   try {
-    const img = octx.getImageData(0, 0, srcImg.width, srcImg.height);
+    const W = srcImg.width, H = srcImg.height;
+    const img = octx.getImageData(0, 0, W, H);
     const d = img.data;
-    for (let i = 0; i < d.length; i += 4) {
-      const r = d[i], g = d[i+1], b = d[i+2], a = d[i+3];
-      if (a === 0) continue;
-      // Treat near-white (R,G,B all > 180 AND all within 30 of each other) as jersey/pad surface.
-      // Replace with tint color but preserve relative brightness.
-      if (r > 170 && g > 170 && b > 170 &&
-          Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && Math.abs(r - b) < 30) {
-        // CEL-BANDED tint: the AI-generated art shades its whites across
-        // many close tones (216-254); a continuous brightness multiply
-        // turned that into mottled team color ("color looks sloppy").
-        // Quantize to three clean bands — highlight / base / shade —
-        // the classic pixel-art jersey ramp. Threshold extended 180→170
-        // so jersey fold-shadows join the shade band instead of staying
-        // grey patches inside a colored jersey.
-        const lum = (r + g + b) / (3 * 255);
-        const brightness = lum >= 0.94 ? 1.0 : lum >= 0.82 ? 0.86 : 0.72;
-        d[i]   = Math.round(cr * brightness);
-        d[i+1] = Math.round(cg * brightness);
-        d[i+2] = Math.round(cb * brightness);
+    const isWhite = (r, g, b) =>
+      r > 170 && g > 170 && b > 170 &&
+      Math.abs(r - g) < 30 && Math.abs(g - b) < 30 && Math.abs(r - b) < 30;
+    // Skin = warm brown (face under the facemask, bare arms). Used to spare
+    // the FACEMASK: its white chin-guard / cage-highlight pixels sit right
+    // against the face, so a white pixel touching skin is mask, not helmet
+    // shell — leave it untinted.
+    const isSkin = (r, g, b) =>
+      r > 120 && g > 50 && g < 170 && b < 110 && r >= g - 5 && g >= b - 5;
+    // Figure bbox → waist line. The body is normalised feet-pinned, so the
+    // PANTS occupy the lower ~44% of an UPRIGHT figure. Leaving them WHITE
+    // (real football pants) instead of flooding them with team color makes
+    // the uniform read clean two-tone instead of a solid dark blob (user:
+    // "pants look messy, maybe don't fill them"). Prone/horizontal poses
+    // (wider than tall) skip the cut — there's no vertical waist there.
+    // Skin mask from the ORIGINAL pixels — computed up front. Critical:
+    // the tint replaces white with team color in place, and a warm team
+    // color (red/orange) itself satisfies isSkin, so reading neighbors
+    // from the mutating buffer made already-tinted reds look like "skin"
+    // and cascaded an exclusion → a red/white polka-dot helmet. Sampling a
+    // frozen original mask breaks that feedback (blue never tripped it).
+    const skinMask = new Uint8Array(W * H);
+    let minX = W, minY = H, maxX = 0, maxY = 0;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i0 = (y * W + x) * 4;
+        if (d[i0 + 3] > 0) {
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+          if (isSkin(d[i0], d[i0 + 1], d[i0 + 2])) skinMask[y * W + x] = 1;
+        }
       }
-      // else: preserve original pixel (visor, gloves, outline, etc.)
+    }
+    const _upright = (maxY - minY) >= (maxX - minX);
+    const _waistFrac = (typeof window !== "undefined" && window.GC_TINT_WAIST != null)
+      ? window.GC_TINT_WAIST : 0.56;
+    const waistY = _upright ? minY + _waistFrac * (maxY - minY) : H + 1;
+    // Facemask exclusion is restricted to the HEAD band (top ~40%). Below
+    // it, bare ARMS are also skin-colored and run down the jersey sides —
+    // applying the skin-adjacency skip there left the jersey edges white
+    // (a red/white polka-dot jersey). The face/mask only live up top.
+    const headLine = _upright ? minY + 0.40 * (maxY - minY) : minY + 0.50 * (maxY - minY);
+    // Team color applied as a translucent WASH over the original white
+    // (A = strength), not a hard replace — lighter, less opaque ("can we
+    // do transparent colors"). Cel-banded brightness keeps clean
+    // highlight/base/shade ramps; bands raised (0.92/0.82, was 0.86/0.72)
+    // so the shadows aren't muddy navy.
+    const A = (typeof window !== "undefined" && window.GC_TINT_STRENGTH != null)
+      ? window.GC_TINT_STRENGTH : 0.72;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = (y * W + x) * 4;
+        const r = d[i], g = d[i + 1], b = d[i + 2], a = d[i + 3];
+        if (a === 0 || !isWhite(r, g, b)) continue;
+        if (y > waistY) continue;                       // pants → stay white
+        // Facemask: skip a white pixel touching skin — HEAD band only.
+        if (y < headLine) {
+          let nearSkin = false;
+          for (let dy = -1; dy <= 1 && !nearSkin; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const nx = x + dx, ny = y + dy;
+              if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+              if (skinMask[ny * W + nx]) { nearSkin = true; break; }
+            }
+          }
+          if (nearSkin) continue;
+        }
+        const lum = (r + g + b) / (3 * 255);
+        const brightness = lum >= 0.94 ? 1.0 : lum >= 0.82 ? 0.92 : 0.82;
+        d[i]     = Math.round(r * (1 - A) + cr * brightness * A);
+        d[i + 1] = Math.round(g * (1 - A) + cg * brightness * A);
+        d[i + 2] = Math.round(b * (1 - A) + cb * brightness * A);
+      }
     }
     octx.putImageData(img, 0, 0);
   } catch (e) {

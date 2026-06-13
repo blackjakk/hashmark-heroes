@@ -39,8 +39,14 @@ Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
   overwrite a manifest-granted true.
 - Mirror fallback: 5-direction minimum (south, north, east, south-east, north-east);
   west family flips at draw (rotation applied before flip).
-- Tint (`_tintedSprite`): near-white pixels (r,g,b>170, spread<30) → team color,
-  brightness cel-banded to 1.0 / 0.86 / 0.72.
+- Tint (`_tintedSprite`): near-white pixels → team color as a translucent
+  WASH over the original white (strength A=0.72, GC_TINT_STRENGTH), cel-band
+  brightness 1.0/0.92/0.82. PANTS stay white (skip white below the waist =
+  minY+0.56*h, upright figures only; GC_TINT_WAIST). FACEMASK spared: skip
+  white touching skin, but only in the HEAD band (top 40%) — below that the
+  bare arms are skin too and the skip created a polka-dot jersey. Skin mask
+  is snapshotted from the ORIGINAL pixels (a warm tint passes isSkin and
+  would cascade-exclude itself otherwise).
 - Textures: 2x supersampled canvas (TEX_SS=2, smoothing off) + `_crispTexture`
   (resolution 2, LINEAR, mipmaps). PIXI app resolution `min(2, devicePixelRatio)`,
   autoDensity. Don't revert to NEAREST (frays) or plain LINEAR (shimmers).
