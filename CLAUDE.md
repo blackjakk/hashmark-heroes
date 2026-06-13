@@ -29,6 +29,22 @@ Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
 - drawPlayer vertical clamp: `FIELD.TOP - 6` / `FIELD.BOT + 24` (band-aid for an
   out-of-bounds lineup bug whose root cause was never found — see Pending).
 
+## UI typography (broadcast view)
+
+- play.css `:root` defines the type system — use these tokens, don't inline
+  font stacks: `--font-display` (Bebas Neue/Anton condensed caps — team names,
+  section titles, logo), `--font-num` (Anton/Teko heavy condensed — scores,
+  clock, big numerals; ONE stack — the clock used to fall back to Impact and
+  read different from the scores), `--font-mono` (IBM Plex Mono — all data,
+  labels, chips, list rows). Body copy/prose stays `--font-prose` (Bricolage).
+- bspnlive caption scale (also `:root`): `--bspn-cap` .56rem (chips, dense bio
+  text), `--bspn-lbl` .64rem (field labels, records, meta, nav), `--bspn-txt`
+  .74rem (list rows, table cells). The scoreboard/LIVE BIO/play-by-play used to
+  scatter .5–.82rem micro-sizes; collapsed onto these three steps. New bspnlive
+  text should pick one of the three, not a fresh px/rem value.
+- play.css is loaded WITHOUT a `?v=` stamp (never has been) — `_stamp_build.sh`
+  only rewrites JS/art stamps, so CSS-only changes don't run gates or stamp.
+
 ## Sprite system (v2 character migration — LIVE)
 
 - v1 atlas `sprites/`, v2 in `sprites2/` (ChatGPT-generated character). Waves 1+2
