@@ -100,6 +100,14 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   not reproduced (fumble piles lie down by design).
 - drawPlayer clamp (TOP-6/BOT+24) stays as the universal backstop for any
   remaining OOB source (e.g. formation lineups).
+- Trackless-completes catch teleport SOLVED: completes with hasMotion=false
+  (no engine track) fell back to a hardcoded targetY (cy±N) that ignored the
+  receiver's split — a wide WR (cy+240) catching at cy+65 had to break 175px
+  inward, but the legacy ctrl route holds him at his split until the last 5%,
+  cramming the whole break into 1-2 frames = a catch-frame port (esp. visible
+  on TOR throws). Fixed: no-track targetY anchors to the receiver's slot,
+  drifting toward mid by min(0.45, 0.12 + depth*0.022). Jump 164px→32px (now
+  under the continuity-guard SNAP, glided smoothly).
 - ALL pose art is now v2 (wave 4+: catch_high/low/over_shoulder, dive_forward,
   big_hit, real ref_first_down + ref_td_signal, signal_first_down,
   td_celebrate, celebrate2/3). "celebrate" dispatches per celebStyle in

@@ -3656,14 +3656,25 @@ function buildAnimForPlay(play, prevPlay) {
         _catchTargetY = _wrBase.y + toMidSign * catchSample.dyYd * FIELD.PX_PER_YARD;
       }
     }
+    // No-engine-track fallback catch point. Anchor it to the receiver's
+    // ACTUAL formation slot, drifting toward midfield by a fraction that
+    // scales with route depth. The old hardcoded cy±N constants ignored
+    // where the receiver lines up: a wr2 split wide at cy+240 with a
+    // catch target of cy+65 had to break 175px inside — but the legacy
+    // ctrl route holds him at his split until the final 5% of the route,
+    // so that whole break crammed into one or two frames = a catch-frame
+    // TELEPORT ("throw on the run weirdness, receiver ports", reproduced
+    // on TOR + other trackless completes). Slot-anchoring keeps the
+    // break small (≤~0.45 of the split-to-mid distance) so it stays under
+    // the continuity-guard SNAP threshold and glides smoothly. Short
+    // throws (a 1-yd flat to a wide WR) now catch near the sideline where
+    // he actually is, not at midfield.
+    const _ntSlot = formation[wrChoice] || formation.rb || { y: cy };
+    const _ntInward = Math.min(0.45, 0.12 + (play.targetDepth || 6) * 0.022);
+    const _ntTargetY = _ntSlot.y + (cy - _ntSlot.y) * _ntInward;
     const _targetYRaw = isScreen ? cy + screenSide * 50
                   : _catchTargetY != null ? _catchTargetY
-                  : wrChoice === "wr1" ? cy - 70
-                  : wrChoice === "wr2" ? cy + 65
-                  : wrChoice === "te"  ? cy + 28
-                  : wrChoice === "rb"  ? cy - 10
-                  : formation[wrChoice] ? formation[wrChoice].y   // slot WR / te2 fallback
-                  :                       cy - 10;
+                  :                          _ntTargetY;
     // OOB ROOT CAUSE (user report: "guys lining up out of bounds", catch
     // clusters past the far sideline): out-breaking route tracks have
     // negative dyYd, so _catchTargetY = base + toMidSign*dyYd can land
