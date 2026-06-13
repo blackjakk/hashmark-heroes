@@ -69,7 +69,7 @@ const EXPECT = `{
   catch_high_point: { receiver: ["leap", "reach", "catch", "catch_high"] },
   screen:           { receiver: ["reach", "catch", "carry"] },
   incomplete:       { intended: ["reach", "catch", "leap"], passer: ["throw"] },
-  incomplete_leap:  { intended: ["leap", "reach"], passer: ["throw"] },
+  incomplete_leap:  { intended: ["leap", "reach", "catch_high"], passer: ["throw"] },
   interception:     { defender: ["carry", "catch", "reach"] },
   sack:             { passer: ["tackled", "sack"] },
   fumble:           { rusher: ["tackled", "reach", "carry"] },

@@ -148,6 +148,16 @@ const _SPRITE_POSES = {
   handoff:   { folder: "handoff",   frames: 4, dirs: _DIRECTIONS },  // QB→RB exchange
   hurdle:    { folder: "hurdle",    frames: 4, dirs: _DIRECTIONS },  // RB jump over defender (ball in hand, all 8 dirs now)
 
+  // Wave 4+ — dedicated celebration / signal sets. The "celebrate" pose
+  // dispatches to a variant folder by the player's celebStyle (see
+  // _celebFolderFor in drawPlayerSprite): every player keeps a stable
+  // personal celebration. big_hit reserved for the cinema upgrade.
+  celebrate2:        { folder: "celebrate2",        frames: 6, dirs: _DIRECTIONS },
+  celebrate3:        { folder: "celebrate3",        frames: 6, dirs: _DIRECTIONS },
+  td_celebrate:      { folder: "td_celebrate",      frames: 6, dirs: _DIRECTIONS },  // arms up w/ ball — TD / spike moments
+  signal_first_down: { folder: "signal_first_down", frames: 6, dirs: _DIRECTIONS },  // player points to the sticks
+  big_hit:           { folder: "big_hit",           frames: 6, dirs: _DIRECTIONS, optional: true },
+
   // Referee poses — prereq for the penalty feature. Not currently
   // emitted by the engine; rendered when penalty plays land.
   ref_idle:       { folder: "ref_idle",       frames: 4, dirs: _DIRECTIONS },
@@ -607,6 +617,25 @@ function drawPlayerSprite(ctx, pose, t, vx, vy, teamPrimary, facing, label, seco
   const _role = style && style.role;
   if (pose === "idle" && (_LINE_ROLES.has(_role) || _LB_ROLES.has(_role))) {
     pose = "stance";
+  }
+  // Celebration variant dispatch — celebStyle picks the art set:
+  //   first_down        → signal_first_down (points to the sticks)
+  //   spike / point_sky → td_celebrate (arms up with the ball)
+  //   everything else   → celebrate / celebrate2 / celebrate3, hashed
+  //                       per player so each man keeps his signature
+  //                       celebration. Falls back to plain "celebrate"
+  //                       when the variant art isn't granted (v1 mode).
+  if (pose === "celebrate") {
+    const _cs = style && style.celebStyle;
+    let _alt = _cs === "first_down" ? "signal_first_down"
+             : (_cs === "spike" || _cs === "point_sky") ? "td_celebrate"
+             : ["celebrate", "celebrate2", "celebrate3"][
+                 _stableHash(((style && style.name) || label || "") + "|" + (_cs || "")) % 3];
+    if (_alt !== "celebrate"
+        && typeof SpriteAtlas !== "undefined" && SpriteAtlas.hasPose
+        && SpriteAtlas.hasPose(_alt)) {
+      pose = _alt;
+    }
   }
   const def = _SPRITE_POSES[pose];
   if (!def) { _lastMiss.pose=pose; _lastMiss.reason="unknown-pose"; _lastMiss.count++; _bumpMiss(pose,"unknown-pose"); return false; }

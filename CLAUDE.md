@@ -53,8 +53,9 @@ python3 sprites/_slice_sheet.py "sprites/v2_src_X.png" X --cols N \
 ```
 
 `--flip-east` for sheets whose profile rows were DRAWN facing left (west
-family): carry, refs. (hurdle/qb_carry face right — do NOT flip them.)
-Check facing on every new sheet: east row must face RIGHT.
+family): carry, refs, ref_first_down. (hurdle/qb_carry/ref_td_signal face
+right — do NOT flip.) Check facing on every new sheet: east row must face
+RIGHT (skin-centroid heuristics lie on raised-arm poses — eyeball them).
 
 Pipeline: remove_bg (flood + light-family checkerboard acceptance; dark outline is
 the protection boundary) → defringe(2) → alpha-projection band detection (NOT equal
@@ -96,5 +97,11 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   not reproduced (fumble piles lie down by design).
 - drawPlayer clamp (TOP-6/BOT+24) stays as the universal backstop for any
   remaining OOB source (e.g. formation lineups).
-- Backlog: torso/legs layered sprites (hold until waves judged), punt full-22 cast,
-  big_hit pose exemplar, better ref_first_down art (current = arms-out frame).
+- ALL pose art is now v2 (wave 4+: catch_high/low/over_shoulder, dive_forward,
+  big_hit, real ref_first_down + ref_td_signal, signal_first_down,
+  td_celebrate, celebrate2/3). "celebrate" dispatches per celebStyle in
+  drawPlayerSprite (first_down→signal_first_down, spike/point_sky→
+  td_celebrate, else hashed celebrate/2/3). big_hit art has no on-field
+  consumer yet (cinema is a DOM overlay) — wire it when upgrading big-hit.
+- Backlog: torso/legs layered sprites, punt full-22 cast, big_hit on-field
+  choreography.
