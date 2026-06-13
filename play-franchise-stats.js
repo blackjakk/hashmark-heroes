@@ -7162,7 +7162,7 @@ function _frnRenderActiveTab() {
     // playoffs_pending is a retired phase the load-heal migrates, but if one
     // ever reaches a tab click un-healed, Overview must NOT fall through to
     // the Week-17 regular dashboard — route it to the bracket too.
-    case "overview":    return (franchise.phase === "playoffs" || franchise.phase === "playoffs_pending") ? renderFrnPlayoffs() : renderFrnRegular();
+    case "overview":    return _frnRenderOverviewTab();
     case "roster":      return renderFrnRosterHome();
     case "frontoffice": return renderFrnFrontOfficeHome();
     case "league":      return renderFrnLeagueHome();
@@ -7172,6 +7172,29 @@ function _frnRenderActiveTab() {
     case "tools":       _frnActiveTab = "frontoffice"; return renderFrnFrontOfficeHome();
     default:            return renderFrnRegular();
   }
+}
+
+// What the Overview tab renders, by phase. The in-season GM dashboard
+// (renderFrnRegular) is only correct DURING the season; clicking Overview
+// after the season — in the playoffs or, the reported bug, the OFFSEASON
+// after winning the Super Bowl — used to fall through to it and offer
+// "START PLAYOFFS" again on a season that was already over. Mirror the
+// phase dispatch so each phase lands on its proper home.
+function _frnRenderOverviewTab() {
+  const phase = franchise.phase;
+  if (phase === "playoffs" || phase === "playoffs_pending") return renderFrnPlayoffs();
+  if (phase === "offseason") {
+    if (franchise._resignPending?.length && typeof _renderResignUI === "function") {
+      const cap = franchise.salaryCap || (typeof SALARY_CAP_BASE !== "undefined" ? SALARY_CAP_BASE : 0);
+      const committed = (franchise.rosters?.[franchise.chosenTeamId] || [])
+        .filter(p => p.contract && p.contract.remaining > 0)
+        .reduce((s, p) => s + p.contract.aav, 0);
+      return _renderResignUI(cap, committed);
+    }
+    if (typeof renderFrnOffseason === "function") return renderFrnOffseason();
+  }
+  if (phase === "awards" && typeof showFrnAwards === "function") return showFrnAwards();
+  return renderFrnRegular();
 }
 
 // ── Roster tab aggregator ─────────────────────────────────────────────
