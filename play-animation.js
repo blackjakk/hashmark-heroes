@@ -4790,12 +4790,12 @@ function buildAnimForPlay(play, prevPlay) {
               const _eb = _bailT * _bailT * (3 - 2 * _bailT);
               _cbTargetX = dd.x + (_landX - dd.x) * _eb;
               _cbTargetY = dd.y + (_landY - dd.y) * _eb;
-              // Parked-at-landmark sway (fades in with the bail) — a held
-              // deep zone read as a statue while the QB scanned. Runs
-              // through the follow accumulator below, so the drift stays
-              // organic rather than a position snap.
-              _cbTargetX += Math.sin(aT * 8 + i * 1.9) * 3 * _eb;
-              _cbTargetY += Math.sin(aT * 6.3 + i * 1.1) * 4 * _eb;
+              // (Removed: a position "sway" that nudged the landmark each
+              // frame. Fed through the follow accumulator below, it made the
+              // corner CHASE its own oscillating target — at high frame rate
+              // that integrated into a fast circle, "defenders circling like
+              // flies." Liveness comes from the leg-cycle pose instead, which
+              // animates in place without moving the body.)
             } else if (cbSlot && trk && typeof MotionPlayback !== "undefined" && wrTarget) {
               const sample = MotionPlayback.sampleTrack(trk, aT);
               if (sample) {
@@ -5012,16 +5012,13 @@ function buildAnimForPlay(play, prevPlay) {
             const _isSafetyRot = (i === idxS1 || i === idxS2);
             if (aT < 0.78 && !_isSafetyRot) dd.pose = "scrape";
             if (!MotionPlayback.isMoving(_passSecondaryTrack, aT)) {
-              // PARKED AT THE ZONE LANDMARK — keep him alive. dd.t=0
-              // froze the pose cycle while the track held position: a
-              // perfect statue for the QB's whole scan ("the entire
-              // defense literally doesn't move" on pass plays). Slow
-              // shuffle cycle + small seeded sway around the landmark
-              // (applied after the sim sync above, so pursuit physics
-              // never inherits the cosmetic wobble).
+              // PARKED AT THE ZONE LANDMARK — keep him alive via the LEG
+              // CYCLE only (dd.t). The old position sway here got synced
+              // into _lastRendered/_sim and fed back, integrating into a
+              // fast circle at high frame rate ("defenders circling like
+              // flies"). Cycling the pose animates his feet in place
+              // without translating the body — liveness, no drift.
               dd.t = (aT * 1.4 + i * 0.13) % 1;
-              dd.x += Math.sin(aT * 9 + i * 2.1) * 3;
-              dd.y += Math.sin(aT * 7 + i * 1.37) * 4;
             }
             // ── ZONE READ-AND-BREAK ──────────────────────────────────
             // In a ZONE shell the LB/safety isn't man-shadowing — he drops
@@ -5401,10 +5398,15 @@ function buildAnimForPlay(play, prevPlay) {
         // sits dead-still through the QB's scan. The nickel back (idxNB)
         // is covered by NONE of those branches, so he froze on EVERY
         // nickel pass; trackless plays froze the LBs/CBs too. Detect
-        // "computed spot unchanged from last frame" (using the UNDITHERED
-        // spot so the sway can't cancel itself) and add the same slow
-        // shuffle + seeded micro-sway the tracked defenders get. Cosmetic
-        // only (±3-4px), skipped once the player is posed for contact.
+        // "computed spot unchanged from last frame" and animate his FEET
+        // in place — POSE/leg cycle ONLY, no position nudge. The old micro-
+        // sway moved the body ±3-4px; that got synced into _lastRendered /
+        // _sim and fed back through the per-frame position pipeline,
+        // integrating into a fast wandering circle at high frame rate
+        // ("defenders circling like flies" — seen only while PLAYING, not
+        // scrubbing, the classic per-render feedback signature). Cycling
+        // the pose keeps a parked coverage defender from being a frozen
+        // statue without translating him at all.
         const _covRole = d.role === "MLB" || d.role === "OLB" || d.role === "LB"
                       || d.role === "CB" || d.role === "NB"
                       || d.role === "FS" || d.role === "SS";
@@ -5412,16 +5414,11 @@ function buildAnimForPlay(play, prevPlay) {
                         || dd.pose === "tackled_carry" || dd.pose === "swat"
                         || dd.pose === "leap" || dd.pose === "dive"
                         || dd.pose === "carry" || dd.pose === "ragdoll";
-        const _spotX = dd.x, _spotY = dd.y;   // pre-liveness computed spot
-        // Broadcast-only: in the tactical dot view the micro-sway is
-        // invisible and would only nibble the teleport gate's margin.
-        const _bcastLive = (typeof cameraMode === "undefined") || cameraMode === "broadcast";
-        if (t > PRE && _bcastLive && _covRole && !_posedLive
+        const _spotX = dd.x, _spotY = dd.y;   // computed spot (no dither)
+        if (t > PRE && _covRole && !_posedLive
             && typeof d._covSpotX === "number"
             && Math.hypot(_spotX - d._covSpotX, _spotY - d._covSpotY) < 1.2) {
           const _aTl = (t - PRE) / (1 - PRE);
-          dd.x += Math.sin(_aTl * 8.5 + i * 1.7) * 3;
-          dd.y += Math.sin(_aTl * 6.7 + i * 1.1) * 4;
           if (!dd.t) dd.t = (_aTl * 1.3 + i * 0.11) % 1;
           if (dd.pose == null || dd.pose === "idle") dd.pose = "scrape";
         }

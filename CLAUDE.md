@@ -104,6 +104,21 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   for probes. Mid-play freezes beyond this: not reproduced.
 - drawPlayer clamp (TOP-6/BOT+24) stays as the universal backstop for any
   remaining OOB source (e.g. formation lineups).
+- "Defenders circling like flies" (only while PLAYING at high frame rate,
+  NOT when scrubbing): the parked-coverage-defender position SWAYS added
+  for the frozen-defender fixes (bail-target sway, secondary-track sway,
+  universal coverage-liveness sway) nudged the body ±3-4px; that nudge
+  got synced into _lastRendered/_sim and fed back through the per-frame
+  position pipeline, so the defender chased its own oscillating spot and
+  INTEGRATED into a fast circle — worse the higher the frame rate
+  (scrubbing clamps per-frame dt so it hid the bug). Fix: removed ALL
+  three position sways; parked-defender liveness is now the LEG-CYCLE
+  pose (dd.t) only — animates feet in place, never translates the body.
+  Verified frame-rate independent: defender path ratio 240fps/30fps =
+  1.01 (was growing with fps).
+- STILL OPEN: user reports "#24 teleports to the top" — may be the same
+  sway-feedback drift culminating in a snap (now removed) or a separate
+  coverage teleport; needs confirm after this build.
 - Defender runs cross-field BEFORE the throw (probe found CBs covering
   22-34yd pre-throw): on a deflection/dropped-pick the engine credits a
   specific defender, but his formation SLOT can be on the opposite side
