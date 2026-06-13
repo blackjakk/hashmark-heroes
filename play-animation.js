@@ -5315,6 +5315,37 @@ function buildAnimForPlay(play, prevPlay) {
             dd.facing = -dir;
           }
         }
+        // UNIVERSAL COVERAGE LIVENESS — last line of defense against a
+        // frozen statue. Any coverage defender (LB / CB / NB / S) who
+        // wasn't driven this frame by a track, zone bail, or pursuit
+        // sits dead-still through the QB's scan. The nickel back (idxNB)
+        // is covered by NONE of those branches, so he froze on EVERY
+        // nickel pass; trackless plays froze the LBs/CBs too. Detect
+        // "computed spot unchanged from last frame" (using the UNDITHERED
+        // spot so the sway can't cancel itself) and add the same slow
+        // shuffle + seeded micro-sway the tracked defenders get. Cosmetic
+        // only (±3-4px), skipped once the player is posed for contact.
+        const _covRole = d.role === "MLB" || d.role === "OLB" || d.role === "LB"
+                      || d.role === "CB" || d.role === "NB"
+                      || d.role === "FS" || d.role === "SS";
+        const _posedLive = dd.pose === "hit" || dd.pose === "tackled"
+                        || dd.pose === "tackled_carry" || dd.pose === "swat"
+                        || dd.pose === "leap" || dd.pose === "dive"
+                        || dd.pose === "carry" || dd.pose === "ragdoll";
+        const _spotX = dd.x, _spotY = dd.y;   // pre-liveness computed spot
+        // Broadcast-only: in the tactical dot view the micro-sway is
+        // invisible and would only nibble the teleport gate's margin.
+        const _bcastLive = (typeof cameraMode === "undefined") || cameraMode === "broadcast";
+        if (t > PRE && _bcastLive && _covRole && !_posedLive
+            && typeof d._covSpotX === "number"
+            && Math.hypot(_spotX - d._covSpotX, _spotY - d._covSpotY) < 1.2) {
+          const _aTl = (t - PRE) / (1 - PRE);
+          dd.x += Math.sin(_aTl * 8.5 + i * 1.7) * 3;
+          dd.y += Math.sin(_aTl * 6.7 + i * 1.1) * 4;
+          if (!dd.t) dd.t = (_aTl * 1.3 + i * 0.11) % 1;
+          if (dd.pose == null || dd.pose === "idle") dd.pose = "scrape";
+        }
+        d._covSpotX = _spotX; d._covSpotY = _spotY;
         return dd;
       });
 

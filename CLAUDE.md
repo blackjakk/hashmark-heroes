@@ -92,12 +92,16 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   were treating a symptom).
 - User QA outstanding: field alignment with side panel open, carry/KR
   facing (carry sheet was drawn mirrored — flipped at slice).
-- "Defense doesn't move" (pass plays) SOLVED: parked zone defenders had
-  dd.t=0 + track-held position = literal statues through the QB's whole
-  scan. Now: slow scrape cycle + seeded ±3-4px sway at the landmark
-  (LB/S track path AND CB zone bail). window.GC_FORCE_AUDIBLE debug
-  hook pins the audible path for probes. Mid-play freezes beyond this:
-  not reproduced (fumble piles lie down by design).
+- "Defense doesn't move" / frozen defender (pass plays) SOLVED in two
+  passes: (1) parked zone defenders had dd.t=0 + track-held position;
+  (2) the NICKEL BACK (idxNB) fell through every coverage branch (not an
+  LB, not cb1/cb2, not a safety) so it froze on EVERY nickel pass, and
+  trackless plays froze the LBs/CBs too. Fix: universal coverage-liveness
+  fallback at the end of the defender map — any LB/CB/NB/S whose UNDITHERED
+  computed spot is unchanged frame-to-frame gets a slow scrape cycle +
+  seeded ±3-4px sway (broadcast-cam only; tactical dot-view skips it to
+  spare the teleport gate). window.GC_FORCE_AUDIBLE pins the audible path
+  for probes. Mid-play freezes beyond this: not reproduced.
 - drawPlayer clamp (TOP-6/BOT+24) stays as the universal backstop for any
   remaining OOB source (e.g. formation lineups).
 - Trackless-completes catch teleport SOLVED: completes with hasMotion=false
