@@ -104,6 +104,19 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   for probes. Mid-play freezes beyond this: not reproduced.
 - drawPlayer clamp (TOP-6/BOT+24) stays as the universal backstop for any
   remaining OOB source (e.g. formation lineups).
+- Defender runs cross-field BEFORE the throw (probe found CBs covering
+  22-34yd pre-throw): on a deflection/dropped-pick the engine credits a
+  specific defender, but his formation SLOT can be on the opposite side
+  of the ball (the BOTTOM corner credited with breaking up a throw to
+  the TOP receiver). The PD block drives the credited defender to the
+  catch point, so he sprints sideline-to-sideline during the dropback.
+  Fix: for PD / dropped-pick (no return → name fidelity matters little),
+  if the credited defender's slot is >12yd laterally off the ball, render
+  the CLOSEST coverage defender to the catch point instead. INT keeps its
+  named interceptor. Also made the CB zone-bail _cbSide alignment-based
+  (d.y<cy) not index-based, so a corner always bails to his OWN deep
+  third. The two remaining 22-25yd pre-throw CBs are man coverage on deep
+  crossers (legit). Probe now: 0 defenders running long pre-throw.
 - Defender "#27 ran a big loop" (user-traced): the post-catch RALLY tier
   gave EVERY back-seven defender an intercept-lead aim (carrier's
   PROJECTED future spot). For a far rally defender the projected point

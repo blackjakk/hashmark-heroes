@@ -3722,6 +3722,30 @@ function buildAnimForPlay(play, prevPlay) {
       const resolved = formation.defense.findIndex(d => d && d.name === _intName);
       if (resolved >= 0) intDefIdx = resolved;
     }
+    // SIDE SANITY (deflections / dropped picks). The engine credits a
+    // specific defender, but his FORMATION SLOT can sit on the opposite
+    // side of where the ball goes — e.g. the BOTTOM corner credited with
+    // breaking up a throw to the TOP receiver. The deflection block drives
+    // that defender to the catch point, so he sprints clear across the
+    // field during the dropback (probe: a C3 corner ran sideline-to-
+    // sideline pre-throw). For a knockdown there's no return, so fidelity
+    // to the exact name matters little: if the credited defender is >12yd
+    // laterally off the ball, render the CLOSEST coverage defender to the
+    // catch point instead so the breakup looks plausible. INT returns keep
+    // their named interceptor (swapping him would mis-credit the runback).
+    if ((_isPDPlay || play.isDroppedPick) && formation.defense[intDefIdx]) {
+      const _cd = formation.defense[intDefIdx];
+      if (Math.abs((_cd.y ?? cy) - targetY) > 12 * FIELD.PX_PER_YARD) {
+        let _best = intDefIdx, _bestD = Infinity;
+        for (let j = 4; j < formation.defense.length; j++) {
+          const dj = formation.defense[j];
+          if (!dj) continue;
+          const _d2 = Math.hypot((dj.x ?? 0) - targetX, (dj.y ?? cy) - targetY);
+          if (_d2 < _bestD) { _bestD = _d2; _best = j; }
+        }
+        intDefIdx = _best;
+      }
+    }
     // Lazy-init set for post-catch pursuit limiter — populated on the
     // first frame after the catch, kept stable for the rest of the play
     // so the same defenders continue chasing instead of swapping.
@@ -4733,7 +4757,14 @@ function buildAnimForPlay(play, prevPlay) {
             const _cbZone = !isMan && cov;
             if (_cbZone) {
               // Which sideline this corner mans (top = -1, bottom = +1).
-              const _cbSide = (i === idxCB1) ? -1 : (i === idxCB2) ? 1 : (d.y < cy ? -1 : 1);
+              // Side = where the corner ACTUALLY lines up, not his array
+              // index. cb1/cb2 were hardcoded top/bottom, but when a
+              // corner's alignment didn't match its index it bailed to the
+              // OPPOSITE deep third — a 30yd cross-field sprint before the
+              // throw (probe: a C3 CB ran sideline-to-sideline pre-throw).
+              // Alignment-based keeps every corner in the deep zone on his
+              // own side.
+              const _cbSide = (d.y < cy) ? -1 : 1;
               // Landmark DEPTH + lateral by shell. C3 = deep thirds (deeper,
               // ~13yd at the numbers); C2/C4/Tampa = deep half (a touch
               // shallower, wider toward the sideline). Eased in over the
@@ -4796,7 +4827,14 @@ function buildAnimForPlay(play, prevPlay) {
             // sign(targetY-cy) === _cbSide (or is dead-center, |Δ|<2yd, which
             // either may take).
             if (_cbZone && aT >= releaseAT) {
-              const _cbSide = (i === idxCB1) ? -1 : (i === idxCB2) ? 1 : (d.y < cy ? -1 : 1);
+              // Side = where the corner ACTUALLY lines up, not his array
+              // index. cb1/cb2 were hardcoded top/bottom, but when a
+              // corner's alignment didn't match its index it bailed to the
+              // OPPOSITE deep third — a 30yd cross-field sprint before the
+              // throw (probe: a C3 CB ran sideline-to-sideline pre-throw).
+              // Alignment-based keeps every corner in the deep zone on his
+              // own side.
+              const _cbSide = (d.y < cy) ? -1 : 1;
               const _ballDY = targetY - cy;
               const _onMySide = (Math.sign(_ballDY) === _cbSide) || Math.abs(_ballDY) < 2 * FIELD.PX_PER_YARD;
               if (_onMySide && Math.abs(d._cbFollowY - targetY) < 14 * FIELD.PX_PER_YARD) {
