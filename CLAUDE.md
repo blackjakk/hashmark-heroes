@@ -280,4 +280,13 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
     return's dead ball; the heuristic can't tell that from a parked-defender
     bug). Wall blockers use one continuous setup→hold→wedge path (no
     phase-boundary jump).
-- Backlog: torso/legs layered sprites.
+- Torso/legs sprite layering: FOUNDATION landed, flag-gated
+  `window.GC_SPRITE_LAYERED` (OFF by default; default render path untouched).
+  `_splitLayers`/`_composeLayered`/`_waistCentroidX` in play-sprites.js cut a
+  normalized frame at the HIP (~0.60h) and composite run-cycle legs under an
+  action torso, hip-centroid-aligned (frames are head-anchored so hips sway).
+  Proven clean (no seam/ghost). NOT rolled out — a wash on already-good poses
+  like carry (they already carry matched legs); the payoff is only future
+  action-during-locomotion art with no legs of its own. `_LAYER_TORSO_POSES`
+  gates which poses opt in (just `carry` today). Don't enable broadly without
+  per-pose hip tuning.
