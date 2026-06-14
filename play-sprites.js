@@ -686,6 +686,77 @@ function _velocityToDirection(vx, vy, facing) {
   return _DIRECTIONS[octant];
 }
 
+// ── EXPERIMENTAL torso/legs layering (opt-in: window.GC_SPRITE_LAYERED) ──
+// The slicer normalizes every body to feet at FOOT_Y=76 / height BODY_H=50 in
+// the 104px frame, so the WAIST sits at a consistent ~y54 across all poses.
+// That lets us split a full-body frame at the waist and recombine a LEGS layer
+// (a run-stride cycle) under a TORSO layer (the action pose) — e.g. a ball
+// carrier shows a full run cycle under his carry torso without a dedicated
+// "carry-run" sheet. Prototype scope: the locomotion torso poses below.
+const _LAYER_TORSO_POSES = new Set(["carry"]);
+// Hip line ≈ 0.60 of the body below the head-top (feet 76, body 50 → hip ≈ 60).
+// The cut must sit at the HIP, not mid-torso, or the legs layer keeps the
+// pose's lower torso and (once hip-aligned) ghosts beside the new torso.
+const _HIP_Y_FRAC = 60 / 104;
+const _layerHalfCache = new WeakMap();   // srcImg → { torso, legs }
+function _splitLayers(srcImg) {
+  let c = _layerHalfCache.get(srcImg);
+  if (c) return c;
+  const w = srcImg.width, h = srcImg.height;
+  const hipY = Math.round(h * _HIP_Y_FRAC);
+  const half = (keepTop) => {
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+    const cx = cv.getContext("2d"); cx.imageSmoothingEnabled = false;
+    cx.drawImage(srcImg, 0, 0);
+    cx.globalCompositeOperation = "destination-out";
+    // Torso keeps a 3px lip BELOW the hip (drawn on top, hides the seam);
+    // legs cut CLEAN at the hip so no lower-torso remnant can ghost out.
+    if (keepTop) cx.fillRect(0, hipY + 3, w, h - (hipY + 3)); // erase legs
+    else         cx.fillRect(0, 0, w, hipY);                   // erase torso (clean cut)
+    return cv;
+  };
+  c = { torso: half(true), legs: half(false) };
+  _layerHalfCache.set(srcImg, c);
+  return c;
+}
+// Frames are anchored by the HEAD centroid, but during a run stride the hips
+// sway laterally relative to the head — so the legs' hips don't sit under a
+// different pose's waist unless we re-align. Measure each frame's x-centroid in
+// a band at the waist and shift the legs to match the torso's. (Cached per img.)
+const _waistCxCache = new WeakMap();
+function _waistCentroidX(img) {
+  const cached = _waistCxCache.get(img);
+  if (cached != null) return cached;
+  const w = img.width, h = img.height;
+  const hipY = Math.round(h * _HIP_Y_FRAC);
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  const cx = cv.getContext("2d"); cx.imageSmoothingEnabled = false;
+  cx.drawImage(img, 0, 0);
+  const y0 = Math.max(0, hipY - 3);
+  const band = cx.getImageData(0, y0, w, Math.min(7, h - y0)).data;
+  const rows = band.length / 4 / w;
+  let sum = 0, n = 0;
+  for (let r = 0; r < rows; r++) for (let x = 0; x < w; x++) {
+    if (band[(r * w + x) * 4 + 3] > 40) { sum += x; n++; }
+  }
+  const cxv = n ? sum / n : w / 2;
+  _waistCxCache.set(img, cxv);
+  return cxv;
+}
+const _composeCache = new Map();   // key → composited canvas (legs under torso)
+function _composeLayered(torsoImg, legsImg, key) {
+  let cv = _composeCache.get(key);
+  if (cv) return cv;
+  const w = torsoImg.width, h = torsoImg.height;
+  cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  const cx = cv.getContext("2d"); cx.imageSmoothingEnabled = false;
+  const dx = Math.round(_waistCentroidX(torsoImg) - _waistCentroidX(legsImg));
+  cx.drawImage(_splitLayers(legsImg).legs, dx, 0);  // legs first (behind), hip-aligned
+  cx.drawImage(_splitLayers(torsoImg).torso, 0, 0); // torso on top
+  _composeCache.set(key, cv);
+  return cv;
+}
+
 // Draw the player using a sprite if available. Returns true if drawn,
 // false if the caller should fall back to shape rendering.
 // `ctx` must already be translated to the player's local origin.
@@ -749,8 +820,21 @@ function drawPlayerSprite(ctx, pose, t, vx, vy, teamPrimary, facing, label, seco
   }
   if (!src || src === "loading") { _lastMiss.pose=pose; _lastMiss.dir=dir; _lastMiss.reason=src==="loading"?"still-loading":"404-or-missing"; _lastMiss.count++; _bumpMiss(pose,src==="loading"?"still-loading":"404-or-missing"); return false; }
   _bumpHit(pose);
+  // Experimental torso/legs layering (opt-in): swap a run-stride legs layer
+  // under the action-pose torso for moving players, keyed so the tint cache
+  // doesn't collide with the non-layered sprite.
+  let _layerKey = "";
+  if (typeof window !== "undefined" && window.GC_SPRITE_LAYERED
+      && _LAYER_TORSO_POSES.has(pose) && !_flipX && frameIdx != null) {
+    const legFrame = Math.floor(Math.max(0, Math.min(0.999, t)) * 4);
+    const legSrc = _spriteCache[`run|${dir}|${legFrame}`];
+    if (legSrc && legSrc !== "loading") {
+      src = _composeLayered(src, legSrc, `${pose}|${dir}|${frameIdx}|run${legFrame}`);
+      _layerKey = `|L${legFrame}`;
+    }
+  }
   const tinted = teamPrimary
-    ? _tintedSprite(src, `${pose}|${_flipX ? _MIRROR_DIR[dir] : dir}|${frameIdx == null ? "" : frameIdx}|${teamPrimary}`, teamPrimary)
+    ? _tintedSprite(src, `${pose}|${_flipX ? _MIRROR_DIR[dir] : dir}|${frameIdx == null ? "" : frameIdx}${_layerKey}|${teamPrimary}`, teamPrimary)
     : src;
   const scale = (typeof window !== "undefined" && window.GC_SPRITE_SCALE)
     ? window.GC_SPRITE_SCALE
