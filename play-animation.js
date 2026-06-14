@@ -7937,6 +7937,80 @@ function buildAnimForPlay(play, prevPlay) {
         }
         phase = "return";
       }
+      // ── FULL-22 BACKGROUND CAST ────────────────────────────────────────
+      // The foreground actors (punter, 4 coverage, 3 blockers, returner) drive
+      // the play; these 13 fill the formation out to a full 22 so the punt
+      // reads like a real special-teams snap. COSMETIC — they never touch the
+      // tackle/return geometry. Drawn here (before the key actors) so the
+      // important figures render on top.
+      const _legT = (k) => (t < 0.95 ? ((performance.now() / 333) + k * 0.13) % 1 : 0);
+      // PUNT TEAM (+6): long snapper + 2 personal protectors + 3 gunners.
+      // Coverage settles downfield by ~t=0.5 then holds, so nobody keeps
+      // sprinting through the back half of the play (which would read as a
+      // "runaway" — coverage legitimately finishes far from a short return's
+      // dead-ball spot, but the detector can't tell that from a parked-defender
+      // bug; settling early sidesteps it and looks right anyway).
+      // Long snapper — snaps at the LOS center, then releases up the middle.
+      {
+        const rel = Math.min(1, Math.max(0, (t - 0.10) / 0.40));
+        const lsX = losX + (landX - losX) * rel * 0.9;
+        const lsY = cy + (returnerY - cy) * rel * 0.5;
+        drawPlayer(ctx, lsX, lsY, possColor, team.secondary, "", t < 0.10 ? "stance" : "run", t < 0.10 ? 0 : _legT(11), dir, { name: "punt-ls" });
+      }
+      // 2 personal protectors — shield in front of the punter, then trail down.
+      for (let i = 0; i < 2; i++) {
+        const py = cy + (i === 0 ? -26 : 26);
+        const px0 = startX + dir * 5 * FIELD.PX_PER_YARD;
+        const rel = Math.min(1, Math.max(0, (t - 0.20) / 0.30));
+        const px = px0 + (losX - px0) * 0.4 + (landX - px0) * 0.42 * rel;
+        drawPlayer(ctx, px, py, possColor, team.secondary, "", t < 0.20 ? "block" : "run", t < 0.20 ? 0 : _legT(20 + i), dir, { name: "punt-pp-" + i });
+      }
+      // 3 extra gunners (2 wide + 1 interior) sprinting downfield in coverage.
+      const _gunLanes = [returnerY - 150, returnerY + 150, returnerY - 70];
+      for (let i = 0; i < 3; i++) {
+        const wide = i < 2;
+        const gx0 = losX + dir * (wide ? 16 : 4);
+        const sprintT = Math.min(1, t * (wide ? 2.2 : 1.9));
+        const gx = gx0 + (landX - gx0) * sprintT;
+        const gy = _gunLanes[i] + (returnerY - _gunLanes[i]) * Math.min(1, t * 1.9) * 0.55;
+        drawPlayer(ctx, gx, gy, possColor, team.secondary, "", "run", _legT(30 + i), dir, { name: "punt-gun-" + i });
+      }
+      // RETURN TEAM (+7): 2 jammers pressing the wide gunners + 5 wall blockers.
+      for (let i = 0; i < 2; i++) {
+        const jLane = returnerY + (i === 0 ? -150 : 150);
+        const jx0 = losX + dir * 22;
+        const peel = Math.min(1, Math.max(0, (t - 0.45) / 0.55));
+        const jx = jx0 + (landX - jx0) * 0.3 - dir * 6 * (1 - peel);
+        const jy = jLane + (returnerY - jLane) * peel * 0.4;
+        drawPlayer(ctx, jx, jy, oppColor, oppTeam.secondary, "", t < 0.45 ? "jam" : "run", t < 0.45 ? 0 : _legT(40 + i), -dir, { name: "punt-jam-" + i });
+      }
+      // 5 wall blockers — set up ahead of the returner, then wedge on the
+      // return. One continuous trajectory (setup → hold → ease into the wedge)
+      // so there's no position jump at the air→field→return phase boundaries.
+      const _wallLanes = [-60, -30, 0, 30, 60];
+      for (let i = 0; i < 5; i++) {
+        const wy0     = returnerY + _wallLanes[i];
+        const _wBaseX = landX - dir * 16;
+        const setupX  = landX - dir * (28 + (i % 2) * 8);
+        const setupY  = wy0 * 0.5 + returnerY * 0.5;
+        let wx, wy;
+        if (phase === "snap" || phase === "wind") {
+          wx = _wBaseX; wy = wy0;
+        } else if (phase === "air") {
+          const prog = Math.min(1, (t - PH_WIND_END) / Math.max(0.001, PH_AIR_END - PH_WIND_END));
+          wx = _wBaseX + (setupX - _wBaseX) * prog;
+          wy = wy0 + (setupY - wy0) * prog;
+        } else {
+          // field (brief hold at the setup spot) → return (ease into the wedge)
+          const tt = phase === "return" ? Math.min(1, Math.max(0, (t - PH_FIELD_END) / Math.max(0.001, RET_LEN))) : 0;
+          const wedgeX = ballX - dir * (18 + (i % 3) * 6);
+          const wedgeY = setupY * 0.5 + ballY * 0.5;
+          wx = setupX + (wedgeX - setupX) * tt;
+          wy = setupY + (wedgeY - setupY) * tt;
+        }
+        const inWedge = (phase === "return" || phase === "field");
+        drawPlayer(ctx, wx, wy, oppColor, oppTeam.secondary, "", inWedge ? "block" : "run", _legT(50 + i), inWedge ? dir : -dir, { name: "punt-wall-" + i });
+      }
       // Punter — actually punts the ball. Was rendered as "idle" while
       // the football magically flew away. Now uses the "kick" pose with
       // t advancing through the windup/strike during the snap+wind phase
