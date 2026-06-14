@@ -105,7 +105,18 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
 
 ## Pending
 
-- Season-screen flow fixes (SOLVED, this pass):
+- Season highlights linked to the WRONG play / playoff highlights TEXT-only
+  (SOLVED): captureGameHighlights stored only quarter/time + a text `clip`, so
+  frnReplayHighlight re-found the play by fuzzy game-clock match against
+  replayClips (a DIFFERENT top-N set → grabbed a neighbour) or the playLog
+  (which EXCLUDES playoff plays → fell to the text card). Fix: each highlight is
+  now self-contained — `animCtx` (highlight play + 2 lead-up plays, full minus
+  statsSnap) on per-play AND capsule highlights; frnReplayHighlight step 0 plays
+  animCtx directly. animCtx is IDB-only — `_slimFranchiseForMirror` strips it
+  from the localStorage mirror (like replayClips/playLog), ~311KB/60 highlights.
+  RULE: link a "replay this moment" UI to the actual stored play, never re-search
+  by clock across an independently-selected clip set.
+- Season-screen flow fixes (SOLVED, earlier this pass):
   - Awards-reel highlight cards ("▶ Watch", hlCard in renderFrnAwards/offseason)
     called `renderHighlightReplay` (the TEXT-card modal) directly instead of
     `frnReplayHighlight` (the animated router: recorded clip → playLog re-anim →
