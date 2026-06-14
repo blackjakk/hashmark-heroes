@@ -2446,6 +2446,17 @@ function _inflateCompactPlay(c) {
 function frnReplayHighlight(idx) {
   const h = (franchise?.seasonHighlights || [])[idx];
   if (!h) return;
+  // 0) Self-contained animatable context captured WITH the highlight — the
+  //    exact play, no fuzzy clock re-search and no playLog/replayClips
+  //    dependency. Fixes (a) highlights linking to the wrong neighbouring
+  //    play and (b) playoff highlights (absent from the playLog) falling to
+  //    the text card. Steps 1-3 below remain for saves predating animCtx.
+  if (Array.isArray(h.animCtx) && h.animCtx.length) {
+    _frnPlaySynthReplay(h.homeId, h.awayId,
+      h.finalHome ?? h.homeScore ?? 0, h.finalAway ?? h.awayScore ?? 0,
+      h.animCtx, (h.label || "").slice(0, 80));
+    return;
+  }
   const weekNum = typeof h.week === "number" ? h.week
                 : parseInt(String(h.week || "").replace(/\D/g, ""), 10) || null;
   const t0 = (h.quarter != null && h.time != null) ? h.quarter * 10000 - h.time : null;

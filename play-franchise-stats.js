@@ -10658,6 +10658,12 @@ function captureGameHighlights(homeId, awayId, plays, isPlayoff, weekLabel) {
       const clip = [...recentBuf.slice(-2).map(cp => trimPlay(cp, false)), trimPlay(p, true)];
       hl.push({
         weight: w, label, desc: p.desc || "", type: hlType, clip,
+        // Self-contained animatable context (the highlight play + its 2 lead-up
+        // plays, full objects minus statsSnap). frnReplayHighlight plays this
+        // DIRECTLY — no fuzzy clock re-search against replayClips (which is a
+        // different top-N set, so it grabbed the wrong neighbour) and no
+        // playLog dependency (playoff plays never enter it → text-only).
+        animCtx: [...recentBuf.slice(-2), p].map(cp => _slimPlayForClip(cp)),
         quarter: p.quarter, time: p.time,
         homeScore: p.homeScore, awayScore: p.awayScore,
         homeId, awayId, isPlayoff: !!isPlayoff, week: weekLabel, isClutch,
@@ -10714,7 +10720,9 @@ function captureGameHighlights(homeId, awayId, plays, isPlayoff, weekLabel) {
       });
       if (flippedLoss) revengeMeeting = flippedLoss;
     }
-    const capsule = { homeId, awayId, isPlayoff: !!isPlayoff, week: weekLabel, finalHome: fh, finalAway: fa, winId };
+    // capsule highlights animate the game's last 2 plays (the finish).
+    const capsule = { homeId, awayId, isPlayoff: !!isPlayoff, week: weekLabel, finalHome: fh, finalAway: fa, winId,
+      animCtx: recentBuf.slice(-2).map(cp => _slimPlayForClip(cp)) };
     // Clip for capsules: last 2 plays of the game → synthetic final card
     const capCtx = recentBuf.slice(-2).map(cp => trimPlay(cp, false));
     const mkCap = (lbl) => [...capCtx, { sit: "FINAL", desc: lbl, hs: fh, as: fa, q: "FIN", t: "", hi: true }];

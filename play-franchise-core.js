@@ -3992,7 +3992,13 @@ function _slimFranchiseForMirror(f) {
   // Feed caps (the hard caps in _pushNews et al. are the primary bound;
   // these mirror-side caps are the safety net).
   if (f.news?.length > 150)            m.news            = f.news.slice(-150);
-  if (f.seasonHighlights?.length > 60) m.seasonHighlights = f.seasonHighlights.slice(-60);
+  // seasonHighlights: cap to the last 60 AND strip each highlight's animCtx
+  // (the per-highlight animatable plays — ~5KB each). animCtx is IDB-only
+  // like replayClips/playLog above; an IDB-less reload falls back to the
+  // text card (frnReplayHighlight steps 1-3). Keeps the mirror under quota.
+  if (f.seasonHighlights?.length) {
+    m.seasonHighlights = f.seasonHighlights.slice(-60).map(({ animCtx, ...rest }) => rest);
+  }
   if (f.chat?.length > 40)             m.chat             = f.chat.slice(-40);
   return m;
 }
