@@ -262,7 +262,22 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   big_hit, real ref_first_down + ref_td_signal, signal_first_down,
   td_celebrate, celebrate2/3). "celebrate" dispatches per celebStyle in
   drawPlayerSprite (first_down→signal_first_down, spike/point_sky→
-  td_celebrate, else hashed celebrate/2/3). big_hit art has no on-field
-  consumer yet (cinema is a DOM overlay) — wire it when upgrading big-hit.
-- Backlog: torso/legs layered sprites, punt full-22 cast, big_hit on-field
-  choreography.
+  td_celebrate, else hashed celebrate/2/3).
+- On-field pose consumers wired this pass (all in play-animation.js):
+  - `dodge` (was orphan art): clean-sack credited rusher slips the block in
+    the final strides before the QB, then finishes the `sack`. Both the
+    engine-track sacker branch and the procedural rush fallback; strip-sacks
+    keep `strip_swat`.
+  - `big_hit` (was DOM-overlay-only): the big_hit cinema play now renders the
+    tackler driving the big_hit pose THROUGH the carrier (who tumbles) in the
+    field's lower third, behind the centered DOM card. Victim=offense color,
+    tackler=defense color.
+  - Punt FULL-22: punt animator now draws all 22 (was 9). Added 13 cosmetic
+    background players (punt: long snapper + 2 protectors + 3 gunners; return:
+    2 jammers + 5-man wall). They never touch the tackle/return geometry.
+    Coverage settles by ~t=0.5 then holds — sprinting the whole play tripped
+    the teleport "runaway" class (coverage legit finishes far from a short
+    return's dead ball; the heuristic can't tell that from a parked-defender
+    bug). Wall blockers use one continuous setup→hold→wedge path (no
+    phase-boundary jump).
+- Backlog: torso/legs layered sprites.
