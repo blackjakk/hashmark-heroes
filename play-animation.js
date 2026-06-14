@@ -892,8 +892,47 @@ function buildAnimForPlay(play, prevPlay) {
     const isEject = play.kind === "ejection";
     const force = Number(play.force) || 1.4;
     const dur = isEject ? 2400 : 2000;
+    // ── ON-FIELD COLLISION (behind the cinema overlay) ──────────────────
+    // The big_hit pose finally gets an on-field consumer: the tackler drives
+    // it THROUGH the ball-carrier, who is knocked back and tumbles. Plays in
+    // the lower third so the centered DOM card frames it rather than hides
+    // it. Victim = offense color, tackler = defense color.
+    const _poss   = play.poss === "away" ? "away" : "home";
+    const offTeam = _poss === "home" ? homeTeam : awayTeam;
+    const defTeam = _poss === "home" ? awayTeam : homeTeam;
+    const _cxC = FIELD.W / 2;
+    const _cyC = FIELD.TOP + (FIELD.BOT - FIELD.TOP) * 0.70;  // lower third
+    const _vicName = play.carrier || play.victim || "";
+    const _tklName = play.tackler || play.offender || "";
     return { duration: dur, kind: play.kind, render: (t, ctx) => {
       drawField(ctx, homeTeam, awayTeam, null);
+      const CONTACT = 0.38;
+      const _wc = (performance.now() / 333) % 1;
+      // Approach: carrier drives in from the left (+x), tackler closes head-on
+      // from the right. They meet at center on CONTACT.
+      const appr = Math.min(1, t / CONTACT);
+      const vicStartX = _cxC - 150, tklStartX = _cxC + 150;
+      let vicX = vicStartX + (_cxC - 18 - vicStartX) * appr;
+      let tklX = tklStartX + (_cxC + 14 - tklStartX) * appr;
+      let vicY = _cyC, tklY = _cyC;
+      let vicPose = "carry", vicT = _wc, vicFacing = 1;
+      let tklPose = "run",   tklT = _wc, tklFacing = -1;
+      if (t >= CONTACT) {
+        const post = (t - CONTACT) / (1 - CONTACT);
+        // Tackler delivers + follows through in the big_hit pose.
+        tklPose = "big_hit"; tklT = Math.min(1, post / 0.55); tklX = _cxC + 8;
+        // Carrier is bowled backward and tumbles to the turf.
+        vicPose = "tumble";
+        const back = Math.sin(Math.min(1, post / 0.6) * Math.PI * 0.5);
+        vicX = (_cxC - 18) - back * 46;
+        vicY = _cyC - Math.sin(Math.min(1, post / 0.5) * Math.PI) * 14;  // brief pop
+        vicT = Math.min(1, post / 0.5);
+        vicFacing = 1;
+      }
+      const vicId = (typeof _stIdentity === "function") ? _stIdentity(_vicName, "bighit-vic", "") : { name: _vicName };
+      const tklId = (typeof _stIdentity === "function") ? _stIdentity(_tklName, "bighit-tkl", "") : { name: _tklName };
+      drawPlayer(ctx, vicX, vicY, offTeam.primary, offTeam.secondary, "", vicPose, vicT, vicFacing, vicId);
+      drawPlayer(ctx, tklX, tklY, defTeam.primary, defTeam.secondary, "", tklPose, tklT, tklFacing, tklId);
       // Maintain a single DOM overlay; create on first frame, refresh
       // content if missing, remove when play exits.
       _bigHitCinema.show(play, isEject);
@@ -6628,6 +6667,12 @@ function buildAnimForPlay(play, prevPlay) {
                 (tt - _engineContactT) / Math.max(0.001, 1 - _engineContactT)));
             } else if (!MotionPlayback.isMoving(_sackerTrack, tt)) {
               dd.t = 0;   // engaged-at-LOS hold (pre-contact), frozen frame
+            } else if (!_isStripSack && tt > _engineContactT - 0.30 && tt < _engineContactT - 0.07) {
+              // SLIP THE BLOCK — the rusher dips/dodges past the tackle in
+              // the final strides before the QB (wave-3 no-ball 'dodge' pose,
+              // previously orphaned). Strip-sacks keep their arm-chop windup.
+              dd.pose = "dodge";
+              dd.t = Math.min(1, (tt - (_engineContactT - 0.30)) / 0.23);
             }
             return dd;
           }
@@ -6713,6 +6758,16 @@ function buildAnimForPlay(play, prevPlay) {
             } else if (isSecondary && tt > contactT + 0.05) {
               dd.pose = "sack";
               dd.t = Math.min(1, (tt - contactT - 0.05) / Math.max(0.001, 0.95 - contactT));
+            } else if (isPrimary && !_isStripSack && tt > rushReleaseT &&
+                       tt < rushReleaseT + (contactT - rushReleaseT) * 0.45) {
+              // SLIP THE BLOCK — the rusher dips/dodges past the tackle on the
+              // way to the QB (wave-3 no-ball 'dodge' pose, previously an
+              // orphan with art but no on-field consumer). Occupies the first
+              // ~45% of the rush; he then closes in 'run' and finishes the
+              // 'sack' at contact.
+              dd.pose = "dodge";
+              const _dodgeEnd = rushReleaseT + (contactT - rushReleaseT) * 0.45;
+              dd.t = Math.min(1, (tt - rushReleaseT) / Math.max(0.001, _dodgeEnd - rushReleaseT));
             } else {
               dd.pose = "run";
             }
