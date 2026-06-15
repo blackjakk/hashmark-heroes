@@ -4202,6 +4202,16 @@ class GameSimulator {
         // throws forward downfield. Self-contained block; a WR is the passer.
         playType = "pass";
         this._offTrickCall = "DOUBLE_PASS";
+      } else if (call === "WILDCAT") {
+        // Direct snap to the RB — a downhill run with an extra blocker.
+        // Self-contained run block before the pass/run split.
+        playType = "run";
+        this._offTrickCall = "WILDCAT";
+      } else if (call === "HOOK_LADDER") {
+        // Hook & ladder — a hitch caught short, then lateraled to a streaking
+        // trailer. Self-contained pass block (extra YAC off the pitch).
+        playType = "pass";
+        this._offTrickCall = "HOOK_LADDER";
       } else if (call === "RPO") {
         // Packaged run-pass option: read the defense's pre-snap disposition.
         // An aggressive look (a CALLED blitz/man/run-commit) → PULL and
@@ -4475,6 +4485,29 @@ class GameSimulator {
       }
     }
 
+    // ── WILDCAT (call-only; _offTrickCall === "WILDCAT") ──────────────────
+    // Direct snap to the RB. With no QB to account for the offense blocks a
+    // man over, so the back hits downhill with a numbers edge — a small mean
+    // bump and wider variance (boom-or-stuff), self-contained like the fakes.
+    // Pure run (the RB-throws gadget is HB_PASS); gate-safe (called path only).
+    if (this._offTrickCall === "WILDCAT") {
+      const RBn = this.offR.starters.rb || this.offR.starters.qb;
+      const rbP = this._playerByName.get(RBn);
+      const rbSpd = rbP?.stats?.[0] ?? 70;
+      const rbAgi = rbP?.stats?.[2] ?? 68;
+      const rbBtk = rbP?.stats?.[7] ?? 65;
+      const runMean = 4.0 + (rbSpd - 70) * 0.05 + (rbAgi - 70) * 0.045 + (rbBtk - 65) * 0.03 + 0.8;
+      const yards = clamp(Math.round(normal(runMean, 5)), -5, 48);
+      this._pushVisual({
+        kind: "run",
+        desc: `🐅 WILDCAT! Direct snap — ${RBn} hits it for ${yards} yds`,
+        startYard, endYard: clamp(startYard + yards, 0, 100),
+        rusher: RBn, yards, isWildcat: true,
+      });
+      this._swingMomentum(this.poss, yards >= 12 ? 2 : 1, "WILDCAT");
+      return { yards };
+    }
+
     if (playType === "pass") {
       // ── HALFBACK PASS (call-only gadget; _offTrickCall === "HB_PASS") ──
       // The RB takes the pitch, pulls up, and throws deep. Self-contained like
@@ -4578,6 +4611,42 @@ class GameSimulator {
           kind: "incomplete",
           desc: `🎩 DOUBLE PASS! ${THRn} throws back across — incomplete`,
           startYard, endYard: startYard, targetDepth, receiver: tgtName, passer: THRn, isDoublePass: true, motion: _motion,
+        });
+        return { yards: 0, incomplete: true };
+      }
+      // ── HOOK & LADDER (call-only; _offTrickCall === "HOOK_LADDER") ────────
+      // QB hits a short hitch; the receiver immediately laterals to a streaking
+      // trailer. The QB throws (normal short-pass accuracy → fairly high
+      // completion), but the LATERAL is the variance — it springs a big gain
+      // or gets swarmed for little. Self-contained; gate-safe (called path).
+      if (this._offTrickCall === "HOOK_LADDER") {
+        const QBn = this.offR.starters.qb;
+        const _catchSlot = "wr1";
+        const catcher = this.offR.starters.wr1 || this.offR.starters.te;
+        const trailer = this.offR.starters.wr2 || this.offR.starters.rb || catcher;
+        const _throwT = 0.42;  // quick hitch
+        const targetDepth = clamp(Math.round(normal(7, 2)), 3, 13);
+        const _routeTracks = this._buildPassRouteTracks({ targetSlot: _catchSlot, targetDepth, yac: 0, concept: "QUICK_GAME", throwT: _throwT });
+        const _motion = { targetSlot: _catchSlot, throwT: _throwT, dropDepth: 4, tackleT: 0.82, tracks: { ..._routeTracks } };
+        const compPct = clamp(0.66 - targetDepth / 120, 0.45, 0.74);
+        if (_rand() < compPct) {
+          const lateralYac = clamp(Math.round(normal(8, 9)), -3, 52);  // boom or bust
+          const yards = clamp(targetDepth + lateralYac, -3, 85);
+          this._lastBallType = "pass";
+          this._pushVisual({
+            kind: "complete",
+            desc: `🪜 HOOK & LADDER! ${QBn} → ${catcher}, laterals to ${trailer} — ${yards} yds!`,
+            startYard, endYard: clamp(startYard + yards, 0, 100), receiver: catcher, passer: QBn,
+            lateralTo: trailer, targetDepth, catchDepth: targetDepth, yac: lateralYac, yards,
+            isHookLadder: true, motion: _motion,
+          });
+          this._swingMomentum(this.poss, yards >= 15 ? 2 : 1, "HOOK-LADDER");
+          return { yards };
+        }
+        this._pushVisual({
+          kind: "incomplete",
+          desc: `🪜 HOOK & LADDER! ${QBn}'s hitch to ${catcher} falls incomplete`,
+          startYard, endYard: startYard, targetDepth, receiver: catcher, passer: QBn, isHookLadder: true, motion: _motion,
         });
         return { yards: 0, incomplete: true };
       }
