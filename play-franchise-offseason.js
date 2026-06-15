@@ -4505,7 +4505,7 @@ const _IPC_SHEET_CALLS = [
   "run", "pass",
   "QUICK_GAME", "DRAG_MESH", "INTERMEDIATE", "VERTICAL", "SCREEN", "PA_SHOT",
   "RUN_INSIDE", "RUN_OUTSIDE", "RUN_COUNTER", "RUN_TOSS", "RUN_DRAW",
-  "RPO", "READ_OPTION", "REVERSE", "FLEA_FLICKER", "HAIL_MARY", "HB_PASS",
+  "RPO", "READ_OPTION", "REVERSE", "FLEA_FLICKER", "HAIL_MARY", "HB_PASS", "DOUBLE_PASS",
 ];
 function frnPlaycall(call) {
   if (!_ipc || _ipc.status !== "pending") return;
@@ -4719,6 +4719,14 @@ function _ipcPlayArt(call) {
               + _ipaRoute([[44, 64], [40, 60]], { color: W, w: 1.6, dash: "2,2" })
               + _ipaRoute([[92, 51], [92, 16]], { color: G, w: 2.6, head: 6 })
               + _ipaRoute([[8, 51], [8, 30]], { color: D, w: 1.4, dash: "3,2" });
+        break;
+      case "DOUBLE_PASS":
+        // QB flips behind the LOS to the left WR, who throws BACK across to
+        // the right WR streaking downfield.
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(92)
+              + _ipaRoute([[50, 58], [8, 54]], { color: W, w: 1.6, dash: "2,2" })
+              + _ipaRoute([[92, 51], [92, 18]], { color: G, w: 2.6, head: 6 })
+              + _ipaRoute([[8, 54], [88, 22]], { color: W, w: 1.8, dash: "4,2" });
         break;
       case "run":   // generic — three faded lanes
         inner = los + ol + qb + rb(44, 64)
@@ -4966,6 +4974,7 @@ function _ipcShowPanel() {
           ${_ipcCard("FLEA_FLICKER", "ipc-go", "🎪 FLEA FLICKER", "S", "RB pitches it BACK to the QB for the bomb — big risk, bigger grass")}
           ${_ipcCard("HAIL_MARY", "ipc-go", "🙏 HAIL MARY", "D", "Heave it into the crowd — end-of-half desperation")}
           ${_ipcCard("HB_PASS", "ipc-go", "🎩 HALFBACK PASS", "F", "RB takes the pitch and throws deep — gadget shot, big upside, real INT risk")}
+          ${_ipcCard("DOUBLE_PASS", "ipc-go", "🎩 DOUBLE PASS", "G", "Flip behind the LOS, then a WR throws back across downfield — boom or pick")}
         </div>
         <div class="ipc-sheet-row">
           <span class="ipc-sheet-tag"></span>
@@ -5119,7 +5128,7 @@ function _ipcInstallKeys() {
                       "6": "QUICK_GAME", "7": "DRAG_MESH", "8": "INTERMEDIATE", "9": "VERTICAL",
                       "0": "SCREEN",
                       "q": "PA_SHOT", "w": "RPO", "e": "READ_OPTION",
-                      "a": "REVERSE", "s": "FLEA_FLICKER", "d": "HAIL_MARY", "f": "HB_PASS" };
+                      "a": "REVERSE", "s": "FLEA_FLICKER", "d": "HAIL_MARY", "f": "HB_PASS", "g": "DOUBLE_PASS" };
       if (sheet[k])       { e.preventDefault(); frnPlaycall(sheet[k]); }
       else if (k === "r") { e.preventDefault(); frnPlaycall("run"); }
       else if (k === "p") { e.preventDefault(); frnPlaycall("pass"); }

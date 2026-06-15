@@ -4197,6 +4197,11 @@ class GameSimulator {
         // a self-contained block at the top of the pass path (RB is the passer).
         playType = "pass";
         this._offTrickCall = "HB_PASS";
+      } else if (call === "DOUBLE_PASS") {
+        // Double pass / throwback — QB flips it behind the LOS to a WR who then
+        // throws forward downfield. Self-contained block; a WR is the passer.
+        playType = "pass";
+        this._offTrickCall = "DOUBLE_PASS";
       } else if (call === "RPO") {
         // Packaged run-pass option: read the defense's pre-snap disposition.
         // An aggressive look (a CALLED blitz/man/run-commit) → PULL and
@@ -4521,6 +4526,58 @@ class GameSimulator {
           kind: "incomplete",
           desc: `🎩 HALFBACK PASS! ${RBn} airs it out — incomplete`,
           startYard, endYard: startYard, targetDepth, receiver: tgtName, passer: RBn, isHBPass: true, motion: _motion,
+        });
+        return { yards: 0, incomplete: true };
+      }
+      // ── DOUBLE PASS / THROWBACK (call-only; _offTrickCall === "DOUBLE_PASS") ──
+      // The QB flips it behind the LOS to a WR who then throws forward downfield
+      // (a backward pass + a forward pass is legal). A WR is the passer (worst
+      // passing skill of all → lowest completion, highest INT), but a connected
+      // throwback man is usually wide open. Same self-contained shape as the HB
+      // pass; gate-safe (called path only).
+      if (this._offTrickCall === "DOUBLE_PASS") {
+        const THRn = this.offR.starters.wr1 || this.offR.starters.rb;
+        const thrP = this._playerByName.get(THRn);
+        const wrThrow = ((thrP?.stats?.[3] ?? 40) + (thrP?.stats?.[4] ?? 30)) / 2;  // AWR + THR
+        const _tgtSlot = "wr2";
+        const tgtName = this.offR.starters[_tgtSlot] || this.offR.starters.te || this.offR.starters.wr1;
+        const _throwT = 0.70;  // longer to develop — two throws
+        const targetDepth = clamp(Math.round(normal(16, 5)), 6, 36);
+        const _routeTracks = this._buildPassRouteTracks({ targetSlot: _tgtSlot, targetDepth, yac: 0, concept: "VERTICAL", throwT: _throwT });
+        const _motion = { targetSlot: _tgtSlot, throwT: _throwT, dropDepth: 3, tackleT: 0.80, tracks: { ..._routeTracks } };
+        const intPct  = clamp(0.14 + (52 - wrThrow) / 260 + targetDepth / 300, 0.06, 0.30);
+        const compPct = clamp(0.42 + (wrThrow - 45) / 200 - targetDepth / 160, 0.14, 0.58);
+        if (_rand() < intPct) {
+          const dbs = [this.defR.starters.fs, this.defR.starters.ss, this.defR.starters.cb1, this.defR.starters.cb2].filter(Boolean);
+          const intBy = dbs.length ? dbs[Math.floor(_rand() * dbs.length)] : "Defender";
+          const retYds = clamp(Math.round(normal(7, 8)), 0, 45);
+          const intSpotYL = clamp(startYard + Math.round(targetDepth * 0.8), 1, 99);
+          this._pushVisual({
+            kind: "int",
+            desc: `🎩 DOUBLE PASS! ${THRn} throws back across — INTERCEPTED by ${intBy}${retYds > 0 ? ` (+${retYds})` : ""}!`,
+            startYard, endYard: startYard, targetDepth, passer: THRn, receiver: tgtName, defender: intBy,
+            intReturnYds: retYds, intSpotYL, isDoublePass: true, motion: _motion,
+          });
+          this._swingMomentum(this.poss === "home" ? "away" : "home", 3, "DOUBLE-PASS INT");
+          return { turnover: true, retYds, isPickSix: false, isTouchback: false, intSpotYL };
+        }
+        if (_rand() < compPct) {
+          const yac = clamp(Math.round(normal(5, 5)), 0, 32);
+          const yards = clamp(targetDepth + yac, -2, 80);
+          this._lastBallType = "pass";
+          this._pushVisual({
+            kind: "complete",
+            desc: `🎩 DOUBLE PASS! ${THRn} → ${tgtName} downfield for ${yards} yds!`,
+            startYard, endYard: clamp(startYard + yards, 0, 100), receiver: tgtName, passer: THRn,
+            targetDepth, catchDepth: targetDepth, yac, yards, isDoublePass: true, motion: _motion,
+          });
+          this._swingMomentum(this.poss, 2, "DOUBLE-PASS");
+          return { yards };
+        }
+        this._pushVisual({
+          kind: "incomplete",
+          desc: `🎩 DOUBLE PASS! ${THRn} throws back across — incomplete`,
+          startYard, endYard: startYard, targetDepth, receiver: tgtName, passer: THRn, isDoublePass: true, motion: _motion,
         });
         return { yards: 0, incomplete: true };
       }

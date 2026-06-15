@@ -43,8 +43,17 @@ Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
 ## Engine invariants
 
 - Coordinator seam: named play calls (PASS_CONCEPTS, RUN_CALL_VARIANTS, READ_OPTION,
-  REVERSE, FLEA_FLICKER, RPO, HAIL_MARY...) override **roll results only**. Every RNG
-  draw must still execute so defer/no-coordinator stays byte-identical (gate-safe).
+  REVERSE, FLEA_FLICKER, RPO, HAIL_MARY, HB_PASS, DOUBLE_PASS...) override **roll
+  results only**. Every RNG draw must still execute so defer/no-coordinator stays
+  byte-identical (gate-safe).
+- Gadget plays (HB_PASS = RB throws deep; DOUBLE_PASS = WR throws back across) are
+  SELF-CONTAINED resolution blocks at the top of the pass path, modeled on the
+  fake-FG/fake-punt blocks: they roll their own INT/complete/incomplete with a
+  non-QB passer (lower accuracy, higher INT), attach real `motion` via
+  `_buildPassRouteTracks` so they animate as deep shots, and return the same
+  shapes `_drive()` expects. Call-only → never on the AI roll → audit byte-identical.
+  Wired into the interactive playcall sheet (cards + keys F/G + route diagrams).
+  Follow-ups: handoff/lateral animation flourish; detailed stat attribution.
 - FIELD: W:1700 H:720 TOP:50 BOT:670 PX_PER_YARD:15, cy=360.
 - drawPlayer vertical clamp: `FIELD.TOP - 6` / `FIELD.BOT + 24` (band-aid for an
   out-of-bounds lineup bug whose root cause was never found — see Pending).
