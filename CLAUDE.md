@@ -53,7 +53,15 @@ Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
   `_buildPassRouteTracks` so they animate as deep shots, and return the same
   shapes `_drive()` expects. Call-only → never on the AI roll → audit byte-identical.
   Wired into the interactive playcall sheet (cards + keys F/G + route diagrams).
-  Follow-ups: handoff/lateral animation flourish; detailed stat attribution.
+  WILDCAT (🐅, key Z, self-contained RUN) and HOOK_LADDER (🪜, key X, short
+  hitch + lateral YAC) follow the same pattern.
+- Gadget flourish = a broadcast CALLOUT BANNER (`_gadgetBanner` in the main
+  render loop, keyed off isHBPass/isDoublePass/isWildcat/isHookLadder), NOT a
+  true handoff/lateral choreography: the pass/run animators dress the passer
+  into the QB slot, so a real exchange needs a second-player beat that doesn't
+  fit the QB-centric model and barely reads at broadcast zoom. Banner is the
+  cheap, visible, regression-free win. Deep choreography deferred on purpose.
+  Other follow-up: detailed stat attribution for the gadget passers.
 - FIELD: W:1700 H:720 TOP:50 BOT:670 PX_PER_YARD:15, cy=360.
 - drawPlayer vertical clamp: `FIELD.TOP - 6` / `FIELD.BOT + 24` (band-aid for an
   out-of-bounds lineup bug whose root cause was never found — see Pending).

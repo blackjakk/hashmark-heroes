@@ -524,6 +524,39 @@ const ST_PLAYER_YPS  = 10.5;
 // Legacy alias — anything outside the ST timing function still uses
 // this as a single "speed" knob; tune player speed via ST_PLAYER_YPS.
 const ST_YPS_VISUAL  = ST_PLAYER_YPS;
+// Broadcast-style banner naming a gadget play, drawn at the top of the field
+// for the first ~half of the snap so the trick reads as it develops. Cheap 2D
+// overlay — no animator restructuring (the QB-centric pass/run animators put
+// the passer in the QB slot, so a true handoff/lateral choreography would need
+// a second-player exchange that doesn't fit and barely reads at this zoom).
+function _gadgetBanner(ctx, play, t) {
+  if (!play || typeof FIELD === "undefined") return;
+  const label = play.isHBPass ? "HALFBACK PASS"
+              : play.isDoublePass ? "DOUBLE PASS"
+              : play.isWildcat ? "WILDCAT"
+              : play.isHookLadder ? "HOOK & LADDER"
+              : null;
+  if (!label) return;
+  let a;
+  if (t < 0.05) a = t / 0.05;
+  else if (t < 0.34) a = 1;
+  else if (t < 0.44) a = 1 - (t - 0.34) / 0.10;
+  else return;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, a));
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "900 30px 'Anton','Arial Black',sans-serif";
+  const w = ctx.measureText(label).width + 56;
+  ctx.fillStyle = "rgba(8,12,8,0.55)";
+  ctx.fillRect(FIELD.W / 2 - w / 2, 20, w, 44);
+  ctx.fillStyle = "#f0cc30";
+  ctx.fillRect(FIELD.W / 2 - w / 2, 20, 5, 44);
+  ctx.fillRect(FIELD.W / 2 + w / 2 - 5, 20, 5, 44);
+  ctx.fillText(label, FIELD.W / 2, 43);
+  ctx.restore();
+}
+
 function _stPlayTiming(opts) {
   const {
     ballYds        = 0,
@@ -11465,6 +11498,9 @@ function tick(now) {
   _frameStartBroadcast();
   try {
     animState.anim.render(t, ctx);
+    // Gadget-play callout banner (HB pass / double pass / wildcat / hook &
+    // ladder) — drawn on the field ctx like the other broadcast callouts.
+    _gadgetBanner(ctx, animState.play, t);
     // Particles render inside _frameEndBroadcast — after the sprite
     // flush, before the single WebGL stage render.
     _frameEndBroadcast(ctx);
