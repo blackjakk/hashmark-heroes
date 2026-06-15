@@ -4192,6 +4192,11 @@ class GameSimulator {
         playType = "pass";
         this._offTrickCall = "FLEA_FLICKER";
         this._offConceptCall = "PA_SHOT";
+      } else if (call === "HB_PASS") {
+        // Halfback pass — the RB takes the pitch and throws deep. Resolved by
+        // a self-contained block at the top of the pass path (RB is the passer).
+        playType = "pass";
+        this._offTrickCall = "HB_PASS";
       } else if (call === "RPO") {
         // Packaged run-pass option: read the defense's pre-snap disposition.
         // An aggressive look (a CALLED blitz/man/run-commit) → PULL and
@@ -4466,6 +4471,59 @@ class GameSimulator {
     }
 
     if (playType === "pass") {
+      // ── HALFBACK PASS (call-only gadget; _offTrickCall === "HB_PASS") ──
+      // The RB takes the pitch, pulls up, and throws deep. Self-contained like
+      // the fakes: the RB is the passer (poor passing skill → low completion,
+      // real INT risk), with big-play upside when it connects. Rolls its own
+      // outcome here and returns the same shapes _drive() already expects, so
+      // the down/turnover plumbing is untouched. Gate-safe: never on the AI
+      // roll, and every draw is consumed only on this called path.
+      if (this._offTrickCall === "HB_PASS") {
+        const RBn = this.offR.starters.rb || this.offR.starters.qb;
+        const rbP = this._playerByName.get(RBn);
+        const rbThrow = ((rbP?.stats?.[3] ?? 45) + (rbP?.stats?.[4] ?? 40)) / 2;  // AWR + THR
+        const _tgtSlot = _rand() < 0.5 ? "wr1" : "wr2";
+        const tgtName = this.offR.starters[_tgtSlot] || this.offR.starters.wr1;
+        const _throwT = 0.64;
+        const targetDepth = clamp(Math.round(normal(18, 5)), 8, 40);
+        const _routeTracks = this._buildPassRouteTracks({ targetSlot: _tgtSlot, targetDepth, yac: 0, concept: "VERTICAL", throwT: _throwT });
+        const _motion = { targetSlot: _tgtSlot, throwT: _throwT, dropDepth: 4, tackleT: 0.78, tracks: { ..._routeTracks } };
+        const intPct  = clamp(0.11 + (58 - rbThrow) / 280 + targetDepth / 320, 0.05, 0.26);
+        const compPct = clamp(0.46 + (rbThrow - 50) / 200 - targetDepth / 150, 0.16, 0.60);
+        if (_rand() < intPct) {
+          const dbs = [this.defR.starters.fs, this.defR.starters.ss, this.defR.starters.cb1, this.defR.starters.cb2].filter(Boolean);
+          const intBy = dbs.length ? dbs[Math.floor(_rand() * dbs.length)] : "Defender";
+          const retYds = clamp(Math.round(normal(6, 8)), 0, 40);
+          const intSpotYL = clamp(startYard + Math.round(targetDepth * 0.8), 1, 99);
+          this._pushVisual({
+            kind: "int",
+            desc: `🎩 HALFBACK PASS! ${RBn} airs it out — INTERCEPTED by ${intBy}${retYds > 0 ? ` (+${retYds})` : ""}!`,
+            startYard, endYard: startYard, targetDepth, passer: RBn, receiver: tgtName, defender: intBy,
+            intReturnYds: retYds, intSpotYL, isHBPass: true, motion: _motion,
+          });
+          this._swingMomentum(this.poss === "home" ? "away" : "home", 3, "HB-PASS INT");
+          return { turnover: true, retYds, isPickSix: false, isTouchback: false, intSpotYL };
+        }
+        if (_rand() < compPct) {
+          const yac = clamp(Math.round(normal(4, 4)), 0, 28);
+          const yards = clamp(targetDepth + yac, -2, 75);
+          this._lastBallType = "pass";
+          this._pushVisual({
+            kind: "complete",
+            desc: `🎩 HALFBACK PASS! ${RBn} → ${tgtName} for ${yards} yds!`,
+            startYard, endYard: clamp(startYard + yards, 0, 100), receiver: tgtName, passer: RBn,
+            targetDepth, catchDepth: targetDepth, yac, yards, isHBPass: true, motion: _motion,
+          });
+          this._swingMomentum(this.poss, 2, "HB-PASS");
+          return { yards };
+        }
+        this._pushVisual({
+          kind: "incomplete",
+          desc: `🎩 HALFBACK PASS! ${RBn} airs it out — incomplete`,
+          startYard, endYard: startYard, targetDepth, receiver: tgtName, passer: RBn, isHBPass: true, motion: _motion,
+        });
+        return { yards: 0, incomplete: true };
+      }
       const qbStats = off.players[QB];
       const qbArch = this.offArch.QB?.archetype;
       const qbPlayer = this._playerByName.get(QB);

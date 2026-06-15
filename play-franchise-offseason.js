@@ -4505,7 +4505,7 @@ const _IPC_SHEET_CALLS = [
   "run", "pass",
   "QUICK_GAME", "DRAG_MESH", "INTERMEDIATE", "VERTICAL", "SCREEN", "PA_SHOT",
   "RUN_INSIDE", "RUN_OUTSIDE", "RUN_COUNTER", "RUN_TOSS", "RUN_DRAW",
-  "RPO", "READ_OPTION", "REVERSE", "FLEA_FLICKER", "HAIL_MARY",
+  "RPO", "READ_OPTION", "REVERSE", "FLEA_FLICKER", "HAIL_MARY", "HB_PASS",
 ];
 function frnPlaycall(call) {
   if (!_ipc || _ipc.status !== "pending") return;
@@ -4711,6 +4711,14 @@ function _ipcPlayArt(call) {
               + _ipaRoute([[23, 51], [45, 9]], { color: G, w: 2.2 })
               + _ipaRoute([[77, 51], [55, 9]], { color: G, w: 2.2 })
               + _ipaRoute([[92, 51], [62, 10]], { color: G, w: 2.2 });
+        break;
+      case "HB_PASS":
+        // RB takes the pitch (handoff back), pulls up, throws deep to a WR.
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(92)
+              + _ipaRoute([[50, 58], [44, 62]], { color: W, w: 1.8, noHead: true })
+              + _ipaRoute([[44, 64], [40, 60]], { color: W, w: 1.6, dash: "2,2" })
+              + _ipaRoute([[92, 51], [92, 16]], { color: G, w: 2.6, head: 6 })
+              + _ipaRoute([[8, 51], [8, 30]], { color: D, w: 1.4, dash: "3,2" });
         break;
       case "run":   // generic — three faded lanes
         inner = los + ol + qb + rb(44, 64)
@@ -4957,6 +4965,7 @@ function _ipcShowPanel() {
           ${_ipcCard("REVERSE", "ipc-go", "🪃 REVERSE", "A", "WR coming back against the grain — huge if the pursuit overruns it")}
           ${_ipcCard("FLEA_FLICKER", "ipc-go", "🎪 FLEA FLICKER", "S", "RB pitches it BACK to the QB for the bomb — big risk, bigger grass")}
           ${_ipcCard("HAIL_MARY", "ipc-go", "🙏 HAIL MARY", "D", "Heave it into the crowd — end-of-half desperation")}
+          ${_ipcCard("HB_PASS", "ipc-go", "🎩 HALFBACK PASS", "F", "RB takes the pitch and throws deep — gadget shot, big upside, real INT risk")}
         </div>
         <div class="ipc-sheet-row">
           <span class="ipc-sheet-tag"></span>
@@ -5110,7 +5119,7 @@ function _ipcInstallKeys() {
                       "6": "QUICK_GAME", "7": "DRAG_MESH", "8": "INTERMEDIATE", "9": "VERTICAL",
                       "0": "SCREEN",
                       "q": "PA_SHOT", "w": "RPO", "e": "READ_OPTION",
-                      "a": "REVERSE", "s": "FLEA_FLICKER", "d": "HAIL_MARY" };
+                      "a": "REVERSE", "s": "FLEA_FLICKER", "d": "HAIL_MARY", "f": "HB_PASS" };
       if (sheet[k])       { e.preventDefault(); frnPlaycall(sheet[k]); }
       else if (k === "r") { e.preventDefault(); frnPlaycall("run"); }
       else if (k === "p") { e.preventDefault(); frnPlaycall("pass"); }
