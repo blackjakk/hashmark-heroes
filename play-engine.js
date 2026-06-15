@@ -1563,72 +1563,59 @@ class GameSimulator {
   // consistent regardless of outcome.
   _buildPassRouteTracks(opts) {
     const { targetSlot, targetDepth, yac = 0, concept, throwT } = opts;
+    // Deterministic per-play route variant — varies the called concept's look
+    // snap-to-snap WITHOUT drawing from the sim RNG. Gate-safe: the audit
+    // metrics never read route shapes, and the same down/dist/spot reproduces
+    // the same routes for the seeded teleport battery.
+    const _variant = ((this.down * 7 + this.ytg * 13 + (this.yardLine | 0) * 3) >>> 0);
+    // Named route shapes. dxYd = depth from the LOS; dyYd lateral (+toward
+    // midfield, -toward the receiver's own sideline; renderer projects via
+    // toMidSign). depthFAtBreak > 1 = stem PAST the catch then come back
+    // (curl/comeback). Optional via* = a second break for lateral double-moves
+    // (wheel / post-corner).
+    const ROUTE = {
+      slant:      { breakF: 0.28, depthFAtBreak: 0.45, depth: 6,  latAtBreak: 0.5,  latAtCatch: 5.5 },
+      quick_out:  { breakF: 0.26, depthFAtBreak: 0.55, depth: 5,  latAtBreak: 0.0,  latAtCatch: -4.5 },
+      hitch:      { breakF: 0.58, depthFAtBreak: 1.0,  depth: 6,  latAtBreak: 0.0,  latAtCatch: 0.0 },
+      drag:       { breakF: 0.30, depthFAtBreak: 0.22, depth: 6,  latAtBreak: 3.0,  latAtCatch: 8.0 },
+      curl:       { breakF: 0.60, depthFAtBreak: 1.10, depth: 11, latAtBreak: 0.0,  latAtCatch: -1.0 },
+      dig:        { breakF: 0.70, depthFAtBreak: 1.0,  depth: 14, latAtBreak: 0.0,  latAtCatch: 6.0 },
+      out:        { breakF: 0.70, depthFAtBreak: 1.0,  depth: 13, latAtBreak: 0.0,  latAtCatch: -6.0 },
+      comeback:   { breakF: 0.80, depthFAtBreak: 1.14, depth: 15, latAtBreak: 0.0,  latAtCatch: -2.5 },
+      post:       { breakF: 0.62, depthFAtBreak: 0.85, depth: 18, latAtBreak: 0.0,  latAtCatch: 9.0 },
+      corner:     { breakF: 0.62, depthFAtBreak: 0.85, depth: 18, latAtBreak: 0.0,  latAtCatch: -9.0 },
+      go:         { breakF: 0.95, depthFAtBreak: 0.95, depth: 22, latAtBreak: 0.0,  latAtCatch: 0.0 },
+      wheel:      { breakF: 0.28, depthFAtBreak: 0.12, depth: 16, latAtBreak: -4.0, latAtCatch: -3.0, viaF: 0.56, viaDepthF: 0.5,  viaLat: -5.0 },
+      post_corner:{ breakF: 0.50, depthFAtBreak: 0.60, depth: 18, latAtBreak: 1.0,  latAtCatch: -7.0, viaF: 0.70, viaDepthF: 0.82, viaLat: 5.0 },
+      flat:       { breakF: 0.18, depthFAtBreak: 0.05, depth: 3,  latAtBreak: -4.0, latAtCatch: -6.5 },
+    };
+    // Per-concept route pools by slot; the variant indexes into each so the
+    // same call doesn't render an identical picture every snap. DRAG_MESH
+    // crossers stay +lat toward midfield (nobody catches it out of bounds).
+    const CONCEPT_ROUTES = {
+      QUICK_GAME:   { wr1: ["slant", "hitch"],          wr2: ["quick_out", "slant"],            te: ["slant", "hitch"],  d: ["slant"] },
+      DRAG_MESH:    { wr1: ["drag", "slant"],           wr2: ["drag", "dig"],                   te: ["dig", "curl"],     d: ["drag"] },
+      INTERMEDIATE: { wr1: ["dig", "comeback", "curl"], wr2: ["out", "curl", "dig"],            te: ["curl", "dig"],     d: ["curl", "wheel"] },
+      VERTICAL:     { wr1: ["go", "post"],              wr2: ["post", "corner", "go", "post_corner"], te: ["post", "go"], d: ["go", "wheel"] },
+      PA_SHOT:      { wr1: ["go", "post"],              wr2: ["corner", "post", "post_corner"], te: ["post", "go"],      d: ["wheel", "go"] },
+      default:      { wr1: ["curl", "comeback"],        wr2: ["curl", "out"],                   te: ["curl", "hitch"],   d: ["curl"] },
+    };
     const slotRouteShape = (slot, conc) => {
-      // SHORT TE/RB target — override the concept shape with a SWING/
-      // FLAT shape. At targetDepth <= 3 the QUICK_GAME shape gave the
-      // TE 0.4yd forward + 1yd sideways by break = "TE catches the ball
-      // standing on the LOS". Real 1-3yd TE/RB throws are flats and
-      // swings — early break, big lateral release, almost no vertical.
+      // SHORT TE/RB target — flat / swing leak (early break, big outward
+      // lateral, almost no vertical). Unchanged from the original.
       if (slot === targetSlot && (slot === "te" || slot === "te2" || slot === "rb") && targetDepth <= 3) {
-        // dyYd convention: positive = toward midfield, negative = toward
-        // sideline. A flat / swing leak goes OUTWARD toward the sideline
-        // the player started on (the route is direction-agnostic — the
-        // animation projects via toMidSign).
         return {
-          breakF: 0.18,                              // very early release
-          depthFAtBreak: 0.05,                       // by break: mostly lateral
-          depth: Math.max(1, targetDepth),
-          latAtBreak: slot === "rb" ? -4.0 : -4.5,  // outward release
-          latAtCatch: slot === "rb" ? -7.0 : -7.5,  // wide flat to sideline
+          breakF: 0.18, depthFAtBreak: 0.05, depth: Math.max(1, targetDepth),
+          latAtBreak: slot === "rb" ? -4.0 : -4.5, latAtCatch: slot === "rb" ? -7.0 : -7.5,
         };
       }
-      // te2 mirrors the TE concept shape; its opposite-side alignment is
-      // handled by toMidSign in the renderer. Slot WRs (wr3/wr4) fall to
-      // each concept's default (an inside-breaking route).
+      if (conc === "SCREEN") return null;
       if (slot === "te2") slot = "te";
-      switch (conc) {
-        case "QUICK_GAME":
-          // Slant + quick-out. wr1 cuts inside (slant), wr2 cuts
-          // outside (quick out). Was both `lat 2.5` which made wr1
-          // and wr2 mirror each other and converge near midfield.
-          if (slot === "wr1") return { breakF: 0.30, depthFAtBreak: 0.40, depth: 6, latAtBreak: 0.5,  latAtCatch:  5.0 };  // slant in
-          if (slot === "wr2") return { breakF: 0.25, depthFAtBreak: 0.30, depth: 4, latAtBreak: 0.0,  latAtCatch: -3.0 };  // quick out
-          if (slot === "te")  return { breakF: 0.30, depthFAtBreak: 0.40, depth: 6, latAtBreak: 0.5,  latAtCatch: -1.5 };
-          return { breakF: 0.30, depthFAtBreak: 0.40, depth: 6, latAtBreak: 0.5, latAtCatch: 2.5 };
-        case "DRAG_MESH":
-          // DRAG_MESH = crossing routes. Both WRs run TOWARD MIDDLE.
-          // dyYd convention: positive = toward midfield. Both wr1 and
-          // wr2 should have POSITIVE latAtCatch. wr2 was -6.0 (toward
-          // sideline) which sent the receiver ~1.5 yd past the sideline
-          // at the catch — caused "QB completed pass to WR who was out
-          // of bounds" complaints.
-          if (slot === "wr1") return { breakF: 0.30, depthFAtBreak: 0.20, depth: 6,  latAtBreak: 3.0,  latAtCatch: 8.0 };
-          if (slot === "wr2") return { breakF: 0.30, depthFAtBreak: 0.20, depth: 8,  latAtBreak: 2.5,  latAtCatch: 6.0 };
-          if (slot === "te")  return { breakF: 0.55, depthFAtBreak: 0.70, depth: 12, latAtBreak: 1.0,  latAtCatch: 3.0 };
-          return { breakF: 0.30, depthFAtBreak: 0.20, depth: 5, latAtBreak: 0, latAtCatch: 4 };
-        case "INTERMEDIATE":
-          if (slot === "wr1") return { breakF: 0.72, depthFAtBreak: 1.00, depth: 14, latAtBreak: 0.0, latAtCatch: -3.0 };
-          if (slot === "wr2") return { breakF: 0.72, depthFAtBreak: 1.00, depth: 12, latAtBreak: 0.0, latAtCatch: 3.0 };
-          if (slot === "te")  return { breakF: 0.50, depthFAtBreak: 0.65, depth: 10, latAtBreak: 0.0, latAtCatch: 0.0 };
-          return { breakF: 0.50, depthFAtBreak: 0.50, depth: 8, latAtBreak: 0, latAtCatch: 0 };
-        case "VERTICAL":
-        case "PA_SHOT":
-          // Go + dig high-low. wr1 runs the go (22yd straight); wr2
-          // runs a deep dig (18yd then breaks toward middle) so the
-          // two aren't sharing the same depth + lane. Was both `depth
-          // 22 lat 0` — identical go routes at the same yard line.
-          if (slot === "wr1") return { breakF: 0.95, depthFAtBreak: 0.95, depth: 22, latAtBreak: 0.0, latAtCatch:  0.0 };
-          if (slot === "wr2") return { breakF: 0.80, depthFAtBreak: 1.00, depth: 18, latAtBreak: 0.0, latAtCatch:  5.0 };
-          if (slot === "te")  return { breakF: 0.95, depthFAtBreak: 0.95, depth: 18, latAtBreak: 0.0, latAtCatch:  1.5 };
-          return { breakF: 0.95, depthFAtBreak: 0.95, depth: 18, latAtBreak: 0, latAtCatch: 0 };
-        case "SCREEN":
-          return null;
-        default:
-          // Mirrored curls — wr1 outside, wr2 inside.
-          if (slot === "wr1") return { breakF: 0.50, depthFAtBreak: 0.50, depth: 10, latAtBreak: 0.0, latAtCatch: -2.0 };
-          if (slot === "wr2") return { breakF: 0.50, depthFAtBreak: 0.50, depth:  8, latAtBreak: 0.0, latAtCatch:  2.0 };
-          return { breakF: 0.50, depthFAtBreak: 0.50, depth: 10, latAtBreak: 0.0, latAtCatch: 0.0 };
-      }
+      const pool = CONCEPT_ROUTES[conc] || CONCEPT_ROUTES.default;
+      const slotKey = (slot === "wr1" || slot === "wr2" || slot === "te") ? slot : "d";
+      const slotOff = slot === "wr1" ? 0 : slot === "wr2" ? 1 : slot === "te" ? 2 : 3;
+      const list = pool[slotKey] || pool.d;
+      return { ...ROUTE[list[(_variant + slotOff) % list.length]] };
     };
     const trackFor = (slot) => {
       const shape = slotRouteShape(slot, concept);
@@ -1639,8 +1626,13 @@ class GameSimulator {
       const wps = [
         { t: 0,                                          dxYd: 0,                              dyYd: 0 },
         { t: throwT * shape.breakF,                      dxYd: endDepth * shape.depthFAtBreak, dyYd: shape.latAtBreak },
-        { t: throwT,                                     dxYd: endDepth,                       dyYd: endLat },
       ];
+      // Lateral double-move (wheel / post-corner): a second break between the
+      // first cut and the catch. viaF sits between breakF and 1.0.
+      if (shape.viaF != null) {
+        wps.push({ t: throwT * shape.viaF, dxYd: endDepth * (shape.viaDepthF != null ? shape.viaDepthF : 0.6), dyYd: shape.viaLat != null ? shape.viaLat : shape.latAtBreak });
+      }
+      wps.push({ t: throwT, dxYd: endDepth, dyYd: endLat });
       if (isTgt && yac > 0) {
         wps.push({ t: Math.min(1, throwT + (1 - throwT) * 0.85), dxYd: endDepth + yac, dyYd: endLat + Math.min(2, yac * 0.05) });
         wps.push({ t: 1, dxYd: endDepth + yac, dyYd: endLat + Math.min(2, yac * 0.05) });

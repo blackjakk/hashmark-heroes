@@ -20,6 +20,26 @@ Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
    (main is always fast-forwarded). User uploads sprite sheets to main via GitHub
    web upload — fetch/merge those in before pushing.
 
+## Pass route library (engine `_buildPassRouteTracks`)
+
+- Concept-driven routes for EVERY on-field receiver (target + decoys), keyed by
+  slot, attached to `play.motion.tracks[slot]`; the animation samples them
+  (targeted WR in drawPass, decoys at the "Non-targeted receivers run REAL
+  routes" block). Deepened from 5 fixed per-concept shapes to a NAMED route
+  library (`ROUTE`: slant/quick_out/hitch/drag/curl/dig/out/comeback/post/
+  corner/go/wheel/post_corner/flat) + per-concept option POOLS
+  (`CONCEPT_ROUTES`) picked by a deterministic per-play `_variant` =
+  `(down*7 + ytg*13 + yardLine*3)` → 30-54 distinct route pictures per concept.
+- depthFAtBreak > 1 = stem past the catch then come back (curl/comeback).
+  Optional `viaF/viaDepthF/viaLat` inserts a second break for lateral
+  double-moves (wheel, post_corner); `trackFor` adds the via waypoint.
+- GATE-SAFETY RULE: route-track building MUST stay RNG-free. The audit gate's
+  byte-identical requirement holds because shapes never draw from the sim RNG
+  and the metrics don't read route data — vary routes ONLY via a deterministic
+  hash of play state, never `_rand()`. (Verified: audit 0 drift after the
+  deepening; teleport egregious dropped 4→2, runaway at-baseline 4 — the
+  uptick is coverage legitimately following deeper routes downfield.)
+
 ## Engine invariants
 
 - Coordinator seam: named play calls (PASS_CONCEPTS, RUN_CALL_VARIANTS, READ_OPTION,
