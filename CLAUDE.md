@@ -62,9 +62,9 @@ Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
   fit the QB-centric model and barely reads at broadcast zoom. Banner is the
   cheap, visible, regression-free win.
   Other follow-up: detailed stat attribution for the gadget passers.
-- BALL-HANDLER model (flag `window.GC_BALLHANDLER`, OFF by default): all four
-  gadgets now render through a shared renderer (`_bhGadgetAnim` in
-  play-animation.js) — a full-22 SCAFFOLD (`_bhDrawOL` + `_bhDrawDefense`, an
+- BALL-HANDLER model (ON by default for gadgets; kill-switch
+  `window.GC_BALLHANDLER="off"`): all four gadgets render through a shared
+  renderer (`_bhGadgetAnim` in play-animation.js) — a full-22 SCAFFOLD (`_bhDrawOL` + `_bhDrawDefense`, an
   11-man defense that converges on the ball spot, + `_bhDrawDecoys`) plus a
   per-gadget SPEC giving the ball-handling players, the ball TIMELINE
   (`_bhSampleBall` HELD/FLIGHT segments), and the convergence spot. Choreographies:
@@ -72,11 +72,14 @@ Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
   →WR1 THROWS deep→WR2), hook&ladder (QB→hitch→WR1→LATERAL→trailer runs), wildcat
   (DIRECT snap→RB downhill). Self-contained intercept at the top of
   buildAnimForPlay (after attachPlayerStyles) — never touches the validated
-  run/pass animators; flag off = default path byte-identical. NOTE: the
-  intercept sits BEFORE the function's `ctx`/`fieldState` decls (TDZ), so the
-  renderer uses a LOCAL ctx + its own field state. Still flag-gated (not the
-  default). Next: per-gadget polish + depth-sorting; then migrate normal plays
-  one kind at a time (a separate, deliberate project).
+  run/pass animators; only gadget plays take the path, so the standard
+  run/pass render is byte-identical. NOTE: the intercept sits BEFORE the
+  function's `ctx`/`fieldState` decls (TDZ), so the renderer uses a LOCAL ctx +
+  its own field state. Draws are DEPTH-SORTED: every player is pushed to a sink
+  keyed by field-Y and painted back-to-front (correct in tactical cam;
+  broadcast re-sorts its sprite queue anyway). Gates unaffected — the AI
+  battery never calls gadgets. Next (separate project): migrate normal plays
+  onto the model one kind at a time, gated each step.
 - FIELD: W:1700 H:720 TOP:50 BOT:670 PX_PER_YARD:15, cy=360.
 - drawPlayer vertical clamp: `FIELD.TOP - 6` / `FIELD.BOT + 24` (band-aid for an
   out-of-bounds lineup bug whose root cause was never found — see Pending).

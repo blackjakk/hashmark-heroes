@@ -571,14 +571,14 @@ function _bhWRSampler(env, slot) {
     return { x: env.losX + env.dir * 12 * env.PX * Math.min(1, ttt / 0.6), y: start.y };
   };
 }
-function _bhDrawOL(ctx, env, aT) {
+function _bhDrawOL(dp, env, aT) {
   const lanes = [-62, -32, 0, 32, 62];
   for (let i = 0; i < 5; i++) {
-    drawPlayer(ctx, env.losX + env.dir * 2, env.cy + lanes[i], env.possColor, env.team.secondary, "",
+    dp(env.losX + env.dir * 2, env.cy + lanes[i], env.possColor, env.team.secondary, "",
       aT < 0.04 ? "stance" : "block", aT < 0.04 ? 0 : _bhLeg(i), env.dir, { role: "OL" });
   }
 }
-function _bhDrawDefense(ctx, env, aT, spot) {
+function _bhDrawDefense(dp, env, aT, spot) {
   const { losX, cy, dir, oppColor, oppTeam, PX } = env;
   const conv = Math.max(0, Math.min(1, (aT - 0.42) / 0.5));   // converge in the back half
   const lt = (k) => ((performance.now() / 333) + k * 0.17) % 1;
@@ -586,26 +586,26 @@ function _bhDrawDefense(ctx, env, aT, spot) {
   const dlY = [-52, -18, 18, 52];
   for (let i = 0; i < 4; i++) {
     const y0 = cy + dlY[i], x = losX + dir * (2 + aT * 6) * PX;
-    drawPlayer(ctx, x, y0 + (spot.y - y0) * conv * 0.35, oppColor, oppTeam.secondary, "", "run", lt(i), -dir, { role: "DL" });
+    dp(x, y0 + (spot.y - y0) * conv * 0.35, oppColor, oppTeam.secondary, "", "run", lt(i), -dir, { role: "DL" });
   }
   // 3 LB — read, then flow to the ball.
   const lbY = [-30, 0, 30];
   for (let i = 0; i < 3; i++) {
     const x0 = losX + dir * 5 * PX, y0 = cy + lbY[i];
-    drawPlayer(ctx, x0 + (spot.x - x0) * conv * 0.7, y0 + (spot.y - y0) * conv * 0.7,
+    dp(x0 + (spot.x - x0) * conv * 0.7, y0 + (spot.y - y0) * conv * 0.7,
       oppColor, oppTeam.secondary, "", aT < 0.4 ? "backpedal" : "run", lt(10 + i), -dir, { role: "LB" });
   }
   // 2 CB (outside) + 2 S (deep) — cover, then converge.
   const dbY = [-128, 128, -56, 56], dbDepth = [9, 9, 17, 17];
   for (let i = 0; i < 4; i++) {
     const x0 = losX + dir * dbDepth[i] * PX, y0 = cy + dbY[i];
-    drawPlayer(ctx, x0 + (spot.x - x0) * conv, y0 + (spot.y - y0) * conv,
+    dp(x0 + (spot.x - x0) * conv, y0 + (spot.y - y0) * conv,
       oppColor, oppTeam.secondary, "", aT < 0.45 ? "backpedal" : "run", lt(20 + i), -dir, { role: i < 2 ? "CB" : "S" });
   }
 }
 // Offense decoy receivers (the skill players NOT handling the ball) — run
 // clear-out routes off their formation splits.
-function _bhDrawDecoys(ctx, env, aT, skipSlots) {
+function _bhDrawDecoys(dp, env, aT, skipSlots) {
   const slots = ["wr1", "wr2", "wr3", "te"].filter(s => env.formation[s] && !skipSlots.includes(s));
   for (let i = 0; i < slots.length; i++) {
     const st = env.formation[slots[i]];
@@ -613,7 +613,7 @@ function _bhDrawDecoys(ctx, env, aT, skipSlots) {
     const depth = (10 + (i * 5)) * env.PX;
     const x = st.x + env.dir * depth * Math.min(1, aT * 1.6);
     const y = st.y + toMid * Math.sin(Math.min(1, aT * 1.4) * Math.PI * 0.5) * 28;
-    drawPlayer(ctx, x, y, env.possColor, env.team.secondary, "", aT < 0.04 ? "stance" : "run", _bhLeg(40 + i), env.dir, { role: "WR" });
+    dp(x, y, env.possColor, env.team.secondary, "", aT < 0.04 ? "stance" : "run", _bhLeg(40 + i), env.dir, { role: "WR" });
   }
 }
 
@@ -626,7 +626,7 @@ function _bhGadgetAnim(env) {
   const throwTk = (play.motion && play.motion.throwT) || 0.6;
   const qb = { x: losX - dir * 1.5 * PX, y: cy };
 
-  // ── Per-gadget spec: { skip, handlers(ctx,aT), segs, spotAt(aT) } ──
+  // ── Per-gadget spec: { skip, handlers(dp,aT), segs, spotAt(aT) } ──
   let spec;
   if (play.isHBPass) {
     const tgt = (play.motion && play.motion.targetSlot) || "wr1";
@@ -648,13 +648,13 @@ function _bhGadgetAnim(env) {
         { t0: T.release, t1: T.catch, flight: true, from: _bhHand(rbThrow), to: catchPt, arc: 95 },
         { t0: T.catch, t1: 1, hold: (aT) => _bhHand(wrPos(wrT(aT))) },
       ],
-      handlers: (ctx, aT) => {
-        drawPlayer(ctx, qb.x, qb.y, possColor, team.secondary, "", "idle", 0, dir, { role: "QB" });
+      handlers: (dp, aT) => {
+        dp(qb.x, qb.y, possColor, team.secondary, "", "idle", 0, dir, { role: "QB" });
         const wp = wrPos(wrT(aT));
-        drawPlayer(ctx, wp.x, wp.y, possColor, team.secondary, "", aT < T.catch - 0.04 ? "run" : aT < T.catch + 0.06 ? "catch" : "carry", aT < T.catch - 0.04 ? _bhLeg(30) : Math.min(1, (aT - (T.catch - 0.04)) / 0.1), dir, { role: "WR" });
+        dp(wp.x, wp.y, possColor, team.secondary, "", aT < T.catch - 0.04 ? "run" : aT < T.catch + 0.06 ? "catch" : "carry", aT < T.catch - 0.04 ? _bhLeg(30) : Math.min(1, (aT - (T.catch - 0.04)) / 0.1), dir, { role: "WR" });
         const rp = rbAt(aT);
         const rbpose = aT < T.pitchEnd ? "run" : aT < T.plant ? "carry" : aT < T.release + 0.08 ? "throw" : "idle";
-        drawPlayer(ctx, rp.x, rp.y, possColor, team.secondary, "", rbpose, rbpose === "throw" ? Math.min(1, (aT - T.plant) / 0.1) : _bhLeg(31), dir, { role: "RB" });
+        dp(rp.x, rp.y, possColor, team.secondary, "", rbpose, rbpose === "throw" ? Math.min(1, (aT - T.plant) / 0.1) : _bhLeg(31), dir, { role: "RB" });
       },
     };
   } else if (play.isDoublePass) {
@@ -675,13 +675,13 @@ function _bhGadgetAnim(env) {
         { t0: T.rel2, t1: T.catch, flight: true, from: _bhHand(w1Lat), to: catch2, arc: 105 },
         { t0: T.catch, t1: 1, hold: (aT) => _bhHand(w2Pos(w2T(aT))) },
       ],
-      handlers: (ctx, aT) => {
-        drawPlayer(ctx, qb.x, qb.y, possColor, team.secondary, "", aT < T.lat ? "throw" : "idle", aT < T.lat ? Math.min(1, aT / T.qb) : 0, dir, { role: "QB" });
+      handlers: (dp, aT) => {
+        dp(qb.x, qb.y, possColor, team.secondary, "", aT < T.lat ? "throw" : "idle", aT < T.lat ? Math.min(1, aT / T.qb) : 0, dir, { role: "QB" });
         const w2 = w2Pos(w2T(aT));
-        drawPlayer(ctx, w2.x, w2.y, possColor, team.secondary, "", aT < T.catch - 0.04 ? "run" : aT < T.catch + 0.06 ? "catch" : "carry", aT < T.catch - 0.04 ? _bhLeg(30) : Math.min(1, (aT - (T.catch - 0.04)) / 0.1), dir, { role: "WR" });
+        dp(w2.x, w2.y, possColor, team.secondary, "", aT < T.catch - 0.04 ? "run" : aT < T.catch + 0.06 ? "catch" : "carry", aT < T.catch - 0.04 ? _bhLeg(30) : Math.min(1, (aT - (T.catch - 0.04)) / 0.1), dir, { role: "WR" });
         const w1 = w1At(aT);
         const w1pose = aT < T.lat - 0.03 ? "run" : aT < T.lat + 0.05 ? "catch" : aT < T.rel2 + 0.08 ? "throw" : "idle";
-        drawPlayer(ctx, w1.x, w1.y, possColor, team.secondary, "", w1pose, w1pose === "throw" ? Math.min(1, (aT - T.hold2) / 0.1) : _bhLeg(32), dir, { role: "WR" });
+        dp(w1.x, w1.y, possColor, team.secondary, "", w1pose, w1pose === "throw" ? Math.min(1, (aT - T.hold2) / 0.1) : _bhLeg(32), dir, { role: "WR" });
       },
     };
   } else if (play.isHookLadder) {
@@ -706,15 +706,15 @@ function _bhGadgetAnim(env) {
         { t0: T.lat, t1: T.lat + 0.06, flight: true, from: _bhHand(catch1Pt), to: _bhHand(trAt(T.lat + 0.06)), arc: 8 },
         { t0: T.lat + 0.06, t1: 1, hold: (aT) => _bhHand(trAt(aT)) },
       ],
-      handlers: (ctx, aT) => {
-        drawPlayer(ctx, qb.x, qb.y, possColor, team.secondary, "", aT < T.qb ? "throw" : "idle", aT < T.qb ? Math.min(1, aT / T.qb) : 0, dir, { role: "QB" });
+      handlers: (dp, aT) => {
+        dp(qb.x, qb.y, possColor, team.secondary, "", aT < T.qb ? "throw" : "idle", aT < T.qb ? Math.min(1, aT / T.qb) : 0, dir, { role: "QB" });
         // WR1 — runs the hitch, catches, pitches, then blocks.
         const w1x = aT < T.catch1 ? formation.wr1.x + (catch1Pt.x - formation.wr1.x) * (aT / T.catch1) : catch1Pt.x;
         const w1y = aT < T.catch1 ? formation.wr1.y + (catch1Pt.y - formation.wr1.y) * (aT / T.catch1) : catch1Pt.y;
         const w1pose = aT < T.catch1 - 0.03 ? "run" : aT < T.lat ? "catch" : "block";
-        drawPlayer(ctx, w1x, w1y, possColor, team.secondary, "", w1pose, aT < T.catch1 - 0.03 ? _bhLeg(30) : 0.5, dir, { role: "WR" });
+        dp(w1x, w1y, possColor, team.secondary, "", w1pose, aT < T.catch1 - 0.03 ? _bhLeg(30) : 0.5, dir, { role: "WR" });
         const tp = trAt(aT);
-        drawPlayer(ctx, tp.x, tp.y, possColor, team.secondary, "", aT < T.lat ? "run" : "carry", _bhLeg(33), dir, { role: "WR" });
+        dp(tp.x, tp.y, possColor, team.secondary, "", aT < T.lat ? "run" : "carry", _bhLeg(33), dir, { role: "WR" });
       },
     };
   } else { // WILDCAT — direct snap to the RB, downhill run.
@@ -734,18 +734,19 @@ function _bhGadgetAnim(env) {
         { t0: 0, t1: T.snap, flight: true, from: { x: losX, y: cy }, to: _bhHand(rbAt(T.snap)), arc: 10 },
         { t0: T.snap, t1: 1, hold: (aT) => _bhHand(rbAt(aT)) },
       ],
-      handlers: (ctx, aT) => {
+      handlers: (dp, aT) => {
         // QB motions off as a decoy.
-        drawPlayer(ctx, qb.x + dir * 3 * PX, cy - 50 - aT * 30, possColor, team.secondary, "", aT < 0.04 ? "idle" : "run", _bhLeg(34), dir, { role: "QB" });
+        dp(qb.x + dir * 3 * PX, cy - 50 - aT * 30, possColor, team.secondary, "", aT < 0.04 ? "idle" : "run", _bhLeg(34), dir, { role: "QB" });
         const rp = rbAt(aT);
-        drawPlayer(ctx, rp.x, rp.y, possColor, team.secondary, "", aT < T.snap ? "stance" : "carry", aT < T.snap ? 0 : _bhLeg(35), dir, rp.x === rbX0 ? { role: "RB" } : { role: "RB" });
+        dp(rp.x, rp.y, possColor, team.secondary, "", aT < T.snap ? "stance" : "carry", aT < T.snap ? 0 : _bhLeg(35), dir, { role: "RB" });
       },
     };
   }
 
-  // Dress the ball-handlers with correct jersey numbers where we can.
+  // Dress the ball-handler slots with the credited jersey numbers.
   if (typeof dressSlotAs === "function" && gameResult && gameResult.playerLookup) {
     try { if (play.passer) dressSlotAs(formation.rb, play.passer, gameResult.playerLookup, formation); } catch (_) {}
+    try { if (play.receiver && formation.wr1) dressSlotAs(formation.wr1, play.receiver, gameResult.playerLookup, formation); } catch (_) {}
   }
 
   return { duration: dur, kind: play.kind, render: (t, c) => {
@@ -753,10 +754,17 @@ function _bhGadgetAnim(env) {
     drawField(ctx, homeTeam, awayTeam, _fs);
     const aT = Math.max(0, Math.min(1, (t - PRE) / (1 - PRE)));
     const spot = spec.spotAt(aT);
-    _bhDrawOL(ctx, env, aT);
-    _bhDrawDefense(ctx, env, aT, spot);
-    _bhDrawDecoys(ctx, env, aT, spec.skip);
-    spec.handlers(ctx, aT);
+    // Collect every player draw, then paint back-to-front by field-Y so nobody
+    // renders out of depth order (broadcast re-sorts its sprite queue anyway;
+    // this also makes the tactical/topdown cam correct).
+    const sink = [];
+    const dp = (x, y, ...a) => sink.push({ y, run: () => drawPlayer(ctx, x, y, ...a) });
+    _bhDrawOL(dp, env, aT);
+    _bhDrawDefense(dp, env, aT, spot);
+    _bhDrawDecoys(dp, env, aT, spec.skip);
+    spec.handlers(dp, aT);
+    sink.sort((p, q) => p.y - q.y);
+    for (const e of sink) e.run();
     const b = _bhSampleBall(spec.segs, aT);
     drawBall(ctx, b.x, b.y, b.flight ? 1.15 : 1.0);
     _gadgetBanner(ctx, play, t);
@@ -1497,12 +1505,13 @@ function buildAnimForPlay(play, prevPlay) {
   const defStarters = poss === "home" ? gameResult.awayRatings.starters : gameResult.homeRatings.starters;
   attachPlayerStyles(formation, offStarters, defStarters, gameResult.playerLookup);
 
-  // ── BALL-HANDLER MODEL (flag-gated GC_BALLHANDLER) ─────────────────────
+  // ── BALL-HANDLER MODEL ─────────────────────────────────────────────────
   // All four gadgets render through the shared ball-handler renderer
   // (_bhGadgetAnim): a full-22 scaffold + a per-gadget ball timeline. Wholly
   // self-contained (own cast, own ball token) so the validated run/pass
-  // animators are untouched; with the flag off the default path is unchanged.
-  if (typeof window !== "undefined" && window.GC_BALLHANDLER
+  // animators are untouched. ON by default for gadgets; `GC_BALLHANDLER="off"`
+  // is the kill-switch back to the standard pass/run path + callout banner.
+  if (typeof window !== "undefined" && window.GC_BALLHANDLER !== "off"
       && (play.isHBPass || play.isDoublePass || play.isHookLadder || play.isWildcat)) {
     return _bhGadgetAnim({ play, homeTeam, awayTeam, poss, dir, losX, cy, formation,
                            team, oppTeam, possColor, oppColor });
