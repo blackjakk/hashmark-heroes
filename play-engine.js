@@ -4212,6 +4212,18 @@ class GameSimulator {
         // trailer. Self-contained pass block (extra YAC off the pitch).
         playType = "pass";
         this._offTrickCall = "HOOK_LADDER";
+      } else if (call === "FAKE_SPIKE") {
+        // Fake spike — QB mimics killing the clock, the defense relaxes, then
+        // he pulls up and fires the quick game. Self-contained pass block (QB
+        // is the passer; a completion bonus off the caught-napping defense).
+        playType = "pass";
+        this._offTrickCall = "FAKE_SPIKE";
+      } else if (call === "STATUE") {
+        // Statue of Liberty — QB cocks to throw, the RB sweeps behind and takes
+        // the hidden ball off the fake. Self-contained run block (wide variance
+        // like the reverse — boom off the edge or blown up on a read fake).
+        playType = "run";
+        this._offTrickCall = "STATUE";
       } else if (call === "RPO") {
         // Packaged run-pass option: read the defense's pre-snap disposition.
         // An aggressive look (a CALLED blitz/man/run-commit) → PULL and
@@ -4508,6 +4520,30 @@ class GameSimulator {
       return { yards };
     }
 
+    // ── STATUE OF LIBERTY (call-only; _offTrickCall === "STATUE") ──────────
+    // QB cocks to throw, the RB swings behind and palms the hidden ball off the
+    // fake, then attacks the edge the QB's arm pulled the defense away from.
+    // The misdirection is the variance — a boom off the held backside or a
+    // blow-up if the fake doesn't take. Self-contained run; gate-safe (called
+    // path only).
+    if (this._offTrickCall === "STATUE") {
+      const RBn = this.offR.starters.rb || this.offR.starters.qb;
+      const rbP = this._playerByName.get(RBn);
+      const rbSpd = rbP?.stats?.[0] ?? 70;
+      const rbAgi = rbP?.stats?.[2] ?? 68;
+      const rbBtk = rbP?.stats?.[7] ?? 65;
+      const runMean = 5.0 + (rbSpd - 70) * 0.06 + (rbAgi - 70) * 0.05 + (rbBtk - 65) * 0.025;
+      const yards = clamp(Math.round(normal(runMean, 7)), -7, 60);
+      this._pushVisual({
+        kind: "run",
+        desc: `🗽 STATUE OF LIBERTY! ${RBn} takes the hidden ball off the fake for ${yards} yds`,
+        startYard, endYard: clamp(startYard + yards, 0, 100),
+        rusher: RBn, yards, isStatue: true,
+      });
+      this._swingMomentum(this.poss, yards >= 12 ? 2 : 1, "STATUE");
+      return { yards };
+    }
+
     if (playType === "pass") {
       // ── HALFBACK PASS (call-only gadget; _offTrickCall === "HB_PASS") ──
       // The RB takes the pitch, pulls up, and throws deep. Self-contained like
@@ -4647,6 +4683,58 @@ class GameSimulator {
           kind: "incomplete",
           desc: `🪜 HOOK & LADDER! ${QBn}'s hitch to ${catcher} falls incomplete`,
           startYard, endYard: startYard, targetDepth, receiver: catcher, passer: QBn, isHookLadder: true, motion: _motion,
+        });
+        return { yards: 0, incomplete: true };
+      }
+      // ── FAKE SPIKE (call-only; _offTrickCall === "FAKE_SPIKE") ────────────
+      // The QB sells the clock-killing spike; the defense lets up, then he pulls
+      // the ball back and fires the quick game into the soft coverage. The QB is
+      // the passer (real QB accuracy) and the napping defense gives a completion
+      // bonus with low INT risk — a short, high-percentage gadget, unlike the
+      // boom-or-bust deep tricks. Self-contained; gate-safe (called path only).
+      if (this._offTrickCall === "FAKE_SPIKE") {
+        const QBn = this.offR.starters.qb;
+        const qbP = this._playerByName.get(QBn);
+        const qbThrow = ((qbP?.stats?.[3] ?? 70) + (qbP?.stats?.[4] ?? 72)) / 2;  // AWR + THR
+        const _tgtSlot = _rand() < 0.5 ? "wr1" : "wr2";
+        const tgtName = this.offR.starters[_tgtSlot] || this.offR.starters.wr1;
+        const _throwT = 0.50;  // sell the spike, then quick release
+        const targetDepth = clamp(Math.round(normal(11, 4)), 4, 22);
+        const _routeTracks = this._buildPassRouteTracks({ targetSlot: _tgtSlot, targetDepth, yac: 0, concept: "QUICK_GAME", throwT: _throwT });
+        const _motion = { targetSlot: _tgtSlot, throwT: _throwT, dropDepth: 2, tackleT: 0.80, tracks: { ..._routeTracks } };
+        const intPct  = clamp(0.05 + targetDepth / 360, 0.03, 0.11);
+        const compPct = clamp(0.72 + (qbThrow - 70) / 220 - targetDepth / 220, 0.50, 0.86);
+        if (_rand() < intPct) {
+          const dbs = [this.defR.starters.fs, this.defR.starters.ss, this.defR.starters.cb1, this.defR.starters.cb2].filter(Boolean);
+          const intBy = dbs.length ? dbs[Math.floor(_rand() * dbs.length)] : "Defender";
+          const retYds = clamp(Math.round(normal(5, 7)), 0, 35);
+          const intSpotYL = clamp(startYard + Math.round(targetDepth * 0.8), 1, 99);
+          this._pushVisual({
+            kind: "int",
+            desc: `🧊 FAKE SPIKE! ${QBn} pulls it back — but it's INTERCEPTED by ${intBy}${retYds > 0 ? ` (+${retYds})` : ""}!`,
+            startYard, endYard: startYard, targetDepth, passer: QBn, receiver: tgtName, defender: intBy,
+            intReturnYds: retYds, intSpotYL, isFakeSpike: true, motion: _motion,
+          });
+          this._swingMomentum(this.poss === "home" ? "away" : "home", 3, "FAKE-SPIKE INT");
+          return { turnover: true, retYds, isPickSix: false, isTouchback: false, intSpotYL };
+        }
+        if (_rand() < compPct) {
+          const yac = clamp(Math.round(normal(5, 4)), 0, 30);
+          const yards = clamp(targetDepth + yac, -2, 60);
+          this._lastBallType = "pass";
+          this._pushVisual({
+            kind: "complete",
+            desc: `🧊 FAKE SPIKE! ${QBn} fools 'em — ${tgtName} for ${yards} yds!`,
+            startYard, endYard: clamp(startYard + yards, 0, 100), receiver: tgtName, passer: QBn,
+            targetDepth, catchDepth: targetDepth, yac, yards, isFakeSpike: true, motion: _motion,
+          });
+          this._swingMomentum(this.poss, yards >= 15 ? 2 : 1, "FAKE-SPIKE");
+          return { yards };
+        }
+        this._pushVisual({
+          kind: "incomplete",
+          desc: `🧊 FAKE SPIKE! ${QBn} pulls it back and throws — incomplete`,
+          startYard, endYard: startYard, targetDepth, receiver: tgtName, passer: QBn, isFakeSpike: true, motion: _motion,
         });
         return { yards: 0, incomplete: true };
       }

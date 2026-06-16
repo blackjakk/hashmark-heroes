@@ -717,6 +717,75 @@ function _bhGadgetAnim(env) {
         dp(tp.x, tp.y, possColor, team.secondary, "", aT < T.lat ? "run" : "carry", _bhLeg(33), dir, { role: "WR" });
       },
     };
+  } else if (play.isFakeSpike) {
+    // Fake spike — QB takes the snap, mimes slamming the ball to the turf
+    // (the fake), then pulls it back up and fires the quick game. The ball
+    // dips toward the ground at the QB, returns to the hand, then flies.
+    const tgt = (play.motion && play.motion.targetSlot) || "wr1";
+    const wrPos = _bhWRSampler(env, tgt);
+    const T = { snap: 0.05, qb: 0.12, dip: 0.27, up: 0.42, release: 0.46, catch: 0.66 };
+    const wrT = (aT) => aT < T.catch ? (aT / T.catch) * throwTk : throwTk + ((aT - T.catch) / (1 - T.catch)) * (1 - throwTk);
+    const catchPt = _bhHand(wrPos(throwTk));
+    const hand = qb.y - 13, turf = qb.y + 8;
+    const spikePt = (aT) => {
+      if (aT < T.dip) { const p = (aT - T.qb) / (T.dip - T.qb); return { x: qb.x, y: hand + (turf - hand) * p }; }
+      const p = (aT - T.dip) / (T.up - T.dip); return { x: qb.x, y: turf + (hand - turf) * p };
+    };
+    const rbBlock = { x: losX - dir * 4 * PX, y: cy + 30 };
+    spec = {
+      skip: [tgt],
+      spotAt: (aT) => wrPos(wrT(aT)),
+      segs: [
+        { t0: 0, t1: T.snap, flight: true, from: { x: losX, y: cy }, to: _bhHand(qb), arc: 12 },
+        { t0: T.snap, t1: T.qb, hold: () => _bhHand(qb) },
+        { t0: T.qb, t1: T.up, hold: (aT) => spikePt(aT) },
+        { t0: T.up, t1: T.release, hold: () => _bhHand(qb) },
+        { t0: T.release, t1: T.catch, flight: true, from: _bhHand(qb), to: catchPt, arc: 55 },
+        { t0: T.catch, t1: 1, hold: (aT) => _bhHand(wrPos(wrT(aT))) },
+      ],
+      handlers: (dp, aT) => {
+        const qbpose = (aT >= T.qb && aT < T.up) ? "throw"
+                     : (aT >= T.release - 0.02 && aT < T.release + 0.10) ? "throw" : "idle";
+        const qbp = qbpose === "throw"
+          ? (aT < T.up ? Math.min(1, (aT - T.qb) / (T.up - T.qb)) : Math.min(1, (aT - (T.release - 0.02)) / 0.1)) : 0;
+        dp(qb.x, qb.y, possColor, team.secondary, "", qbpose, qbp, dir, { role: "QB" });
+        // RB stays in to protect.
+        dp(rbBlock.x, rbBlock.y, possColor, team.secondary, "", aT < 0.04 ? "stance" : "block", _bhLeg(36), dir, { role: "RB" });
+        const wp = wrPos(wrT(aT));
+        dp(wp.x, wp.y, possColor, team.secondary, "", aT < T.catch - 0.04 ? "run" : aT < T.catch + 0.06 ? "catch" : "carry", aT < T.catch - 0.04 ? _bhLeg(30) : Math.min(1, (aT - (T.catch - 0.04)) / 0.1), dir, { role: "WR" });
+      },
+    };
+  } else if (play.isStatue) {
+    // Statue of Liberty — QB cocks to throw (the fake), the RB sweeps behind,
+    // palms the hidden ball, and bends to the edge away from the QB's arm.
+    const T = { snap: 0.06, mesh: 0.30 };
+    const rbX0 = losX - dir * 4 * PX, rbY0 = cy + 62;
+    const endX = (typeof yardToAbsX === "function") ? yardToAbsX(play.endYard ?? play.startYard, env.poss) : losX + dir * (play.yards || 5) * PX;
+    const cockPt = { x: qb.x, y: qb.y - 20 };
+    const meshPt = { x: qb.x - dir * 0.4 * PX, y: cy + 6 };
+    const rbAt = (aT) => {
+      if (aT < T.mesh) { const p = aT / T.mesh; return { x: rbX0 + (meshPt.x - rbX0) * p, y: rbY0 + (meshPt.y - rbY0) * p }; }
+      const p = (aT - T.mesh) / (1 - T.mesh), ex = 1 - Math.pow(1 - p, 2), edgeY = cy - 70;
+      return { x: meshPt.x + (endX - meshPt.x) * ex, y: meshPt.y + (edgeY - meshPt.y) * Math.min(1, p * 1.4) };
+    };
+    spec = {
+      skip: [],
+      spotAt: (aT) => rbAt(aT),
+      segs: [
+        { t0: 0, t1: T.snap, flight: true, from: { x: losX, y: cy }, to: _bhHand(qb), arc: 10 },
+        { t0: T.snap, t1: T.mesh, hold: () => cockPt },
+        { t0: T.mesh, t1: T.mesh + 0.04, flight: true, from: cockPt, to: _bhHand(meshPt), arc: 4 },
+        { t0: T.mesh + 0.04, t1: 1, hold: (aT) => _bhHand(rbAt(aT)) },
+      ],
+      handlers: (dp, aT) => {
+        dp(qb.x, qb.y, possColor, team.secondary, "",
+          aT < T.snap ? "idle" : aT < T.mesh + 0.06 ? "throw" : "idle",
+          aT < T.mesh ? Math.min(1, (aT - T.snap) / (T.mesh - T.snap)) : 0, dir, { role: "QB" });
+        const rp = rbAt(aT);
+        dp(rp.x, rp.y, possColor, team.secondary, "",
+          aT < T.snap ? "stance" : aT < T.mesh ? "run" : "carry", aT < T.snap ? 0 : _bhLeg(35), dir, { role: "RB" });
+      },
+    };
   } else { // WILDCAT — direct snap to the RB, downhill run.
     const T = { snap: 0.08, hit: 0.30 };
     const rbX0 = losX - dir * 5 * PX, rbY0 = cy + 10;
@@ -782,6 +851,8 @@ function _gadgetBanner(ctx, play, t) {
               : play.isDoublePass ? "DOUBLE PASS"
               : play.isWildcat ? "WILDCAT"
               : play.isHookLadder ? "HOOK & LADDER"
+              : play.isFakeSpike ? "FAKE SPIKE"
+              : play.isStatue ? "STATUE OF LIBERTY"
               : null;
   if (!label) return;
   let a;
@@ -1512,7 +1583,8 @@ function buildAnimForPlay(play, prevPlay) {
   // animators are untouched. ON by default for gadgets; `GC_BALLHANDLER="off"`
   // is the kill-switch back to the standard pass/run path + callout banner.
   if (typeof window !== "undefined" && window.GC_BALLHANDLER !== "off"
-      && (play.isHBPass || play.isDoublePass || play.isHookLadder || play.isWildcat)) {
+      && (play.isHBPass || play.isDoublePass || play.isHookLadder || play.isWildcat
+          || play.isFakeSpike || play.isStatue)) {
     return _bhGadgetAnim({ play, homeTeam, awayTeam, poss, dir, losX, cy, formation,
                            team, oppTeam, possColor, oppColor });
   }

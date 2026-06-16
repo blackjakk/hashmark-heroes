@@ -4506,7 +4506,7 @@ const _IPC_SHEET_CALLS = [
   "QUICK_GAME", "DRAG_MESH", "INTERMEDIATE", "VERTICAL", "SCREEN", "PA_SHOT",
   "RUN_INSIDE", "RUN_OUTSIDE", "RUN_COUNTER", "RUN_TOSS", "RUN_DRAW",
   "RPO", "READ_OPTION", "REVERSE", "FLEA_FLICKER", "HAIL_MARY", "HB_PASS", "DOUBLE_PASS",
-  "WILDCAT", "HOOK_LADDER",
+  "WILDCAT", "HOOK_LADDER", "FAKE_SPIKE", "STATUE",
 ];
 function frnPlaycall(call) {
   if (!_ipc || _ipc.status !== "pending") return;
@@ -4741,6 +4741,22 @@ function _ipcPlayArt(call) {
               + _ipaRoute([[20, 51], [20, 40], [22, 44]], { color: G, w: 2.4, head: 5 })
               + _ipaRoute([[20, 43], [78, 36]], { color: W, w: 1.6, dash: "3,2" })
               + _ipaRoute([[80, 51], [80, 30], [40, 36]], { color: D, w: 1.8 });
+        break;
+      case "FAKE_SPIKE":
+        // QB fakes the spike (ball dipped to the ground), then pulls up and
+        // fires the quick game into the relaxed coverage.
+        inner = los + ol + qb + rb(44, 64) + wr(8) + wr(92)
+              + _ipaRoute([[50, 58], [50, 64], [50, 56]], { color: W, w: 1.6, dash: "2,2", noHead: true })
+              + _ipaRoute([[8, 51], [8, 44], [26, 34]], { color: G, w: 2.6, head: 6 })
+              + _ipaRoute([[92, 51], [92, 40]], { color: D, w: 1.4, dash: "3,2" });
+        break;
+      case "STATUE":
+        // QB cocks to throw (the fake); the RB sweeps behind, takes the hidden
+        // ball, and attacks the edge away from the QB's arm.
+        inner = los + ol + qb + rb(58, 63) + wr(8) + wr(92)
+              + _ipaRoute([[50, 58], [46, 56]], { color: D, w: 1.4, dash: "2,2", noHead: true })
+              + _ipaRoute([[58, 63], [48, 58], [50, 56]], { color: W, w: 1.6, dash: "2,2", noHead: true })
+              + _ipaRoute([[50, 56], [30, 54], [18, 42], [16, 28]], { color: G, w: 2.8, head: 6 });
         break;
       case "run":   // generic — three faded lanes
         inner = los + ol + qb + rb(44, 64)
@@ -4991,6 +5007,8 @@ function _ipcShowPanel() {
           ${_ipcCard("DOUBLE_PASS", "ipc-go", "🎩 DOUBLE PASS", "G", "Flip behind the LOS, then a WR throws back across downfield — boom or pick")}
           ${_ipcCard("WILDCAT", "ipc-run", "🐅 WILDCAT", "Z", "Direct snap to the RB — downhill run with an extra blocker, boom-or-stuff")}
           ${_ipcCard("HOOK_LADDER", "ipc-go", "🪜 HOOK &amp; LADDER", "X", "Short hitch, then a lateral to a streaking trailer — springs big or fizzles")}
+          ${_ipcCard("FAKE_SPIKE", "ipc-pass", "🧊 FAKE SPIKE", "C", "Sell the clock-kill, then fire the quick game into the napping defense — high-percentage gadget")}
+          ${_ipcCard("STATUE", "ipc-run", "🗽 STATUE OF LIBERTY", "V", "QB cocks to throw, RB takes the hidden ball off the fake to the edge — boom or blown up")}
         </div>
         <div class="ipc-sheet-row">
           <span class="ipc-sheet-tag"></span>
@@ -5145,7 +5163,7 @@ function _ipcInstallKeys() {
                       "0": "SCREEN",
                       "q": "PA_SHOT", "w": "RPO", "e": "READ_OPTION",
                       "a": "REVERSE", "s": "FLEA_FLICKER", "d": "HAIL_MARY", "f": "HB_PASS", "g": "DOUBLE_PASS",
-                      "z": "WILDCAT", "x": "HOOK_LADDER" };
+                      "z": "WILDCAT", "x": "HOOK_LADDER", "c": "FAKE_SPIKE", "v": "STATUE" };
       if (sheet[k])       { e.preventDefault(); frnPlaycall(sheet[k]); }
       else if (k === "r") { e.preventDefault(); frnPlaycall("run"); }
       else if (k === "p") { e.preventDefault(); frnPlaycall("pass"); }
