@@ -60,8 +60,19 @@ Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
   true handoff/lateral choreography: the pass/run animators dress the passer
   into the QB slot, so a real exchange needs a second-player beat that doesn't
   fit the QB-centric model and barely reads at broadcast zoom. Banner is the
-  cheap, visible, regression-free win. Deep choreography deferred on purpose.
+  cheap, visible, regression-free win.
   Other follow-up: detailed stat attribution for the gadget passers.
+- BALL-HANDLER model SPIKE (flag `window.GC_BALLHANDLER`, OFF by default):
+  proves the first-principles fix on the halfback pass — the ball is a TOKEN
+  with a timeline of HELD/FLIGHT segments (`_bhSampleBall` in play-animation.js),
+  so snap → QB → pitch → RB sweep → RB THROWS → WR catch all render from reusable
+  primitives instead of the QB-slot-rooted throw. Self-contained intercept at the
+  top of buildAnimForPlay (right after attachPlayerStyles), own small cast —
+  never touches the validated run/pass animators. NOTE: the intercept sits BEFORE
+  the function's `ctx`/`fieldState` decls (TDZ), so it uses a LOCAL ctx + its own
+  field state. Incubation path: prove out → migrate the other gadgets → normal
+  plays one kind at a time (gated each step). Flesh the cast to a full 22 before
+  any rollout.
 - FIELD: W:1700 H:720 TOP:50 BOT:670 PX_PER_YARD:15, cy=360.
 - drawPlayer vertical clamp: `FIELD.TOP - 6` / `FIELD.BOT + 24` (band-aid for an
   out-of-bounds lineup bug whose root cause was never found — see Pending).

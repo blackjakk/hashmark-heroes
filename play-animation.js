@@ -524,6 +524,32 @@ const ST_PLAYER_YPS  = 10.5;
 // Legacy alias — anything outside the ST timing function still uses
 // this as a single "speed" knob; tune player speed via ST_PLAYER_YPS.
 const ST_YPS_VISUAL  = ST_PLAYER_YPS;
+// ── Ball-handler model (SPIKE, flag-gated GC_BALLHANDLER) ───────────────
+// A play's ball is a TIMELINE of segments over action-time aT∈[0,1]. A HELD
+// segment pins the ball to a holder's hand (hold(aT) → {x,y}); a FLIGHT
+// segment arcs it from a fixed release point to a catch point with a
+// parabolic lift. sampleBall(aT) returns {x,y,flight}. This is the primitive
+// set every gadget — and eventually every play — would share instead of the
+// bespoke per-kind ball logic scattered through the animators today.
+function _bhSampleBall(segs, aT) {
+  for (const s of segs) {
+    if (aT >= s.t0 && aT < s.t1) {
+      if (s.flight) {
+        const lt = s.t1 > s.t0 ? (aT - s.t0) / (s.t1 - s.t0) : 0;
+        return { flight: true,
+          x: s.from.x + (s.to.x - s.from.x) * lt,
+          y: s.from.y + (s.to.y - s.from.y) * lt - Math.sin(lt * Math.PI) * (s.arc || 70) };
+      }
+      const p = s.hold(aT);
+      return { x: p.x, y: p.y, flight: false };
+    }
+  }
+  const s = segs[segs.length - 1];
+  if (s.flight) return { x: s.to.x, y: s.to.y, flight: false };
+  const p = s.hold(1);
+  return { x: p.x, y: p.y, flight: false };
+}
+
 // Broadcast-style banner naming a gadget play, drawn at the top of the field
 // for the first ~half of the snap so the trick reads as it develops. Cheap 2D
 // overlay — no animator restructuring (the QB-centric pass/run animators put
@@ -1257,6 +1283,106 @@ function buildAnimForPlay(play, prevPlay) {
   const offStarters = poss === "home" ? gameResult.homeRatings.starters : gameResult.awayRatings.starters;
   const defStarters = poss === "home" ? gameResult.awayRatings.starters : gameResult.homeRatings.starters;
   attachPlayerStyles(formation, offStarters, defStarters, gameResult.playerLookup);
+
+  // ── BALL-HANDLER SPIKE (flag-gated) — real halfback-pass choreography ──
+  // Proves the primitive model on the play that needs all three beats: snap →
+  // pitch (handoff) → RB sweeps → RB pulls up and THROWS → WR catch. Wholly
+  // self-contained (own small cast, own ball timeline via _bhSampleBall) so it
+  // never touches the validated run/pass animators. Toggle: GC_BALLHANDLER.
+  if (typeof window !== "undefined" && window.GC_BALLHANDLER && play.isHBPass) {
+    const PX = FIELD.PX_PER_YARD;
+    const PRE = 0.12;
+    const dur = 3400;
+    const isComplete = play.kind === "complete";
+    // Phase boundaries (action-time).
+    const T = { snap: 0.05, qb: 0.18, pitchEnd: 0.27, plant: 0.38, release: 0.44, catch: 0.66 };
+    const hand = (p) => ({ x: p.x, y: p.y - 13 });
+    // QB under center.
+    const qb = { x: losX - dir * 1.5 * PX, y: cy };
+    // RB: backfield offset → takes the pitch → sweeps to the rollout spot.
+    const rbX0 = losX - dir * 6 * PX, rbY0 = cy - 55;
+    const rbPitch = { x: losX - dir * 5 * PX, y: cy - 28 };
+    const rbThrow = { x: losX - dir * 3.5 * PX, y: cy + 72 };
+    const rbPosAt = (aT) => {
+      if (aT < T.pitchEnd) { const p = Math.min(1, aT / T.pitchEnd); return { x: rbX0 + (rbPitch.x - rbX0) * p, y: rbY0 + (rbPitch.y - rbY0) * p }; }
+      if (aT < T.plant)    { const p = (aT - T.pitchEnd) / (T.plant - T.pitchEnd); return { x: rbPitch.x + (rbThrow.x - rbPitch.x) * p, y: rbPitch.y + (rbThrow.y - rbPitch.y) * p }; }
+      return rbThrow;
+    };
+    const rbPoseAt = (aT) => {
+      if (aT < T.pitchEnd) return { pose: "run", t: (aT / T.pitchEnd) % 1, facing: dir };
+      if (aT < T.plant)    return { pose: "carry", t: ((aT - T.pitchEnd) / 0.12) % 1, facing: dir };
+      if (aT < T.release + 0.08) return { pose: "throw", t: Math.min(1, (aT - T.plant) / 0.10), facing: dir };
+      return { pose: "idle", t: 0, facing: dir };
+    };
+    // Target WR route (sampled from the engine track).
+    const tgtSlot = (play.motion && play.motion.targetSlot) || "wr1";
+    const _bhTrack = play.motion && play.motion.tracks && play.motion.tracks[tgtSlot];
+    const wrStart = formation[tgtSlot] || { x: losX, y: cy + 16 * PX };
+    const toMid = Math.sign(cy - wrStart.y) || 1;
+    const throwTk = (play.motion && play.motion.throwT) || 0.64;
+    const wrPosAt = (aT) => {
+      let ttt = aT < T.catch ? (aT / T.catch) * throwTk
+                             : throwTk + ((aT - T.catch) / (1 - T.catch)) * (1 - throwTk);
+      if (_bhTrack && typeof MotionPlayback !== "undefined") {
+        const s = MotionPlayback.sampleTrack(_bhTrack, Math.min(1, ttt));
+        if (s) return { x: losX + dir * s.dxYd * PX, y: wrStart.y + toMid * s.dyYd * PX };
+      }
+      return { x: losX + dir * (play.targetDepth || 18) * PX * Math.min(1, ttt / throwTk), y: wrStart.y };
+    };
+    const releasePt = hand(rbThrow);
+    const catchPt = hand(wrPosAt(T.catch));
+    // Ball timeline: snap → QB hold → pitch → RB carry → throw → WR.
+    const segs = [
+      { t0: 0,           t1: T.snap,     flight: true, from: { x: losX, y: cy }, to: hand(qb), arc: 12 },
+      { t0: T.snap,      t1: T.qb,       hold: () => hand(qb) },
+      { t0: T.qb,        t1: T.pitchEnd, flight: true, from: hand(qb), to: hand(rbPitch), arc: 16 },
+      { t0: T.pitchEnd,  t1: T.release,  hold: (aT) => hand(rbPosAt(aT)) },
+      { t0: T.release,   t1: T.catch,    flight: true, from: releasePt, to: catchPt, arc: 95 },
+      { t0: T.catch,     t1: 1.0,        hold: (aT) => hand(wrPosAt(aT)) },
+    ];
+    // Identities (correct jersey numbers).
+    if (typeof dressSlotAs === "function" && gameResult && gameResult.playerLookup) {
+      try { dressSlotAs(formation.rb, play.passer, gameResult.playerLookup, formation); } catch (_) {}
+      try { dressSlotAs(formation[tgtSlot], play.receiver, gameResult.playerLookup, formation); } catch (_) {}
+    }
+    const rbStyle = { ...(formation.rb && formation.rb.style || {}), role: "RB" };
+    const wrStyle = { ...(formation[tgtSlot] && formation[tgtSlot].style || {}), role: "WR" };
+    const olLanes = [-62, -32, 0, 32, 62];
+    const _legT = (k) => ((performance.now() / 333) + k * 0.13) % 1;
+    // Local field state — the function's own `fieldState`/`ctx` are declared
+    // below this early return (TDZ), so we don't touch them.
+    const _bhFS = { los: losX, firstDownAbs: losX + dir * (play.ytg || 10) * PX, possColor };
+    return { duration: dur, kind: play.kind, render: (t, c) => {
+      const ctx = c;
+      drawField(ctx, homeTeam, awayTeam, _bhFS);
+      const aT = Math.max(0, Math.min(1, (t - PRE) / (1 - PRE)));
+      // OL — hold the line.
+      for (let i = 0; i < 5; i++) {
+        drawPlayer(ctx, losX + dir * 2, cy + olLanes[i], possColor, team.secondary, "", aT < 0.04 ? "stance" : "block", aT < 0.04 ? 0 : _legT(i), dir, { role: "OL" });
+      }
+      // 2 DL rush toward the rollout.
+      for (let i = 0; i < 2; i++) {
+        const sx = losX + dir * (2 + aT * 7) * PX, sy = cy + (i ? 40 : -40) + (rbThrow.y - (cy + (i ? 40 : -40))) * aT * 0.5;
+        drawPlayer(ctx, sx, sy, oppColor, oppTeam.secondary, "", "run", _legT(10 + i), -dir, { role: "DL" });
+      }
+      // DB covering the target WR (trails a step).
+      const wrP = wrPosAt(aT);
+      drawPlayer(ctx, wrP.x - dir * 18, wrP.y + 10, oppColor, oppTeam.secondary, "", aT < 0.5 ? "backpedal" : "run", _legT(20), -dir, { role: "CB" });
+      // QB — takes the snap, pitches, watches.
+      drawPlayer(ctx, qb.x, qb.y, possColor, team.secondary, "", aT < T.qb ? "idle" : "idle", 0, dir, { role: "QB" });
+      // WR — runs the route, catches, YAC.
+      const wrPose = aT < T.catch - 0.04 ? "run" : aT < T.catch + 0.06 ? "catch" : "carry";
+      drawPlayer(ctx, wrP.x, wrP.y, possColor, team.secondary, "", wrPose, wrPose === "run" ? _legT(30) : Math.min(1, (aT - (T.catch - 0.04)) / 0.10), dir, wrStyle);
+      // RB — the gadget star: pitch → sweep → throw.
+      const rbP = rbPosAt(aT), rbPose = rbPoseAt(aT);
+      drawPlayer(ctx, rbP.x, rbP.y, possColor, team.secondary, "", rbPose.pose, rbPose.t, rbPose.facing, rbStyle);
+      // Ball.
+      const b = _bhSampleBall(segs, aT);
+      drawBall(ctx, b.x, b.y, b.flight ? 1.15 : 1.0);
+      // Reuse the gadget banner so the spike still announces the play.
+      _gadgetBanner(ctx, play, t);
+    }};
+  }
 
   // ── DEFENDER INDEX HELPERS ──
   // The defense array is [...DL, ...LB, ...CB(+nickel+dime), S1, S2]. With
