@@ -563,6 +563,7 @@ class GameSimulator {
     }
     this._lastBallCarrier = null; // who got the ball on the last positive play
     this._lastBallType = null;    // 'pass' | 'rush'
+    this._lastPasser = null;      // who threw it (non-QB on gadget passes)
     // Save base starters so per-snap rotation can always sub back to
     // the depth-chart No. 1 unless the current context (fatigue / garbage
     // time) calls for a backup. `homeR.starters` mutates per snap; this
@@ -2633,6 +2634,43 @@ class GameSimulator {
     }
     return players[players.length - 1].name;
   }
+  // ── Gadget stat attribution ──────────────────────────────────────────
+  // The gadget resolution blocks roll their own outcome and return early, so
+  // they bypass the normal pass/run stat crediting. These mirror that
+  // crediting for any passer (incl. the non-QB passers on the halfback /
+  // double pass), so gadget plays show up in the box score and season/career
+  // totals. Call-only paths → no effect on the gate-validated AI flow. They
+  // also stash _lastPasser so a gadget TD credits pass_td to the real passer.
+  _gadgetPassComplete(off, passerName, rcvrName, yards, bt) {
+    const ps = off.players[passerName];
+    if (ps) { ps.pass_att++; ps.pass_comp++; ps.pass_yds += yards; if (yards > ps.pass_long) ps.pass_long = yards; }
+    const rs = off.players[rcvrName];
+    if (rs) { rs.rec_tgt++; rs.rec++; rs.rec_yds += yards; if (yards > rs.rec_long) rs.rec_long = yards; if (bt) rs.broken_tackles += bt; }
+    off.team.pass_att++; off.team.pass_comp++; off.team.passYds += yards; off.team.totalYds += yards;
+    this._lastBallCarrier = rcvrName; this._lastBallType = "pass"; this._lastPasser = passerName;
+  }
+  _gadgetPassIncomplete(off, passerName) {
+    const ps = off.players[passerName];
+    if (ps) ps.pass_att++;
+    off.team.pass_att++;
+  }
+  _gadgetPassInt(off, def, passerName, defName, retYds) {
+    const ps = off.players[passerName];
+    if (ps) { ps.pass_att++; ps.pass_int++; }
+    off.team.pass_att++; off.team.turnovers++;
+    if (def) {
+      def.team.takeaways++;
+      const dd = def.players[defName];
+      if (dd) { dd.int_made++; dd.int_yds += retYds; if (retYds > dd.int_long) dd.int_long = retYds; }
+    }
+  }
+  _gadgetRun(off, rusherName, yards) {
+    const rs = off.players[rusherName];
+    if (rs) { rs.rush_att++; rs.rush_yds += yards; if (yards > rs.rush_long) rs.rush_long = yards; }
+    off.team.rush_att++; off.team.rushYds += yards; off.team.totalYds += yards;
+    this._lastBallCarrier = rusherName; this._lastBallType = "rush"; this._lastPasser = null;
+  }
+
   _pushVisual(data) {
     this.plays.push({
       ...data,
@@ -3198,6 +3236,7 @@ class GameSimulator {
     this.stats[this.poss].team.timeOfPoss = (this.stats[this.poss].team.timeOfPoss || 0) + dt;
     const startYard = this.yardLine;
     const off = this.offStats, def = this.defStats;
+    this._lastPasser = null;  // reset each snap; gadget passes set it (TD credit)
     const QB = this.offR.starters.qb, RB = this.offR.starters.rb, K = this.offR.starters.k;
     const isThird = this.down === 3, isFourth = this.down === 4;
     // PERSONNEL selection — picked once per snap. Long-yardage tilts toward
@@ -4516,6 +4555,7 @@ class GameSimulator {
         startYard, endYard: clamp(startYard + yards, 0, 100),
         rusher: RBn, yards, isWildcat: true,
       });
+      this._gadgetRun(off, RBn, yards);
       this._swingMomentum(this.poss, yards >= 12 ? 2 : 1, "WILDCAT");
       return { yards };
     }
@@ -4540,6 +4580,7 @@ class GameSimulator {
         startYard, endYard: clamp(startYard + yards, 0, 100),
         rusher: RBn, yards, isStatue: true,
       });
+      this._gadgetRun(off, RBn, yards);
       this._swingMomentum(this.poss, yards >= 12 ? 2 : 1, "STATUE");
       return { yards };
     }
@@ -4575,19 +4616,20 @@ class GameSimulator {
             startYard, endYard: startYard, targetDepth, passer: RBn, receiver: tgtName, defender: intBy,
             intReturnYds: retYds, intSpotYL, isHBPass: true, motion: _motion,
           });
+          this._gadgetPassInt(off, def, RBn, intBy, retYds);
           this._swingMomentum(this.poss === "home" ? "away" : "home", 3, "HB-PASS INT");
           return { turnover: true, retYds, isPickSix: false, isTouchback: false, intSpotYL };
         }
         if (_rand() < compPct) {
           const yac = clamp(Math.round(normal(4, 4)), 0, 28);
           const yards = clamp(targetDepth + yac, -2, 75);
-          this._lastBallType = "pass";
           this._pushVisual({
             kind: "complete",
             desc: `🎩 HALFBACK PASS! ${RBn} → ${tgtName} for ${yards} yds!`,
             startYard, endYard: clamp(startYard + yards, 0, 100), receiver: tgtName, passer: RBn,
             targetDepth, catchDepth: targetDepth, yac, yards, isHBPass: true, motion: _motion,
           });
+          this._gadgetPassComplete(off, RBn, tgtName, yards);
           this._swingMomentum(this.poss, 2, "HB-PASS");
           return { yards };
         }
@@ -4596,6 +4638,7 @@ class GameSimulator {
           desc: `🎩 HALFBACK PASS! ${RBn} airs it out — incomplete`,
           startYard, endYard: startYard, targetDepth, receiver: tgtName, passer: RBn, isHBPass: true, motion: _motion,
         });
+        this._gadgetPassIncomplete(off, RBn);
         return { yards: 0, incomplete: true };
       }
       // ── DOUBLE PASS / THROWBACK (call-only; _offTrickCall === "DOUBLE_PASS") ──
@@ -4627,19 +4670,20 @@ class GameSimulator {
             startYard, endYard: startYard, targetDepth, passer: THRn, receiver: tgtName, defender: intBy,
             intReturnYds: retYds, intSpotYL, isDoublePass: true, motion: _motion,
           });
+          this._gadgetPassInt(off, def, THRn, intBy, retYds);
           this._swingMomentum(this.poss === "home" ? "away" : "home", 3, "DOUBLE-PASS INT");
           return { turnover: true, retYds, isPickSix: false, isTouchback: false, intSpotYL };
         }
         if (_rand() < compPct) {
           const yac = clamp(Math.round(normal(5, 5)), 0, 32);
           const yards = clamp(targetDepth + yac, -2, 80);
-          this._lastBallType = "pass";
           this._pushVisual({
             kind: "complete",
             desc: `🎩 DOUBLE PASS! ${THRn} → ${tgtName} downfield for ${yards} yds!`,
             startYard, endYard: clamp(startYard + yards, 0, 100), receiver: tgtName, passer: THRn,
             targetDepth, catchDepth: targetDepth, yac, yards, isDoublePass: true, motion: _motion,
           });
+          this._gadgetPassComplete(off, THRn, tgtName, yards);
           this._swingMomentum(this.poss, 2, "DOUBLE-PASS");
           return { yards };
         }
@@ -4648,6 +4692,7 @@ class GameSimulator {
           desc: `🎩 DOUBLE PASS! ${THRn} throws back across — incomplete`,
           startYard, endYard: startYard, targetDepth, receiver: tgtName, passer: THRn, isDoublePass: true, motion: _motion,
         });
+        this._gadgetPassIncomplete(off, THRn);
         return { yards: 0, incomplete: true };
       }
       // ── HOOK & LADDER (call-only; _offTrickCall === "HOOK_LADDER") ────────
@@ -4668,7 +4713,6 @@ class GameSimulator {
         if (_rand() < compPct) {
           const lateralYac = clamp(Math.round(normal(8, 9)), -3, 52);  // boom or bust
           const yards = clamp(targetDepth + lateralYac, -3, 85);
-          this._lastBallType = "pass";
           this._pushVisual({
             kind: "complete",
             desc: `🪜 HOOK & LADDER! ${QBn} → ${catcher}, laterals to ${trailer} — ${yards} yds!`,
@@ -4676,6 +4720,7 @@ class GameSimulator {
             lateralTo: trailer, targetDepth, catchDepth: targetDepth, yac: lateralYac, yards,
             isHookLadder: true, motion: _motion,
           });
+          this._gadgetPassComplete(off, QBn, catcher, yards);
           this._swingMomentum(this.poss, yards >= 15 ? 2 : 1, "HOOK-LADDER");
           return { yards };
         }
@@ -4684,6 +4729,7 @@ class GameSimulator {
           desc: `🪜 HOOK & LADDER! ${QBn}'s hitch to ${catcher} falls incomplete`,
           startYard, endYard: startYard, targetDepth, receiver: catcher, passer: QBn, isHookLadder: true, motion: _motion,
         });
+        this._gadgetPassIncomplete(off, QBn);
         return { yards: 0, incomplete: true };
       }
       // ── FAKE SPIKE (call-only; _offTrickCall === "FAKE_SPIKE") ────────────
@@ -4715,19 +4761,20 @@ class GameSimulator {
             startYard, endYard: startYard, targetDepth, passer: QBn, receiver: tgtName, defender: intBy,
             intReturnYds: retYds, intSpotYL, isFakeSpike: true, motion: _motion,
           });
+          this._gadgetPassInt(off, def, QBn, intBy, retYds);
           this._swingMomentum(this.poss === "home" ? "away" : "home", 3, "FAKE-SPIKE INT");
           return { turnover: true, retYds, isPickSix: false, isTouchback: false, intSpotYL };
         }
         if (_rand() < compPct) {
           const yac = clamp(Math.round(normal(5, 4)), 0, 30);
           const yards = clamp(targetDepth + yac, -2, 60);
-          this._lastBallType = "pass";
           this._pushVisual({
             kind: "complete",
             desc: `🧊 FAKE SPIKE! ${QBn} fools 'em — ${tgtName} for ${yards} yds!`,
             startYard, endYard: clamp(startYard + yards, 0, 100), receiver: tgtName, passer: QBn,
             targetDepth, catchDepth: targetDepth, yac, yards, isFakeSpike: true, motion: _motion,
           });
+          this._gadgetPassComplete(off, QBn, tgtName, yards);
           this._swingMomentum(this.poss, yards >= 15 ? 2 : 1, "FAKE-SPIKE");
           return { yards };
         }
@@ -4736,6 +4783,7 @@ class GameSimulator {
           desc: `🧊 FAKE SPIKE! ${QBn} pulls it back and throws — incomplete`,
           startYard, endYard: startYard, targetDepth, receiver: tgtName, passer: QBn, isFakeSpike: true, motion: _motion,
         });
+        this._gadgetPassIncomplete(off, QBn);
         return { yards: 0, incomplete: true };
       }
       const qbStats = off.players[QB];
@@ -7559,8 +7607,9 @@ class GameSimulator {
         if (this._lastBallCarrier && off.players[this._lastBallCarrier]) {
           if (this._lastBallType === "pass") {
             off.players[this._lastBallCarrier].rec_td++;
-            const qb = this.offR.starters.qb;
-            if (off.players[qb]) off.players[qb].pass_td++;
+            // Gadget passes set _lastPasser (RB/WR); normal throws fall to the QB.
+            const passerName = this._lastPasser || this.offR.starters.qb;
+            if (off.players[passerName]) off.players[passerName].pass_td++;
           } else if (this._lastBallType === "rush") {
             off.players[this._lastBallCarrier].rush_td++;
           }
