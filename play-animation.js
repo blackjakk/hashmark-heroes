@@ -840,6 +840,86 @@ function _bhGadgetAnim(env) {
   }};
 }
 
+// ── NORMAL-PLAY MIGRATION PILOT (Stage 1; flag GC_BH_NORMAL, default off) ──
+// Spike: render a VANILLA DROPBACK COMPLETION through the same ball-handler
+// model the gadgets use, so we can A/B it against the standard pass animator
+// before committing to the multi-session migration. The standard animator is
+// untouched and stays the default — this path only activates when a developer
+// sets window.GC_BH_NORMAL="on" (see the intercept in buildAnimForPlay).
+//
+// Continuity guards are inherited, not re-implemented: drawPlayer's vertical
+// clamp (FIELD.TOP-6 / BOT+24) bounds every body, and the continuous route
+// sampler (_bhWRSampler) + parabolic ball segments mean the catch is a smooth
+// hand-off of the ball token, not a teleport. _bhNormalContinuity (the node
+// probe) asserts no per-frame jump exceeds the carrier step cap.
+function _bhSpecForPass(env) {
+  const { play, dir, losX, cy, team, possColor } = env;
+  const PX = FIELD.PX_PER_YARD;
+  env.PX = env.PX || PX;   // _bhWRSampler reads env.PX
+
+  const tgt = (play.motion && play.motion.targetSlot) || "wr1";
+  const wrPos = _bhWRSampler(env, tgt);
+  const throwTk = (play.motion && play.motion.throwT) || 0.55;
+  const dropDepth = (play.motion && play.motion.dropDepth) || 5;
+  const qb = { x: losX - dir * 1.5 * PX, y: cy };
+  const dropEnd = { x: losX - dir * (1.5 + dropDepth) * PX, y: cy };
+  const T = { snap: 0.05, drop: 0.34, release: 0.40, catch: 0.58 };
+  const qbAt = (aT) => {
+    if (aT < T.snap) return qb;
+    if (aT < T.drop) { const p = (aT - T.snap) / (T.drop - T.snap); return { x: qb.x + (dropEnd.x - qb.x) * p, y: cy }; }
+    return dropEnd;
+  };
+  const wrT = (aT) => aT < T.catch ? (aT / T.catch) * throwTk : throwTk + ((aT - T.catch) / (1 - T.catch)) * (1 - throwTk);
+  const catchPt = _bhHand(wrPos(throwTk));
+  return {
+    skip: [tgt],
+    spotAt: (aT) => wrPos(wrT(aT)),
+    segs: [
+      { t0: 0, t1: T.snap, flight: true, from: { x: losX, y: cy }, to: _bhHand(qb), arc: 12 },
+      { t0: T.snap, t1: T.release, hold: (aT) => _bhHand(qbAt(aT)) },
+      { t0: T.release, t1: T.catch, flight: true, from: _bhHand(dropEnd), to: catchPt, arc: 80 },
+      { t0: T.catch, t1: 1, hold: (aT) => _bhHand(wrPos(wrT(aT))) },
+    ],
+    handlers: (dp, aT) => {
+      const qp = qbAt(aT);
+      const qbpose = aT < T.snap ? "idle"
+                   : aT < T.drop ? "backpedal"
+                   : (aT >= T.release - 0.02 && aT < T.release + 0.10) ? "throw" : "idle";
+      dp(qp.x, qp.y, possColor, team.secondary, "", qbpose,
+        qbpose === "throw" ? Math.min(1, (aT - (T.release - 0.02)) / 0.1) : _bhLeg(36), dir, { role: "QB" });
+      const wp = wrPos(wrT(aT));
+      dp(wp.x, wp.y, possColor, team.secondary, "",
+        aT < T.catch - 0.04 ? "run" : aT < T.catch + 0.06 ? "catch" : "carry",
+        aT < T.catch - 0.04 ? _bhLeg(30) : Math.min(1, (aT - (T.catch - 0.04)) / 0.1), dir, { role: "WR" });
+    },
+  };
+}
+
+function _bhNormalPassAnim(env) {
+  const { play, homeTeam, awayTeam, dir, losX, cy, possColor } = env;
+  const PX = FIELD.PX_PER_YARD;
+  env.PX = PX;
+  const PRE = 0.12, dur = 3400;
+  const _fs = { los: losX, firstDownAbs: losX + dir * (play.ytg || 10) * PX, possColor };
+  const spec = _bhSpecForPass(env);
+  return { duration: dur, kind: play.kind, render: (t, c) => {
+    const ctx = c;
+    drawField(ctx, homeTeam, awayTeam, _fs);
+    const aT = Math.max(0, Math.min(1, (t - PRE) / (1 - PRE)));
+    const spot = spec.spotAt(aT);
+    const sink = [];
+    const dp = (x, y, ...a) => sink.push({ y, run: () => drawPlayer(ctx, x, y, ...a) });
+    _bhDrawOL(dp, env, aT);
+    _bhDrawDefense(dp, env, aT, spot);
+    _bhDrawDecoys(dp, env, aT, spec.skip);
+    spec.handlers(dp, aT);
+    sink.sort((p, q) => p.y - q.y);
+    for (const e of sink) e.run();
+    const b = _bhSampleBall(spec.segs, aT);
+    drawBall(ctx, b.x, b.y, b.flight ? 1.15 : 1.0);
+  }};
+}
+
 // Broadcast-style banner naming a gadget play, drawn at the top of the field
 // for the first ~half of the snap so the trick reads as it develops. Cheap 2D
 // overlay — no animator restructuring (the QB-centric pass/run animators put
@@ -1587,6 +1667,21 @@ function buildAnimForPlay(play, prevPlay) {
           || play.isFakeSpike || play.isStatue)) {
     return _bhGadgetAnim({ play, homeTeam, awayTeam, poss, dir, losX, cy, formation,
                            team, oppTeam, possColor, oppColor });
+  }
+
+  // ── NORMAL-PLAY PILOT (Stage 1; flag GC_BH_NORMAL, default off) ──
+  // A/B path: route a plain dropback COMPLETION through the ball-handler model.
+  // Default-off, so the gate batteries (which never set the flag) take the
+  // standard animator and stay byte-identical. Scoped tight for the pilot:
+  // straight completions only — no screens, play-action, throwbacks, laterals,
+  // or gadgets (those keep their dedicated paths).
+  if (typeof window !== "undefined" && window.GC_BH_NORMAL === "on"
+      && play.kind === "complete" && play.motion && play.motion.tracks
+      && !play.isScreen && !play.isPlayAction && !play.isTOR && !play.lateralTo
+      && !play.isHBPass && !play.isDoublePass && !play.isHookLadder
+      && !play.isWildcat && !play.isFakeSpike && !play.isStatue) {
+    return _bhNormalPassAnim({ play, homeTeam, awayTeam, poss, dir, losX, cy, formation,
+                              team, oppTeam, possColor, oppColor });
   }
 
   // ── DEFENDER INDEX HELPERS ──
