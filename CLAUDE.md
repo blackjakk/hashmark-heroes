@@ -12,6 +12,8 @@ Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
    - `node tools/_anim_pose_audit.js` — 27 animation families, 0 flags required.
    - `node tools/_playsheet_probe.js` (28 checks) / `tools/_catch_matrix_probe.js` (9) /
      `tools/_ipc_clock_probe.js` (19) when touching plays/catching/clock.
+   - `node tools/_bh_normal_probe.js` (4 checks) when touching the GC_BH_NORMAL
+     ball-handler normal-play pilot (`_bhSpecForPass`/`_bhNormalPassAnim`).
 3. **`./tools/_stamp_build.sh`** before any push that changes JS or art — rewrites
    `?v=` stamps in play.html and `window.GC_BUILD` (play-sprites appends it to all
    sprite/manifest URLs). Without this, browsers serve stale mixes.
@@ -54,14 +56,27 @@ Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
   shapes `_drive()` expects. Call-only → never on the AI roll → audit byte-identical.
   Wired into the interactive playcall sheet (cards + keys F/G + route diagrams).
   WILDCAT (🐅, key Z, self-contained RUN) and HOOK_LADDER (🪜, key X, short
-  hitch + lateral YAC) follow the same pattern.
+  hitch + lateral YAC) follow the same pattern, as do FAKE_SPIKE (🧊, key C,
+  PASS — QB sells the clock-kill then fires the quick game: completion bonus
+  off the napping defense, low INT) and STATUE (🗽, key V, RUN — QB cocks to
+  throw, RB takes the hidden ball off the fake to the edge, reverse-like
+  variance). Six gadgets total. Adding another = one engine resolution block +
+  one `_bhGadgetAnim` spec + sheet wiring (card/key/route diagram).
 - Gadget flourish = a broadcast CALLOUT BANNER (`_gadgetBanner` in the main
-  render loop, keyed off isHBPass/isDoublePass/isWildcat/isHookLadder), NOT a
-  true handoff/lateral choreography: the pass/run animators dress the passer
-  into the QB slot, so a real exchange needs a second-player beat that doesn't
-  fit the QB-centric model and barely reads at broadcast zoom. Banner is the
-  cheap, visible, regression-free win.
-  Other follow-up: detailed stat attribution for the gadget passers.
+  render loop, keyed off isHBPass/isDoublePass/isWildcat/isHookLadder/
+  isFakeSpike/isStatue), NOT a true handoff/lateral choreography: the pass/run
+  animators dress the passer into the QB slot, so a real exchange needs a
+  second-player beat that doesn't fit the QB-centric model and barely reads at
+  broadcast zoom. Banner is the cheap, visible, regression-free win.
+- Gadget STAT ATTRIBUTION (done): the gadget blocks return early, so they
+  bypassed the normal pass/run crediting — gadget plays were invisible in the
+  box score and the non-QB passers (RB on HB pass, WR on double pass) got no
+  passing line. `_gadgetPassComplete/_gadgetPassIncomplete/_gadgetPassInt/
+  _gadgetRun` (engine) mirror the normal crediting (passer pass_*, receiver
+  rec_*, rusher rush_*, team totals, defender int_made/yds, takeaways) and are
+  wired into all six gadgets. `_lastPasser` (reset each snap, set on gadget
+  completions) makes a gadget TD credit pass_td to the real passer, not the QB.
+  Box score filters passing rows by pass_att>0, so non-QB passers now surface.
 - BALL-HANDLER model (ON by default for gadgets; kill-switch
   `window.GC_BALLHANDLER="off"`): all four gadgets render through a shared
   renderer (`_bhGadgetAnim` in play-animation.js) — a full-22 SCAFFOLD (`_bhDrawOL` + `_bhDrawDefense`, an
@@ -70,7 +85,9 @@ Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
   (`_bhSampleBall` HELD/FLIGHT segments), and the convergence spot. Choreographies:
   HB pass (snap→QB→pitch→RB sweep→RB THROWS→WR), double-pass (QB→short lateral→WR1
   →WR1 THROWS deep→WR2), hook&ladder (QB→hitch→WR1→LATERAL→trailer runs), wildcat
-  (DIRECT snap→RB downhill). Self-contained intercept at the top of
+  (DIRECT snap→RB downhill), fake spike (snap→QB→ball DIPS to the turf→pulls up→
+  THROWS quick game→WR), statue (snap→QB COCKS to throw→RB sweeps behind→hidden
+  handoff→RB to the edge). Self-contained intercept at the top of
   buildAnimForPlay (after attachPlayerStyles) — never touches the validated
   run/pass animators; only gadget plays take the path, so the standard
   run/pass render is byte-identical. NOTE: the intercept sits BEFORE the
@@ -78,8 +95,22 @@ Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
   its own field state. Draws are DEPTH-SORTED: every player is pushed to a sink
   keyed by field-Y and painted back-to-front (correct in tactical cam;
   broadcast re-sorts its sprite queue anyway). Gates unaffected — the AI
-  battery never calls gadgets. Next (separate project): migrate normal plays
-  onto the model one kind at a time, gated each step.
+  battery never calls gadgets.
+- NORMAL-PLAY MIGRATION — Stage 1 pilot LANDED (flag-gated, default OFF):
+  `window.GC_BH_NORMAL="on"` routes a vanilla dropback COMPLETION through the
+  ball-handler model (`_bhSpecForPass` + `_bhNormalPassAnim`) for A/B vs the
+  standard animator. Intercept sits right after the gadget one, scoped tight:
+  straight completes only (no screen/PA/throwback/lateral/gadget). Default OFF
+  → the gate batteries take the standard path → byte-identical, all gates green.
+  Continuity guards are INHERITED, not re-coded: drawPlayer's clamp bounds every
+  body, and the continuous `_bhWRSampler` route + parabolic ball segments make
+  the catch a smooth ball-token hand-off (no catch-frame teleport).
+  `tools/_bh_normal_probe.js` is the headless continuity gate (20 real completes
+  × 241 frames: 0 NaN, no per-frame jump >70px, ball delivered to the WR ≤6px).
+  NEXT: in-browser visual A/B (catch point, YAC endpoint, pose families) before
+  any default flip; then Stage 2 runs (riskiest — evasion poses + the teleport
+  battery), Stage 3 pass variants (sack/INT/screen/PA), Stage 4 ST. One kind at
+  a time, fully gated, standard animator retained as the per-kind fallback.
 - FIELD: W:1700 H:720 TOP:50 BOT:670 PX_PER_YARD:15, cy=360.
 - drawPlayer vertical clamp: `FIELD.TOP - 6` / `FIELD.BOT + 24` (band-aid for an
   out-of-bounds lineup bug whose root cause was never found — see Pending).
@@ -250,9 +281,25 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   held its pre-snap stance. Fix: leg-cycle dd.t on DL engage + LB scrape,
   and a new CB/S branch (shallow backpedal off the snap → scrape, live leg
   cycle). All sack defenders animate now (probe: 9/9, was frozen).
-- STILL OPEN: user reports "#24 teleports to the top" — may be the same
-  sway-feedback drift culminating in a snap (now removed) or a separate
-  coverage teleport; needs confirm after this build.
+- STILL OPEN: user reports "#24 teleports to the top" / "#27 ran a big loop"
+  — may be the same sway-feedback drift culminating in a snap (now removed) or
+  a separate coverage teleport; needs confirm after this build.
+  INVESTIGATION (2026-06-16, this session): NOT reproduced. Swept seeds 1337,
+  7, 42, 99, 2024, 5 (2-4 games each) through `_teleport_detect.js` in BOTH
+  tactical and BROADCAST cam (users play broadcast; the gate runs tactical —
+  broadcast re-sorts sprites + lane-squeezes, the suspected gap). Broadcast
+  matched tactical exactly (egregious 2, runaway 4 on the baseline seed). Every
+  flagged runaway was a KNOWN/LEGIT pattern: punt cosmetic coverage (documented
+  near-baseline tradeoff), offensive deep-route receivers ending far from a
+  short completion, and INT returns — NOT a defender looping/teleporting. The
+  detector flags MAGNITUDE (≥6yd/frame jump, late sprint far from ball), not
+  looping PATH SHAPE, so the "#27 big loop" wandering may slip its net even if
+  present. The most-likely-cause fixes already shipped (rally-defender direct
+  aim, coverage-liveness leg-cycle-only, CB landmark clamps). NEXT: needs a
+  user-supplied reproducing scenario (down/distance/coverage + the exact
+  jersey) — or add a path-shape (curvature/turn-accumulation) detector to the
+  battery to catch loops the magnitude gate misses. Did NOT ship a speculative
+  fix without a repro (would risk the zero-margin runaway gate).
 - Defender runs cross-field BEFORE the throw (probe found CBs covering
   22-34yd pre-throw): on a deflection/dropped-pick the engine credits a
   specific defender, but his formation SLOT can be on the opposite side
