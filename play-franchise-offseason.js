@@ -1710,6 +1710,23 @@ function _withWeekRng(week, fn) {
   try { return fn(); }
   finally { _clearFranchiseRng(); }
 }
+// Per-OFFSEASON-WEEK franchise-layer seed. Distinct salt (0x0FF5) from the
+// per-week (0xF1A) and per-game seeds so the offseason FA/trade resolution
+// stream never collides with the in-season streams. Installed around an
+// offseason week's resolution so — once the FA/trade AI rolls move from
+// Math.random() to _frand() — bidding, signings, and trade churn reproduce on a
+// re-run (the multiplayer / replay substrate). Until that conversion lands,
+// _frand() falls through to Math.random(), so installing this seed is harmless.
+function _deriveOffseasonSeed(offWeek) {
+  if (franchise.rngSeedBase == null) franchise.rngSeedBase = (Math.random() * 0xFFFFFFFF) >>> 0;
+  return _hashSeed(franchise.rngSeedBase, franchise.season || 1, offWeek || franchise.offWeek || 1, 0x0FF5);
+}
+function _withOffseasonRng(offWeek, fn) {
+  if (typeof _setFranchiseRng !== "function") return fn();
+  _setFranchiseRng(_deriveOffseasonSeed(offWeek));
+  try { return fn(); }
+  finally { _clearFranchiseRng(); }
+}
 // `frnSimOnce` returns the simulation result; callers use it to capture
 // season stats + highlights as a side effect. The full game object is
 // available on the returned `.full` for callers that need playoff details.
@@ -3360,6 +3377,72 @@ function frnAdvanceWeek() {
 // Legacy name preserved for any callers — now just marks the flag.
 function advanceWeekIfDone() {
   _checkWeekComplete();
+}
+
+// ── Multi-week offseason calendar ────────────────────────────────────────────
+// FLAG-GATED: window.GC_OFFSEASON_WEEKS="on". Default OFF → the legacy instant
+// offseason flow (awards → re-sign → draft → FA) is byte-identical; nothing below
+// runs. When ON, the pre-draft offseason becomes a click-to-advance calendar of
+// weeks the user steps through, with FA bidding/signings + trade churn resolving
+// once per offseason week (mirroring the in-season _runWeekEndResolution tick).
+// This is the SUBSTRATE — the phase-machine reorder + per-stage UI is wired in
+// the next stage; these functions are reachable only once that lands.
+const OFFSEASON_CALENDAR = [
+  { stage: "resign", title: "Re-Sign Window",      faWave: 0 },  // OW1: keep your own
+  { stage: "tags",   title: "Tags & Cuts",         faWave: 0 },  // OW2: franchise tag, cap cuts
+  { stage: "fa1",    title: "Free Agency · Frenzy", faWave: 1 },  // OW3: top tier hits the board
+  { stage: "fa2",    title: "Free Agency · Wave 2", faWave: 2 },  // OW4: depth tier, prices cooling
+  { stage: "fa3",    title: "Free Agency · Market", faWave: 3 },  // OW5: bargain bin
+];
+function _offseasonWeeksEnabled() {
+  try { return typeof window !== "undefined" && window.GC_OFFSEASON_WEEKS === "on"; }
+  catch (e) { return false; }
+}
+// Initialize / reset the offseason clock to week 1. Idempotent — safe to call on
+// offseason entry and harmless on a resumed mid-offseason save (won't rewind a
+// clock that's already past week 1 unless force=true).
+function _frnInitOffseasonClock(force = false) {
+  if (force || !(franchise.offWeek >= 1)) {
+    franchise.offWeek  = 1;
+    franchise.offStage = OFFSEASON_CALENDAR[0].stage;
+  }
+}
+// Resolve one offseason week: an FA bidding round + signings for the week, plus
+// (later) offseason trade churn. Unlike the in-season tick there is NO trade
+// deadline, so churn will run every offseason week. seasonEnding stays false —
+// the FA window does not "close" (forcing unsigned players) until the offseason
+// actually exits to Week 1, which is the finalize hook's job, not a wave's.
+function _runOffseasonWeekResolution(ow) {
+  if (franchise.faNegotiations && Object.keys(franchise.faNegotiations).length) {
+    _faResolveAfterWeek(ow, /*seasonEnding=*/false);
+    _faAIBidRound(ow + 1, /*isInitial=*/false);
+  }
+  // Offseason trade churn (no deadline gate) is wired alongside the offseason
+  // trade-hub mount in a later stage:
+  //   if (typeof _generateAIvsAITrades === "function") _generateAIvsAITrades();
+  //   if (typeof _processDisgruntledAITrades === "function") _processDisgruntledAITrades();
+}
+// User-clicked "advance one offseason week." Mirrors frnAdvanceWeek: resolve the
+// week (seeded), bump the clock, persist + re-render. When the pre-draft calendar
+// is exhausted, hand off to the draft (frnGoToDraft owns offseason → draft).
+function frnAdvanceOffseasonWeek() {
+  if (!_offseasonWeeksEnabled()) return;
+  _frnInitOffseasonClock();
+  const ow = franchise.offWeek;
+  _withOffseasonRng(ow, () => {
+    try { _runOffseasonWeekResolution(ow); }
+    catch (e) { console.error("[frnAdvanceOffseasonWeek] resolution error (non-fatal):", e); }
+  });
+  franchise.offWeek = ow + 1;
+  if (franchise.offWeek > OFFSEASON_CALENDAR.length) {
+    // Pre-draft offseason complete → open the draft.
+    franchise.offStage = null;
+    if (typeof frnGoToDraft === "function") { frnGoToDraft(); return; }
+  } else {
+    franchise.offStage = OFFSEASON_CALENDAR[franchise.offWeek - 1].stage;
+  }
+  if (typeof _flushSaveFranchise === "function") _flushSaveFranchise();
+  showFranchiseDashboard();
 }
 
 function frnSimGame(homeId, awayId) {
