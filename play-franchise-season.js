@@ -6646,6 +6646,12 @@ function frnFAWithdrawOffer(faName) {
 function frnFAProcessOffers() {
   franchise.faNegotiations = {};
   const myId = franchise.chosenTeamId;
+  // Multi-week FA window (flag-gated): set up the window + clock BEFORE the initial
+  // AI bid round so its solo-knockout signings respect wave staging. Each
+  // negotiation is stamped with the week its tier opens as it's created (here for
+  // user offers, and in _faAIBidRound's lazy-create for AI-opened ones).
+  const _winMode = (typeof _offseasonWeeksEnabled === "function") && _offseasonWeeksEnabled();
+  if (_winMode) { franchise._faWindowActive = true; _frnInitOffseasonClock(true); }
 
   // Seed: every offer you made becomes a negotiation with you as
   // current high bidder.
@@ -6662,6 +6668,7 @@ function frnFAProcessOffers() {
       raisedThisRound: false,
       lastRaiseWeek: 0,
     };
+    if (_winMode && typeof _faReleaseWeekForKind === "function") franchise.faNegotiations[negKey]._releaseWeek = _faReleaseWeekForKind(fa.faKind);
   }
 
   // Run an initial AI bid round (week 0) so the user sees competition
@@ -6684,9 +6691,12 @@ function frnFAProcessOffers() {
   // negotiations in the background, stay in the offseason and let the user advance
   // a few FA weeks — each a signings pass with demand cooling — before the season.
   // Reuses the free_agency_results phase for the per-week screen.
-  if (typeof _offseasonWeeksEnabled === "function" && _offseasonWeeksEnabled()) {
-    franchise._faWindowActive = true;
-    _frnInitOffseasonClock(true);
+  if (_winMode) {
+    // Window + clock set at the top; release weeks stamped at creation. Safety
+    // re-stamp for any negotiation that slipped through, then resolve week 1.
+    for (const n of Object.values(franchise.faNegotiations || {})) {
+      if (n._releaseWeek == null && typeof _faReleaseWeekForKind === "function") n._releaseWeek = _faReleaseWeekForKind(n.fa?.faKind);
+    }
     _withOffseasonRng(1, () => {
       try { _runOffseasonWeekResolution(1); }
       catch (e) { console.error("[FA window wk1]", e); }
@@ -6857,6 +6867,10 @@ function _faAIBidRound(week, isInitial) {
           fa, state: "negotiating", yourBid: null, aiBids: {},
           history: [], raisedThisRound: true, lastRaiseWeek: week,
         };
+        // Wave staging: stamp the release week on AI-opened negotiations too, so
+        // the initial round's knockouts respect it. Gated on the window flag →
+        // unset in-season (no gating).
+        if (franchise._faWindowActive && typeof _faReleaseWeekForKind === "function") n._releaseWeek = _faReleaseWeekForKind(fa.faKind);
       }
       n.aiBids[t.id] = bid;
       n.history.push({ teamId: t.id, label: `${t.city} ${t.name}`, aav: bid.aav, years: bid.years, week });
@@ -6888,6 +6902,9 @@ function _faResolveAfterWeek(week, isSeasonEnd) {
 
   for (const [negKey, n] of Object.entries(negs)) {
     if (n.state !== "negotiating") continue;
+    // Wave staging (offseason window only): a player whose tier hasn't hit the
+    // market yet can't sign this week. _releaseWeek is unset in-season → no-op.
+    if (n._releaseWeek && n._releaseWeek > week) continue;
     const name = n.fa.name; // display name — negKey is the pid-or-name lookup key
 
     // Pick the winner by VALUE TO THE PLAYER — bid over the team's fit-adjusted
@@ -7087,6 +7104,9 @@ const FA_KNOCKOUT_MULT = 1.5;
 function _faTryKnockout(negKey) {
   const n = franchise.faNegotiations?.[negKey];
   if (!n || n.state !== "negotiating") return "none";
+  // Wave staging (offseason window): can't knockout-sign a player whose tier
+  // hasn't opened yet. _releaseWeek is unset in-season → no-op.
+  if (n._releaseWeek && n._releaseWeek > (franchise.offWeek || franchise.week || 1)) return "none";
   const name = n.fa.name; // display name — negKey is the pid-or-name lookup key
   // Round to 0.1 to match the rounding applied to bid AAVs — otherwise
   // demand × 1.5 can produce a value an ULP above the rounded bid
@@ -7725,9 +7745,11 @@ function _renderFAWindowWeek() {
   const news   = franchise._faLastNews || {};
   const signed = news.signed || [];
   const negs = Object.values(franchise.faNegotiations || {});
-  const activeCount  = negs.filter(n => n.state === "negotiating").length;
-  const yourOpen     = negs.filter(n => n.state === "negotiating" && n.yourBid).length;
-  const leagueSigned = negs.filter(n => n.state === "signed").length;
+  const activeCount   = negs.filter(n => n.state === "negotiating").length;
+  const yourOpen      = negs.filter(n => n.state === "negotiating" && n.yourBid).length;
+  const leagueSigned  = negs.filter(n => n.state === "signed").length;
+  const onMarket      = negs.filter(n => n.state === "negotiating" && (!n._releaseWeek || n._releaseWeek <= ow)).length;
+  const arrivingLater = negs.filter(n => n.state === "negotiating" && n._releaseWeek && n._releaseWeek > ow).length;
   const manageBtn = (activeCount > 0 && typeof renderFrnFANegotiations === "function")
     ? `<button class="btn btn-outline" onclick="renderFrnFANegotiations()">⚖ Manage bids${yourOpen ? ` (${yourOpen})` : ""}</button>` : "";
 
@@ -7753,6 +7775,8 @@ function _renderFAWindowWeek() {
       <div style="font-size:1.2rem;font-weight:900;color:var(--gold)">🆓 FREE AGENCY · WEEK ${ow} / ${total}</div>
       <div style="color:var(--gray);font-size:.78rem">${stage.title} — bidding resolves each week as demand cools.</div>
       <div style="margin-top:.35rem;display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
+        <span class="chip neutral">${onMarket} on the market</span>
+        ${arrivingLater ? `<span class="chip neutral">${arrivingLater} arriving later</span>` : ""}
         <span class="chip neutral">${yourOpen} open bid${yourOpen===1?"":"s"}</span>
         <span class="chip neutral">${leagueSigned} signed league-wide</span>
       </div>

@@ -3404,6 +3404,18 @@ function _offseasonWeeksEnabled() {
   } catch (e) {}
   return false;
 }
+// Wave staging: which FA-window week a player's tier first hits the market. Stars
+// move first (Frenzy), depth next, gems + minimum vets mid-market as prices cool,
+// camp bodies + UDFAs last. Spreads signings across the window instead of letting
+// the whole market clear on day one. ONLY the offseason window stamps _releaseWeek
+// onto negotiations; the legacy in-season path leaves it undefined (no gating).
+const _FA_RELEASE_WEEK = {
+  vet_star: 1, vet_depth: 2, vet_min: 3, diamond: 3, camp_body: 4, udfa: 4,
+};
+function _faReleaseWeekForKind(kind) {
+  const w = _FA_RELEASE_WEEK[kind];
+  return (w && w <= OFFSEASON_CALENDAR.length) ? w : 2;  // unknown / carried-over cuts → mid-window
+}
 // Initialize / reset the FA-window clock to week 1. Idempotent — safe to call on
 // window entry and harmless on a resumed mid-window save (won't rewind a clock
 // that's already past week 1 unless force=true).
