@@ -3972,18 +3972,30 @@ async function frnConfirmFAFinish() {
   frnFAFinish();
 }
 async function frnConfirmGoToDraft() {
+  // Reorder (GC_OFFSEASON_WEEKS): free agency runs BEFORE the draft, so the
+  // offseason "continue" CTAs open the FA window first; the draft follows when
+  // FA wraps (frnFAFinish routes there via the _faBeforeDraft marker).
+  if (typeof _offseasonWeeksEnabled === "function" && _offseasonWeeksEnabled()) {
+    if (!await _frnConfirm("Open free agency? You'll negotiate with free agents over several weeks — the draft follows once FA wraps.")) return;
+    franchise._faBeforeDraft = true;
+    _frnRolloverFAOpen();          // build the FA pool + open the window (season NOT bumped yet)
+    saveFranchise();
+    showFranchiseDashboard();
+    return;
+  }
   if (!await _frnConfirm("Open the draft? Roster moves still happen in FA after, but this leaves the offseason home.")) return;
   frnGoToDraft();
 }
 async function frnConfirmNewSeason() {
   const nextS = (franchise.season || 1) + 1;
+  const reorder = (typeof _offseasonWeeksEnabled === "function") && _offseasonWeeksEnabled();
   const msg = "⚠ BEGIN SEASON " + nextS + "\n\n" +
               "This will:\n" +
               " • Generate a fresh schedule and reset standings\n" +
               " • Wipe season stats, highlights, and weekly state\n" +
               " • Roll players' careers forward (age, retire, develop)\n" +
-              " • Open a new free-agency window\n\n" +
-              "Continue?";
+              (reorder ? " • Kick off the regular season (free agency already done)\n" : " • Open a new free-agency window\n") +
+              "\nContinue?";
   if (!await _frnConfirm(msg)) return;
   frnNewSeason();
 }
@@ -16230,10 +16242,13 @@ function renderFrnOffseason() {
 
       // Subtitle / CTA shape depends on whether there are demands at all.
       let title, sub, cta;
+      const _reorderFA = (typeof _offseasonWeeksEnabled === "function") && _offseasonWeeksEnabled();
       if (!hasAny) {
-        title = "READY TO DRAFT?";
-        sub   = "All offseason changes settled. The draft is up next.";
-        cta   = `<button class="btn btn-gold-big" onclick="frnConfirmGoToDraft()">📋 Go to Draft →</button>`;
+        title = _reorderFA ? "READY FOR FREE AGENCY?" : "READY TO DRAFT?";
+        sub   = _reorderFA ? "All re-signings settled. Free agency is up next, then the draft." : "All offseason changes settled. The draft is up next.";
+        cta   = _reorderFA
+          ? `<button class="btn btn-gold-big" onclick="frnConfirmGoToDraft()">🆓 Go to Free Agency →</button>`
+          : `<button class="btn btn-gold-big" onclick="frnConfirmGoToDraft()">📋 Go to Draft →</button>`;
       } else if (pending > 0) {
         title = "READY TO ADVANCE?";
         const chips = [
@@ -16782,7 +16797,13 @@ function _frnRolloverFAOpen() {
 function frnNewSeason() {
   _frnRolloverClose();
   _frnRolloverFinalize();
-  _frnRolloverFAOpen();
+  if (typeof _offseasonWeeksEnabled === "function" && _offseasonWeeksEnabled()) {
+    // Reorder: free agency already ran BEFORE the draft, so the new season is
+    // ready — go straight to Week 1 (do NOT re-open an FA window here).
+    frnTransition("regular");
+  } else {
+    _frnRolloverFAOpen();   // legacy: open the FA window AFTER the draft
+  }
   saveFranchise();
   showFranchiseDashboard();
 }

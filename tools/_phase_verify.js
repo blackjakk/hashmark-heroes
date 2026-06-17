@@ -31,7 +31,7 @@ const sig = () => {
   const warns = []; p.on("console", m => { if (/undeclared edge/.test(m.text())) warns.push(m.text().slice(0, 160)); });
   await p.goto(URL, { waitUntil: "networkidle", timeout: 15000 });
   await p.waitForTimeout(700);
-  await p.click("button.frn-start-new", { timeout: 6000 });
+  await p.click("button.fps-start", { timeout: 6000 });   // start-screen "new franchise" CTA (was frn-start-new, renamed)
   await p.waitForTimeout(700);
 
   // ── 1. Season end → real season_recap phase (interactive drive) ───────────

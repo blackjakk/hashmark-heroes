@@ -33,17 +33,19 @@ const _FRN_PHASE_NAV = {
 // in the console / headless harness without ever soft-locking a real save.
 const FRN_PHASE_EDGES = {
   preseason:           ["free_agency", "regular"],
-  free_agency:         ["free_agency_results", "regular", "fa_cuts"],
-  free_agency_results: ["fa_cuts", "regular"],
-  fa_cuts:             ["regular", "free_agency_results"],
+  free_agency:         ["free_agency_results", "regular", "fa_cuts", "draft"],
+  free_agency_results: ["fa_cuts", "regular", "draft"],
+  fa_cuts:             ["regular", "free_agency_results", "draft"],
   regular:             ["fa_cuts", "season_recap"],
   season_recap:        ["playoffs"],
   playoffs_pending:    ["playoffs", "season_recap"],   // legacy phase; migrated on load
   playoffs:            ["awards"],
   awards:              ["offseason"],
-  offseason:           ["draft"],
+  offseason:           ["draft", "free_agency"],       // reorder (GC_OFFSEASON_WEEKS): FA before the draft
   draft:               ["draft_grade"],
-  draft_grade:         ["free_agency"],                // "begin new season" → FA (via frnStartSeason)
+  // draft_grade → free_agency (legacy: open FA after the draft) OR regular
+  // (reorder: FA already ran before the draft → straight to the season).
+  draft_grade:         ["free_agency", "regular"],
 };
 
 // The single choke point for every gameplay write to franchise.phase. Sets the
@@ -8986,9 +8988,17 @@ function renderFrnFACuts() {
 // [removed] frnFACutPlayer — zero-reference (code-health audit §G dead-code pass; restore from git if needed)
 
 function frnFAFinish() {
-  frnTransition("regular");
   franchise._faResults = null;
   franchise._faWindowActive = false;   // close the multi-week FA window (flag path)
+  // Reorder: when free agency ran from the offseason (before the draft), the
+  // draft is the next stop — not the regular season. _faBeforeDraft is set only
+  // on that path (never on first-season FA via frnStartSeason), so first-season
+  // and legacy FA still head straight to Week 1.
+  if (franchise._faBeforeDraft) {
+    franchise._faBeforeDraft = false;
+    if (typeof frnGoToDraft === "function") { frnGoToDraft(); return; }
+  }
+  frnTransition("regular");
   saveFranchise();
   showFranchiseDashboard();
 }
