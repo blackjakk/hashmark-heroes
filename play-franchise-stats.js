@@ -1152,7 +1152,10 @@ async function frnMakeRoomShopPicks(name) {
   pick.currentOwnerId = myId;
   if (typeof _pushNews === "function") _pushNews({ type: "trade", label: `🔀 Traded ${p.position} ${name} to ${t.name} for a ${pickLabel} pick` });
   if (typeof saveFranchise === "function") saveFranchise();
-  renderFrnMakeRoom();
+  // Re-render whichever cap tool the user launched this from — the cap-cuts
+  // screen (fa_cuts) reuses this one-click shop too, not just 53-man Make Room.
+  if (franchise.phase === "fa_cuts" && typeof renderFrnFACuts === "function") renderFrnFACuts();
+  else renderFrnMakeRoom();
 }
 
 function renderFrnChat() {

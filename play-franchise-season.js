@@ -8643,7 +8643,7 @@ function renderFrnFACuts() {
           <div class="frn-cuts-hero-title">${overCap ? "⚠ CUT TO BE CAP-LEGAL" : "✓ CAP-LEGAL"}</div>
           <div class="frn-cuts-hero-sub">
             ${overCap
-              ? `You need to free <b style="color:#ff8a8a">$${needToFree.toFixed(1)}M</b> before Week 1 kicks off.`
+              ? `Free <b style="color:#ff8a8a">$${needToFree.toFixed(1)}M</b> to get cap-legal — <b>cut</b>, <b>restructure</b> (♻), or <b>trade for picks</b> (🔀 shop). Trading sheds the cap hit AND returns value.`
               : `Roster is locked in at <b style="color:#86e0a3">$${room.toFixed(1)}M</b> under the cap. Hit START to lock the season.`}
           </div>
         </div>
@@ -8946,7 +8946,7 @@ function renderFrnFACuts() {
       <td class="frn-cuts-td-action">
         <div class="frn-cuts-action-cluster">
           ${(!isPending && restructure.eligible) ? `<button class="frn-cuts-row-btn restruct" onclick="frnFARestructureFromCuts('${cleanName(p.name)}','${p.position}')" title="Convert $${restructure.currentBase.toFixed(1)}M base → $${restructure.newProration.toFixed(1)}M/yr bonus. Frees cap now, adds dead-money risk later.">♻ +$${restructure.freed.toFixed(1)}M</button>` : ""}
-          ${(!isPending && tradeTag) ? `<button class="frn-cuts-row-btn trade" onclick="frnFATradeFromCuts('${cleanName(p.name)}','${p.position}')" title="Open the trade hub with ${_escHtml(p.name)} on the block">🔀 trade</button>` : ""}
+          ${(!isPending) ? `<button class="frn-cuts-row-btn trade" onclick="frnMakeRoomShopPicks('${cleanName(p.name)}')" title="One-click: trade ${_escHtml(p.name)} for the best draft-pick offer — sheds his cap hit AND returns value (a cut returns nothing). For a custom multi-asset deal, open the Trades hub.">🔀 shop</button>` : ""}
           <button class="frn-cuts-row-btn ${isPending?"undo":"cut"}" onclick="frnFACutsTogglePending('${cleanName(p.name)}')">
             ${isPending ? "← undo" : "✗ cut"}
           </button>
