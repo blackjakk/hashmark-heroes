@@ -3429,19 +3429,29 @@ function _frnInitOffseasonClock(force = false) {
 // bidding round for the NEXT week (skipped on the final week). seasonEnding stays
 // false — the window does not force-unsign anyone; players who never sign simply
 // stay free agents (carried by the rollover), same as the legacy background path.
+// Set during the offseason week tick so the AI-trade generators use a higher,
+// non-deadline-weighted rate (the offseason is football's busiest churn window).
+let _offseasonChurnActive = false;
 function _runOffseasonWeekResolution(ow) {
   if (franchise.faNegotiations && Object.keys(franchise.faNegotiations).length) {
     _faResolveAfterWeek(ow, /*seasonEnding=*/false);
     if (ow < OFFSEASON_CALENDAR.length) _faAIBidRound(ow + 1, /*isInitial=*/false);
   }
-  // Offseason trade churn — the offseason has NO trade deadline, so AI-vs-AI
-  // swaps, disgruntled-star moves, and offers AT the user all run every week
-  // (the in-season tick gates these on TRADE_DEADLINE_WEEK; here they're open).
-  if (typeof _refreshTradeBlockMorale === "function") _refreshTradeBlockMorale();
-  if (typeof _generateWeeklyAIOffers === "function") _generateWeeklyAIOffers();
-  if (typeof _processBlockAsks === "function") _processBlockAsks();
-  if (typeof _generateAIvsAITrades === "function") _generateAIvsAITrades();
-  if (typeof _processDisgruntledAITrades === "function") _processDisgruntledAITrades();
+  // Offseason trade churn — the offseason has NO trade deadline AND is real
+  // football's busiest roster-churn window, so run the AI markets at a BOOSTED
+  // rate (several swap attempts per week) instead of the deadline-weighted
+  // in-season cadence (which bottoms out at "week 1"). _offseasonChurnActive
+  // flags the AI-trade generators to use the high offseason rate.
+  _offseasonChurnActive = true;
+  try {
+    if (typeof _refreshTradeBlockMorale === "function") _refreshTradeBlockMorale();
+    if (typeof _generateWeeklyAIOffers === "function") _generateWeeklyAIOffers();
+    if (typeof _processBlockAsks === "function") _processBlockAsks();
+    for (let i = 0; i < 4; i++) {
+      if (typeof _generateAIvsAITrades === "function") _generateAIvsAITrades();
+      if (typeof _processDisgruntledAITrades === "function") _processDisgruntledAITrades();
+    }
+  } finally { _offseasonChurnActive = false; }
 }
 // User-clicked "advance one FA week." Mirrors frnAdvanceWeek: resolve the next
 // week (seeded), bump the clock, persist + re-render. Stops at the final week —
@@ -17702,7 +17712,8 @@ function _processDisgruntledAITrades() {
   if (franchise.week > TRADE_DEADLINE_WEEK) return;
   const myId = franchise.chosenTeamId;
   const weeksLeft = TRADE_DEADLINE_WEEK - franchise.week;
-  const chance = weeksLeft <= 1 ? 0.70 : weeksLeft === 2 ? 0.45 : 0.28; // deadline-weighted
+  const chance = _offseasonChurnActive ? 0.65   // offseason: busiest churn window
+               : weeksLeft <= 1 ? 0.70 : weeksLeft === 2 ? 0.45 : 0.28; // deadline-weighted
   if (Math.random() > chance) return;
 
   // AI-owned disgruntled stars with a tradeable contract.
@@ -17777,7 +17788,8 @@ function _generateAIvsAITrades() {
   // is the final flurry window — push hardest there. Contenders shop for
   // help, sellers dump expiring vets.
   const weeksLeft = TRADE_DEADLINE_WEEK - franchise.week;
-  const baseChance = weeksLeft <= 1 ? 0.80
+  const baseChance = _offseasonChurnActive ? 0.85   // offseason: busiest churn window
+                  : weeksLeft <= 1 ? 0.80
                   : weeksLeft === 2 ? 0.55
                   : 0.35;
   if (Math.random() > baseChance) return;
@@ -17789,17 +17801,21 @@ function _generateAIvsAITrades() {
   // Find a position with depth — top guy ≥80 OVR AND #3 ≥70 OVR
   // (so the seller is dealing from strength, not desperation).
   const POS_KEYS = ["QB","RB","WR","TE","OL","DL","LB","CB","S"];
+  // Offseason: relax the "dealing from strength" bar so the busy churn window has
+  // deals to make (in-season keeps the strict bar — teams don't gut depth mid-run).
+  const _minN  = _offseasonChurnActive ? 2  : 3;
+  const _topReq = _offseasonChurnActive ? 76 : 80;
   const candidatePositions = POS_KEYS.filter(pos => {
     const at = sellerRoster.filter(p => p.position === pos)
       .sort((a,b) => (b.overall||0) - (a.overall||0));
-    return at.length >= 3 && (at[0]?.overall||0) >= 80 && (at[2]?.overall||0) >= 70;
+    return at.length >= _minN && (at[0]?.overall||0) >= _topReq && (at[_minN-1]?.overall||0) >= 70;
   });
   if (!candidatePositions.length) return;
   const sellPos = candidatePositions[Math.floor(Math.random() * candidatePositions.length)];
   // Trade the 2nd or 3rd best at that position (keep the starter).
   const atPos = sellerRoster.filter(p => p.position === sellPos)
     .sort((a,b) => (b.overall||0) - (a.overall||0));
-  const seedIdx = Math.random() < 0.5 ? 1 : 2;
+  const seedIdx = atPos.length >= 3 ? (Math.random() < 0.5 ? 1 : 2) : 1;  // keep the starter
   const player = atPos[seedIdx];
   if (!player || !player.contract || player.contract.remaining < 1) return;
   // Find a buyer with real positional need.
@@ -17811,7 +17827,7 @@ function _generateAIvsAITrades() {
         .sort((a,b) => (b.overall||0) - (a.overall||0))[0]?.overall || 50;
       return { t, need: 75 - topOvr };
     })
-    .filter(b => b.need >= 8)
+    .filter(b => b.need >= (_offseasonChurnActive ? 5 : 8))
     .sort((a,b) => b.need - a.need);
   if (!buyers.length) return;
   const buyer = buyers[0].t;
@@ -17948,6 +17964,13 @@ function frnAcceptOffer(offerId) {
     off.status = "stale";
     saveFranchise();
     renderFrnTrade();
+    return;
+  }
+  // Cap enforcement: block an incoming offer that would put the user over the cap.
+  const _myCap = (typeof effectiveSalaryCap === "function") ? effectiveSalaryCap(myId) : (franchise.salaryCap || SALARY_CAP_BASE);
+  const _projUsed = _projectedCapAfterTrade(myId, sending, receiving, off.absorb || 0, 0);
+  if (_projUsed > _myCap + 0.05) {
+    (typeof _frnAlert === "function" ? _frnAlert : alert)(`Accepting this would put you $${(_projUsed - _myCap).toFixed(1)}M over the cap ($${_projUsed.toFixed(1)}M / $${_myCap.toFixed(0)}M). Shed salary first, then accept.`);
     return;
   }
   // NFL dead cap + trade kicker (must run before player objects are moved)
@@ -18357,6 +18380,22 @@ function _tradeSendValue(tp) {
   return Math.round((playerV + pickV + absorbV) * 10) / 10;
 }
 
+// Projected USER cap if a trade executes: drop sent players' hits (their
+// accelerated dead cap stays), add received players' hits, apply absorption.
+// Mirrors how capUsedByTeam recomputes after _applyTradeMechanics — close enough
+// to gate a deal that would blow the cap.
+function _projectedCapAfterTrade(myId, sendPlayers, recvPlayers, theirAbsorb, yourAbsorb) {
+  let used = capUsedByTeam(myId);
+  for (const p of (sendPlayers || [])) {
+    used -= (typeof currentYearCapHit === "function") ? currentYearCapHit(p) : (p.contract?.aav || 0);
+    const dc = (typeof deadCapOnRelease === "function") ? deadCapOnRelease(p) : { perYear: 0 };
+    used += (dc.perYear || 0);
+  }
+  for (const p of (recvPlayers || [])) used += (typeof currentYearCapHit === "function") ? currentYearCapHit(p) : (p.contract?.aav || 0);
+  used -= (theirAbsorb || 0);
+  used += (yourAbsorb || 0);
+  return used;
+}
 function frnSubmitTrade() {
   const tp = franchise._tradeProp;
   if (!tp) return;
@@ -18414,6 +18453,19 @@ function frnSubmitTrade() {
   const accepted = aiScore >= acceptanceRatio;
 
   if (accepted) {
+    // Cap enforcement: an accepted trade must not silently blow the user's cap.
+    const _myCap = (typeof effectiveSalaryCap === "function") ? effectiveSalaryCap(myId) : (franchise.salaryCap || SALARY_CAP_BASE);
+    const _projUsed = _projectedCapAfterTrade(myId, sendPlayers, recvPlayers, tp.theirAbsorb || 0, tp.yourAbsorb || 0);
+    if (_projUsed > _myCap + 0.05) {
+      tp.result = {
+        accepted: false,
+        capBlock: true,
+        message: `${getTeam(otherId)?.name || "They"} would take this deal — but it leaves you $${(_projUsed - _myCap).toFixed(1)}M over the cap ($${_projUsed.toFixed(1)}M / $${_myCap.toFixed(0)}M). Shed salary first (cut or trade a player away), take back less, or absorb less.`,
+      };
+      saveFranchise();
+      renderFrnTrade();
+      return;
+    }
     // NFL dead cap + trade kicker (must run before player objects are moved)
     _applyTradeMechanics(sendPlayers, recvPlayers, myId, otherId, tp.theirAbsorb || 0, tp.yourAbsorb || 0);
     // Players
