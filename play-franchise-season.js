@@ -6680,6 +6680,22 @@ function frnFAProcessOffers() {
   // bids (drop) — they leave the pool.
   franchise._faOffers = {};
   franchise.freeAgents = [];
+  // Multi-week FA window (flag-gated): instead of jumping to Week 1 and resolving
+  // negotiations in the background, stay in the offseason and let the user advance
+  // a few FA weeks — each a signings pass with demand cooling — before the season.
+  // Reuses the free_agency_results phase for the per-week screen.
+  if (typeof _offseasonWeeksEnabled === "function" && _offseasonWeeksEnabled()) {
+    franchise._faWindowActive = true;
+    _frnInitOffseasonClock(true);
+    _withOffseasonRng(1, () => {
+      try { _runOffseasonWeekResolution(1); }
+      catch (e) { console.error("[FA window wk1]", e); }
+    });
+    frnTransition("free_agency_results");
+    saveFranchise();
+    showFranchiseDashboard();
+    return;
+  }
   // We jump straight into regular-season Week 1 — the dashboard banner
   // surfaces the open negotiations. If the user is over cap they go to
   // the cuts screen first.
@@ -7694,7 +7710,66 @@ function frnFAApplyAdvisor(name, years, aav, structure) {
   renderFrnFANegotiations(name);
 }
 
+// Per-week screen for the multi-week FA window (flag-gated). Shows this week's
+// signings + cap, and either an "advance" CTA (mid-window) or the finish/cuts CTA
+// (final week). _faLastNews.signed holds the user's signings for the just-resolved
+// week (AI signings surface in the news feed). Reuses the free_agency_results phase.
+function _renderFAWindowWeek() {
+  const cap   = franchise.salaryCap || SALARY_CAP_BASE;
+  const used  = capUsedByTeam(franchise.chosenTeamId);
+  const overCap = used > cap;
+  const total = OFFSEASON_CALENDAR.length;
+  const ow    = Math.min(franchise.offWeek || 1, total);
+  const stage = OFFSEASON_CALENDAR[ow - 1] || { title: "Free Agency" };
+  const isLast = ow >= total;
+  const news   = franchise._faLastNews || {};
+  const signed = news.signed || [];
+  const negs = Object.values(franchise.faNegotiations || {});
+  const yourOpen     = negs.filter(n => n.state === "negotiating" && n.yourBid).length;
+  const leagueSigned = negs.filter(n => n.state === "signed").length;
+
+  const signedHtml = signed.length ? `
+    <div class="frn-card-box" style="margin-top:.6rem">
+      <div class="frn-card-title">✓ YOU SIGNED THIS WEEK (${signed.length})</div>
+      ${signed.map(s => `<div style="font-size:.78rem;padding:.3rem 0;border-bottom:1px solid var(--border)">
+        <b style="color:var(--gold-lt)">${s.name}</b> (${s.pos}) — $${(s.aav||0).toFixed(1)}M/yr × ${s.years||1}yr
+      </div>`).join("")}
+    </div>` : `<div style="color:var(--gray);text-align:center;font-size:.76rem;margin-top:.5rem">No new signings for you this week.</div>`;
+
+  const cta = isLast
+    ? (overCap
+        ? `<button class="btn btn-gold-big" onclick="frnFAGoToCuts()">→ MAKE CUTS NOW</button>
+           <button class="btn btn-outline" onclick="frnFAStartWithGrace()" style="color:var(--gold)">Defer cuts — start Week 1 anyway</button>`
+        : `<button class="btn btn-gold-big" onclick="frnConfirmFAFinish()">▶ START WEEK 1</button>`)
+    : `<button class="btn btn-gold-big" onclick="frnAdvanceOffseasonWeek()">▶ ADVANCE FA WEEK</button>
+       <button class="btn btn-outline" onclick="frnConfirmFAFinish()">Skip remaining FA — start the season</button>`;
+
+  $("frnHomeContent").innerHTML = `
+    <div style="text-align:center;margin-bottom:.6rem">
+      <div style="font-size:1.2rem;font-weight:900;color:var(--gold)">🆓 FREE AGENCY · WEEK ${ow} / ${total}</div>
+      <div style="color:var(--gray);font-size:.78rem">${stage.title} — bidding resolves each week as demand cools.</div>
+      <div style="margin-top:.35rem;display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
+        <span class="chip neutral">${yourOpen} open bid${yourOpen===1?"":"s"}</span>
+        <span class="chip neutral">${leagueSigned} signed league-wide</span>
+      </div>
+    </div>
+    ${signedHtml}
+    <div class="frn-card-box" style="margin-top:.6rem">
+      <div class="frn-card-title">CAP STATUS</div>
+      <div style="font-size:.85rem;padding:.4rem 0">
+        Cap used: <b style="color:${overCap?"var(--red)":"var(--white)"}">$${used.toFixed(1)}M</b>
+        / <b style="color:var(--gold)">$${cap.toFixed(0)}M</b>
+        ${overCap ? `<div style="color:var(--red);font-weight:700;margin-top:.4rem">⚠ OVER CAP by $${(used-cap).toFixed(1)}M — clear it before Week 2.</div>`
+                  : `<div style="color:var(--green-lt);margin-top:.3rem">✓ Cap-legal.</div>`}
+      </div>
+    </div>
+    <div class="frn-actions" style="justify-content:center;margin-top:1rem;flex-wrap:wrap;gap:.5rem">${cta}</div>`;
+}
+
 function renderFrnFAResults() {
+  if (typeof _offseasonWeeksEnabled === "function" && _offseasonWeeksEnabled() && franchise._faWindowActive) {
+    return _renderFAWindowWeek();
+  }
   const cap = franchise.salaryCap || SALARY_CAP_BASE;
   const used = capUsedByTeam(franchise.chosenTeamId);
   const overCap = used > cap;
@@ -8885,6 +8960,7 @@ function renderFrnFACuts() {
 function frnFAFinish() {
   frnTransition("regular");
   franchise._faResults = null;
+  franchise._faWindowActive = false;   // close the multi-week FA window (flag path)
   saveFranchise();
   showFranchiseDashboard();
 }

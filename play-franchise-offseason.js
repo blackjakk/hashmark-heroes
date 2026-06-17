@@ -3379,68 +3379,60 @@ function advanceWeekIfDone() {
   _checkWeekComplete();
 }
 
-// ── Multi-week offseason calendar ────────────────────────────────────────────
-// FLAG-GATED: window.GC_OFFSEASON_WEEKS="on". Default OFF → the legacy instant
-// offseason flow (awards → re-sign → draft → FA) is byte-identical; nothing below
-// runs. When ON, the pre-draft offseason becomes a click-to-advance calendar of
-// weeks the user steps through, with FA bidding/signings + trade churn resolving
-// once per offseason week (mirroring the in-season _runWeekEndResolution tick).
-// This is the SUBSTRATE — the phase-machine reorder + per-stage UI is wired in
-// the next stage; these functions are reachable only once that lands.
+// ── Multi-week free-agency window ────────────────────────────────────────────
+// FLAG-GATED: window.GC_OFFSEASON_WEEKS="on". Default OFF → the legacy flow (FA
+// converts offers to negotiations then jumps to regular-season Week 1, resolving
+// in the background) is byte-identical; nothing below runs. When ON, free agency
+// becomes a click-to-advance window of weeks the user steps through BEFORE Week 1
+// — each week runs an FA bidding round + signings (mirroring the in-season tick),
+// with demand cooling over the window. The negotiation engine, pool, and results
+// phase are all reused; only the resolution cadence + a per-week screen are new.
+// (The pre-draft REORDER — moving this window ahead of the draft — and offseason
+// trade churn ride on this same machinery in a later stage.)
 const OFFSEASON_CALENDAR = [
-  { stage: "resign", title: "Re-Sign Window",      faWave: 0 },  // OW1: keep your own
-  { stage: "tags",   title: "Tags & Cuts",         faWave: 0 },  // OW2: franchise tag, cap cuts
-  { stage: "fa1",    title: "Free Agency · Frenzy", faWave: 1 },  // OW3: top tier hits the board
-  { stage: "fa2",    title: "Free Agency · Wave 2", faWave: 2 },  // OW4: depth tier, prices cooling
-  { stage: "fa3",    title: "Free Agency · Market", faWave: 3 },  // OW5: bargain bin
+  { stage: "fa1", title: "Frenzy" },        // week 1: top of the market moves
+  { stage: "fa2", title: "Wave 2" },        // week 2: depth tier signs
+  { stage: "fa3", title: "Market Cools" },  // week 3: prices drop toward floors
+  { stage: "fa4", title: "Last Calls" },    // week 4: bargain bin, final deals
 ];
 function _offseasonWeeksEnabled() {
   try { return typeof window !== "undefined" && window.GC_OFFSEASON_WEEKS === "on"; }
   catch (e) { return false; }
 }
-// Initialize / reset the offseason clock to week 1. Idempotent — safe to call on
-// offseason entry and harmless on a resumed mid-offseason save (won't rewind a
-// clock that's already past week 1 unless force=true).
+// Initialize / reset the FA-window clock to week 1. Idempotent — safe to call on
+// window entry and harmless on a resumed mid-window save (won't rewind a clock
+// that's already past week 1 unless force=true).
 function _frnInitOffseasonClock(force = false) {
   if (force || !(franchise.offWeek >= 1)) {
     franchise.offWeek  = 1;
     franchise.offStage = OFFSEASON_CALENDAR[0].stage;
   }
 }
-// Resolve one offseason week: an FA bidding round + signings for the week, plus
-// (later) offseason trade churn. Unlike the in-season tick there is NO trade
-// deadline, so churn will run every offseason week. seasonEnding stays false —
-// the FA window does not "close" (forcing unsigned players) until the offseason
-// actually exits to Week 1, which is the finalize hook's job, not a wave's.
+// Resolve one FA-window week: a signings pass over the standing bids, then an AI
+// bidding round for the NEXT week (skipped on the final week). seasonEnding stays
+// false — the window does not force-unsign anyone; players who never sign simply
+// stay free agents (carried by the rollover), same as the legacy background path.
 function _runOffseasonWeekResolution(ow) {
   if (franchise.faNegotiations && Object.keys(franchise.faNegotiations).length) {
     _faResolveAfterWeek(ow, /*seasonEnding=*/false);
-    _faAIBidRound(ow + 1, /*isInitial=*/false);
+    if (ow < OFFSEASON_CALENDAR.length) _faAIBidRound(ow + 1, /*isInitial=*/false);
   }
-  // Offseason trade churn (no deadline gate) is wired alongside the offseason
-  // trade-hub mount in a later stage:
-  //   if (typeof _generateAIvsAITrades === "function") _generateAIvsAITrades();
-  //   if (typeof _processDisgruntledAITrades === "function") _processDisgruntledAITrades();
 }
-// User-clicked "advance one offseason week." Mirrors frnAdvanceWeek: resolve the
-// week (seeded), bump the clock, persist + re-render. When the pre-draft calendar
-// is exhausted, hand off to the draft (frnGoToDraft owns offseason → draft).
+// User-clicked "advance one FA week." Mirrors frnAdvanceWeek: resolve the next
+// week (seeded), bump the clock, persist + re-render. Stops at the final week —
+// the per-week screen's CTA (frnConfirmFAFinish / cuts) drives the exit to Week 1,
+// so the window never auto-transitions out from under the user.
 function frnAdvanceOffseasonWeek() {
   if (!_offseasonWeeksEnabled()) return;
   _frnInitOffseasonClock();
-  const ow = franchise.offWeek;
+  if (franchise.offWeek >= OFFSEASON_CALENDAR.length) return; // window complete
+  const ow = franchise.offWeek + 1;
   _withOffseasonRng(ow, () => {
     try { _runOffseasonWeekResolution(ow); }
     catch (e) { console.error("[frnAdvanceOffseasonWeek] resolution error (non-fatal):", e); }
   });
-  franchise.offWeek = ow + 1;
-  if (franchise.offWeek > OFFSEASON_CALENDAR.length) {
-    // Pre-draft offseason complete → open the draft.
-    franchise.offStage = null;
-    if (typeof frnGoToDraft === "function") { frnGoToDraft(); return; }
-  } else {
-    franchise.offStage = OFFSEASON_CALENDAR[franchise.offWeek - 1].stage;
-  }
+  franchise.offWeek = ow;
+  franchise.offStage = OFFSEASON_CALENDAR[ow - 1]?.stage || null;
   if (typeof _flushSaveFranchise === "function") _flushSaveFranchise();
   showFranchiseDashboard();
 }
