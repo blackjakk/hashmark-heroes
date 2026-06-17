@@ -7725,8 +7725,11 @@ function _renderFAWindowWeek() {
   const news   = franchise._faLastNews || {};
   const signed = news.signed || [];
   const negs = Object.values(franchise.faNegotiations || {});
+  const activeCount  = negs.filter(n => n.state === "negotiating").length;
   const yourOpen     = negs.filter(n => n.state === "negotiating" && n.yourBid).length;
   const leagueSigned = negs.filter(n => n.state === "signed").length;
+  const manageBtn = (activeCount > 0 && typeof renderFrnFANegotiations === "function")
+    ? `<button class="btn btn-outline" onclick="renderFrnFANegotiations()">⚖ Manage bids${yourOpen ? ` (${yourOpen})` : ""}</button>` : "";
 
   const signedHtml = signed.length ? `
     <div class="frn-card-box" style="margin-top:.6rem">
@@ -7742,6 +7745,7 @@ function _renderFAWindowWeek() {
            <button class="btn btn-outline" onclick="frnFAStartWithGrace()" style="color:var(--gold)">Defer cuts — start Week 1 anyway</button>`
         : `<button class="btn btn-gold-big" onclick="frnConfirmFAFinish()">▶ START WEEK 1</button>`)
     : `<button class="btn btn-gold-big" onclick="frnAdvanceOffseasonWeek()">▶ ADVANCE FA WEEK</button>
+       ${manageBtn}
        <button class="btn btn-outline" onclick="frnConfirmFAFinish()">Skip remaining FA — start the season</button>`;
 
   $("frnHomeContent").innerHTML = `
