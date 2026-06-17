@@ -3396,8 +3396,13 @@ const OFFSEASON_CALENDAR = [
   { stage: "fa4", title: "Last Calls" },    // week 4: bargain bin, final deals
 ];
 function _offseasonWeeksEnabled() {
-  try { return typeof window !== "undefined" && window.GC_OFFSEASON_WEEKS === "on"; }
-  catch (e) { return false; }
+  // window override wins (lets headless probes pin it); else persistent
+  // localStorage (set once for QA, survives reloads), same as GC_SPRITE_V2.
+  try {
+    if (typeof window !== "undefined" && window.GC_OFFSEASON_WEEKS != null) return window.GC_OFFSEASON_WEEKS === "on";
+    if (typeof localStorage !== "undefined") return localStorage.getItem("GC_OFFSEASON_WEEKS") === "on";
+  } catch (e) {}
+  return false;
 }
 // Initialize / reset the FA-window clock to week 1. Idempotent — safe to call on
 // window entry and harmless on a resumed mid-window save (won't rewind a clock
