@@ -1043,6 +1043,17 @@ function renderFrnMakeRoom() {
   $("frnHomeContent").innerHTML = `
     <div class="frn-card-box" style="border-top:3px solid ${over > 0 ? '#ff6b6b' : 'var(--gold)'}">
       <div class="frn-card-title">🚧 MAKE ROOM ${frnRosterCountBadge(myId)}</div>
+      ${(() => {
+        const _cap = (typeof effectiveSalaryCap === "function") ? effectiveSalaryCap(myId) : (franchise.salaryCap || 0);
+        const _used = capUsedByTeam(myId);
+        const _overCap = _used > _cap;
+        return `<div style="font-size:.72rem;color:var(--gray);margin:.1rem 0 .55rem">
+          Cap: <b style="color:${_overCap ? '#ff6b6b' : 'var(--white)'}">$${_used.toFixed(1)}M</b> / $${_cap.toFixed(0)}M
+          ${_overCap
+            ? `<span style="color:#ff6b6b;font-weight:700"> · $${(_used - _cap).toFixed(1)}M OVER</span> — <span style="color:var(--gold-lt)">🔀 Shop picks</span> sheds salary AND returns a pick (vs. a cut)`
+            : `<span style="color:#86e0a3"> · $${(_cap - _used).toFixed(1)}M room</span>`}
+        </div>`;
+      })()}
       <p class="frn-prose" style="color:var(--gray);font-size:.78rem;margin:.2rem 0 .65rem;line-height:1.45">
         ${over > 0
           ? `Your active roster is <b style="color:#ff6b6b">${over} over</b> the ${ACTIVE_ROSTER_LIMIT}-man limit. Trade, release, or IR <b>${over}</b> player${over > 1 ? 's' : ''} to continue.`
@@ -1137,7 +1148,22 @@ async function frnMakeRoomShopPicks(name) {
   }
   const { t, pick } = best;
   const pickLabel = `${pick.year} Round ${pick.round}${pick.isComp ? ' (comp)' : ''}`;
-  const ok = await _frnConfirm(`${t.city || ''} ${t.name} will trade their <b>${pickLabel}</b> pick for ${p.position} <b>${name}</b>. Accept?`);
+  // Explicit trade confirmation with the cap impact — a one-click shop must never
+  // fire a trade by accident. Shows what you give/get and where your cap lands.
+  const _cap     = (typeof effectiveSalaryCap === "function") ? effectiveSalaryCap(myId) : (franchise.salaryCap || 0);
+  const _capNow  = capUsedByTeam(myId);
+  const _dc      = (typeof deadCapOnRelease === "function") ? deadCapOnRelease(p) : { perYear: 0, years: 0 };
+  const _dead    = (_dc.perYear || 0) * (_dc.years || 0);
+  const _hit     = (typeof currentYearCapHit === "function") ? currentYearCapHit(p) : (p.contract?.aav || 0);
+  const _relief  = Math.max(0, _hit - _dead);
+  const _capAfter = _capNow - _relief;
+  const ok = await _frnConfirm(
+    `<b>You trade away:</b> ${p.position} ${name}<br>` +
+    `<b>You receive:</b> ${t.city || ''} ${t.name} — ${pickLabel} pick<br><br>` +
+    `Frees <b style="color:#86e0a3">$${_relief.toFixed(1)}M</b> cap${_dead > 0 ? ` (after $${_dead.toFixed(1)}M dead money)` : ''}.<br>` +
+    `Cap: $${_capNow.toFixed(1)}M → <b>$${_capAfter.toFixed(1)}M</b> / $${_cap.toFixed(0)}M`,
+    { title: "Confirm trade", confirmLabel: "✓ Confirm trade", cancelLabel: "Cancel" }
+  );
   if (!ok) return;
   // Execute the player-for-pick swap (mirrors frnAcceptOffer): dead cap, move
   // the player to their roster, transfer the pick to you. Frees a roster spot.
