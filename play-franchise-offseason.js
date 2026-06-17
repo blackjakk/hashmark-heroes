@@ -3434,6 +3434,14 @@ function _runOffseasonWeekResolution(ow) {
     _faResolveAfterWeek(ow, /*seasonEnding=*/false);
     if (ow < OFFSEASON_CALENDAR.length) _faAIBidRound(ow + 1, /*isInitial=*/false);
   }
+  // Offseason trade churn — the offseason has NO trade deadline, so AI-vs-AI
+  // swaps, disgruntled-star moves, and offers AT the user all run every week
+  // (the in-season tick gates these on TRADE_DEADLINE_WEEK; here they're open).
+  if (typeof _refreshTradeBlockMorale === "function") _refreshTradeBlockMorale();
+  if (typeof _generateWeeklyAIOffers === "function") _generateWeeklyAIOffers();
+  if (typeof _processBlockAsks === "function") _processBlockAsks();
+  if (typeof _generateAIvsAITrades === "function") _generateAIvsAITrades();
+  if (typeof _processDisgruntledAITrades === "function") _processDisgruntledAITrades();
 }
 // User-clicked "advance one FA week." Mirrors frnAdvanceWeek: resolve the next
 // week (seeded), bump the clock, persist + re-render. Stops at the final week —
@@ -18559,7 +18567,11 @@ function renderFrnTrade() {
   $("frnHomeContent").innerHTML = `
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.8rem;flex-wrap:wrap">
       <div style="font-size:1.05rem;font-weight:900;color:var(--gold)">🔀 TRADES</div>
-      <div style="color:var(--gray);font-size:.72rem">Trade deadline: Week ${TRADE_DEADLINE_WEEK} · ${franchise.week > TRADE_DEADLINE_WEEK ? "<span style=\"color:var(--red)\">PASSED</span>" : `Week ${franchise.week} of ${FRANCHISE_WEEKS}`}</div>
+      <div style="color:var(--gray);font-size:.72rem">${
+        (franchise.phase !== "regular" && franchise.phase !== "playoffs")
+          ? "Offseason · open market (no deadline)"
+          : `Trade deadline: Week ${TRADE_DEADLINE_WEEK} · ${franchise.week > TRADE_DEADLINE_WEEK ? "<span style=\"color:var(--red)\">PASSED</span>" : `Week ${franchise.week} of ${FRANCHISE_WEEKS}`}`
+      }</div>
       <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="margin-left:auto">← Back</button>
     </div>
     <div class="frn-ana-tabs">${tabHtml}</div>

@@ -7754,6 +7754,9 @@ function _renderFAWindowWeek() {
   const arrivingLater = negs.filter(n => n.state === "negotiating" && n._releaseWeek && n._releaseWeek > ow).length;
   const manageBtn = (activeCount > 0 && typeof renderFrnFANegotiations === "function")
     ? `<button class="btn btn-outline" onclick="renderFrnFANegotiations()">⚖ Manage bids${yourOpen ? ` (${yourOpen})` : ""}</button>` : "";
+  // Offseason trading is open every FA week (no deadline) — surface the hub here.
+  const tradeBtn = (typeof frnOpenTrade === "function")
+    ? `<button class="btn btn-outline" onclick="frnOpenTrade()">🔀 Trades</button>` : "";
 
   const signedHtml = signed.length ? `
     <div class="frn-card-box" style="margin-top:.6rem">
@@ -7766,10 +7769,13 @@ function _renderFAWindowWeek() {
   const cta = isLast
     ? (overCap
         ? `<button class="btn btn-gold-big" onclick="frnFAGoToCuts()">→ MAKE CUTS NOW</button>
-           <button class="btn btn-outline" onclick="frnFAStartWithGrace()" style="color:var(--gold)">Defer cuts — start Week 1 anyway</button>`
-        : `<button class="btn btn-gold-big" onclick="frnConfirmFAFinish()">▶ START WEEK 1</button>`)
+           <button class="btn btn-outline" onclick="frnFAStartWithGrace()" style="color:var(--gold)">Defer cuts — start Week 1 anyway</button>
+           ${tradeBtn}`
+        : `<button class="btn btn-gold-big" onclick="frnConfirmFAFinish()">▶ START WEEK 1</button>
+           ${tradeBtn}`)
     : `<button class="btn btn-gold-big" onclick="frnAdvanceOffseasonWeek()">▶ ADVANCE FA WEEK</button>
        ${manageBtn}
+       ${tradeBtn}
        <button class="btn btn-outline" onclick="frnConfirmFAFinish()">Skip remaining FA — start the season</button>`;
 
   $("frnHomeContent").innerHTML = `
