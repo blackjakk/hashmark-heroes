@@ -16514,7 +16514,22 @@ function _renderHoldoutsBlock() {
 }
 
 // ── New season ────────────────────────────────────────────────────────────────
-function frnNewSeason() {
+// The season rollover, decomposed into three ordered lifecycle hooks so a future
+// multi-week offseason can fire each at its proper calendar moment instead of all
+// at once. Today frnNewSeason() calls them back-to-back, so behavior is BYTE-
+// IDENTICAL to the old monolith — only the seams are new.
+//
+//   _frnRolloverClose()    — close out last season + age the world. Order-critical:
+//                            the EPA freeze reads the OLD season number (must precede
+//                            season+=1); the coaching carousel + stat-roll must precede
+//                            the finalize stat/standings wipe; the college pipeline must
+//                            follow season+=1.
+//   _frnRolloverFinalize() — stand up the new season's schedule/standings + wipe last
+//                            season's stat/highlight tables. Must follow season+=1.
+//   _frnRolloverFAOpen()   — open the FA window: reset negotiation/cap-grace state,
+//                            build the fresh FA pool, restock AI practice squads.
+//                            Sets phase=free_agency (direct assignment, as before).
+function _frnRolloverClose() {
   // Before wiping season stats, roll them into each player's career
   _rollSeasonStatsToCareer();
   // Deliberate once-per-season storage maintenance (audit §B/§D): the old
@@ -16617,7 +16632,12 @@ function frnNewSeason() {
   // through aging (FR seeded at S1 with draftSeason=5 stays
   // draftSeason=5 through SO/JR/SR transitions).
   if (typeof _advanceCollegePipeline === "function") _advanceCollegePipeline();
-  franchise.phase         = "free_agency";
+}
+
+// Stand up the new season's structure. Order-critical: schedule + standings read
+// the freshly-bumped season counter (done in _frnRolloverClose), and the stat
+// tables must already have been rolled to career before they're wiped here.
+function _frnRolloverFinalize() {
   franchise.schedule      = generateFranchiseSchedule();
   franchise.standings     = initStandings();
   franchise.playoffBracket = null;
@@ -16628,6 +16648,13 @@ function frnNewSeason() {
   franchise._mergedGameKeys = {};
   franchise.seasonHighlights = [];
   franchise.superBowlGame = null;
+}
+
+// Open the free-agency window: reset negotiation + cap-grace state, build the fresh
+// FA pool (carrying aged-down cuts forward), restock AI practice squads. Sets the
+// phase to free_agency via direct assignment, exactly as the old monolith did.
+function _frnRolloverFAOpen() {
+  franchise.phase         = "free_agency";
   franchise.faNegotiations = {};
   franchise._faLastNews   = null;
   franchise.capGraceDeadline = null;
@@ -16653,6 +16680,17 @@ function frnNewSeason() {
   // post-draft young glut. Without this, squads only ever drained (poaching,
   // promotions, age-outs) and trended to empty across a franchise.
   if (typeof _psReplenishTeams === "function") _psReplenishTeams({ aiOnly: true, allowDemote: true });
+}
+
+// frnNewSeason — today the three hooks fire back-to-back, so the season rollover is
+// byte-identical to the old monolith. A future multi-week offseason will move these
+// call sites to their proper calendar moments (close at offseason entry, finalize +
+// FA-open staged across the offseason weeks). Call order here reproduces the old
+// monolith's execution order exactly.
+function frnNewSeason() {
+  _frnRolloverClose();
+  _frnRolloverFinalize();
+  _frnRolloverFAOpen();
   saveFranchise();
   showFranchiseDashboard();
 }
