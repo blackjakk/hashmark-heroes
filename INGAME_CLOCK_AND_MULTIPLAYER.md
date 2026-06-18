@@ -570,6 +570,74 @@ operator's step, like the H2H VPS was.
   session keys + paymaster so friends don't fight MetaMask), league lobby, scoped
   commissioner controls, all reading on-chain state.
 
+### Decisions locked (this design pass)
+
+- **No token.** A fungible currency is a pay-to-win cheat surface (buy cap / FA
+  budget with real money) and unnecessary. Salary cap + FA budget = **non-
+  transferable on-chain accounting units** ("cap dollars", just `uint256`). Gas =
+  sponsored ETH. Champion = on-chain trophy / record. Kept behind an accounting
+  interface so a token *could* back it later (open economy) without a rewrite. →
+  delete `GridironToken.sol`, strip GRID from the suite.
+- **Ownership = plain non-transferable registry**, not ERC-721 NFTs (friends-league
+  teams shouldn't be tradeable to outsiders mid-dynasty; identical anti-cheat from
+  wallet-gated ownership; simpler). NFTs stay a later option for tradeable assets.
+- **Autonomous league, no privileged human commissioner.** Referee = code (rules +
+  deterministic sim + proofs); no human *or* AI discretion over outcomes. Humans
+  only create/configure a league.
+- **AI rule: choose INPUTS, never OUTPUTS.** Inputs (lineup, pick, bid, trade) are
+  validated + recorded — safe for AI. Outputs (result, stats) are proven by the
+  engine — never AI (LLMs are non-deterministic + injectable). Operational AI =
+  absent-team management (neutral skill, submits validated intents) + friendly
+  config/notify. Game-Master AI = commentary / recaps / power rankings / press
+  conferences / persona — pure presentation *outside the trust boundary* (injection
+  or hallucination can only produce bad flavor, never a cheated result). Claude-
+  built, tiered (Haiku volume / Sonnet–Opus depth). Resist giving AI discretion
+  (vetoes, rubber-banding) — that re-adds the trust surface.
+- **Wallet = MOSS** (MegaETH-native, launched 2026-06-17): native app-sponsored gas
+  (our sponsorship mechanism), AI-agent scoped/revocable permissions (defense-in-
+  depth on the AI rule), one smart account across apps (low-friction onboarding).
+  Keep wallet/gas behind an **adapter** (MOSS is brand-new + mobile-pitched; support
+  standard wallets too). We still own the sponsorship **policy** (member-gated,
+  method-scoped, budget-limited) regardless of mechanism.
+- **Sim verification = swappable interface.** Friends: optimistic re-sim + small
+  bond (anyone, incl. members, re-runs the deterministic sim → proves fraud, zero
+  trust). The guarantee is **determinism**, not the enforcement protocol.
+  EigenLayer/EigenCompute (and later ZK proofs) are documented **drop-in upgrades**
+  for the verification layer — not built now.
+
+### High-stakes mode (future — same core, hardened enforcement + a legal gate)
+
+If the league ever runs for real value (entry-fee prize pools, wagering, valuable
+assets), the **same trust-minimized core** serves it — but knobs turn, and the
+dominant consideration becomes **legal, not technical.**
+
+**What flips (technical):**
+- **Verification:** optimistic + small bond → **EigenLayer/EigenCompute economic
+  security, or ZK proofs** of `sim(seed,rosters)=result`. (This *reverses* the
+  friends-league "overkill" verdict — with money + adversarial strangers,
+  decentralized economically-secured verification is the right tool. The swappable
+  interface makes it a mechanism swap, not a rewrite.)
+- **Determinism:** must be airtight cross-environment (canonical / wasm / ZK).
+- **Stakes medium:** ETH / USDC — **still not a bespoke token.**
+- **Absent teams:** likely **forfeit + refund**, not AI-managed (an AI-run paid team
+  is a collusion/manipulation vector).
+- **New dominant cheat surface = COLLUSION + SYBIL** (financially incentivized, and
+  it *looks like legit play*): one person many teams; throwing/tanking to funnel a
+  confederate the pot; match-fixing. Pure tech can't fully solve social collusion.
+  Mitigations: limit human discretion in paid modes (AI-coached sim caps
+  "throwing"), identity / proof-of-personhood / anti-sybil, statistical collusion
+  **detection** (AI flags → rules/vote decide, never AI unilateral), fair-trade
+  rules-as-code, payout structures that disincentivize tanking. **The Phase-0 spec
+  should include identity / anti-sybil hooks even if unused at friends-scale.**
+
+**The legal gate (non-technical, dominant):** real-money-for-outcomes implicates
+gambling/gaming law, money transmission (MSB) + KYC/AML, possibly securities
+(tradeable assets), and tax. Technical anti-cheat does **not** address this.
+**Requires legal counsel before any real-money launch**; the structure (skill-based
+contest vs wager, who custodies funds, jurisdiction gating) drives the risk profile.
+Build + prove the **free** friends' league first; layer high-stakes on the same core
+only with counsel + the hardened enforcement above.
+
 ---
 
 ## Seams in existing code (where this plugs in)
