@@ -21901,7 +21901,7 @@ function _rollClassThemes() {
 function _buildClassPositionPool(themes) {
   // Base weights track roster needs + Brady-cadence tuning. QB bumped to
   // 4 so the late-round QB pool has ~30% more attempts at HoF emergence.
-  const baseUnits = { QB:4, RB:4, WR:6, TE:3, OL:9, DL:5, LB:4, CB:5, S:3, K:1, P:1 };
+  const baseUnits = { QB:4, RB:4, WR:6, TE:3, OL:9, DL:5, LB:4, CB:5, S:2, K:1, P:1 };
   const pool = [];
   for (const pos of Object.keys(baseUnits)) {
     const count = Math.max(1, Math.round(baseUnits[pos] * (themes[pos] || 1)));
@@ -22282,7 +22282,7 @@ const _COLLEGE_POS_WEIGHTS = {
   // 2-4 R1-grade prospects per draft, matching NFL reality (~2-3
   // R1 QBs typically). Old weight produced only 0.4 R1 QBs/draft
   // even with elite-tier FR boosts.
-  QB: 2.5, RB: 3, WR: 6, TE: 2, OL: 7, DL: 6, LB: 4, CB: 5, S: 3, K: 0.2, P: 0.2,
+  QB: 2.5, RB: 3, WR: 6, TE: 2, OL: 7, DL: 6, LB: 4, CB: 5, S: 2, K: 0.2, P: 0.2,
 };
 function _pickCollegePosition() {
   const positions = Object.keys(_COLLEGE_POS_WEIGHTS);
@@ -22380,7 +22380,17 @@ function _projectedDraftRound(p) {
 
 function _generateCollegePlayer(collegeYear, blockNames) {
   const pos = _pickCollegePosition();
-  const tier = _rollCollegeTier(collegeYear, pos);
+  let tier = _rollCollegeTier(collegeYear, pos);
+  // Draft balance: safeties come out of the shared player generator over-rated —
+  // the highest average OVR of any position — so the board floods with "good"
+  // safeties. Demote a share of elite/good safety tiers (genPlayer maps tier →
+  // OVR) so the class is positionally balanced. Draft-only: genPlayer/genRoster
+  // (the audit battery's roster source) are untouched, so the 0-drift sim gate
+  // is unaffected.
+  if (pos === "S") {
+    if (tier === "elite" && Math.random() < 0.55) tier = "good";
+    else if (tier === "good" && Math.random() < 0.45) tier = "average";
+  }
   const p = blockNames ? genUniquePlayer(pos, tier, blockNames) : genPlayer(pos, tier);
   if (blockNames) blockNames.add(p.name);
 
