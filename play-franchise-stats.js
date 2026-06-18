@@ -1157,12 +1157,21 @@ async function frnMakeRoomShopPicks(name) {
   const _hit     = (typeof currentYearCapHit === "function") ? currentYearCapHit(p) : (p.contract?.aav || 0);
   const _relief  = Math.max(0, _hit - _dead);
   const _capAfter = _capNow - _relief;
+  // Safety: flag a one-click that would dump a quality keeper or leave you with
+  // no starting-caliber player at the position, so you don't fat-finger a deal.
+  const _warns = [];
+  if ((p.overall || 0) >= 80) _warns.push(`${name} is an ${p.overall} OVR starter`);
+  else if ((p.age || 30) <= 25 && (p.overall || 0) >= 74) _warns.push(`${name} is a young (age ${p.age}) building block`);
+  const _depthLeft = (roster || []).filter(q => q !== p && q.position === p.position && (q.overall || 0) >= 70).length;
+  if (_depthLeft === 0) _warns.push(`he'd be your only departure leaving no starting-caliber ${p.position}`);
+  const _warnLine = _warns.length ? `⚠ <b style="color:#ffb14c">Heads up:</b> ${_warns.join("; ")}.<br><br>` : "";
   const ok = await _frnConfirm(
+    _warnLine +
     `<b>You trade away:</b> ${p.position} ${name}<br>` +
     `<b>You receive:</b> ${t.city || ''} ${t.name} — ${pickLabel} pick<br><br>` +
     `Frees <b style="color:#86e0a3">$${_relief.toFixed(1)}M</b> cap${_dead > 0 ? ` (after $${_dead.toFixed(1)}M dead money)` : ''}.<br>` +
     `Cap: $${_capNow.toFixed(1)}M → <b>$${_capAfter.toFixed(1)}M</b> / $${_cap.toFixed(0)}M`,
-    { title: "Confirm trade", confirmLabel: "✓ Confirm trade", cancelLabel: "Cancel" }
+    { title: _warns.length ? "⚠ Confirm trade" : "Confirm trade", confirmLabel: "✓ Confirm trade", cancelLabel: "Cancel" }
   );
   if (!ok) return;
   // Execute the player-for-pick swap (mirrors frnAcceptOffer): dead cap, move

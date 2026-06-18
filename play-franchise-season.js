@@ -5616,11 +5616,25 @@ function _faTeamDemandMult(fa, teamId) {
   const swing = 0.15 * (m.weight || 1);
   return +(1 - sat * swing).toFixed(3);
 }
-// A bid's "value to the player" — bid AAV over the team's fit-adjusted demand.
-// The player signs with the highest-satisfaction bidder that clears threshold.
+// Position-scarcity pricing: as quality free agents at a position thin out, the
+// ones still on the market command more. Counts rotational+ players (OVR >= 68)
+// across active negotiations + the unsigned pool at that position. Early (plenty
+// left) → 1.0 (no change); late (a run on the position) → up to +28%. Only adds
+// UPWARD pressure as supply dries up — it never discounts.
+function _faScarcityMult(pos) {
+  if (!pos) return 1;
+  let avail = 0;
+  const negs = franchise.faNegotiations || {};
+  for (const k in negs) { const n = negs[k]; if (n && n.state === "negotiating" && n.fa?.position === pos && (n.fa.overall || 0) >= 68) avail++; }
+  for (const p of (franchise.freeAgents || [])) { if (p.position === pos && (p.overall || 0) >= 68) avail++; }
+  return avail <= 1 ? 1.28 : avail === 2 ? 1.16 : avail === 3 ? 1.08 : avail === 4 ? 1.03 : 1.0;
+}
+// A bid's "value to the player" — bid AAV over the team's fit-adjusted, scarcity-
+// adjusted demand. The player signs with the highest-satisfaction bidder that
+// clears threshold.
 function _faBidSatisfaction(fa, teamId, aav) {
   const demand = Math.max(0.1, fa?.demandedAAV || 0);
-  return aav / (demand * _faTeamDemandMult(fa, teamId));
+  return aav / (demand * _faTeamDemandMult(fa, teamId) * _faScarcityMult(fa?.position));
 }
 
 function _generateFAPool() {
@@ -6792,7 +6806,7 @@ function _faAIInterest(teamId, fa) {
 function _faAIBidAmount(teamId, fa, currentHighAav) {
   const cap   = effectiveSalaryCap(teamId);
   const room  = cap - capUsedByTeam(teamId);
-  const demand = fa.demandedAAV;
+  const demand = fa.demandedAAV * _faScarcityMult(fa.position);  // scarce position → AI bids more
   // Floor: just above current high if any, else ~95% of demand
   const floor = currentHighAav ? currentHighAav + 0.5 : demand * 0.92;
   // Knockout chance: high-need team with cap room may go nuclear past

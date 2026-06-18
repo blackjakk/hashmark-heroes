@@ -16864,11 +16864,45 @@ function _ensurePicksForYear(year) {
 // Rough trade-value of an UNREALIZED pick (before draft order is set).
 // Round 1 expected value is the average of the 32 round-1 prospects.
 const PICK_VALUE_BY_ROUND = { 1: 32, 2: 16, 3: 9, 4: 5, 5: 3, 6: 2, 7: 1.5 };
+// Estimate a pick's draft SLOT (1..~256) from the ORIGINAL team's projected
+// finish — a struggling team's pick lands earlier (worth more), a contender's
+// later. Uses current standings as the proxy (a future pick has no slot yet, and
+// during the offseason trade window standings still hold last season's finish).
+// Falls back to the round midpoint when standings/owner are unknown → identical
+// to the old flat behaviour (no regression where there's no signal).
+function _estimatePickSlot(pick) {
+  const round = pick.round || 1;
+  const origId = pick.originalTeamId ?? pick.currentOwnerId;
+  let rankFromBottom = 16;  // mid-round default
+  const st = franchise.standings;
+  if (st && origId != null) {
+    const diff = (id) => { const s = st[id] || {}; return (s.w ?? s.wins ?? 0) - (s.l ?? s.losses ?? 0); };
+    const order = (typeof TEAMS !== "undefined" ? TEAMS : []).map(t => t.id).filter(id => st[id] != null);
+    if (order.length > 1) {
+      order.sort((a, b) => diff(a) - diff(b));  // worst record first
+      const idx = order.indexOf(origId);
+      if (idx >= 0) rankFromBottom = Math.round((idx / (order.length - 1)) * 31) + 1;  // 1 (worst) .. 32 (best)
+    }
+  }
+  return (round - 1) * 32 + Math.min(32, Math.max(1, rankFromBottom));
+}
+// Unified pick value: the SAME slot curve draft-day trades use (_draftSlotValue),
+// scaled onto the in-season chart so a HIGH pick (a struggling team's) is worth
+// more than a LATE one (a contender's) — instead of every 1st being a flat 32.
+// Anchored on the round MIDPOINT so round averages still match PICK_VALUE_BY_ROUND
+// (which _playerTradeValue is calibrated against); slot variation is dampened so
+// top picks don't balloon past proven players.
 function _pickValue(pick) {
-  // Comp picks land at the end of their round, so they're worth a touch
-  // less than a regular pick in the same round (≈80% of round value).
-  const base = PICK_VALUE_BY_ROUND[pick.round] || 1;
-  return pick.isComp ? Math.max(1, Math.round(base * 0.80)) : base;
+  const round = pick.round || 1;
+  const flat  = PICK_VALUE_BY_ROUND[round] || 1;
+  const slot    = _estimatePickSlot(pick);
+  const midSlot = (round - 1) * 32 + 16;
+  const ratio   = (typeof _draftSlotValue === "function")
+    ? _draftSlotValue(slot) / Math.max(1, _draftSlotValue(midSlot)) : 1;
+  const DAMP = 0.55;  // 0 = pure flat round chart · 1 = full slot curve
+  let v = flat * (1 + DAMP * (ratio - 1));
+  if (pick.isComp) v *= 0.80;  // comp picks land at the round's end
+  return Math.max(1, Math.round(v * 10) / 10);
 }
 
 function _teamPicks(teamId) {
