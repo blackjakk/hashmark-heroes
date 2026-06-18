@@ -22,6 +22,53 @@
 
 ---
 
+## Anti-cheat — the #1 invariant (non-negotiable)
+
+**Anti-cheat is the top constraint on everything multiplayer — above features,
+above polish, above ship speed. If a design choice trades integrity for
+convenience, integrity wins.** Same tier as "Protecting the audit gate."
+
+**The one rule that makes it hold: the authority (Node server today, MegaETH
+later) owns every piece of state that affects competition; clients submit
+*intent* and the authority validates it against its own state. Anything a client
+computes or stores is display-only and untrusted.**
+
+Consequences every MP feature must satisfy:
+
+1. **No client-authoritative outcomes.** Rosters, ratings (incl. hidden), cap,
+   picks, results, standings live with the authority — never derived from
+   client-supplied numbers. Dynasty rosters are authority-*generated* (seeded
+   draft), never uploaded by a player.
+2. **Validated transactions.** Every roster / trade / draft / FA / lineup action
+   is re-checked against authoritative state (cap, ownership, turn order) before
+   it commits. Reject, don't trust.
+3. **Determinism is the enforcement substrate.** `(seed + inputs) → byte-identical
+   result` + a SHA-256 artifact hash means any result is independently re-simmable
+   and verifiable — *proven, never asserted*. This is why Workstream B determinism
+   is load-bearing for anti-cheat, not just replays.
+4. **Unforgeable seeds.** The game seed comes from entropy no participant can
+   grind or pick (on-chain VRF / commit-reveal). No re-rolling until you win.
+5. **Hidden info stays hidden.** Simultaneous decisions (playcalls, draft big
+   boards) are commit-reveal — never broadcast before lock-in. The H2H seam
+   already does this for playcalls; it extends to any dynasty hidden state.
+6. **Scoped, audited commissioner.** Admin powers cover scheduling / membership /
+   advance only — never the power to fabricate a result, rating, or draft order.
+   Every admin action is logged where members can see it.
+7. **Process rule.** Every new MP feature spec must name its *cheat surface* and
+   how it's closed — the way every engine change names its gate-safety. No feature
+   ships without that line.
+
+**On-chain (MegaETH) is the strongest form of this rule, not a different one:**
+the chain becomes the tamper-proof authority + referee; the off-chain sim is the
+*untrusted executor* whose output the chain verifies by artifact hash + an
+optimistic challenge (anyone re-sims and disputes a false result). The result
+must be **proven from a re-simmable artifact, not typed in by an admin** — note
+today's `LeagueManager.recordResult(scores)` is `onlyOwner` and takes the score
+on trust; closing that gap is prerequisite to any on-chain dynasty (see §C.3 and
+the MegaETH analysis).
+
+---
+
 ## TL;DR — the reframing
 
 The instinct was "if we want more in-game features + multiplayer, we probably
@@ -451,6 +498,77 @@ panel → autopilot to FINAL) with identical finals and zero page errors.
 
 **Still open:** matchmaking/accounts, spectators, async-league deadlines
 (the protocol already supports them — UX only), chain settlement.
+
+---
+
+## Shared dynasty on MegaETH — maximal on-chain (DECIDED)
+
+User-ratified: the group dynasty runs **maximal on-chain** — everything that
+affects competition and can feasibly live on-chain does; only the sim and heavy
+display data stay off-chain, verified by hash. Strongest anti-cheat posture (see
+§Anti-cheat), accepted wallet-UX cost.
+
+**Trust split:**
+- **On-chain (MegaETH) = referee + ledger of record (tamper-proof):** team/player
+  assets (TeamNFT/PlayerNFT), GRID economy, cap accumulator, draft, free agency,
+  player+pick trades, schedule/standings/playoffs/champion (LeagueManager), and
+  RESULT SETTLEMENT. Commissioner shrinks to membership/schedule/advance — none of
+  it able to forge a result, rating, or order.
+- **Off-chain = untrusted executor:** the Node server (repurposed from the H2H
+  authority) reads on-chain state, runs the deterministic sim with the on-chain
+  seed, and posts the result. Holds NO authority; its output is verified.
+- **Bridge = the deterministic artifact** `{seed, rosters, tape}` + SHA-256 hash.
+
+**Result settlement (replaces `recordResult(scores)` — the #1 fix):**
+- Seed is unforgeable: **commit-reveal among league members** (dependency-free,
+  fits the no-npm ethos; XOR of revealed nonces, timeout-penalty for a withholder)
+  or on-chain VRF if MegaETH exposes one.
+- A regular-season AI-sim game is a **pure function of on-chain rosters + seed** —
+  no human tape — so ANYONE can reproduce it from chain state alone; the artifact
+  is tiny. H2H games add the committed playcall tape as input.
+- The runner posts `recordResult(gameIdx, resultHash, artifactHash)` with a bond;
+  an **optimistic challenge window** lets anyone re-sim and dispute → fraud slashes
+  the bond and corrects the result. Result is proven, never asserted.
+
+**Contract gaps to close (the integrity core = M2):**
+1. `recordResult` → proof-settlement above (+ seed source, challenge window).
+2. **On-chain cap accumulator** — per-team active-salary sum; every sign/trade/
+   extend reverts past the cap (today cap is client-only = forgeable).
+3. **Draft queue commit-reveal** — `queues` are plaintext on-chain today (rivals
+   read your big board); commit a hash, reveal on auto-pick.
+4. **De-`onlyOwner` the trust holes** — draft order deterministic from standings
+   (worst-first is computable on-chain; VRF/commit-reveal for ties),
+   `advancePhase`/season advance permissionless-after-deadline (the draft's
+   `forcePick` keeper pattern), `crownChampion` driven by the on-chain bracket.
+5. **Trades** — player + pick trade contract (DraftSystem already does pick trades;
+   extend to players, atomic, cap-checked).
+6. **Foundry test suite = the new gate.** An anti-cheat system with no contract
+   tests is unshippable; the suite is to the contracts what the audit gate is to
+   the sim. (Contracts currently have zero tests.)
+
+**Critical-path risk — cross-machine sim determinism.** The fraud proof needs the
+sim bit-identical across the validator set. The audit gate proves SAME-machine
+byte-identical (fixed seed); cross-machine is open (V8/libm `Math.sin/pow` drift).
+Resolution: a **canonical sim build** every validator runs (pinned Node, or compile
+the sim to wasm; fixed-point only if libm drift shows). De-risk EARLY with a
+two-environment same-seed diff before leaning on optimistic settlement. The
+asset/cap/draft/FA contracts don't depend on this → build in parallel.
+
+**Toolchain + deployment honesty.** Maximal on-chain adds a Solidity toolchain
+(recommend **Foundry** for compile/test, isolated under `contracts/` so the
+frontend's no-build ethos is untouched) and a thin web3 client (recommend
+**viem**). Local end-to-end (anvil) is fully buildable + testable here; **live
+MegaETH deployment needs the operator's funded key + testnet RPC** — the
+operator's step, like the H2H VPS was.
+
+**Milestones (anti-cheat-first; each closes a cheat surface):**
+- **M2 — integrity core (contracts):** the six gaps above + the Foundry gate.
+- **M3 — executor + bridge:** repurpose the Node server into the untrusted
+  sim-runner (read chain → sim with on-chain seed → post result/artifact) + a
+  re-sim/challenge tool + the determinism hardening.
+- **M4 — client + wallet UX:** Create/Join Dynasty on wallets (embedded wallet +
+  session keys + paymaster so friends don't fight MetaMask), league lobby, scoped
+  commissioner controls, all reading on-chain state.
 
 ---
 

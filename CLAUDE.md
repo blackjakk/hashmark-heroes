@@ -3,6 +3,17 @@
 Vanilla HTML/CSS/JS football franchise sim. No build step, no framework.
 Rendering: PIXI 7.4.0 layer for players + canvas field. Entry: `play.html`.
 
+## Multiplayer / on-chain — anti-cheat is the #1 invariant
+
+NON-NEGOTIABLE, above features and ship speed (same tier as the audit gate):
+the authority (Node server now, MegaETH later) owns ALL competitive state;
+clients submit *intent* only, never trusted outcomes. Determinism
+(`(seed+inputs)→SHA-256 hash`) makes every result independently re-simmable =
+**proven, not asserted**. On-chain results must be PROVEN from a re-simmable
+artifact, never typed in by an admin. Full threat model + MegaETH settlement
+design: `INGAME_CLOCK_AND_MULTIPLAYER.md` §Anti-cheat. Every new MP feature
+must name its cheat surface + how it's closed, same discipline as gate-safety.
+
 ## Ship workflow (every push)
 
 1. `node --check <file>.js` after every JS edit.
