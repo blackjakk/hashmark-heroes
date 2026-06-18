@@ -900,6 +900,28 @@ function calcOverall(pos, s) {
   }
   return Math.min(99, Math.max(40, Math.round(v / 100)));
 }
+// ─── Position flexibility ─────────────────────────────────────────────────────
+// Adjacency for out-of-position play: "near" moves share most physical tools and
+// cost little OVR; cross-unit moves cost a lot. Drives draft position projection
+// (college role → pro position) and in-franchise position changes.
+const _POS_NEAR = {
+  QB: [], RB: ["WR"], WR: ["TE","RB"], TE: ["WR"],
+  OL: ["DL"], DL: ["LB","OL"], LB: ["S","DL"], CB: ["S"], S: ["CB","LB"],
+  K: ["P"], P: ["K"],
+};
+// What a player would grade at a DIFFERENT position from the SAME physical tools,
+// with an out-of-position penalty that fades as they acclimate (posAcclimation
+// 0..1, or an explicit `acclim`). Same position → straight calcOverall.
+function _overallAtPosition(player, pos, acclim) {
+  const stats = player.stats || [];
+  const base = calcOverall(pos, stats);
+  const nat = player.naturalPosition || player.position;
+  if (!pos || pos === nat) return base;
+  const near = (_POS_NEAR[nat] || []).includes(pos);
+  const maxPen = near ? 4 : 10;   // OVR points when fully UN-acclimated
+  const a = Math.max(0, Math.min(1, acclim != null ? acclim : (player.posAcclimation ?? 0)));
+  return Math.max(40, Math.round(base - maxPen * (1 - a)));
+}
 // ─── Trench archetypes & rock-paper-scissors matchup matrix ─────────────
 // Each DL has a fighting style with signature pass-rush moves. Each OL has
 // a build that handles certain styles well and others poorly. Matchup table
@@ -1375,6 +1397,7 @@ function genPlayer(pos, tier) {
     name: displayName,
     firstName, middleName, lastName,
     position: pos,
+    naturalPosition: pos,   // the position a player is BUILT for; `position` can differ (projection / in-franchise move)
     age: rand(21, 33),
     stats,
     overall: calcOverall(pos, stats),

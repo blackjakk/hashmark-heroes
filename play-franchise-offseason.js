@@ -21901,7 +21901,7 @@ function _rollClassThemes() {
 function _buildClassPositionPool(themes) {
   // Base weights track roster needs + Brady-cadence tuning. QB bumped to
   // 4 so the late-round QB pool has ~30% more attempts at HoF emergence.
-  const baseUnits = { QB:4, RB:4, WR:6, TE:3, OL:9, DL:5, LB:4, CB:5, S:2, K:1, P:1 };
+  const baseUnits = { QB:4, RB:4, WR:6, TE:3, OL:9, DL:5, LB:4, CB:5, S:3, K:1, P:1 };
   const pool = [];
   for (const pos of Object.keys(baseUnits)) {
     const count = Math.max(1, Math.round(baseUnits[pos] * (themes[pos] || 1)));
@@ -22282,7 +22282,7 @@ const _COLLEGE_POS_WEIGHTS = {
   // 2-4 R1-grade prospects per draft, matching NFL reality (~2-3
   // R1 QBs typically). Old weight produced only 0.4 R1 QBs/draft
   // even with elite-tier FR boosts.
-  QB: 2.5, RB: 3, WR: 6, TE: 2, OL: 7, DL: 6, LB: 4, CB: 5, S: 2, K: 0.2, P: 0.2,
+  QB: 2.5, RB: 3, WR: 6, TE: 2, OL: 7, DL: 6, LB: 4, CB: 5, S: 3, K: 0.2, P: 0.2,
 };
 function _pickCollegePosition() {
   const positions = Object.keys(_COLLEGE_POS_WEIGHTS);
@@ -22380,18 +22380,35 @@ function _projectedDraftRound(p) {
 
 function _generateCollegePlayer(collegeYear, blockNames) {
   const pos = _pickCollegePosition();
-  let tier = _rollCollegeTier(collegeYear, pos);
-  // Draft balance: safeties come out of the shared player generator over-rated —
-  // the highest average OVR of any position — so the board floods with "good"
-  // safeties. Demote a share of elite/good safety tiers (genPlayer maps tier →
-  // OVR) so the class is positionally balanced. Draft-only: genPlayer/genRoster
-  // (the audit battery's roster source) are untouched, so the 0-drift sim gate
-  // is unaffected.
-  if (pos === "S") {
-    if (tier === "elite" && Math.random() < 0.55) tier = "good";
-    else if (tier === "good" && Math.random() < 0.45) tier = "average";
-  }
+  const tier = _rollCollegeTier(collegeYear, pos);
   const p = blockNames ? genUniquePlayer(pos, tier, blockNames) : genPlayer(pos, tier);
+  // Position projection (college role → pro position): some college safeties are
+  // really pro CBs (cover + speed) or box LBs (tackle + size). Project them to
+  // their pro position so a deep safety class redistributes by athletic fit
+  // instead of flooding the board at S. naturalPosition keeps the college role;
+  // OVR is recomputed at the pro spot (a converted box safety grades lower at LB
+  // without pass-rush — realistic), which is what trims the "good safety" glut.
+  // Draft-only: genRoster (the audit battery's source) is untouched, so the
+  // 0-drift sim gate is unaffected.
+  if (pos === "S" && typeof _overallAtPosition === "function" && Array.isArray(p.stats)) {
+    const spd = p.stats[0], str = p.stats[1], cov = p.stats[8], tck = p.stats[9];
+    // Deterministic projection roll — a HASH of the player, NOT a live RNG draw,
+    // so the pipeline adds zero Math.random()/_rand() consumption and seeded
+    // harnesses (the anim audit seeds Math.random) stay byte-stable. Same rule as
+    // the route library: vary by a hash of state, never the live stream.
+    let h = 2166136261 >>> 0;
+    const key = String(p.pid || p.name || "");
+    for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    const roll = (h >>> 0) / 4294967296;
+    let proPos = "S";
+    if (tck >= 72 && str >= 68 && roll < 0.50) proPos = "LB";        // box safety → LB
+    else if (cov >= 74 && spd >= 76 && roll < 0.30) proPos = "CB";   // cover safety → CB
+    if (proPos !== "S") {
+      p.naturalPosition = "S";
+      p.position = proPos;
+      p.overall = _overallAtPosition(p, proPos, 0.55);   // mostly pro-ready, slight transition gap
+    }
+  }
   if (blockNames) blockNames.add(p.name);
 
   p.collegeYear = collegeYear;
