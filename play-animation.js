@@ -1724,6 +1724,25 @@ function buildAnimForPlay(play, prevPlay) {
     }
   }
 
+  // ── PLAY-ACTUAL PASSER IDENTITY ─────────────────────────────────────
+  // Same gap as the tackler above: the credited passer can be a BACKUP QB
+  // (starter subbed/injured) who isn't the pre-game formation.qb. The pass and
+  // run branches dress him in their own scenes, but the QB-centric specials —
+  // sack, fumble, spike, kneel — never did, so a backup passer was drawn 0%
+  // (anim-audit flagged them one at a time as the sample shifted). Dress the QB
+  // slot for ANY play with a passer here (gadgets, where a non-QB throws and
+  // formation.rb is dressed instead, are intercepted before this point). The
+  // pass/run branches re-dress to the same value — idempotent (dressSlotAs
+  // no-ops when the slot already wears the name).
+  {
+    const _psName = play.passer;
+    if (_psName && !play.isHBPass && !play.isDoublePass && !play.isStatue
+        && typeof dressSlotAs === "function" && gameResult && gameResult.playerLookup
+        && formation.qb && formation.qb.name !== _psName) {
+      dressSlotAs(formation.qb, _psName, gameResult.playerLookup, formation);
+    }
+  }
+
   // Real identity for a special-teams entity. The ST scenes draw synthetic
   // bodies ("punter", "fg-ol-3") — fine for the interchangeable cast, but
   // the KEY actors (kicker, punter, returner) must wear the actual man's

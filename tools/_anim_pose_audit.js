@@ -206,7 +206,13 @@ const EXPECT = `{
     for (const [k, v] of Object.entries(r.actors)) {
       const want = expect[v.field];
       const hasSig = !want || v.poses.some(p => want.includes(p));
-      const lowCov = v.cov < 50;
+      // Coverage exemption: a fumble's `passer` is only set on a PASS-fumble
+      // (receiver caught it, then fumbled) — the QB legitimately threw it but is
+      // a downfield bystander, not part of the recovery SCRUM the fumble cinema
+      // shows. The family's real key actor is the rusher/fumbler (see EXPECT), so
+      // don't demand passer coverage here. (Sack passers ARE required + drawn.)
+      const _covExempt = (r.fam === "fumble" && v.field === "passer");
+      const lowCov = v.cov < 50 && !_covExempt;
       console.log(`   ${k} — drawn ${v.cov}% [${v.poses.join("/")}]`
         + (lowCov ? "  ⚑ LOW COVERAGE" : "")
         + (!hasSig ? `  ⚑ MISSING SIGNATURE POSE (want one of: ${want.join("/")})` : ""));

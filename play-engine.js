@@ -1456,6 +1456,28 @@ class GameSimulator {
     return (h % 100000) / 100000 < share ? rb2 : rb1;
   }
 
+  // TEAM RB target share scales with the BACKFIELD's receiving threat — a
+  // featured pass-catching back (RECEIVING archetype / high catch) draws more
+  // checkdowns; a pure grinder (POWER / low catch) draws fewer. Returns a
+  // multiplier on the scheme's flat RB share that pickReceiver applies (carving
+  // the delta from the WRs). Roster-derived (no RNG, no stream shift); centered
+  // so a ~70-catch back is neutral (1.0), a 95 receiving back ~1.45, a 50 grinder
+  // ~0.6. Driven by the BEST backfield receiver so a scat RB2 still pulls targets.
+  _rbTargetShareMul() {
+    const recScore = (name) => {
+      const pl = this._playerByName?.get?.(name);
+      if (!pl) return null;
+      const cat = pl.stats?.[5] ?? 60;
+      const archB = pl.archetype === "RECEIVING" ? 18 : pl.archetype === "POWER" ? -14 : 0;
+      return cat + archB;
+    };
+    const s1 = recScore(this.offR.starters.rb);
+    const s2 = recScore(this.offR.starters.rb2);
+    const best = Math.max(s1 ?? -99, s2 ?? -99);
+    if (best <= -99) return 1;
+    return Math.max(0.55, Math.min(1.5, 1 + (best - 70) / 55));
+  }
+
   _buildTeamStats(starters) {
     const players = {};
     const add = (name, pos) => { if (name && !players[name]) { const pid = this._playerByName?.get(name)?.pid || null; players[name] = { name, pos, pid, ...this._emptyLine() }; } };
@@ -5232,7 +5254,7 @@ class GameSimulator {
               te:  this._touchTargetMul(this.poss, "te"),
               rb:  this._touchTargetMul(this.poss, "rb"),
             };
-            const rcvr = this._committeeReceiver(pickReceiver(pb, this.offR.starters, this._currentPersonnel, cbCoverageMix, _touchMulTor));
+            const rcvr = this._committeeReceiver(pickReceiver(pb, this.offR.starters, this._currentPersonnel, cbCoverageMix, _touchMulTor, this._rbTargetShareMul()));
             // Backups (wr3/wr4/te2/rb2) aren't pre-registered in
             // _buildTeamStats — ensure their stat line exists or rec_yds
             // gets dropped while pass_yds still credits the QB.
@@ -5665,7 +5687,7 @@ class GameSimulator {
         te:  this._touchTargetMul(this.poss, "te"),
         rb:  this._touchTargetMul(this.poss, "rb"),
       };
-      const rcvr = this._committeeReceiver(pickReceiver(pb, this.offR.starters, this._currentPersonnel, cbCoverageMix, _touchMul));
+      const rcvr = this._committeeReceiver(pickReceiver(pb, this.offR.starters, this._currentPersonnel, cbCoverageMix, _touchMul, this._rbTargetShareMul()));
       // Backups (wr3/wr4/te2/rb) aren't pre-registered — ensure here.
       this._ensurePlayerStat(this.poss, rcvr, this._playerByName?.get?.(rcvr)?.position || "WR");
       const rcvrStats = off.players[rcvr];

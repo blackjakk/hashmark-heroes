@@ -361,7 +361,7 @@ function getDefPlaybook(team) {
 // `touchMul` (optional) — smart-contract multipliers per role keyed by
 // "wr1"/"wr2"/"te"/"rb". Multiplies the final mix share so a player
 // behind their touch target gets boosted, past target gets backed off.
-function pickReceiver(playbook, starters, personnel, coverageMix, touchMul) {
+function pickReceiver(playbook, starters, personnel, coverageMix, touchMul, rbShareMul) {
   const p = PERSONNEL[personnel] || PERSONNEL.BASE;
   const base = playbook.targetMix;
   // Adjust mix to match what's actually on the field for this personnel.
@@ -400,6 +400,19 @@ function pickReceiver(playbook, starters, personnel, coverageMix, touchMul) {
     mix.wr2 -= slice * 0.30;
     mix.wr3 -= slice * 0.30;
     mix.wr4 = slice;
+  }
+  // RB receiving share scales with the BACKFIELD's pass-catching ability — a
+  // featured receiving back (CMC/Ekeler) draws more checkdowns than a pure
+  // grinder. rbShareMul (engine: best back's catch rating + RECEIVING/POWER
+  // archetype) bends the scheme's flat RB share; the delta is carved from the
+  // outside WRs so the mix still sums to ~1. No new RNG draw — the existing roll
+  // just samples a player-shaped distribution (gate-safe; foreign==defer holds).
+  if (rbShareMul && rbShareMul !== 1 && mix.rb > 0) {
+    const adj = Math.max(0.04, Math.min(0.30, mix.rb * rbShareMul));
+    const delta = adj - mix.rb;
+    mix.rb = adj;
+    mix.wr1 = Math.max(0.05, mix.wr1 - delta * 0.55);
+    mix.wr2 = Math.max(0.05, mix.wr2 - delta * 0.45);
   }
   // Coverage avoidance — QBs throw less at SHUTDOWN / PHYSICAL CBs and
   // more at weaker matchups. coverageMix values multiply the base share
