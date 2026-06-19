@@ -1428,6 +1428,34 @@ class GameSimulator {
     return 1.0;
   }
 
+  // COMMITTEE RECEIVING (behavioral) — the checkdown / swing / screen feeds the
+  // better backfield RECEIVER (rb1 vs rb2), not automatically the rushing lead.
+  // pickReceiver only emits the rb1 slot, so without this every RB target piled
+  // onto the starter (lead-back rec ran ~4/g vs NFL ~3). Picked via a DETERMINISTIC
+  // hash of play state (NOT _rand) so the seam-determinism invariant holds
+  // (foreign-call == defer) and the RNG stream isn't shifted; the catch rating +
+  // RECEIVING archetype weight the split, and rb2 is a TRUE target (its comp% /
+  // YAC / touches all count → real substitution behavior). Downstream already
+  // supports rb2-as-receiver: slot resolution (rb2→"rb"), coverage (rb2→lb3),
+  // stat ensure, and dressSlotAs identity swap.
+  _committeeReceiver(rcvr) {
+    const rb1 = this.offR.starters.rb, rb2 = this.offR.starters.rb2;
+    if (rcvr !== rb1 || !rb2 || rb2 === rb1) return rcvr;
+    const recScore = (name) => {
+      const p = this._playerByName?.get?.(name);
+      const cat = p?.stats?.[5] ?? 60;                        // catching
+      const bonus = p?.archetype === "RECEIVING" ? 25 : p?.archetype === "POWER" ? -15 : 0;
+      return Math.max(5, cat + bonus);
+    };
+    const s1 = recScore(rb1), s2 = recScore(rb2);
+    const share = Math.max(0.05, Math.min(0.6, s2 / (s1 + s2)));
+    const h = (Math.imul(((this.time | 0) + 1), 2654435761)
+            ^ Math.imul(((this.yardLine | 0) + 1), 40503)
+            ^ Math.imul(((this.down | 0) + 1), 668265263)
+            ^ Math.imul(((this.ytg | 0) + 1), 374761393)) >>> 0;
+    return (h % 100000) / 100000 < share ? rb2 : rb1;
+  }
+
   _buildTeamStats(starters) {
     const players = {};
     const add = (name, pos) => { if (name && !players[name]) { const pid = this._playerByName?.get(name)?.pid || null; players[name] = { name, pos, pid, ...this._emptyLine() }; } };
@@ -5204,7 +5232,7 @@ class GameSimulator {
               te:  this._touchTargetMul(this.poss, "te"),
               rb:  this._touchTargetMul(this.poss, "rb"),
             };
-            const rcvr = pickReceiver(pb, this.offR.starters, this._currentPersonnel, cbCoverageMix, _touchMulTor);
+            const rcvr = this._committeeReceiver(pickReceiver(pb, this.offR.starters, this._currentPersonnel, cbCoverageMix, _touchMulTor));
             // Backups (wr3/wr4/te2/rb2) aren't pre-registered in
             // _buildTeamStats — ensure their stat line exists or rec_yds
             // gets dropped while pass_yds still credits the QB.
@@ -5637,7 +5665,7 @@ class GameSimulator {
         te:  this._touchTargetMul(this.poss, "te"),
         rb:  this._touchTargetMul(this.poss, "rb"),
       };
-      const rcvr = pickReceiver(pb, this.offR.starters, this._currentPersonnel, cbCoverageMix, _touchMul);
+      const rcvr = this._committeeReceiver(pickReceiver(pb, this.offR.starters, this._currentPersonnel, cbCoverageMix, _touchMul));
       // Backups (wr3/wr4/te2/rb) aren't pre-registered — ensure here.
       this._ensurePlayerStat(this.poss, rcvr, this._playerByName?.get?.(rcvr)?.position || "WR");
       const rcvrStats = off.players[rcvr];
@@ -7373,6 +7401,13 @@ class GameSimulator {
     });
     const _motion = {
       tacklerRole: _tacklerRole,
+      // Run-tackler identity for the dressSlotAs swap (play-animation.js): the
+      // credited tackler can be a DL (whose slot _resolveDefSlot doesn't map) or a
+      // rotational sub not among the rendered 11. Pass plays set motion.tacklerName
+      // so the animation dresses the credited man onto the field; runs never did, so
+      // a DL/sub run-tackler was drawn 0% (the anim-audit two_back_run flag). Mirror
+      // the pass path so the named run tackler is always drawn.
+      tacklerName,
       // Specific defender slot the engine resolved as the tackler ("cb1" /
       // "cb2" / "fs" / "ss" / "lb1-3" / "nb"). Animation reads this in
       // preference to tacklerRole so the wrong-CB collision (engine emits

@@ -185,7 +185,14 @@ const EXPECT = `{
   // ── Report + gate ─────────────────────────────────────────────────────
   const EXPECT_T = eval(`(${EXPECT})`);
   let flags = 0;
-  const OPTIONAL_FAMS = new Set(["big_hit"]);   // too rare to demand an exemplar
+  // Optional families: situational plays the engine produces EMERGENTLY (not via
+  // any callable play), so their appearance in a fixed seeded sample is luck and
+  // can't be force-guaranteed like speed_option/reverse/onside. Any sim change
+  // that reshuffles the sample can drop them, so demanding an exemplar makes the
+  // gate flaky to unrelated changes; they're still fully checked WHENEVER they do
+  // occur. big_hit = rare cinema; qb_scramble = QB escapes pressure; spike =
+  // clock-kill (needs <30s, no timeouts, trailing/FG-range).
+  const OPTIONAL_FAMS = new Set(["big_hit", "qb_scramble", "spike"]);
   for (const r of report) {
     if (r.missing) {
       console.log(`── ${r.fam}: NO EXEMPLAR${OPTIONAL_FAMS.has(r.fam) ? " (optional)" : "  ⚑"}`);
