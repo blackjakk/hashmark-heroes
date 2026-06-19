@@ -6828,15 +6828,31 @@ class GameSimulator {
     let runner = RB;
     const _rb2name = this.offR.starters.rb2;
     if (!isQBRun && !useTwoBack && _rb2name) {
-      const _rb1ovr = this._playerByName.get(RB)?.overall || 72;
-      const _rb2ovr = this._playerByName.get(_rb2name)?.overall || 66;
-      const _gap = _rb1ovr - _rb2ovr;
-      // Concentrate carries on the lead back: base 0.42 left rb1 at ~62% of RB
-      // carries (NFL bell-cows are ~65-75%), so the median feature back got ~14
-      // carries / ~58 yds vs NFL ~16 / ~70. Lower rb2's base share so rb1 climbs
-      // to ~68-70% — lifts rushing VOLUME (not via pass/run ratio, which is fine
-      // at ~58% pass) and gives the league true workhorses.
-      const _rb2share = Math.max(0.05, Math.min(0.40, 0.34 - _gap * 0.022));
+      // QUALITY + ARCHETYPE weighted. Use a "rush score" (OVR + archetype), not
+      // raw OVR: a between-the-tackles back (POWER/WORKHORSE) carries the load; a
+      // RECEIVING/scat back cedes carries (he earns his touches catching — see
+      // _rbTargetShareMul), so a high-OVR receiving back no longer hogs carries.
+      const _rushScore = (name, dflt) => {
+        const pl = this._playerByName?.get?.(name);
+        const ovr = pl?.overall ?? dflt;
+        const a = pl?.archetype;
+        const archB = a === "POWER" ? 8 : a === "WORKHORSE" ? 5 : a === "RECEIVING" ? -10 : a === "SPEED" ? -2 : 0;
+        return ovr + archB;
+      };
+      const _gap = _rushScore(RB, 72) - _rushScore(_rb2name, 66);
+      // Concentrate carries on the lead back (NFL bell-cows ~65-75%): equal backs
+      // → committee, a clear edge → workhorse. Lifts rushing VOLUME via lead-back
+      // carries (pass/run ratio stays ~58% pass) and yields a real spread of
+      // backfield types across the league.
+      let _rb2share = Math.max(0.05, Math.min(0.40, 0.34 - _gap * 0.022));
+      // SHORT-YARDAGE / GOAL-LINE: the bigger BANGER gets the call (goal-line
+      // vulture / thunder back) — swing the carry toward whichever back is the
+      // POWER/WORKHORSE and away from a scat back.
+      if (this.ytg <= 2 || this.yardLine >= 95) {
+        const _pwr = (name) => { const a = this._playerByName?.get?.(name)?.archetype;
+          return a === "POWER" ? 1 : a === "WORKHORSE" ? 0.5 : a === "RECEIVING" ? -1 : 0; };
+        _rb2share = Math.max(0.03, Math.min(0.6, _rb2share + (_pwr(_rb2name) - _pwr(RB)) * 0.25));
+      }
       if (_rand() < _rb2share) runner = _rb2name;
     }
     const carrier = isQBRun ? QB : runner;
