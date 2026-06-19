@@ -640,6 +640,186 @@ only with counsel + the hardened enforcement above.
 
 ---
 
+## Shared dynasty — full system design (DECIDED, 2026-06-19 design pass)
+
+> Builds on §"Shared dynasty on MegaETH — maximal on-chain". **Anti-cheat (§Anti-cheat)
+> governs every mechanic below:** on-chain validated, deterministic, VRF-seeded where
+> chance is needed, keeper-advanced (no commissioner discretion over outcomes),
+> **proven, never asserted.** Every subsection names its cheat surface + how it's closed.
+
+### Data model — public / committed-private / verified (LOCKED)
+
+| Layer | Examples | Visibility |
+|---|---|---|
+| **Public (on-chain)** | identity, age, contract/cap, **performance box scores**, fuzzed scouting grade | everyone |
+| **Committed-private** | **true ratings, true potential, dev traits** (hash on-chain, value owner-only) | owner only |
+| **Verified-derived** | game results, standings, progression outcomes | proven by re-sim, not asserted |
+
+- **Box scores are PUBLIC (user-ratified).** Hidden info = *ratings + potential only*;
+  observed production is the legitimate scouting channel. (A scouting/info-warfare mode
+  with fuzzed player lines was considered and rejected for the default — it guts
+  leaderboards/legibility; the hidden-ratings fog is enough.)
+- **Information firewall:** every AI/Claude call receives ONLY the data its output may
+  reveal (public output → public data; your assistant → your private + public). This is
+  what keeps the AI from ever becoming a hidden-info leak.
+- **Verifiability vs hidden inputs tension:** re-sim needs the ratings, which are secret →
+  resolved by the settlement tiers (below), not by putting ratings in plaintext on-chain.
+
+### The dynasty loop
+
+Setup → Draft → Regular season → Playoffs → Offseason (progression, generation, FA) → ↻.
+Every phase advance is **permissionless-after-deadline** (the draft `forcePick` pattern
+generalized) — advancing the dynasty is never a commissioner trust point.
+
+### Perpetual engine — progression, injuries, generation
+
+- **Progression/aging/decline** = deterministic `f(VRF seed, age, usage/performance,
+  hidden potential)`; the new ratings are committed (still hidden). No admin knob. Hidden
+  potential realizes *privately to the owner* over seasons (your edge to discover + keep).
+- **Injuries** resolve inside the seeded sim → part of the verified artifact, not a
+  separately tweakable RNG.
+- **New draft class each offseason** = VRF-seeded deterministic generation → true ratings
+  **committed (hidden)** → only **fuzzed public grades** exposed. *This is the single
+  biggest cheat surface (stack a friend's class / peek early); closed by VRF + commitments
+  + firewall.*
+
+### Cap & contracts (non-transferable accounting; NO token)
+
+Fixed, equal-for-all cap (`uint256` "cap dollars"); on-chain `capUsed` accumulator
+reverts any over-cap action; deterministic **rookie scale**; **dead money** on cuts;
+**extensions/restructure** (validated); rollover. Cap + contracts are **public**.
+*Cheat surfaces closed:* pay-to-win (no token), over-cap (require), phantom contracts
+(on-chain sum), free salary dump (dead money), admin-granted cap (no knob).
+
+### Trades (player + pick)
+
+Atomic propose/accept (generalizes `DraftSystem` pick trades); ownership-gated; **both
+teams must be cap-legal post-trade** or revert; trade deadline. Collusion (high-stakes):
+transparency + AI **behavioral** flag (on-chain trades, never DMs) + optional league
+vote/veto + non-giftable cap.
+
+### Draft — full-draft mode + planning
+
+- **Full-draft default:** all players pooled, **VRF snake order**, roster-size rounds
+  (generalizes `DraftSystem`). Pre-built franchises is the alternate config.
+- **Private big board** — client-side / committed, **never plaintext on-chain** (fixes the
+  current `queues` leak). **Export pool → rank offline → import** as your board.
+- **Mock drafts** — off-chain sandbox vs AI; zero real state.
+- **MOSS delegated draft-agent** — scoped, revocable Smart-Approval that auto-drafts from
+  *your private board* when AFK; `forcePick` keeper as the offline fallback.
+
+### Schedule generation
+
+Pure deterministic `f(season, prior standings, fixed rotation tables, VRF coin-flips)` →
+**permissionless `generateSchedule` replaces `setSchedule(onlyOwner)`**; committed
+immutable. Divisional NFL formula (6 division / 4+4 inter-division / 3 place-based / 1 bye)
+**or** circle-method round-robin for arbitrary N. Advance = manual/scheduled/keeper.
+Per-game execution mode: **live H2H** (both humans opt in → existing H2H match flow) or
+**batch-sim**. Playoffs seeded deterministically from standings. Multi-season history is
+one verifiable deterministic chain (season N schedule depends on N−1 verified standings).
+
+### Settlement & dispute (the heartbeat)
+
+`recordResult` becomes **proof-based** (replaces the `onlyOwner` typed-in score):
+
+1. **Anchor inputs** on-chain (lineups submitted or AI-filled, VRF seed). AI-coached
+   regular-season games are a pure `f(seed + rosters)` — no tape.
+2. **Off-chain runner** (untrusted) sims → `result + artifact`.
+3. **Post provisional:** `recordResult(gameId, resultHash, artifactHash)` + bond.
+4. **Verify window** → **finalize** (standings/stats/cap commit) or **dispute** (slash).
+
+Always cheap-checkable on-chain: artifact inputs **hash to the rating commitments**, seed
+= **VRF**. The off-chain part (deriving result from inputs) is handled by the **swappable
+verification tier**:
+
+| Tier | Trust basis | Hidden info | When |
+|---|---|---|---|
+| Trusted / TEE | commitment binding (+ enclave attest) | preserved | friends / v1 |
+| Delayed-reveal optimistic | in-season trust+binding; season-end full reveal → anyone re-sims, retroactive slash | secret in-season, public after | default |
+| EigenCompute (TEE + restake) | decentralized operators, slashable | preserved (enclave) | high-stakes |
+| ZK proof | on-chain proof `sim(committed inputs, seed)=hash` | preserved forever | ideal |
+
+Each side **self-verifies its own committed inputs** even pre-reveal. Liveness:
+**permissionless runner + keeper** (no stalls). Claude is **never** in settlement
+(non-deterministic → would break re-sim); it only narrates the finalized result.
+
+### Identity & anti-sybil (tiered; hook baked in now)
+
+none (friends) / invite+vouch / **proof-of-personhood** (privacy-preserving) /
+**stake-bonded seats**. Gates seats AND votes (so trade-veto votes can't be sybil-rigged).
+Used at high-stakes; the spec carries the `identity` field regardless.
+
+### Wallet & gas — MOSS
+
+**wagmi connector** (web-native) + standard-wallet fallback behind an adapter; gas via
+**`sponsorUrl` verifying-paymaster** enforcing OUR policy (member-gated, method-scoped,
+budgeted); **Smart Approvals session grants** = the delegated draft/trade agents (scoped,
+revocable). AA 4337/7702. MegaETH Frontier mainnet `4326` / testnet `carrot.megaeth.com`.
+We own the sponsorship *policy*; MOSS provides the *mechanism*.
+
+### AI layer (Anthropic API) — what Claude does
+
+**Rule: AI chooses INPUTS, never OUTPUTS.** Firewall scopes every call's inputs.
+- **Broadcast/GM (public data):** commentary, recaps, power rankings, headlines, press
+  conferences, league persona, season recap/awards.
+- **Operational:** absent-team manager (**neutral skill**, validated intents), personal
+  assistant (your private + public, **symmetric** for all), NL commissioner/config,
+  collusion flagging (on-chain behavior, flags not decides).
+- **Content:** flavor (backstories/nicknames), **public scouting blurbs from fuzzed data
+  only** (so they can't leak truth).
+- **API mechanics:** structured outputs / strict tool use (intents validated), prompt
+  caching (frozen league-context prefix), **Batch API** (recaps etc., 50% off), memory
+  (season narrative), **model tiering** (Haiku volume / Sonnet depth / Opus marquee).
+- **Off-chain AI-GM service** holds the API key (never client-side), zero authority,
+  non-deterministic → never in the settlement/proof path.
+
+### League chat & DMs
+
+Off-chain (reuses the league server SSE + JSONL); identity-authenticated; **DMs E2EE**
+(host can't read); moderation (membership-gated, rate-limit, mute/block). AI persona reads
+**sanitized** chat. Collusion is caught by **on-chain behavior, never by reading DMs**.
+High-stakes: public-only or logged DMs. Future: wallet-native E2EE (XMTP/Push-style).
+
+### Cost & ops (off-chain, outside the trust boundary)
+
+- AI = **Anthropic API (pay-as-you-go)**, NOT a consumer Claude subscription (a consumer
+  sub can't power an app). A few $/month for a friends' league (Haiku + caching + batch).
+- Held under a **business entity** (LLC typical) once it's a real product; a personal API
+  account is fine for the free alpha — don't incorporate a hobby.
+- **"One pot" = the entity**, not a contract: USD side pays Anthropic; crypto treasury
+  funds the paymaster's ETH; an off-ramp bridges. **The paymaster pays GAS only — it
+  cannot pay the AI bill** (different rails), and **EigenLayer doesn't bridge this** (it's
+  verification, not payment).
+- Real-money / high-stakes ⇒ **legal gate** (gambling / money-transmission / securities /
+  KYC) — counsel before any real money; the technical anti-cheat doesn't address it.
+
+### Future options (documented; not near-term)
+
+- **EigenLayer / EigenCompute** — decentralized, economically-secured sim verification for
+  high stakes; drops into the verification interface.
+- **ZK proofs** — strongest sim verification + permanent hidden-info.
+- **Parallel Colony / Wayfinder agent tech** — persistent rival-GM personas (a living
+  league); decide build-on-Claude+memory vs adopt at the rich-persona stage; Solana↔MegaETH
+  + availability unknowns; **bounded-for-competition / free-for-flavor** split holds either
+  way.
+- **Token / NFTs** — kept behind accounting/ownership interfaces; reintroducible only if
+  the product becomes an open economy.
+- **Wallet-native E2EE messaging** (XMTP/Push) for chat/DMs.
+
+### Milestones (anti-cheat-first) — restated
+
+- **M2 — contracts integrity core:** proof-based `recordResult` (+VRF seed, challenge),
+  on-chain cap accumulator, draft commit-reveal + full-draft generalization, player+pick
+  trades, `generateSchedule`, paymaster + policy, de-`onlyOwner`; **Foundry gate**.
+- **M3 — executor + bridge:** repurpose the Node server into the untrusted sim-runner;
+  re-sim/challenge tooling; cross-environment determinism hardening (canonical build).
+- **M4 — client + wallet UX:** MOSS-connected onboarding/lobby/draft, scoped commissioner
+  controls, all reading on-chain state.
+- **Alongside:** AI-GM service (start: recaps + headlines + absent-team manager) and the
+  chat/DM layer.
+
+---
+
 ## Seams in existing code (where this plugs in)
 
 | Concern | Location |
