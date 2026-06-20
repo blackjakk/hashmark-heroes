@@ -437,18 +437,20 @@ dependency at all.**
 >
 > **DRAFTED + TESTED (on-chain settlement):** `contracts/ProofSettlement.sol`
 > replaces the `LeagueManager.recordResult(scores)` trust hole with optimistic,
-> challenge-by-re-sim settlement: (1) COMMIT–REVEAL seed — both players commit
-> `keccak(matchId,addr,nonce)` then reveal, so the canonical seed
-> `keccak(nonceHome,nonceAway)` is unforgeable; (2) BONDED PROPOSE of
-> `(artifactHash, resultHash, score)`; (3) optimistic CHALLENGE window in which
-> anyone can post a conflicting `resultHash` with a matching bond; (4) SETTLE —
-> unchallenged ⇒ finalize and refund; challenged ⇒ the `resolver` (re-sim
-> referee — multisig now, on-chain verifier / fraud proof later) supplies the
-> canonical `resultHash` and the matching side takes both bonds, the liar is
-> slashed. Bond + window are deploy params; seed source is swappable
-> (commit-reveal now, VRF later). 20 Hardhat tests green
-> (`test/ProofSettlement.test.js`), incl. the end-to-end cheat story (false
-> proposal slashed, honest challenger's truth settles).
+> challenge-by-re-sim settlement: (1) CHAINLINK VRF v2 SEED — the contract is a
+> VRF consumer; `openMatch` → `requestRandomWords`, and the `fulfillRandomWords`
+> callback fixes the canonical seed `keccak(randomWord, matchId)`. Unforgeable and
+> unpredictable, with NO commit/reveal step to grief by withholding a reveal;
+> (2) BONDED PROPOSE of `(artifactHash, resultHash, score)`; (3) optimistic
+> CHALLENGE window in which anyone can post a conflicting `resultHash` with a
+> matching bond; (4) SETTLE — unchallenged ⇒ finalize and refund; challenged ⇒
+> the `resolver` (re-sim referee — multisig now, on-chain verifier / fraud proof
+> later) supplies the canonical `resultHash` and the matching side takes both
+> bonds, the liar is slashed. Bond + window are deploy params; the VRF
+> subscription/keyHash are owner-settable. 20 Hardhat tests green
+> (`test/ProofSettlement.test.js`) against Chainlink's `VRFCoordinatorV2Mock`
+> (MegaETH testnet has no live coordinator yet), incl. the end-to-end cheat story
+> (false proposal slashed, honest challenger's truth settles).
 >
 > **WIRED into standings:** `LeagueManager` no longer has the typed-in
 > `recordResult(scores)` — it's replaced by `ingestResult(gameIdx)`, which PULLS
@@ -496,7 +498,20 @@ dependency at all.**
 > declares portable, re-sims in that mode, and reproduces the full `resultHash`;
 > the recovery probe confirms the mode survives a SIGKILL/restart. (The browser/
 > single-player engine stays native by default — outcome-identical, no flag.)
-> STILL TODO: a VRF seed upgrade and a deploy run on MegaETH.
+>
+> **VRF SEED + DEPLOY PREP (done).** Seed source upgraded from commit-reveal to
+> Chainlink VRF v2 (above). `scripts/deploy.js` now deploys the full stack incl.
+> ProofSettlement, links `LeagueManager.setProofSettlement`, sets the resolver,
+> and seeds the 32 teams; with no `VRF_COORDINATOR` configured it auto-deploys a
+> `VRFCoordinatorV2Mock` (MegaETH testnet has no Chainlink VRF yet) so the whole
+> deploy runs end-to-end. Proven by a local dry-run (`npx hardhat run
+> scripts/deploy.js` → all contracts deploy + wire on the in-process node, no
+> addresses written). `hardhat.config.js` RPC/chainId are env-overridable (the
+> committed `carrot.megaeth.com` default was stale). Full runbook: `DEPLOY.md`.
+> STILL TODO (needs your credentials/infra, not code): a real broadcast with a
+> funded `PRIVATE_KEY` on MegaETH's current RPC/chainId, and — for production VRF
+> rather than the mock — a Chainlink VRF coordinator + funded subscription on the
+> target chain (the contract is already a conformant consumer).
 >
 > **MEASURED (cross-machine libm risk):** `server/determinism-hazard-probe.js`
 > enumerates the unspecified-precision `Math.*` calls on the RE-SIM outcome path

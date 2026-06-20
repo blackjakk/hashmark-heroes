@@ -12,8 +12,12 @@ module.exports = {
   },
   networks: {
     megaeth: {
-      url: process.env.MEGAETH_RPC_URL || "https://carrot.megaeth.com",
-      chainId: 6342,
+      // The old default (carrot.megaeth.com) is stale: carrot now lives at /rpc
+      // and reports chainId 6343. The thirdweb endpoint below is a working 6342
+      // pair matching the configured chainId. ALWAYS override BOTH with MegaETH's
+      // current official RPC + chainId from their docs before a real deploy.
+      url: process.env.MEGAETH_RPC_URL || "https://6342.rpc.thirdweb.com",
+      chainId: Number(process.env.MEGAETH_CHAIN_ID || 6342),
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
     localhost: {

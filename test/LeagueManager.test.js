@@ -1,5 +1,5 @@
 // LeagueManager.test.js — proves the PROVEN-outcome wiring: a match settled in
-// ProofSettlement (commit-reveal seed → bonded propose → finalize/resolve) is
+// ProofSettlement (Chainlink VRF seed → bonded propose → finalize/resolve) is
 // pulled into LeagueManager standings via ingestResult(), with NO typed-in
 // scores and a team-owner binding that rejects spoofed matches.
 const { expect } = require("chai");
@@ -10,17 +10,20 @@ const BOND = ethers.parseEther("0.1");
 const WINDOW = 3600;
 const HOME_ID = 1n, AWAY_ID = 2n;
 
-const nonceH = ethers.id("home-nonce");
-const nonceA = ethers.id("away-nonce");
+const KEY_HASH = ethers.id("key-hash");
+const BASE_FEE = ethers.parseEther("0.1");
+const GAS_PRICE_LINK = 1_000_000_000n;
 const artifactHash = ethers.id("inputs");
 const TRUTH = ethers.id("canonical-result");
 const LIE = ethers.id("tampered-result");
 
-const commitOf = (mid, who, nonce) =>
-  ethers.solidityPackedKeccak256(["bytes32", "address", "bytes32"], [mid, who, nonce]);
+const eventArg = (rc, iface, name, arg) => {
+  for (const l of rc.logs) { try { const p = iface.parseLog(l); if (p && p.name === name) return p.args[arg]; } catch (e) {} }
+  return undefined;
+};
 
 describe("LeagueManager × ProofSettlement (proven standings)", function () {
-  let gt, team, ps, lm;
+  let gt, team, ps, lm, vrf, subId;
   let owner, homeOwner, awayOwner, runner, challenger, other;
 
   // Acquire a franchise NFT through the real GRID purchase flow → ownerOf(teamId).
@@ -31,13 +34,16 @@ describe("LeagueManager × ProofSettlement (proven standings)", function () {
     await team.connect(buyer).purchaseTeam(teamId);
   }
 
+  // Open a match and fulfill its VRF request → Seeded (mock coordinator).
+  async function seedOnchain(matchId, homeSigner, awaySigner) {
+    const rc = await (await ps.openMatch(matchId, homeSigner.address, awaySigner.address)).wait();
+    const requestId = eventArg(rc, ps.interface, "SeedRequested", "requestId");
+    await vrf.fulfillRandomWords(requestId, await ps.getAddress());
+  }
+
   // Settle a ProofSettlement match (happy path) between two seats with a result.
   async function settle(matchId, homeSigner, awaySigner, hs, as_, rh = TRUTH) {
-    await ps.openMatch(matchId, homeSigner.address, awaySigner.address);
-    await ps.connect(homeSigner).commit(matchId, commitOf(matchId, homeSigner.address, nonceH));
-    await ps.connect(awaySigner).commit(matchId, commitOf(matchId, awaySigner.address, nonceA));
-    await ps.connect(homeSigner).reveal(matchId, nonceH);
-    await ps.connect(awaySigner).reveal(matchId, nonceA);
+    await seedOnchain(matchId, homeSigner, awaySigner);
     await ps.connect(runner).propose(matchId, artifactHash, rh, hs, as_, { value: BOND });
     await time.increase(WINDOW + 1);
     await ps.finalize(matchId);
@@ -50,7 +56,12 @@ describe("LeagueManager × ProofSettlement (proven standings)", function () {
     [owner, homeOwner, awayOwner, runner, challenger, other] = await ethers.getSigners();
     gt = await ethers.deployContract("GridironToken");
     team = await ethers.deployContract("TeamNFT", [await gt.getAddress()]);   // real, now-deployable NFT
-    ps = await ethers.deployContract("ProofSettlement", [BOND, WINDOW]);
+    vrf = await ethers.deployContract("VRFCoordinatorV2Mock", [BASE_FEE, GAS_PRICE_LINK]);
+    const subRc = await (await vrf.createSubscription()).wait();
+    subId = eventArg(subRc, vrf.interface, "SubscriptionCreated", "subId");
+    await vrf.fundSubscription(subId, ethers.parseEther("100"));
+    ps = await ethers.deployContract("ProofSettlement", [await vrf.getAddress(), subId, KEY_HASH, BOND, WINDOW]);
+    await vrf.addConsumer(subId, await ps.getAddress());
     lm = await ethers.deployContract("LeagueManager", [await team.getAddress(), await gt.getAddress()]);
     await lm.setProofSettlement(await ps.getAddress());
     await buyTeam(homeOwner, HOME_ID);   // ownerOf(HOME_ID) = homeOwner
@@ -124,11 +135,7 @@ describe("LeagueManager × ProofSettlement (proven standings)", function () {
     it("rejects an unfinalized match", async function () {
       // open + seed + propose but DON'T finalize (still in challenge window)
       const mid = ethers.id("g0");
-      await ps.openMatch(mid, homeOwner.address, awayOwner.address);
-      await ps.connect(homeOwner).commit(mid, commitOf(mid, homeOwner.address, nonceH));
-      await ps.connect(awayOwner).commit(mid, commitOf(mid, awayOwner.address, nonceA));
-      await ps.connect(homeOwner).reveal(mid, nonceH);
-      await ps.connect(awayOwner).reveal(mid, nonceA);
+      await seedOnchain(mid, homeOwner, awayOwner);
       await ps.connect(runner).propose(mid, artifactHash, TRUTH, 24, 17, { value: BOND });
       await expect(lm.ingestResult(0)).to.be.revertedWith("LM: not finalized");
     });
@@ -157,11 +164,7 @@ describe("LeagueManager × ProofSettlement (proven standings)", function () {
   describe("disputed match settles into standings via the resolved truth", function () {
     it("a slashed false proposal yields the challenger's truth in the standings", async function () {
       const mid = ethers.id("g0");
-      await ps.openMatch(mid, homeOwner.address, awayOwner.address);
-      await ps.connect(homeOwner).commit(mid, commitOf(mid, homeOwner.address, nonceH));
-      await ps.connect(awayOwner).commit(mid, commitOf(mid, awayOwner.address, nonceA));
-      await ps.connect(homeOwner).reveal(mid, nonceH);
-      await ps.connect(awayOwner).reveal(mid, nonceA);
+      await seedOnchain(mid, homeOwner, awayOwner);
       // proposer LIES (28-0); challenger posts the canonical TRUTH (21-24)
       await ps.connect(runner).propose(mid, artifactHash, LIE, 28, 0, { value: BOND });
       await ps.connect(challenger).challenge(mid, TRUTH, 21, 24, { value: BOND });

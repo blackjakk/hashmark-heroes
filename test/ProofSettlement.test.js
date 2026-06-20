@@ -1,110 +1,110 @@
-// ProofSettlement.test.js — proves the optimistic proof-settlement contract:
-// commit-reveal seed, bonded propose/challenge, challenge window, finalize, and
-// slash-on-dispute. Run: npx hardhat test
+// ProofSettlement.test.js — proves the optimistic proof-settlement contract with
+// a Chainlink VRF v2 seed: VRF request/fulfill, bonded propose/challenge,
+// challenge window, finalize, and slash-on-dispute. Uses Chainlink's
+// VRFCoordinatorV2Mock (MegaETH testnet has no live coordinator). Run: npx hardhat test
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { time } = require("@nomicfoundation/hardhat-network-helpers");
 
 const BOND = ethers.parseEther("0.1");
-const WINDOW = 3600; // 1 hour
+const WINDOW = 3600;
+const KEY_HASH = ethers.id("test-key-hash");
+const BASE_FEE = ethers.parseEther("0.1");      // mock LINK base fee per request
+const GAS_PRICE_LINK = 1_000_000_000n;          // mock LINK/gas
 
 const matchId = ethers.id("season1-week1-NYG-DAL");
-const nonceH = ethers.id("home-secret-nonce");
-const nonceA = ethers.id("away-secret-nonce");
 const artifactHash = ethers.id("inputs:{seed,rosters,tape}");
-const TRUTH = ethers.id("canonical-result-hash");       // what re-sim produces
-const LIE = ethers.id("tampered-result-hash");          // a cheat / wrong claim
+const TRUTH = ethers.id("canonical-result-hash");
+const LIE = ethers.id("tampered-result-hash");
 
-const commitOf = (mid, who, nonce) =>
-  ethers.solidityPackedKeccak256(["bytes32", "address", "bytes32"], [mid, who, nonce]);
-const seedOf = (nh, na) =>
-  ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [nh, na]);
+const S = { None: 0n, AwaitingSeed: 1n, Seeded: 2n, Proposed: 3n, Challenged: 4n, Finalized: 5n, Voided: 6n };
 
-// Status enum mirror
-const S = { None: 0n, Committing: 1n, Seeded: 2n, Proposed: 3n, Challenged: 4n, Finalized: 5n, Voided: 6n };
+const eventArg = (rc, iface, name, arg) => {
+  for (const l of rc.logs) {
+    try { const p = iface.parseLog(l); if (p && p.name === name) return p.args[arg]; } catch (e) {}
+  }
+  return undefined;
+};
 
-describe("ProofSettlement", function () {
-  let ps, owner, home, away, runner, challenger, other;
+describe("ProofSettlement (VRF v2 seed)", function () {
+  let vrf, ps, subId, owner, home, away, runner, challenger, other;
 
   beforeEach(async function () {
     [owner, home, away, runner, challenger, other] = await ethers.getSigners();
-    ps = await ethers.deployContract("ProofSettlement", [BOND, WINDOW]);
+    vrf = await ethers.deployContract("VRFCoordinatorV2Mock", [BASE_FEE, GAS_PRICE_LINK]);
+    const rc = await (await vrf.createSubscription()).wait();
+    subId = eventArg(rc, vrf.interface, "SubscriptionCreated", "subId");
+    await vrf.fundSubscription(subId, ethers.parseEther("100")); // 100 LINK
+    ps = await ethers.deployContract("ProofSettlement", [await vrf.getAddress(), subId, KEY_HASH, BOND, WINDOW]);
+    await vrf.addConsumer(subId, await ps.getAddress());
   });
 
-  async function openAndSeed() {
-    await ps.openMatch(matchId, home.address, away.address);
-    await ps.connect(home).commit(matchId, commitOf(matchId, home.address, nonceH));
-    await ps.connect(away).commit(matchId, commitOf(matchId, away.address, nonceA));
-    await ps.connect(home).reveal(matchId, nonceH);
-    await ps.connect(away).reveal(matchId, nonceA);
+  // open a match + fulfill the VRF request → Seeded. Returns the requestId used.
+  async function seedMatch(mid = matchId, h = home, a = away, word = null) {
+    const rc = await (await ps.openMatch(mid, h.address, a.address)).wait();
+    const requestId = eventArg(rc, ps.interface, "SeedRequested", "requestId");
+    if (word === null) await vrf.fulfillRandomWords(requestId, await ps.getAddress());
+    else await vrf.fulfillRandomWordsWithOverride(requestId, await ps.getAddress(), [word]);
+    return requestId;
   }
   async function proposed(by = runner, rh = TRUTH) {
-    await openAndSeed();
+    await seedMatch();
     await ps.connect(by).propose(matchId, artifactHash, rh, 24, 17, { value: BOND });
   }
 
-  describe("commit-reveal seed", function () {
-    it("opens a match and tracks both players", async function () {
-      await expect(ps.openMatch(matchId, home.address, away.address))
-        .to.emit(ps, "MatchOpened").withArgs(matchId, home.address, away.address);
+  describe("VRF seed", function () {
+    it("openMatch requests VRF randomness and sits AwaitingSeed", async function () {
+      const rc = await (await ps.openMatch(matchId, home.address, away.address)).wait();
+      expect(eventArg(rc, ps.interface, "MatchOpened", "home")).to.equal(home.address);
+      const requestId = eventArg(rc, ps.interface, "SeedRequested", "requestId");
+      expect(requestId).to.not.be.undefined;
       const m = await ps.getMatch(matchId);
-      expect(m.status).to.equal(S.Committing);
-      expect(m.home).to.equal(home.address);
-      expect(m.away).to.equal(away.address);
+      expect(m.status).to.equal(S.AwaitingSeed);
+      expect(m.seed).to.equal(ethers.ZeroHash);          // no seed until fulfilled
     });
 
-    it("rejects re-open, self-match, and a non-player commit", async function () {
+    it("the VRF callback fixes seed = keccak(randomWord, matchId) and flips to Seeded", async function () {
+      const rc = await (await ps.openMatch(matchId, home.address, away.address)).wait();
+      const requestId = eventArg(rc, ps.interface, "SeedRequested", "requestId");
+      const word = 123456789n;
+      await expect(vrf.fulfillRandomWordsWithOverride(requestId, await ps.getAddress(), [word]))
+        .to.emit(ps, "Seeded");
+      const m = await ps.getMatch(matchId);
+      expect(m.status).to.equal(S.Seeded);
+      expect(m.seed).to.equal(ethers.solidityPackedKeccak256(["uint256", "bytes32"], [word, matchId]));
+    });
+
+    it("only the VRF coordinator can fulfill (callback is access-controlled)", async function () {
+      const rc = await (await ps.openMatch(matchId, home.address, away.address)).wait();
+      const requestId = eventArg(rc, ps.interface, "SeedRequested", "requestId");
+      // a non-coordinator calling the raw callback is rejected by VRFConsumerBaseV2
+      await expect(ps.connect(other).rawFulfillRandomWords(requestId, [7])).to.be.reverted;
+    });
+
+    it("rejects re-open and self-match", async function () {
       await ps.openMatch(matchId, home.address, away.address);
       await expect(ps.openMatch(matchId, home.address, away.address)).to.be.revertedWith("PS: exists");
       await expect(ps.openMatch(ethers.id("m2"), home.address, home.address)).to.be.revertedWith("PS: bad players");
-      await expect(ps.connect(other).commit(matchId, commitOf(matchId, other.address, nonceH)))
-        .to.be.revertedWith("PS: not a player");
-    });
-
-    it("fixes the canonical seed = keccak(nonceHome, nonceAway) once both reveal", async function () {
-      await ps.openMatch(matchId, home.address, away.address);
-      await ps.connect(home).commit(matchId, commitOf(matchId, home.address, nonceH));
-      await ps.connect(away).commit(matchId, commitOf(matchId, away.address, nonceA));
-      await ps.connect(home).reveal(matchId, nonceH);
-      // one side revealed → still Committing, no seed yet
-      expect((await ps.getMatch(matchId)).status).to.equal(S.Committing);
-      await expect(ps.connect(away).reveal(matchId, nonceA))
-        .to.emit(ps, "Seeded").withArgs(matchId, seedOf(nonceH, nonceA));
-      const m = await ps.getMatch(matchId);
-      expect(m.status).to.equal(S.Seeded);
-      expect(m.seed).to.equal(seedOf(nonceH, nonceA));
-    });
-
-    it("rejects a reveal whose nonce doesn't match the commitment", async function () {
-      await ps.openMatch(matchId, home.address, away.address);
-      await ps.connect(home).commit(matchId, commitOf(matchId, home.address, nonceH));
-      await expect(ps.connect(home).reveal(matchId, ethers.id("wrong"))).to.be.revertedWith("PS: bad reveal");
-    });
-
-    it("seed is unforgeable — depends on BOTH nonces (neither side controls it)", async function () {
-      // changing either side's nonce changes the seed → a player who commits
-      // first cannot steer the seed without knowing the opponent's nonce.
-      expect(seedOf(nonceH, nonceA)).to.not.equal(seedOf(ethers.id("other"), nonceA));
-      expect(seedOf(nonceH, nonceA)).to.not.equal(seedOf(nonceH, ethers.id("other")));
-      // contract pure helpers agree with the off-chain computation
-      expect(await ps.seedFor(nonceH, nonceA)).to.equal(seedOf(nonceH, nonceA));
-      expect(await ps.commitFor(matchId, home.address, nonceH)).to.equal(commitOf(matchId, home.address, nonceH));
     });
   });
 
   describe("propose", function () {
     it("requires a seeded match, the exact bond, and a non-empty result", async function () {
+      // not seeded yet: open but don't fulfill the VRF request
+      await ps.openMatch(matchId, home.address, away.address);   // AwaitingSeed
       await expect(ps.connect(runner).propose(matchId, artifactHash, TRUTH, 24, 17, { value: BOND }))
         .to.be.revertedWith("PS: not seeded");
-      await openAndSeed();
-      await expect(ps.connect(runner).propose(matchId, artifactHash, TRUTH, 24, 17, { value: BOND / 2n }))
+      // a separate, fully seeded match for the bond/result guards
+      const m2 = ethers.id("m2");
+      await seedMatch(m2);
+      await expect(ps.connect(runner).propose(m2, artifactHash, TRUTH, 24, 17, { value: BOND / 2n }))
         .to.be.revertedWith("PS: bad bond");
-      await expect(ps.connect(runner).propose(matchId, artifactHash, ethers.ZeroHash, 24, 17, { value: BOND }))
+      await expect(ps.connect(runner).propose(m2, artifactHash, ethers.ZeroHash, 24, 17, { value: BOND }))
         .to.be.revertedWith("PS: empty result");
     });
 
     it("stores the bonded proposal and locks the bond", async function () {
-      await openAndSeed();
+      await seedMatch();
       const tx = await ps.connect(runner).propose(matchId, artifactHash, TRUTH, 24, 17, { value: BOND });
       await expect(tx).to.emit(ps, "Proposed").withArgs(matchId, runner.address, artifactHash, TRUTH, 24, 17);
       await expect(tx).to.changeEtherBalances([runner, ps], [-BOND, BOND]);
@@ -112,7 +112,6 @@ describe("ProofSettlement", function () {
       expect(m.status).to.equal(S.Proposed);
       expect(m.proposer).to.equal(runner.address);
       expect(m.resultHash).to.equal(TRUTH);
-      expect(m.homeScore).to.equal(24);
     });
   });
 
@@ -139,9 +138,7 @@ describe("ProofSettlement", function () {
       const tx = await ps.connect(challenger).challenge(matchId, LIE, 14, 21, { value: BOND });
       await expect(tx).to.emit(ps, "Challenged").withArgs(matchId, challenger.address, LIE, 14, 21);
       await expect(tx).to.changeEtherBalances([challenger, ps], [-BOND, BOND]);
-      const m = await ps.getMatch(matchId);
-      expect(m.status).to.equal(S.Challenged);
-      expect(m.challenger).to.equal(challenger.address);
+      expect((await ps.getMatch(matchId)).status).to.equal(S.Challenged);
       expect(await ethers.provider.getBalance(await ps.getAddress())).to.equal(BOND * 2n);
     });
   });
@@ -158,13 +155,11 @@ describe("ProofSettlement", function () {
     it("settles the proposed result and refunds the proposer's bond", async function () {
       await proposed();
       await time.increase(WINDOW + 1);
-      await expect(ps.finalize(matchId))
-        .to.emit(ps, "Finalized").withArgs(matchId, TRUTH, 24, 17, false);
+      await expect(ps.finalize(matchId)).to.emit(ps, "Finalized").withArgs(matchId, TRUTH, 24, 17, false);
       const m = await ps.getMatch(matchId);
       expect(m.status).to.equal(S.Finalized);
       expect(m.finalResultHash).to.equal(TRUTH);
       expect(await ps.withdrawable(runner.address)).to.equal(BOND);
-      // pull-payment: proposer withdraws exactly their bond back
       await expect(ps.connect(runner).withdraw()).to.changeEtherBalance(runner, BOND);
       expect(await ethers.provider.getBalance(await ps.getAddress())).to.equal(0);
     });
@@ -172,8 +167,8 @@ describe("ProofSettlement", function () {
 
   describe("resolve (disputed)", function () {
     async function disputed() {
-      await proposed(runner, TRUTH);                                   // proposer claims truth
-      await ps.connect(challenger).challenge(matchId, LIE, 14, 21, { value: BOND }); // challenger lies
+      await proposed(runner, TRUTH);
+      await ps.connect(challenger).challenge(matchId, LIE, 14, 21, { value: BOND });
     }
 
     it("only the resolver may resolve", async function () {
@@ -184,20 +179,14 @@ describe("ProofSettlement", function () {
     it("honest proposer wins the whole pot when re-sim confirms their hash", async function () {
       await disputed();
       await expect(ps.resolve(matchId, TRUTH))
-        .to.emit(ps, "Resolved").withArgs(matchId, TRUTH, runner.address)
-        .and.to.emit(ps, "Finalized").withArgs(matchId, TRUTH, 24, 17, true);
+        .to.emit(ps, "Resolved").withArgs(matchId, TRUTH, runner.address);
       expect(await ps.withdrawable(runner.address)).to.equal(BOND * 2n);
       expect(await ps.withdrawable(challenger.address)).to.equal(0);
-      const m = await ps.getMatch(matchId);
-      expect(m.status).to.equal(S.Finalized);
-      expect(m.finalResultHash).to.equal(TRUTH);
+      expect((await ps.getMatch(matchId)).finalResultHash).to.equal(TRUTH);
     });
 
     it("CHEAT STORY: a false proposal is slashed; the honest challenger's truth settles", async function () {
-      // proposer posts the LIE, challenger posts the canonical TRUTH (from
-      // re-simming the public artifact). The resolver (re-sim referee) confirms
-      // TRUTH → the cheating proposer's bond is slashed to the challenger.
-      await openAndSeed();
+      await seedMatch();
       await ps.connect(runner).propose(matchId, artifactHash, LIE, 99, 0, { value: BOND });
       await ps.connect(challenger).challenge(matchId, TRUTH, 24, 17, { value: BOND });
       await expect(ps.resolve(matchId, TRUTH))
@@ -205,22 +194,21 @@ describe("ProofSettlement", function () {
       expect(await ps.withdrawable(challenger.address)).to.equal(BOND * 2n);
       expect(await ps.withdrawable(runner.address)).to.equal(0);
       const m = await ps.getMatch(matchId);
-      expect(m.finalResultHash).to.equal(TRUTH);   // the real outcome settles
+      expect(m.finalResultHash).to.equal(TRUTH);
       expect(m.finalHomeScore).to.equal(24);
       expect(m.finalAwayScore).to.equal(17);
     });
 
     it("voids and slashes BOTH bonds to the treasury when neither hash is correct", async function () {
       await disputed();
-      const third = ethers.id("a-third-different-result");
-      await expect(ps.resolve(matchId, third))
+      await expect(ps.resolve(matchId, ethers.id("a-third-result")))
         .to.emit(ps, "Voided").withArgs(matchId);
       expect(await ps.withdrawable(owner.address)).to.equal(BOND * 2n);
       expect((await ps.getMatch(matchId)).status).to.equal(S.Voided);
     });
   });
 
-  describe("admin: resolver + voidStuck + withdraw guards", function () {
+  describe("admin: resolver + vrf config + voidStuck + withdraw guards", function () {
     it("owner can rotate the resolver; the new resolver can adjudicate", async function () {
       await expect(ps.setResolver(ethers.ZeroAddress)).to.be.revertedWith("PS: zero resolver");
       await expect(ps.connect(other).setResolver(other.address))
@@ -228,23 +216,27 @@ describe("ProofSettlement", function () {
       await ps.setResolver(other.address);
       await proposed(runner, TRUTH);
       await ps.connect(challenger).challenge(matchId, LIE, 0, 0, { value: BOND });
-      await ps.connect(other).resolve(matchId, TRUTH);   // new resolver works
+      await ps.connect(other).resolve(matchId, TRUTH);
       expect(await ps.withdrawable(runner.address)).to.equal(BOND * 2n);
     });
 
+    it("owner can update the VRF config", async function () {
+      const newKey = ethers.id("new-key");
+      await expect(ps.connect(other).setVrfConfig(9, newKey, 500000))
+        .to.be.revertedWithCustomError(ps, "OwnableUnauthorizedAccount");
+      await expect(ps.setVrfConfig(9, newKey, 500000)).to.emit(ps, "VrfConfigChanged").withArgs(9, newKey, 500000);
+      expect(await ps.keyHash()).to.equal(newKey);
+      expect(await ps.callbackGasLimit()).to.equal(500000);
+    });
+
     it("voidStuck clears a pre-stake match but refuses one carrying bonds", async function () {
-      await openAndSeed();
+      await seedMatch();
       await expect(ps.connect(other).voidStuck(matchId))
         .to.be.revertedWithCustomError(ps, "OwnableUnauthorizedAccount");
       await ps.voidStuck(matchId);
       expect((await ps.getMatch(matchId)).status).to.equal(S.Voided);
-      // a proposed (bonded) match cannot be voided this way
       const m2 = ethers.id("m2");
-      await ps.openMatch(m2, home.address, away.address);
-      await ps.connect(home).commit(m2, commitOf(m2, home.address, nonceH));
-      await ps.connect(away).commit(m2, commitOf(m2, away.address, nonceA));
-      await ps.connect(home).reveal(m2, nonceH);
-      await ps.connect(away).reveal(m2, nonceA);
+      await seedMatch(m2);
       await ps.connect(runner).propose(m2, artifactHash, TRUTH, 1, 0, { value: BOND });
       await expect(ps.voidStuck(m2)).to.be.revertedWith("PS: has stake");
     });

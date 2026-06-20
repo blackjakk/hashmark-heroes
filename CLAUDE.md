@@ -24,15 +24,18 @@ must name its cheat surface + how it's closed, same discipline as gate-safety.
 ## Settlement / contracts (on-chain anti-cheat — Hardhat, solc 0.8.20)
 
 - `npm install && npx hardhat test` (toolchain not committed; deps in package.json).
-- `ProofSettlement.sol` = the trust-hole fix: commit-reveal seed →
-  unforgeable; bonded propose `(artifactHash=inputs, resultHash=outcome)` →
+- `ProofSettlement.sol` = the trust-hole fix: Chainlink VRF v2 seed (a consumer;
+  `openMatch`→`requestRandomWords`→`fulfillRandomWords` fixes the unforgeable
+  game seed) → bonded propose `(artifactHash=inputs, resultHash=outcome)` →
   optimistic challenge window → resolver slashes the liar. `LeagueManager` no
   longer types in scores: `ingestResult(gameIdx)` PULLS a finalized match's
   proven result, bound to the franchise via `TeamNFT.ownerOf`. Canonical outcome
   hash = `server/result-hash.js` (strips motion/statsSnap/desc, key-sorted).
   TeamNFT metadata is seeded post-deploy (`setTeams`, `scripts/teams.js`) — its
   literals were in the constructor and blew the EIP-3860 init-code limit. 37 tests
-  in `test/`.
+  in `test/`. Deploy: `scripts/deploy.js` (auto-mocks the VRF coordinator when
+  none is configured — MegaETH testnet has no Chainlink VRF yet); runbook in
+  `DEPLOY.md`. Local dry-run: `npx hardhat run scripts/deploy.js`.
 
 ## Ship workflow (every push)
 
