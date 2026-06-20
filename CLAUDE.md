@@ -13,6 +13,26 @@ clients submit *intent* only, never trusted outcomes. Determinism
 artifact, never typed in by an admin. Full threat model + MegaETH settlement
 design: `INGAME_CLOCK_AND_MULTIPLAYER.md` §Anti-cheat. Every new MP feature
 must name its cheat surface + how it's closed, same discipline as gate-safety.
+- CROSS-MACHINE RULE: JS leaves `Math.log/cos/pow/...` precision impl-defined, so
+  any libm on the OUTCOME path can fork validators. Use the portable, pure-IEEE
+  helpers for outcome-affecting transcendentals — `_olog/_ocos/_osq` (dispatchers,
+  native by default, portable under `GC_PORTABLE_MATH="on"` / `_setPortableMath`)
+  backed by `_plog/_pcos` in play-data.js. `Math.sqrt` is correctly-rounded =
+  safe. Prove with `server/determinism-hazard-probe.js [PORTABLE=1]` (portable →
+  ∞ ULP margin) + the outcome-neutral check in `server/determinism-probe.js`.
+
+## Settlement / contracts (on-chain anti-cheat — Hardhat, solc 0.8.20)
+
+- `npm install && npx hardhat test` (toolchain not committed; deps in package.json).
+- `ProofSettlement.sol` = the trust-hole fix: commit-reveal seed →
+  unforgeable; bonded propose `(artifactHash=inputs, resultHash=outcome)` →
+  optimistic challenge window → resolver slashes the liar. `LeagueManager` no
+  longer types in scores: `ingestResult(gameIdx)` PULLS a finalized match's
+  proven result, bound to the franchise via `TeamNFT.ownerOf`. Canonical outcome
+  hash = `server/result-hash.js` (strips motion/statsSnap/desc, key-sorted).
+  TeamNFT metadata is seeded post-deploy (`setTeams`, `scripts/teams.js`) — its
+  literals were in the constructor and blew the EIP-3860 init-code limit. 37 tests
+  in `test/`.
 
 ## Ship workflow (every push)
 

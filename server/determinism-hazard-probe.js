@@ -48,6 +48,15 @@ const seeds = seedsArg.length ? seedsArg : [1337, 7, 42, 2024, 99];
 const ULP_BUDGET = 4;   // per-function perturbation magnitude (upper end of realistic libm disagreement)
 
 const eng = loadEngine();
+// PORTABLE=1 routes the engine's outcome-path transcendentals through the
+// pure-IEEE portable implementations (play-data.js) — the mode every on-chain
+// validator runs. Expect: 0 libm calls on the outcome path and NO divergence at
+// any ULP (the perturbations land on functions the sim no longer calls).
+const PORTABLE = !!process.env.PORTABLE;
+if (PORTABLE) {
+  if (!eng._setPortableMath) { console.error("engine lacks _setPortableMath"); process.exit(2); }
+  eng._setPortableMath(true);
+}
 const clone = o => JSON.parse(JSON.stringify(o));
 const h = eng.TEAMS[0], a = eng.TEAMS[1];
 // Rosters built ONCE, cloned per sim — the re-sim path with FIXED inputs (in a
@@ -90,7 +99,7 @@ function patch(fn, ulp) {
 }
 
 // ── 1. STATIC ──
-console.log("CROSS-MACHINE DETERMINISM HAZARD PROBE\n");
+console.log(`CROSS-MACHINE DETERMINISM HAZARD PROBE  [math: ${PORTABLE ? "PORTABLE" : "native"}]\n`);
 console.log("1) STATIC — transcendental call sites in the engine bundle:");
 const re = new RegExp("Math\\.(" + FNS.join("|") + ")\\b", "g");
 const staticPerFn = {};

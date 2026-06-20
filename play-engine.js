@@ -1,7 +1,7 @@
 // ─── Game simulator ───────────────────────────────────────────────────────
 function normal(mean, sd) {
   const u1 = _rand() || 0.0001, u2 = _rand();
-  return Math.round(mean + Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * sd);
+  return Math.round(mean + Math.sqrt(-2 * _olog(u1)) * _ocos(2 * Math.PI * u2) * sd);
 }
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -2430,7 +2430,7 @@ class GameSimulator {
       // Weights tilt toward higher overall; ^2.0 sharpens the bias so
       // elite pass-rushers actually win their share of reps (audit
       // showed top sacker at 11.6 vs NFL elite 18-22; ^1.6 was too flat).
-      const weights = list.map(p => Math.pow(Math.max(1, p.overall - 40), 2.0));
+      const weights = list.map(p => _osq(Math.max(1, p.overall - 40)));
       const sum = weights.reduce((a, b) => a + b, 0);
       let r = _rand() * sum;
       for (let i = 0; i < list.length; i++) { r -= weights[i]; if (r <= 0) return list[i]; }
@@ -5841,7 +5841,7 @@ class GameSimulator {
       // = no penalty; yL 95 (5 to go) = significant; yL 99 (goal-to-goal)
       // = heavy. Log curve gives diminishing returns mid-RZ so the cliff
       // hits at the goal line, matching NFL RZ TD% by yard line.
-      const rzPenalty = this._inRedZone ? Math.log(1 + Math.max(0, this.yardLine - 80) / 4) : 0;
+      const rzPenalty = this._inRedZone ? _olog(1 + Math.max(0, this.yardLine - 80) / 4) : 0;
       // Elite defensive playmakers amplify RZ disruption — top OVR DL/LB/S
       // collapse the pocket faster + close windows in compressed space.
       // 80 OVR = 0 extra; 95+ OVR = max bonus.
@@ -6917,7 +6917,7 @@ class GameSimulator {
     // at ~65% on 1st-and-goal. Bonus trimmed (+0.8/+0.4 → +0.6/+0.3) to
     // keep rush TDs in the slightly-over-NFL zone instead of 1.19× pace.
     // Same log curve as comp — defense piles up in box near goal line.
-    const _rzPen2 = this._inRedZone ? Math.log(1 + Math.max(0, this.yardLine - 80) / 4) : 0;
+    const _rzPen2 = this._inRedZone ? _olog(1 + Math.max(0, this.yardLine - 80) / 4) : 0;
     // Elite defenders eat run-blocking in RZ — see passing RZ bonus.
     const _rzEliteDr = this._inRedZone
       ? Math.max(0, (Math.max(this.defR.dl, this.defR.lb, this.defR.saf) - 80) / 100)

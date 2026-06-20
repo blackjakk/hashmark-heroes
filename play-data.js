@@ -46,6 +46,85 @@ function _hashSeed(...nums) {
   return h >>> 0;
 }
 
+// ─── Portable transcendentals (cross-machine determinism) ───────────────────
+// ECMAScript leaves Math.log/cos/pow/... precision IMPLEMENTATION-DEFINED, so
+// two machines (different Node/V8/libm builds) can disagree in the last bit.
+// For on-chain challenge-by-re-sim that's fatal: honest validators could fork on
+// one near-boundary roll. `server/determinism-hazard-probe.js` found the only
+// libm on the re-sim outcome path is the gaussian `normal()` (log+cos), the
+// player-selection weight (pow), and the red-zone penalty (log). These portable
+// implementations replace them using ONLY operations ECMAScript pins exactly —
+// +, -, *, /, comparisons, Math.sqrt/round/floor (correctly-rounded), integer
+// bit-ops, and constants — so the result is byte-identical on every machine.
+// Accurate to ~1e-13 vs native (well inside the ~2.4e-4 outcome margin the
+// hazard probe measured), so enabling them does not change game outcomes.
+//
+// Flag-gated: native by default (every gate runs the byte-identical native path);
+// `window.GC_PORTABLE_MATH="on"` or `_setPortableMath(true)` switches the engine
+// outcome path to the portable ones — the mode every on-chain validator runs.
+let _portableMath = (typeof window !== "undefined" && window.GC_PORTABLE_MATH === "on");
+function _setPortableMath(on) { _portableMath = !!on; }
+function _isPortableMath() { return _portableMath; }
+
+const _PI = Math.PI;                       // a fixed double constant (not a libm call)
+const _HALF_PI = _PI / 2;
+const _LN2 = 0.6931471805599453;           // ln(2) as a fixed double literal
+const _SQRT2 = 1.4142135623730951;
+const _pmDV = (typeof DataView !== "undefined") ? new DataView(new ArrayBuffer(8)) : null;
+
+// Portable cos(x): argument-reduce to [-π/4, π/4] around the nearest k·(π/2),
+// then a Taylor series (the engine only feeds x∈[0,2π) so k is small and the
+// reduction error is ~1e-16). Uses only round/+/-/* → deterministic.
+function _pcos(x) {
+  const k = Math.round(x / _HALF_PI);
+  const r = x - k * _HALF_PI;              // r ∈ [-π/4, π/4]
+  const r2 = r * r;
+  // cos(r): 1 - r²/2! + r⁴/4! - … (to r¹², error < 1e-13 on the range)
+  const cr = 1 + r2 * (-1 / 2 + r2 * (1 / 24 + r2 * (-1 / 720 + r2 * (1 / 40320 + r2 * (-1 / 3628800 + r2 * (1 / 479001600))))));
+  // sin(r): r - r³/3! + r⁵/5! - … (to r¹³)
+  const sr = r * (1 + r2 * (-1 / 6 + r2 * (1 / 120 + r2 * (-1 / 5040 + r2 * (1 / 362880 + r2 * (-1 / 39916800 + r2 * (1 / 6227020800)))))));
+  switch (((k % 4) + 4) % 4) {
+    case 0:  return cr;
+    case 1:  return -sr;
+    case 2:  return -cr;
+    default: return sr;                    // case 3
+  }
+}
+
+// Portable log(x), x>0: frexp via the IEEE bit pattern (fixed little-endian, so
+// platform endianness can't change it), reduce the mantissa to [√½, √2] and use
+// the fast-converging atanh series log(m)=2·atanh((m-1)/(m+1)). Deterministic.
+function _plog(x) {
+  if (x <= 0) return x === 0 ? -Infinity : NaN;
+  if (!isFinite(x)) return x;             // +Inf → +Inf, NaN → NaN
+  _pmDV.setFloat64(0, x, true);
+  let lo = _pmDV.getUint32(0, true);
+  let hi = _pmDV.getUint32(4, true);
+  let e = ((hi >>> 20) & 0x7ff) - 1023;
+  if (e === -1023) {                       // subnormal: scale up by 2^54, re-read
+    _pmDV.setFloat64(0, x * 18014398509481984, true); // 2^54
+    lo = _pmDV.getUint32(0, true); hi = _pmDV.getUint32(4, true);
+    e = ((hi >>> 20) & 0x7ff) - 1023 - 54;
+  }
+  const hiM = (hi & 0x800fffff) | (1023 << 20);  // force exponent → m ∈ [1,2)
+  _pmDV.setUint32(4, hiM, true);
+  _pmDV.setUint32(0, lo, true);
+  let m = _pmDV.getFloat64(0, true);
+  if (m > _SQRT2) { m = m / 2; e += 1; }   // → m ∈ [√½, √2], so |s| ≤ 0.1716
+  const s = (m - 1) / (m + 1);
+  const s2 = s * s;
+  // 2·(s + s³/3 + s⁵/5 + … + s¹³/13), error < 1e-13 on the reduced range
+  const series = 2 * s * (1 + s2 * (1 / 3 + s2 * (1 / 5 + s2 * (1 / 7 + s2 * (1 / 9 + s2 * (1 / 11 + s2 * (1 / 13)))))));
+  return e * _LN2 + series;
+}
+
+// Engine outcome-path dispatchers: native by default, portable when enabled.
+// `_osq` is the player-weight square (integer base → x*x is exact and equals
+// Math.pow(x,2) bit-for-bit for those inputs; routed for symmetry + safety).
+function _olog(x) { return _portableMath ? _plog(x) : Math.log(x); }
+function _ocos(x) { return _portableMath ? _pcos(x) : Math.cos(x); }
+function _osq(x)  { return _portableMath ? x * x   : Math.pow(x, 2); }
+
 // ─── 32 fictional teams ────────────────────────────────────────────────────
 const TEAMS = [
   { id:1,  city:"New Albion",  name:"Kraken",     conference:"AFC", division:"East",  primary:"#00264D", secondary:"#84B6F4", emoji:"🦑" },

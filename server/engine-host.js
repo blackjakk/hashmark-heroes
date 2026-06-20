@@ -59,6 +59,10 @@ const EXPORT_HOOK = `
   __exports.buildRatings = typeof buildRatings === "function" ? buildRatings : null;
   __exports._setSimRng = _setSimRng;
   __exports._clearSimRng = _clearSimRng;
+  __exports._setPortableMath = typeof _setPortableMath === "function" ? _setPortableMath : null;
+  __exports._isPortableMath  = typeof _isPortableMath  === "function" ? _isPortableMath  : null;
+  __exports._plog = typeof _plog === "function" ? _plog : null;
+  __exports._pcos = typeof _pcos === "function" ? _pcos : null;
 `;
 
 let _cached = null;

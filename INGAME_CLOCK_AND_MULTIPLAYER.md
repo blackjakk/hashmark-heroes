@@ -470,9 +470,26 @@ dependency at all.**
 > optional `lockMetadata()` to freeze it. Init code 94,136 → 10,126 B, runtime
 > 8,825 B — both well under the EVM caps. `deploy.js` seeds the 32 teams in
 > chunks; 6 tests green (`test/TeamNFT.test.js`) incl. an explicit
-> deploy-within-size-limits assertion. STILL TODO: a VRF seed upgrade, a deploy
-> run on MegaETH, and cross-machine determinism (below) — the resolver is the
-> remaining trust point until an on-chain re-sim verifier lands.
+> deploy-within-size-limits assertion.
+>
+> **CROSS-MACHINE DETERMINISM — fixed by construction (portable math).** The open
+> validator-fork risk (JS leaves `Math.log/cos/pow/...` precision
+> implementation-defined, so different libm builds could diverge in the last bit)
+> is closed behind a flag. `play-data.js` ships pure-IEEE `_plog`/`_pcos` (and
+> `_osq`=`x*x`) — only operations ECMAScript pins exactly (`+ - * /`, `sqrt`,
+> `round`, bit-ops, constants), accurate to ~1e-13 vs native. The 3 outcome-path
+> call-sites (gaussian `normal()` log+cos, the player-weight `pow`, the red-zone
+> `log`) route through them when `GC_PORTABLE_MATH="on"` / `_setPortableMath(true)`.
+> Default is native (gate-identical); validators run portable. PROVEN:
+> `determinism-hazard-probe.js PORTABLE=1` → 0 outcome-path libm calls and the
+> result is stable through the FULL ±1e12 ULP ladder (margin → ∞, since the sim no
+> longer calls libm); `determinism-probe.js` → portable mode is outcome-NEUTRAL
+> (native resultHash == portable, so it can be turned on everywhere with no
+> behavioral drift). All ship gates green (default native path byte-identical).
+> This lets the dispute `resolver` move toward an on-chain re-sim verifier (every
+> validator agrees bit-for-bit) instead of a trusted multisig. STILL TODO: a VRF
+> seed upgrade, a deploy run on MegaETH, and forcing portable mode ON in the
+> server/validator re-sim path (the engine default stays native for single-player).
 >
 > **MEASURED (cross-machine libm risk):** `server/determinism-hazard-probe.js`
 > enumerates the unspecified-precision `Math.*` calls on the RE-SIM outcome path

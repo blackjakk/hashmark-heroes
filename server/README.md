@@ -79,6 +79,8 @@ node server/determinism-probe.js   # result-hash.js is sound: stable re-sim, see
 node server/determinism-hazard-probe.js  # CROSS-MACHINE: enumerate outcome-path libm
                                    # calls + measure how far they can drift before the
                                    # result flips (the on-chain validator-fork risk)
+PORTABLE=1 node server/determinism-hazard-probe.js  # same, with the portable-math
+                                   # mode ON → 0 outcome-path libm calls, infinite margin
 ```
 
 ### Cross-machine determinism (the validator-fork risk)
@@ -100,10 +102,25 @@ turns that open risk into a measured list:
   engine's discrete decision thresholds absorb tiny perturbations.
 
 So today's risk is vanishingly small in practice **but not zero** — a single
-near-boundary roll on one forked game breaks an on-chain proof. The sound fix is
-bit-exactness by construction: **pin the validator Node/V8 build**, or compile
-the sim to wasm / swap those 3 outcome-path libm calls for portable
-(fdlibm/table) implementations. After that, this probe becomes a gate at 0.
+near-boundary roll on one forked game breaks an on-chain proof.
+
+**Fixed by construction (portable math, flag-gated).** `play-data.js` ships
+pure-IEEE `_plog`/`_pcos` (and `_osq` = `x*x`) — built from only the operations
+ECMAScript pins exactly (`+ - * /`, `sqrt`, `round`, integer bit-ops, constants),
+accurate to ~1e-13 vs native. `_setPortableMath(true)` / `window.GC_PORTABLE_MATH
+="on"` routes the engine's 3 outcome-path call-sites through them. Default is
+**native** (every gate runs the byte-identical native path); the on-chain
+validators run **portable**, where:
+
+- `PORTABLE=1 determinism-hazard-probe.js` → "0 outcome-path libm calls", and the
+  result is **stable through the entire ±1e12 ULP ladder** (perturbing every
+  libm function changes nothing — the sim no longer calls them). Margin → ∞.
+- `determinism-probe.js` asserts portable mode is **outcome-neutral**: the
+  canonical resultHash is identical native vs portable, so the on-chain mode can
+  be turned on everywhere with zero behavioral drift.
+
+The dispute `resolver` can therefore move toward an on-chain re-sim verifier
+(every validator agrees bit-for-bit) instead of a trusted multisig.
 
 ## API sketch
 

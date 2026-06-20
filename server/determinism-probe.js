@@ -119,5 +119,24 @@ const shuffleKeys = (v) => {
 check(`canonical hash is key-order independent`,
   stableStringify(canon) === stableStringify(shuffleKeys(canon)));
 
+// 5. PORTABLE-MATH OUTCOME-NEUTRAL — switching the engine's outcome-path
+// transcendentals to the pure-IEEE portable implementations (the cross-machine
+// bit-exact mode) must NOT change the game: same seed, same canonical resultHash
+// native vs portable. Proven, so the on-chain mode can be turned on everywhere
+// with zero behavioral drift. (Portability itself is proven by
+// determinism-hazard-probe.js PORTABLE=1 → infinite ULP margin.)
+if (eng._setPortableMath) {
+  let neutral = true, detail = "";
+  for (const s of seeds) {
+    eng._setPortableMath(false);
+    const native = resultHash(simAt(s));
+    eng._setPortableMath(true);
+    const portable = resultHash(simAt(s));
+    eng._setPortableMath(false);
+    if (native !== portable) { neutral = false; detail = `seed ${s}: ${native.slice(0, 10)} vs ${portable.slice(0, 10)}`; break; }
+  }
+  check(`portable math is outcome-neutral (native resultHash == portable)`, neutral, detail || `${seeds.length} seeds identical`);
+}
+
 console.log(`\n${fail ? "✗ " + fail + " FAILURE(S)" : "ALL-PASS"} (${pass}/${pass + fail})`);
 process.exit(fail ? 1 : 0);
