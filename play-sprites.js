@@ -627,6 +627,23 @@ function _tintedSprite(srcImg, key, hexColor) {
     const _edgeMul  = (typeof window !== "undefined" && window.GC_TINT_EDGE != null) ? window.GC_TINT_EDGE : 0.42;
     const _wMinLum  = 132 / 255;                       // isWhite per-channel floor, as luminance
     const _edgeSpan = Math.max(1e-3, _wMinLum - _inkFloor);
+    // CAVITY SHADOW: jersey-white touching the bare arm (skin) sits in the recess
+    // between the arm and the chest. Flat team color there fills the cavity and
+    // merges the arm into the body (user-reported); darken it to a shadow shade so
+    // the arm reads as separate. GC_TINT_CAVITY = the multiplier.
+    const _cavityMul = (typeof window !== "undefined" && window.GC_TINT_CAVITY != null) ? window.GC_TINT_CAVITY : 0.55;
+    const cavR = Math.round(cr * _cavityMul), cavG = Math.round(cg * _cavityMul), cavB = Math.round(cb * _cavityMul);
+    // skinNear = within 1px of skin (dilated). Reused by both branches.
+    const skinNear = new Uint8Array(W * H);
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (!skinMask[y * W + x]) continue;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && nx < W && ny >= 0 && ny < H) skinNear[ny * W + nx] = 1;
+        }
+      }
+    }
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const i = (y * W + x) * 4;
@@ -643,22 +660,15 @@ function _tintedSprite(srcImg, key, hexColor) {
         if (_hasFace && y < headLine
             && y >= _faceTop && y <= _faceBot && Math.abs(x - _faceCx) <= _faceHalf) continue; // face/mask
         if (white) {
-          if (lum >= _hiCut) { d[i] = hiR; d[i + 1] = hiG; d[i + 2] = hiB; }   // highlight
-          else if (lum >= _shCut) { d[i] = cr; d[i + 1] = cg; d[i + 2] = cb; } // full color
-          else { d[i] = shR; d[i + 1] = shG; d[i + 2] = shB; }                // shadow
+          if (skinNear[y * W + x]) { d[i] = cavR; d[i + 1] = cavG; d[i + 2] = cavB; }  // cavity/arm shadow
+          else if (lum >= _hiCut) { d[i] = hiR; d[i + 1] = hiG; d[i + 2] = hiB; }       // highlight
+          else if (lum >= _shCut) { d[i] = cr; d[i + 1] = cg; d[i + 2] = cb; }          // full color
+          else { d[i] = shR; d[i + 1] = shG; d[i + 2] = shB; }                          // shadow
         } else {
           // grey AA → dark team, but ONLY a fabric edge: skip grey touching skin
           // (the bare arm), else the underarm/arm-boundary SHADOW gets tinted
           // team-color (user-reported). Leave that grey for depth.
-          let nearSkin = false;
-          for (let dy = -1; dy <= 1 && !nearSkin; dy++) {
-            for (let dx = -1; dx <= 1; dx++) {
-              const nx = x + dx, ny = y + dy;
-              if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
-              if (skinMask[ny * W + nx]) { nearSkin = true; break; }
-            }
-          }
-          if (nearSkin) continue;
+          if (skinNear[y * W + x]) continue;
           // ramp _edgeMul (at the ink floor) → _shMul (at the white edge)
           const mul = _edgeMul + (_shMul - _edgeMul) * ((lum - _inkFloor) / _edgeSpan);
           d[i] = Math.round(cr * mul); d[i + 1] = Math.round(cg * mul); d[i + 2] = Math.round(cb * mul);
