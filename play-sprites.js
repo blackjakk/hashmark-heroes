@@ -524,7 +524,6 @@ function _tintedSprite(srcImg, key, hexColor) {
     // frozen original mask breaks that feedback (blue never tripped it).
     const skinMask = new Uint8Array(W * H);
     let minX = W, minY = H, maxX = 0, maxY = 0;
-    let sMinX = W, sMinY = H, sMaxX = 0, sMaxY = 0, skinCount = 0;   // FACE (skin) bbox
     const lums = [];   // luminance of every TINTABLE white pixel
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
@@ -533,12 +532,7 @@ function _tintedSprite(srcImg, key, hexColor) {
           if (x < minX) minX = x; if (x > maxX) maxX = x;
           if (y < minY) minY = y; if (y > maxY) maxY = y;
           const r0 = d[i0], g0 = d[i0 + 1], b0 = d[i0 + 2];
-          if (isSkin(r0, g0, b0)) {
-            skinMask[y * W + x] = 1;
-            skinCount++;
-            if (x < sMinX) sMinX = x; if (x > sMaxX) sMaxX = x;
-            if (y < sMinY) sMinY = y; if (y > sMaxY) sMaxY = y;
-          }
+          if (isSkin(r0, g0, b0)) skinMask[y * W + x] = 1;
           else if (isWhite(r0, g0, b0)) lums.push((r0 + g0 + b0) / 765);
         }
       }
@@ -586,13 +580,24 @@ function _tintedSprite(srcImg, key, hexColor) {
     // (face) bbox expanded outward for the facemask cage + chin guard. White in
     // that box stays white (neutral mask), skin stays skin; the dome/shell around
     // it still tints. GC_TINT_FACE_W / _DOWN tune the expansion.
+    // FACE bbox = skin in the HEAD band ONLY. Bare arms/hands are skin too, so a
+    // whole-body skin bbox spanned the arms and made the face box blank the
+    // SHOULDERS (user: "not coloring part of the shoulder"). Restrict to y above
+    // the headline so only the actual face drives the box.
+    let _fMinX = W, _fMinY = H, _fMaxX = 0, _fMaxY = 0, _faceCount = 0;
+    const _headBot = Math.round(headLine);
+    for (let y = minY; y < _headBot; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        if (skinMask[y * W + x]) { _faceCount++; if (x < _fMinX) _fMinX = x; if (x > _fMaxX) _fMaxX = x; if (y < _fMinY) _fMinY = y; if (y > _fMaxY) _fMaxY = y; }
+      }
+    }
     const _faceWf  = (typeof window !== "undefined" && window.GC_TINT_FACE_W   != null) ? window.GC_TINT_FACE_W   : 1.15;
     const _faceDnf = (typeof window !== "undefined" && window.GC_TINT_FACE_DOWN != null) ? window.GC_TINT_FACE_DOWN : 0.30;
-    const _hasFace = skinCount > 6;
-    const _faceCx  = (sMinX + sMaxX) / 2;
-    const _faceHalf = ((sMaxX - sMinX) / 2) * _faceWf;
-    const _faceTop = sMinY - 1;                                  // from the brow
-    const _faceBot = sMaxY + (sMaxY - sMinY) * _faceDnf;          // down past the chin (facemask)
+    const _hasFace = _faceCount > 6;
+    const _faceCx  = (_fMinX + _fMaxX) / 2;
+    const _faceHalf = ((_fMaxX - _fMinX) / 2) * _faceWf;
+    const _faceTop = _fMinY - 1;                                  // from the brow
+    const _faceBot = _fMaxY + (_fMaxY - _fMinY) * _faceDnf;        // down past the chin (facemask)
     // FULL-COLOR cel ramp with depth. The earlier white-wash read flat and
     // washed out, and lerping the highlight toward white desaturated it
     // (red went pink). Instead BRIGHTEN the team color for the highlight
@@ -612,20 +617,52 @@ function _tintedSprite(srcImg, key, hexColor) {
     const shR = Math.round(cr * _shMul);
     const shG = Math.round(cg * _shMul);
     const shB = Math.round(cb * _shMul);
+    // GREY AA RING → darker team color. The anti-aliased pixels between the
+    // bright fabric and the dark outline are neutral GREY (below the isWhite
+    // floor), so they were left grey — a grey halo before the black on the
+    // shoulder pads / helmet (user-reported). Tint those neutral mid-tones to a
+    // DARK shade of the team color, ramped by their own luminance so the edge
+    // fades cleanly into the ink instead of going team→grey→black.
+    const _inkFloor = (typeof window !== "undefined" && window.GC_TINT_INK != null) ? window.GC_TINT_INK : 0.16;
+    const _edgeMul  = (typeof window !== "undefined" && window.GC_TINT_EDGE != null) ? window.GC_TINT_EDGE : 0.42;
+    const _wMinLum  = 132 / 255;                       // isWhite per-channel floor, as luminance
+    const _edgeSpan = Math.max(1e-3, _wMinLum - _inkFloor);
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const i = (y * W + x) * 4;
         const r = d[i], g = d[i + 1], b = d[i + 2], a = d[i + 3];
-        if (a === 0 || !isWhite(r, g, b)) continue;
-        if (y > waistCol[x]) continue;                  // below the curved hem → pants stay white
-        // Face + facemask: leave the FACE-OPENING uncolored (helmet dome/shell
-        // around it still tints). Only in the HEAD band; needs a detected face.
-        if (_hasFace && y < headLine
-            && y >= _faceTop && y <= _faceBot && Math.abs(x - _faceCx) <= _faceHalf) continue;
+        if (a === 0) continue;
+        const white = isWhite(r, g, b);
         const lum = (r + g + b) / 765;
-        if (lum >= _hiCut) { d[i] = hiR; d[i + 1] = hiG; d[i + 2] = hiB; }   // highlight
-        else if (lum >= _shCut) { d[i] = cr; d[i + 1] = cg; d[i + 2] = cb; } // full color
-        else { d[i] = shR; d[i + 1] = shG; d[i + 2] = shB; }                // shadow
+        // neutral grey AA: low saturation, between the ink floor and white, not skin
+        const greyEdge = !white && lum >= _inkFloor && lum < _wMinLum
+          && Math.abs(r - g) < 42 && Math.abs(g - b) < 42 && Math.abs(r - b) < 42
+          && !skinMask[y * W + x];
+        if (!white && !greyEdge) continue;             // ink / skin / already-colored → leave
+        if (y > waistCol[x]) continue;                 // below the curved hem → pants edge stays neutral
+        if (_hasFace && y < headLine
+            && y >= _faceTop && y <= _faceBot && Math.abs(x - _faceCx) <= _faceHalf) continue; // face/mask
+        if (white) {
+          if (lum >= _hiCut) { d[i] = hiR; d[i + 1] = hiG; d[i + 2] = hiB; }   // highlight
+          else if (lum >= _shCut) { d[i] = cr; d[i + 1] = cg; d[i + 2] = cb; } // full color
+          else { d[i] = shR; d[i + 1] = shG; d[i + 2] = shB; }                // shadow
+        } else {
+          // grey AA → dark team, but ONLY a fabric edge: skip grey touching skin
+          // (the bare arm), else the underarm/arm-boundary SHADOW gets tinted
+          // team-color (user-reported). Leave that grey for depth.
+          let nearSkin = false;
+          for (let dy = -1; dy <= 1 && !nearSkin; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              const nx = x + dx, ny = y + dy;
+              if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
+              if (skinMask[ny * W + nx]) { nearSkin = true; break; }
+            }
+          }
+          if (nearSkin) continue;
+          // ramp _edgeMul (at the ink floor) → _shMul (at the white edge)
+          const mul = _edgeMul + (_shMul - _edgeMul) * ((lum - _inkFloor) / _edgeSpan);
+          d[i] = Math.round(cr * mul); d[i + 1] = Math.round(cg * mul); d[i + 2] = Math.round(cb * mul);
+        }
       }
     }
     octx.putImageData(img, 0, 0);
