@@ -184,7 +184,9 @@ must name its cheat surface + how it's closed, same discipline as gate-safety.
   highlight = teamColor×1.40 clamped (GC_TINT_HI, BRIGHTENS the hue — don't
   lerp to white, that pinks red), mid = full teamColor, shadow = teamColor×
   0.74 (GC_TINT_SHADOW). PANTS stay white (skip white below waist
-  minY+0.56*h, upright only; GC_TINT_WAIST). FACEMASK spared: skip white
+  minY+0.66*h, upright only; GC_TINT_WAIST — was 0.56, which cut mid-torso and
+  left the lower jersey white above the pants; 0.66 = the real waistband).
+  FACEMASK spared: skip white
   touching skin in the HEAD band (top 40%) only — bare arms below are skin
   too and a body-wide skip made a polka-dot jersey. Skin mask snapshotted
   from ORIGINAL pixels (a warm tint passes isSkin → cascade-dots otherwise).

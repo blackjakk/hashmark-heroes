@@ -547,8 +547,14 @@ function _tintedSprite(srcImg, key, hexColor) {
     const _shCut = lums.length ? lums[Math.floor(lums.length * 0.38)] : 0.84;
     const _hiCut = lums.length ? lums[Math.floor(lums.length * 0.72)] : 0.93;
     const _upright = (maxY - minY) >= (maxX - minX);
+    // Waist cut: white BELOW this fraction of the figure stays white (pants).
+    // 0.56 cut mid-torso, leaving the lower jersey (which hangs to the hip)
+    // white above the pants — a hard line with uncolored jersey beneath it
+    // (user-reported). 0.66 sits at the real jersey/pants waistband: jersey
+    // colored to the hip, pants white on the legs (verified across run/carry/
+    // pass/celebrate/stance; 0.72 starts eating the pants).
     const _waistFrac = (typeof window !== "undefined" && window.GC_TINT_WAIST != null)
-      ? window.GC_TINT_WAIST : 0.56;
+      ? window.GC_TINT_WAIST : 0.66;
     const waistY = _upright ? minY + _waistFrac * (maxY - minY) : H + 1;
     // Facemask exclusion is restricted to the HEAD band (top ~40%). Below
     // it, bare ARMS are also skin-colored and run down the jersey sides —

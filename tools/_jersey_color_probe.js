@@ -121,7 +121,7 @@ function staticServer() {
       const prim = hex2rgb(primHex), pLab = rgb2lab(prim), pHue = hue(pLab), pChroma = chroma(pLab);
       const greyish = pChroma < 12;
       // JERSEY strip (0.40–0.56): mean of the TINTABLE pixels only
-      const [jy0,jy1] = bandRows(0.40,0.56);
+      const [jy0,jy1] = bandRows(0.40,0.60);
       let jr=0,jg=0,jb=0,jn=0,exact=0;
       for (let y=jy0;y<=jy1;y++) for (let x=minX;x<=maxX;x++){ const p=y*W+x; if(!tintable[p])continue; const i=p*4;
         jr+=data[i]; jg+=data[i+1]; jb+=data[i+2]; jn++;
@@ -135,7 +135,7 @@ function staticServer() {
       const helmetFrac = ho ? ht/ho : 0;
       // PANTS (0.62–0.85): tintable bleed = real jersey-color speckle (dark legs
       // are NOT tintable, so this is clean now)
-      const [py0,py1]=bandRows(0.62,0.85); let pt=0,po=0;
+      const [py0,py1]=bandRows(0.74,0.88); let pt=0,po=0;   // below the 0.66 waist
       for (let y=py0;y<=py1;y++) for (let x=minX;x<=maxX;x++){ const p=y*W+x; if(opaque[p]){po++; if(tintable[p])pt++;} }
       const speckle = po ? pt/po : 0;
 
