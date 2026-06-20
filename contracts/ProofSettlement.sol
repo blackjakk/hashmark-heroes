@@ -295,6 +295,17 @@ contract ProofSettlement is Ownable {
         return matches[matchId];
     }
 
+    /// Lean settlement view for consumers (e.g. LeagueManager standings). Returns
+    /// the canonical, PROVEN outcome of a finalized match and the two seats it was
+    /// played between — a consumer binds those addresses to its own team registry.
+    function settledResult(bytes32 matchId) external view returns (
+        bool finalized, bytes32 resultHash, uint8 homeScore, uint8 awayScore, address home, address away
+    ) {
+        Match storage m = matches[matchId];
+        finalized = m.status == Status.Finalized;
+        return (finalized, m.finalResultHash, m.finalHomeScore, m.finalAwayScore, m.home, m.away);
+    }
+
     /// Compute the canonical seed a match WILL have for two nonces (off-chain
     /// helper; mirrors `reveal`).
     function seedFor(bytes32 nonceHome, bytes32 nonceAway) external pure returns (bytes32) {

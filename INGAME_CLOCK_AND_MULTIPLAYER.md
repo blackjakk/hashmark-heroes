@@ -448,10 +448,24 @@ dependency at all.**
 > slashed. Bond + window are deploy params; seed source is swappable
 > (commit-reveal now, VRF later). 20 Hardhat tests green
 > (`test/ProofSettlement.test.js`), incl. the end-to-end cheat story (false
-> proposal slashed, honest challenger's truth settles). STILL TODO: wire the
-> settled result into `LeagueManager` standings, a VRF seed upgrade, deployment,
-> and cross-machine determinism (below) — the resolver is the remaining trust
-> point until an on-chain re-sim verifier lands.
+> proposal slashed, honest challenger's truth settles).
+>
+> **WIRED into standings:** `LeagueManager` no longer has the typed-in
+> `recordResult(scores)` — it's replaced by `ingestResult(gameIdx)`, which PULLS
+> a finalized match's proven `(resultHash, score)` from `ProofSettlement` and
+> applies the standings. Permissionless (the data is already proven); the only
+> checks are that the match is finalized and BOUND to this game's franchises (the
+> two settled seats must be the current `TeamNFT.ownerOf` of the home/away teams)
+> — so a finalized-but-spoofed match can't be ingested. Each game now stores its
+> `matchId` + canonical `resultHash` for provenance. 11 integration tests green
+> (`test/LeagueManager.test.js`): happy path (home/away/tie), the guards, the
+> anti-spoof owner-binding, and a disputed match whose RESOLVED truth (not the
+> slashed lie) is what lands in the standings. STILL TODO: a VRF seed upgrade,
+> deployment, and cross-machine determinism (below) — the resolver is the
+> remaining trust point until an on-chain re-sim verifier lands. (Note: the real
+> `TeamNFT`'s 32-team constructor exceeds the EIP-3860 init-code limit — a
+> pre-existing deploy blocker to slim before mainnet; tests use a `MockTeamNFT`
+> ownerOf stand-in.)
 >
 > **MEASURED (cross-machine libm risk):** `server/determinism-hazard-probe.js`
 > enumerates the unspecified-precision `Math.*` calls on the RE-SIM outcome path

@@ -5,6 +5,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./TeamNFT.sol";
 import "./GridironToken.sol";
 
+/// @notice The proven-outcome view of ProofSettlement (see ProofSettlement.sol).
+interface IProofSettlement {
+    function settledResult(bytes32 matchId) external view returns (
+        bool finalized, bytes32 resultHash, uint8 homeScore, uint8 awayScore, address home, address away
+    );
+}
+
 /// @notice Manages seasons, game results, standings, and the championship
 contract LeagueManager is Ownable {
     TeamNFT       public immutable teamNFT;
@@ -30,6 +37,8 @@ contract LeagueManager is Ownable {
         uint8   homeScore;
         uint8   awayScore;
         bool    played;
+        bytes32 matchId;     // links to the ProofSettlement match (proven outcome)
+        bytes32 resultHash;  // canonical OUTCOME hash recorded at ingestion
     }
 
     struct Record {
@@ -42,6 +51,9 @@ contract LeagueManager is Ownable {
 
     uint256 public season;
     Phase   public phase;
+
+    /// The settlement contract that proves match outcomes (set by the owner).
+    IProofSettlement public proofSettlement;
 
     // season → games
     mapping(uint256 => Game[]) public schedule;
@@ -56,6 +68,8 @@ contract LeagueManager is Ownable {
     event SeasonStarted(uint256 indexed season, Phase phase);
     event PhaseAdvanced(uint256 indexed season, Phase phase);
     event GameRecorded(uint256 indexed season, uint8 week, uint256 home, uint256 away, uint8 hs, uint8 as_);
+    event GameSettled(uint256 indexed season, uint256 indexed gameIdx, bytes32 matchId, bytes32 resultHash, uint8 hs, uint8 as_);
+    event ProofSettlementSet(address indexed settlement);
     event PlayoffsSet(uint256 indexed season, uint256[14] seeds);
     event ChampionCrowned(uint256 indexed season, uint256 indexed teamId, address owner_);
 
@@ -89,21 +103,51 @@ contract LeagueManager is Ownable {
         delete schedule[season];
     }
 
-    // ─── Game results ─────────────────────────────────────────────────────────
+    // ─── Game results — PROVEN, never typed in ──────────────────────────────────
 
-    function recordResult(
-        uint256 gameIdx,
-        uint8   homeScore,
-        uint8   awayScore
-    ) external onlyOwner {
+    /// Point the league at its settlement contract (the proven-outcome source).
+    function setProofSettlement(address ps) external onlyOwner {
+        require(ps != address(0), "LM: zero settlement");
+        proofSettlement = IProofSettlement(ps);
+        emit ProofSettlementSet(ps);
+    }
+
+    /// @notice Pull a FINALIZED match's outcome from ProofSettlement into the
+    /// standings. This replaces the old `recordResult(scores)` trust hole: nobody
+    /// types a score in — the score comes from a settled (proven, re-simmable)
+    /// match. Permissionless, because the data is already proven; the only checks
+    /// are that the match is finalized and bound to THIS game's teams (the two
+    /// settled seats must be the current owners of the home/away franchises).
+    /// @dev The schedule's `matchId` must be an unpredictable, coordinator-chosen
+    /// id so it cannot be front-run/opened by a griefer in ProofSettlement; the
+    /// owner-binding here then ties the proven seats to the right franchises.
+    function ingestResult(uint256 gameIdx) external {
+        require(address(proofSettlement) != address(0), "LM: no settlement");
         Game storage g = schedule[season][gameIdx];
         require(!g.played, "LM: already played");
-        g.homeScore = homeScore;
-        g.awayScore = awayScore;
-        g.played    = true;
+        require(g.matchId != bytes32(0), "LM: no matchId");
 
-        Record storage hr = records[season][g.homeTeamId];
-        Record storage ar = records[season][g.awayTeamId];
+        (bool finalized, bytes32 rh, uint8 hs, uint8 as_, address mHome, address mAway) =
+            proofSettlement.settledResult(g.matchId);
+        require(finalized, "LM: not finalized");
+        require(
+            mHome == teamNFT.ownerOf(g.homeTeamId) && mAway == teamNFT.ownerOf(g.awayTeamId),
+            "LM: team/owner mismatch"
+        );
+
+        g.homeScore  = hs;
+        g.awayScore  = as_;
+        g.resultHash = rh;
+        g.played     = true;
+        _applyStandings(g.homeTeamId, g.awayTeamId, hs, as_);
+
+        emit GameRecorded(season, g.week, g.homeTeamId, g.awayTeamId, hs, as_);
+        emit GameSettled(season, gameIdx, g.matchId, rh, hs, as_);
+    }
+
+    function _applyStandings(uint256 homeTeamId, uint256 awayTeamId, uint8 homeScore, uint8 awayScore) internal {
+        Record storage hr = records[season][homeTeamId];
+        Record storage ar = records[season][awayTeamId];
 
         hr.pointsFor      += homeScore;
         hr.pointsAgainst  += awayScore;
@@ -113,8 +157,6 @@ contract LeagueManager is Ownable {
         if      (homeScore > awayScore) { hr.wins++;   ar.losses++; }
         else if (awayScore > homeScore) { ar.wins++;   hr.losses++; }
         else                            { hr.ties++;   ar.ties++;   }
-
-        emit GameRecorded(season, g.week, g.homeTeamId, g.awayTeamId, homeScore, awayScore);
     }
 
     // ─── Playoffs ─────────────────────────────────────────────────────────────
