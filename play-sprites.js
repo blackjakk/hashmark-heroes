@@ -633,12 +633,14 @@ function _tintedSprite(srcImg, key, hexColor) {
     // the arm reads as separate. GC_TINT_CAVITY = the multiplier.
     const _cavityMul = (typeof window !== "undefined" && window.GC_TINT_CAVITY != null) ? window.GC_TINT_CAVITY : 0.55;
     const cavR = Math.round(cr * _cavityMul), cavG = Math.round(cg * _cavityMul), cavB = Math.round(cb * _cavityMul);
-    // skinNear = within 1px of skin (dilated). Reused by both branches.
+    // skinNear = within GC_TINT_CAVITY_REACH px of skin (dilated). Reused by both
+    // branches. Reach 2 pushes the cavity shadow deeper into the arm/chest recess.
+    const _cavReach = (typeof window !== "undefined" && window.GC_TINT_CAVITY_REACH != null) ? window.GC_TINT_CAVITY_REACH : 2;
     const skinNear = new Uint8Array(W * H);
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         if (!skinMask[y * W + x]) continue;
-        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -_cavReach; dy <= _cavReach; dy++) for (let dx = -_cavReach; dx <= _cavReach; dx++) {
           const nx = x + dx, ny = y + dy;
           if (nx >= 0 && nx < W && ny >= 0 && ny < H) skinNear[ny * W + nx] = 1;
         }
