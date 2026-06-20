@@ -3,14 +3,18 @@
 // the real HTTP/SSE wire: create → join → answer every decision (with a
 // deliberate go-silent window to exercise the play-clock AI fallback) →
 // final. Afterwards it fetches the deterministic artifact and INDEPENDENTLY
-// re-sims the tape with a fresh engine load, asserting the same final score
-// and artifact hash — the verifiability property the settlement hook rests on.
+// re-sims the tape with a fresh engine load, asserting the same final score,
+// the same INPUTS hash, AND the same canonical OUTCOME hash (resultHash) —
+// the full verifiability property the settlement hook rests on (score+count
+// alone would wave through a play-by-play / box-score tamper; see
+// determinism-probe.js for that demonstration).
 //
 //   node server/h2h-probe.js          (exit 0 = all assertions pass)
 "use strict";
 process.env.H2H_DATA = require("os").tmpdir() + "/h2h-probe-data-" + Date.now();
 const { start } = require("./h2h-server.js");
 const { loadEngine } = require("./engine-host.js");
+const { resultHash } = require("./result-hash.js");
 const crypto = require("crypto");
 
 const PORT = 18787;
@@ -157,7 +161,14 @@ function policy(side, kind, ctx) {
     v: 1, seed: art.seed, homeTeamId: art.homeTeamId, awayTeamId: art.awayTeamId,
     settings: art.settings, rosters: art.rosters, tape: art.tape,
   })).digest("hex");
-  check("artifact hash recomputes identically", localHash === art.hash);
+  check("artifact (INPUTS) hash recomputes identically", localHash === art.hash);
+  // The strong property: the canonical OUTCOME hash of the independent re-sim
+  // matches what the server posted — so the entire play-by-play + box score is
+  // reproduced, not just the final score and play count.
+  const localResultHash = resultHash(replay);
+  check("canonical resultHash recomputes identically (full outcome verified)",
+    localResultHash === finalEv.resultHash && art.resultHash === finalEv.resultHash,
+    `resim ${localResultHash.slice(0, 12)} · server ${(finalEv.resultHash || "—").slice(0, 12)} · artifact ${(art.resultHash || "—").slice(0, 12)}`);
 
   closeH(); closeA();
 

@@ -70,9 +70,12 @@ descriptor limits are fine for hobby scale.
 
 ```bash
 node server/h2h-probe.js           # two scripted clients, full match over the wire,
-                                   # timeout fallback, independent artifact re-sim
+                                   # timeout fallback, independent artifact re-sim,
+                                   # canonical OUTCOME-hash match (full play-by-play)
 node server/h2h-recovery-probe.js  # SIGKILL mid-match → respawn → exact state restore
 node server/h2h-client-probe.js    # two REAL headless browsers through the actual UI
+node server/determinism-probe.js   # result-hash.js is sound: stable re-sim, seed-
+                                   # sensitive, tamper-evident vs a score-preserving edit
 ```
 
 ## API sketch
@@ -80,6 +83,17 @@ node server/h2h-client-probe.js    # two REAL headless browsers through the actu
 See the header comment in `h2h-server.js`. Decision windows for the same
 snap run in **parallel under one shared play-clock** (defense + offense
 prompt simultaneously; answers commit to the tape in seam order). The
-match artifact `{seed, teams, rosters, tape}` + its SHA-256 hash is served
-at `/api/artifact/:id` — anyone can re-sim it and verify the result
-byte-for-byte (the future on-chain settlement hook).
+match artifact is served at `/api/artifact/:id` and carries TWO hashes,
+the settlement pair:
+
+- **`hash`** — SHA-256 of the INPUTS `{seed, rosters, tape}`. Binds what the
+  match was *given*.
+- **`resultHash`** — SHA-256 of the canonical OUTCOME (`result-hash.js`): final
+  score + box score + every play's outcome fields, with cosmetic/derived data
+  (`motion`/`statsSnap`/`desc`) stripped and keys sorted so it depends only on
+  the data. Binds what *happened*.
+
+A challenger re-sims the inputs, recomputes `resultHash`, and disputes on a
+mismatch — the optimistic-challenge settlement hook. (Comparing only the final
+score + play count, as the first cut did, would wave through a play-by-play or
+box-score tamper; `determinism-probe.js` demonstrates exactly that gap.)

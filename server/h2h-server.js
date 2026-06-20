@@ -28,14 +28,17 @@
 //   POST /api/call   {matchId, token, seq, call}   answer the pending decision
 //        ("call" may be null/"auto" = defer to the AI, same as the [O] key)
 //   GET  /api/state/:matchId?token=T               reconnect snapshot
-//   GET  /api/artifact/:matchId?token=T            {seed,teams,rosters,tape,result,hash}
-//        (the deterministic match artifact — the future settlement object)
+//   GET  /api/artifact/:matchId?token=T            {seed,teams,rosters,tape,result,hash,resultHash}
+//        (the deterministic match artifact — the settlement object. `hash` binds
+//        the INPUTS {seed,rosters,tape}; `resultHash` binds the OUTCOME, so a
+//        challenger re-sims the inputs and disputes on a resultHash mismatch.)
 "use strict";
 const http = require("http");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const { loadEngine } = require("./engine-host.js");
+const { resultHash } = require("./result-hash.js");
 
 const PORT = Number(process.argv[2] || process.env.H2H_PORT || 8787);
 const DATA_DIR = process.env.H2H_DATA || path.join(__dirname, "data");
@@ -79,7 +82,7 @@ function persistJoin(m) {
 }
 function persistFinal(m) {
   fs.appendFileSync(matchFile(m.id), JSON.stringify({
-    t: "final", result: m.result, hash: artifactHash(m), finished: Date.now(),
+    t: "final", result: m.result, hash: artifactHash(m), resultHash: m.resultHash, finished: Date.now(),
   }) + "\n");
 }
 function loadPersisted() {
@@ -94,7 +97,7 @@ function loadPersisted() {
       for (const l of lines) {
         if (l.t === "call") m.tape.push(l.call);
         if (l.t === "join") m.joined = true;
-        if (l.t === "final") { m.status = "final"; m.result = l.result; }
+        if (l.t === "final") { m.status = "final"; m.result = l.result; m.resultHash = l.resultHash || null; }
       }
       matches.set(m.id, m);
       if (m.status !== "final" && m.joined) step(m);   // re-sim back to the pending state
@@ -237,9 +240,13 @@ function step(m) {
       homeScore: result.homeScore, awayScore: result.awayScore,
       winner: result.winner, plays: result.plays.length,
     };
+    // Canonical OUTCOME hash (result-hash.js) computed from the FULL sim result
+    // — the settlement object a challenger recomputes by re-simming the artifact
+    // inputs. artifactHash binds the INPUTS; resultHash binds what HAPPENED.
+    m.resultHash = resultHash(result);
     persistFinal(m);
-    pushEvent(m, "both", "final", { result: m.result, artifactHash: artifactHash(m) });
-    console.log(`[h2h] ${m.id} FINAL ${m.result.homeScore}-${m.result.awayScore} (${m.tape.length} calls, hash ${artifactHash(m).slice(0, 12)}…)`);
+    pushEvent(m, "both", "final", { result: m.result, artifactHash: artifactHash(m), resultHash: m.resultHash });
+    console.log(`[h2h] ${m.id} FINAL ${m.result.homeScore}-${m.result.awayScore} (${m.tape.length} calls, in ${artifactHash(m).slice(0, 12)}… out ${m.resultHash.slice(0, 12)}…)`);
     return;
   }
 
@@ -496,7 +503,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && arMatch) {
       const a = authedMatch(arMatch[1], url.searchParams.get("token"));
       if (a.error) return json(res, 403, a);
-      return json(res, 200, { ...artifactOf(a.m), result: a.m.result, hash: artifactHash(a.m) });
+      return json(res, 200, { ...artifactOf(a.m), result: a.m.result, hash: artifactHash(a.m), resultHash: a.m.resultHash || null });
     }
 
     if (req.method === "GET" && url.pathname === "/api/health") {

@@ -419,6 +419,26 @@ MegaETH's fast blocks via session keys, but 260 txs/match of wallet UX
 for thin trust gain) are all later bolt-ons — **v1 runs with no chain
 dependency at all.**
 
+> **SHIPPED (settlement pair, off-chain half):** both hashes the contract
+> call needs now exist server-side. `artifactHash` binds the INPUTS
+> `{seed, rosters, tape}`; the NEW **`resultHash`** (`server/result-hash.js`)
+> binds the OUTCOME — a canonical SHA-256 over final score + box score +
+> every play's outcome fields, with cosmetic/derived data (`motion`/
+> `statsSnap`/`desc`) stripped and keys recursively sorted so it is a pure
+> function of the data, not of object-construction order. The server posts it
+> on the `final` event and at `/api/artifact/:id`; a challenger re-sims the
+> inputs and disputes on a `resultHash` mismatch. This replaces the first
+> cut's weak verification (final score + play count), which would wave
+> through a play-by-play or box-score tamper that nets to the same score.
+> `server/determinism-probe.js` proves the hash is STABLE (same inputs →
+> same hash, several seeds × 2), SENSITIVE (different seeds differ), and
+> TAMPER-EVIDENT (a score-preserving one-field edit flips it); the strong
+> property is also asserted end-to-end in `server/h2h-probe.js`. STILL
+> on-chain-only-design: the `LeagueManager` settlement function, an
+> unforgeable seed source (VRF / commit-reveal), the challenge window, and
+> cross-machine determinism (same-machine is proven; libm float drift across
+> validators is the open risk to de-risk before mainnet).
+
 **The v1 scaffold** (`server/h2h-server.js`, zero-dep; engine loaded by
 `server/engine-host.js`, the audit's bundle pattern):
 
