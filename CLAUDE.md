@@ -188,6 +188,19 @@ must name its cheat surface + how it's closed, same discipline as gate-safety.
   touching skin in the HEAD band (top 40%) only — bare arms below are skin
   too and a body-wide skip made a polka-dot jersey. Skin mask snapshotted
   from ORIGINAL pixels (a warm tint passes isSkin → cascade-dots otherwise).
+  - QA the tint with `node tools/_jersey_color_probe.js [pose]` (regression gate,
+    0 flags). It MEASURES color accuracy per region across all 32 teams + stress
+    colors instead of eyeballing, using a DIFFERENTIAL mask: render the sprite
+    with two tints (magenta/cyan) → pixels that change are jersey/helmet
+    (color-independent), the rest is skin/pants/outline. This dodges the same
+    warm-color=isSkin trap the tint itself fights (naive output-classification
+    scored orange jerseys ΔE 98). Reports jersey hue-drift/chroma/ΔE/exact-band,
+    helmet coverage (catches white-helmet vanish), pants speckle, pose-level
+    bare-skin frac. Baseline finding: all teams accurate; bright gold/yellow
+    drifts most (~ΔE18, ~13° hue) from the ×1.40 highlight clamp — visually fine,
+    inherent to the cel ramp. Sheet → /tmp/jersey_color_sheet.png. NOTE:
+    drawPlayerSprite tints with PRIMARY only — secondary is unused on the sprite,
+    so helmet == jersey color (single-tone by design, not a bug).
 - Textures: 2x supersampled canvas (TEX_SS=2, smoothing off) + `_crispTexture`
   (resolution 2, LINEAR, mipmaps). PIXI app resolution `min(2, devicePixelRatio)`,
   autoDensity. Don't revert to NEAREST (frays) or plain LINEAR (shimmers).
