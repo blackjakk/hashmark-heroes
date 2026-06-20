@@ -141,8 +141,12 @@ function policy(side, kind, ctx) {
   // ── the verifiability property: independent re-sim of the artifact ──
   const art = await get(`/api/artifact/${id}?token=${tokens.home}`);
   check("artifact served", Array.isArray(art.tape) && !!art.rosters && art.hash === finalEv.artifactHash);
+  // The server settles in bit-exact (portable) math; the artifact declares it.
+  check("artifact declares bit-exact (portable) math", art.math === "portable", `math=${art.math}`);
   const eng = loadEngine();
   const clone = o => JSON.parse(JSON.stringify(o));
+  // A faithful verifier re-sims in the math mode the artifact declares.
+  if (eng._setPortableMath) eng._setPortableMath(art.math === "portable");
   eng._setSimRng(art.seed);
   let replay;
   try {
@@ -158,8 +162,8 @@ function policy(side, kind, ctx) {
     && replay.plays.length === finalEv.result.plays,
     `replay ${replay.homeScore}-${replay.awayScore}/${replay.plays.length} vs server ${finalEv.result.homeScore}-${finalEv.result.awayScore}/${finalEv.result.plays}`);
   const localHash = crypto.createHash("sha256").update(JSON.stringify({
-    v: 1, seed: art.seed, homeTeamId: art.homeTeamId, awayTeamId: art.awayTeamId,
-    settings: art.settings, rosters: art.rosters, tape: art.tape,
+    v: 2, seed: art.seed, homeTeamId: art.homeTeamId, awayTeamId: art.awayTeamId,
+    settings: art.settings, math: art.math, rosters: art.rosters, tape: art.tape,
   })).digest("hex");
   check("artifact (INPUTS) hash recomputes identically", localHash === art.hash);
   // The strong property: the canonical OUTCOME hash of the independent re-sim

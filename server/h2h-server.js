@@ -45,6 +45,14 @@ const DATA_DIR = process.env.H2H_DATA || path.join(__dirname, "data");
 const DEFAULT_CLOCK_MS = 20000;
 
 const eng = loadEngine();
+// CROSS-MACHINE BIT-EXACTNESS: the server is the authority/validator, so every
+// re-sim it runs (and the resultHash it settles on) must be reproducible on any
+// other machine. Force the engine's outcome-path transcendentals onto the
+// portable, pure-IEEE implementations (play-data.js) — proven outcome-neutral
+// (determinism-probe.js) and divergence-free (determinism-hazard-probe.js
+// PORTABLE=1). The artifact declares this mode so independent re-simmers use it.
+const PORTABLE_MATH = typeof eng._setPortableMath === "function";
+if (PORTABLE_MATH) eng._setPortableMath(true);
 const matches = new Map();   // matchId → match
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -54,8 +62,11 @@ const sha256 = (s) => crypto.createHash("sha256").update(s).digest("hex");
 const otherSide = (s) => (s === "home" ? "away" : "home");
 
 function artifactOf(m) {
-  return { v: 1, seed: m.seed, homeTeamId: m.homeTeamId, awayTeamId: m.awayTeamId,
-           settings: m.settings, rosters: m.rosters, tape: m.tape };
+  // `math` declares the transcendental mode a re-simmer MUST use to reproduce
+  // the result bit-for-bit (see PORTABLE_MATH above). v2 added it.
+  return { v: 2, seed: m.seed, homeTeamId: m.homeTeamId, awayTeamId: m.awayTeamId,
+           settings: m.settings, math: PORTABLE_MATH ? "portable" : "native",
+           rosters: m.rosters, tape: m.tape };
 }
 function artifactHash(m) { return sha256(JSON.stringify(artifactOf(m))); }
 
@@ -554,7 +565,7 @@ function start(port = PORT) {
   loadPersisted();
   return new Promise(resolve => {
     server.listen(port, () => {
-      console.log(`[h2h] authoritative match server on :${port} (engine: ${eng.TEAMS.length} teams)`);
+      console.log(`[h2h] authoritative match server on :${port} (engine: ${eng.TEAMS.length} teams, math: ${PORTABLE_MATH ? "portable/bit-exact" : "native"})`);
       resolve(server);
     });
   });

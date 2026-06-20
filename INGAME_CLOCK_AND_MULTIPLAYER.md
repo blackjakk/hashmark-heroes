@@ -487,9 +487,16 @@ dependency at all.**
 > (native resultHash == portable, so it can be turned on everywhere with no
 > behavioral drift). All ship gates green (default native path byte-identical).
 > This lets the dispute `resolver` move toward an on-chain re-sim verifier (every
-> validator agrees bit-for-bit) instead of a trusted multisig. STILL TODO: a VRF
-> seed upgrade, a deploy run on MegaETH, and forcing portable mode ON in the
-> server/validator re-sim path (the engine default stays native for single-player).
+> validator agrees bit-for-bit) instead of a trusted multisig.
+>
+> **WIRED into the authority server.** `h2h-server.js` calls `_setPortableMath
+> (true)` at startup, so every authoritative re-sim and the settled `resultHash`
+> are bit-exact; the artifact is now v2 with a `math:"portable"` field declaring
+> the mode an independent re-simmer must use. `h2h-probe.js` asserts the artifact
+> declares portable, re-sims in that mode, and reproduces the full `resultHash`;
+> the recovery probe confirms the mode survives a SIGKILL/restart. (The browser/
+> single-player engine stays native by default — outcome-identical, no flag.)
+> STILL TODO: a VRF seed upgrade and a deploy run on MegaETH.
 >
 > **MEASURED (cross-machine libm risk):** `server/determinism-hazard-probe.js`
 > enumerates the unspecified-precision `Math.*` calls on the RE-SIM outcome path

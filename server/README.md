@@ -122,6 +122,13 @@ validators run **portable**, where:
 The dispute `resolver` can therefore move toward an on-chain re-sim verifier
 (every validator agrees bit-for-bit) instead of a trusted multisig.
 
+**The h2h server runs portable by default** — it's the authority/validator, so it
+calls `_setPortableMath(true)` at startup and every re-sim + settled `resultHash`
+is bit-exact. The artifact (v2) carries a `math: "portable"` field so an
+independent re-simmer knows which mode to use; `h2h-probe.js` asserts it and
+re-sims in that declared mode. (The browser/single-player engine stays native by
+default — identical outcomes, no flag needed.)
+
 ## API sketch
 
 See the header comment in `h2h-server.js`. Decision windows for the same
