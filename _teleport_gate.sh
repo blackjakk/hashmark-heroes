@@ -58,13 +58,21 @@ if [ -z "$EGREGIOUS" ]; then echo "✗ could not parse egregious count:"; printf
 RUNAWAY="$(printf '%s\n' "$OUT" | awk -F': ' '/Runaway players/{print $2}' | grep -oE '^[0-9]+' | head -1)"
 [ -z "$RUNAWAY" ] && RUNAWAY=0
 
+# LOOP class (DEF-side big circular path — the "#27 ran a big loop" family that
+# the magnitude/runaway classes miss). Only the DEFENDER count is gated;
+# offensive YAC circles are legit and reported informationally.
+LOOP="$(printf '%s\n' "$OUT" | awk -F': ' '/Loop DEF-side/{print $2}' | grep -oE '^[0-9]+' | head -1)"
+[ -z "$LOOP" ] && LOOP=0
+
 BASE="$(node -e "process.stdout.write(String(require('./_teleport_baseline.json').egregious))")"
 RBASE="$(node -e "process.stdout.write(String(require('./_teleport_baseline.json').runaway ?? 9999))")"
+LBASE="$(node -e "process.stdout.write(String(require('./_teleport_baseline.json').loop ?? 9999))")"
 
 echo ""
 echo "  egregious this run : $EGREGIOUS"
 echo "  runaway this run   : $RUNAWAY"
-echo "  baselines          : egregious $BASE · runaway $RBASE   (seed=$SEED, $GAMES games, cam=$CAM)"
+echo "  loop (DEF) this run: $LOOP"
+echo "  baselines          : egregious $BASE · runaway $RBASE · loop $LBASE   (seed=$SEED, $GAMES games, cam=$CAM)"
 FAIL=0
 if [ "$EGREGIOUS" -gt "$BASE" ]; then
   echo "✗ TELEPORT REGRESSION — $EGREGIOUS > $BASE. Detail → /tmp/teleport_report.json"
@@ -74,6 +82,10 @@ if [ "$RUNAWAY" -gt "$RBASE" ]; then
   echo "✗ RUNAWAY REGRESSION — $RUNAWAY > $RBASE. Detail → /tmp/teleport_report.json"
   FAIL=1
 fi
+if [ "$LOOP" -gt "$LBASE" ]; then
+  echo "✗ LOOP REGRESSION — $LOOP > $LBASE (DEF-side circular path). Detail → /tmp/teleport_report.json"
+  FAIL=1
+fi
 [ "$FAIL" -ne 0 ] && exit 1
-echo "✓ teleport gate PASS — egregious $EGREGIOUS ≤ $BASE · runaway $RUNAWAY ≤ $RBASE"
+echo "✓ teleport gate PASS — egregious $EGREGIOUS ≤ $BASE · runaway $RUNAWAY ≤ $RBASE · loop $LOOP ≤ $LBASE"
 exit 0

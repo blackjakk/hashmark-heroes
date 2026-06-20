@@ -32,6 +32,15 @@ const CAM = process.argv[2] || "broadcast";
 const MAX_YPS = 13;            // visual top speed in the engine (10.5–13)
 const TOLERANCE = 1.7;        // slack so legit cuts/accel don't false-positive
 const PX_PER_YARD = 15;
+// PATH-SHAPE LOOP class thresholds (the "#27 ran a big loop" family the
+// magnitude/runaway classes miss). A real loop WINDS a full turn around its
+// own centroid, spans a real radius, and is FAT (round, not a thin sliver).
+// The DEFENSE-side count is the bug signal; offensive route+YAC loops are
+// legit. See the loop block below for the full rationale.
+const LOOP_WIND_DEG = +(process.env.LOOP_WIND ?? 330);   // ≈ one full revolution AROUND the path centroid (330 not 360: a genuine single loop sampled discretely lands ~354°, and a route break only winds ~180°, so 330 catches one full loop with margin while staying clear of breaks)
+const LOOP_MIN_PATH_YD = 12;   // real traversal, so parked-pose jitter can't trip it
+const LOOP_MIN_RG_YD = +(process.env.LOOP_MIN_RG ?? 5);  // loop spans a real area (Rg ≈ radius)
+const LOOP_MIN_MINOR_YD = +(process.env.LOOP_MIN_MINOR ?? 3);  // loop is FAT (round), not a thin out-and-back sliver
 
 // Field-action kinds that drive the main field render. Non-field UI plays
 // (penalty cards, clock stoppages, HC decisions) have no player motion.
@@ -58,7 +67,7 @@ const FIELD_KINDS = new Set([
   await page.goto(URL, { waitUntil: "networkidle", timeout: 20000 });
   await page.waitForTimeout(600);
 
-  const report = await page.evaluate(async ({ games, cam, MAX_YPS, TOLERANCE, PX_PER_YARD }) => {
+  const report = await page.evaluate(async ({ games, cam, MAX_YPS, TOLERANCE, PX_PER_YARD, LOOP_WIND_DEG, LOOP_MIN_PATH_YD, LOOP_MIN_RG_YD, LOOP_MIN_MINOR_YD }) => {
     // ── Install instrumentation. drawPlayer/drawBall are global functions;
     // reassigning the global is picked up by buildAnimForPlay's by-name calls. ──
     const REC = { frame: 0, hits: [], nonFinite: new Set() };   // hits: {id,x,y,frame}; nonFinite: ids drawn at NaN/∞
@@ -125,7 +134,7 @@ const FIELD_KINDS = new Set([
      for (const play of game.plays) {
       const entry = { kind: play.kind, slot: (play.motion && play.motion.targetSlot) || null,
                       concept: play.concept || null, coverage: play.coverage || null,
-                      poss: play.poss, error: null, teleports: [], nonFinite: [], oob: [], runaway: [] };
+                      poss: play.poss, error: null, teleports: [], nonFinite: [], oob: [], runaway: [], loop: [] };
       install();
       REC.hits.length = 0;
       REC.nonFinite.clear();
@@ -232,6 +241,86 @@ const FIELD_KINDS = new Set([
                                      end: [Math.round(pEnd.x), Math.round(pEnd.y)] });
               }
             }
+            // PATH-SHAPE LOOP class (user-reported "#27 ran a big loop"): a
+            // player who traces a circular/looping path. Every per-frame step
+            // is small (under the teleport cap), the player stays in bounds,
+            // and it can finish near the ball — so egregious / oob / runaway
+            // ALL miss it. The signal is NET ROTATION: the SIGNED frame-to-
+            // frame heading change, summed. A real loop keeps turning the SAME
+            // way (|Σdθ| past a full turn); legit jukes / route breaks /
+            // returner cuts ALTERNATE direction and cancel to ≈0 even when the
+            // total turning is large — so signed accumulation cleanly separates
+            // the bug from good motion. Require real ground covered so a parked
+            // leg-cycle defender's sub-yard pose jitter (random-direction, ~0
+            // path) can't trip it.
+            if (!isBall && chain.length >= 16) {
+              // Collect the MOVING points (translation ≥ a pose-noise floor) and
+              // the path length. Bridging over near-stationary frames keeps the
+              // tackle/celebration freeze from injecting heading noise.
+              let pathPx = 0;
+              const moving = [];
+              const MIN_STEP_PX = 1.5;
+              for (let i = 1; i < chain.length; i++) {
+                const dx = chain[i].x - chain[i - 1].x, dy = chain[i].y - chain[i - 1].y;
+                const step = Math.hypot(dx, dy);
+                pathPx += step;
+                if (step < MIN_STEP_PX) continue;
+                moving.push(chain[i]);
+              }
+              const pathYd = pathPx / PX_PER_YARD;
+              if (moving.length >= 6 && pathYd >= LOOP_MIN_PATH_YD) {
+                // Centroid + radius of gyration of the moving points.
+                let cx = 0, cy = 0;
+                for (const m of moving) { cx += m.x; cy += m.y; }
+                cx /= moving.length; cy /= moving.length;
+                let sxx = 0, syy = 0, sxy = 0;
+                for (const m of moving) { const ux = m.x - cx, uy = m.y - cy; sxx += ux * ux; syy += uy * uy; sxy += ux * uy; }
+                sxx /= moving.length; syy /= moving.length; sxy /= moving.length;
+                const rgYd = Math.sqrt(sxx + syy) / PX_PER_YARD;
+                // MINOR principal axis (smaller covariance eigenvalue): a real
+                // loop is FAT (round) — both axes substantial; a thin out-and-
+                // back or a straight run is long in one axis but ~0 in the other,
+                // so it can wind 360° around its centroid yet isn't a loop. The
+                // minor radius rejects those degenerate slivers.
+                const half = (sxx + syy) / 2;
+                const disc = Math.sqrt(Math.max(0, ((sxx - syy) / 2) ** 2 + sxy * sxy));
+                const minorRgYd = Math.sqrt(Math.max(0, half - disc)) / PX_PER_YARD;
+                // WINDING NUMBER around the centroid: sum the signed angle the
+                // vector (P − centroid) sweeps. This is the jitter-robust loop
+                // signal — a true loop winds a full turn (≥360°) around its
+                // center; a STRAIGHT run winds only ~180° (the point passes the
+                // centroid once); and end-of-play tackle JITTER sits FAR from the
+                // centroid so it subtends a tiny angle and barely contributes.
+                // (Raw heading-change accumulation, by contrast, let a few jitter
+                // frames fake a loop on an otherwise straight path.)
+                let wind = 0, prevA = null;
+                for (const m of moving) {
+                  const a = Math.atan2(m.y - cy, m.x - cx);
+                  if (prevA !== null) {
+                    let d = a - prevA;
+                    while (d > Math.PI) d -= 2 * Math.PI;
+                    while (d < -Math.PI) d += 2 * Math.PI;
+                    wind += d;
+                  }
+                  prevA = a;
+                }
+                const windDeg = Math.abs(wind) * 180 / Math.PI;
+                if (windDeg >= LOOP_WIND_DEG && rgYd >= LOOP_MIN_RG_YD && minorRgYd >= LOOP_MIN_MINOR_YD) {
+                  const s = chain[0], e = chain[chain.length - 1];
+                  // SIDE: a name in the possessing team's offensive starters is a
+                  // receiver/carrier (legit route+YAC curve); anything else is a
+                  // defender/lineman — the "#27 ran a big loop" bug is a DEFENDER
+                  // looping in open space, so def-side loops are the real signal.
+                  const offR = gameResult[play.poss === "home" ? "homeRatings" : "awayRatings"];
+                  const offNames = (offR && offR.starters) ? new Set(Object.values(offR.starters)) : null;
+                  const side = (offNames && offNames.has(id.replace(/^P:/, ""))) ? "off" : "def";
+                  entry.loop.push({ id, side, windDeg: Math.round(windDeg),
+                                    pathYd: +pathYd.toFixed(1), rgYd: +rgYd.toFixed(1), minorRgYd: +minorRgYd.toFixed(1),
+                                    netDispYd: +(Math.hypot(e.x - s.x, e.y - s.y) / PX_PER_YARD).toFixed(1),
+                                    end: [Math.round(e.x), Math.round(e.y)] });
+                }
+              }
+            }
             // V5 — OUT-OF-BOUNDS class: any position beyond the back of an
             // end zone or far past a sideline is the "sprints into the
             // stadium wall" family (user-reported) — a defect even when
@@ -264,7 +353,7 @@ const FIELD_KINDS = new Set([
      }
     }
     return out;
-  }, { games, cam: CAM, MAX_YPS, TOLERANCE, PX_PER_YARD });
+  }, { games, cam: CAM, MAX_YPS, TOLERANCE, PX_PER_YARD, LOOP_WIND_DEG, LOOP_MIN_PATH_YD, LOOP_MIN_RG_YD, LOOP_MIN_MINOR_YD });
 
   await browser.close();
 
@@ -282,6 +371,15 @@ const FIELD_KINDS = new Set([
   const withNonFin   = report.filter(r => (r.nonFinite || []).length);
   const withOob      = report.filter(r => (r.oob || []).length);
   const withRunaway  = report.filter(r => (r.runaway || []).length);
+  const withLoop     = report.filter(r => (r.loop || []).length);
+  // DEFENSE-side loops are the bug signal ("#27 ran a big loop"); offense-side
+  // loops are legit broken-play / scramble-drill YAC circles.
+  for (const r of report) {
+    r.loopDef = (r.loop || []).filter(l => l.side === "def");
+    r.loopOff = (r.loop || []).filter(l => l.side === "off");
+  }
+  const withLoopDef  = report.filter(r => r.loopDef.length);
+  const withLoopOff  = report.filter(r => r.loopOff.length);
   const withErr      = report.filter(r => r.error);
   fs.writeFileSync("/tmp/teleport_report.json", JSON.stringify(report, null, 1));
 
@@ -307,6 +405,8 @@ const FIELD_KINDS = new Set([
   console.log(` Non-finite (vanished) player draws: ${withNonFin.length} plays`);
   console.log(` Out-of-bounds (into-the-wall) draws: ${withOob.length} plays`);
   console.log(` Runaway players (sprint late, finish far from dead ball): ${withRunaway.length} plays`);
+  console.log(` Loop DEF-side (big circular defender path ≥${LOOP_WIND_DEG}° wind): ${withLoopDef.length} plays  ← the bug signal`);
+  console.log(` Loop off-side (legit broken-play / YAC circles): ${withLoopOff.length} plays  (informational)`);
   console.log(` Ball anomalies:   ${withBallTp.length} plays  (>90yps flight cap)`);
   console.log(` Render/build errors: ${withErr.length} plays`);
   if (pageErrors.length) console.log(` Page errors: ${pageErrors.length} (e.g. ${pageErrors[0]})`);
@@ -353,6 +453,22 @@ const FIELD_KINDS = new Set([
     for (const [k, c] of classGroups(withRunaway, r => r.runaway.map(o => ({ ...o, dYd: o.lateYd })))) {
       const o = c.sample.runaway[0];
       console.log(`   ${k.padEnd(22)} ×${String(c.n).padStart(3)}  worst ${String(c.worst).padStart(5)}yd late  e.g. ${o.id} ends [${o.end}] ${o.fromBallYd}yd from ball`);
+    }
+  }
+  if (withLoopDef.length) {
+    console.log("");
+    console.log(" ⚠ LOOP (DEF) classes — the bug signal (kind/targetSlot · count · worst wind°):");
+    for (const [k, c] of classGroups(withLoopDef, r => r.loopDef.map(o => ({ ...o, dYd: o.windDeg })))) {
+      const o = c.sample.loopDef[0];
+      console.log(`   ${k.padEnd(22)} ×${String(c.n).padStart(3)}  worst ${String(c.worst).padStart(5)}°  e.g. ${o.id} wind ${o.windDeg}° Rg ${o.rgYd}yd minor ${o.minorRgYd}yd path ${o.pathYd}yd ends [${o.end}]`);
+    }
+  }
+  if (withLoopOff.length) {
+    console.log("");
+    console.log(" LOOP (off) classes — informational, legit YAC/broken-play circles:");
+    for (const [k, c] of classGroups(withLoopOff, r => r.loopOff.map(o => ({ ...o, dYd: o.windDeg })))) {
+      const o = c.sample.loopOff[0];
+      console.log(`   ${k.padEnd(22)} ×${String(c.n).padStart(3)}  worst ${String(c.worst).padStart(5)}°  e.g. ${o.id} wind ${o.windDeg}° path ${o.pathYd}yd`);
     }
   }
   if (withErr.length) {

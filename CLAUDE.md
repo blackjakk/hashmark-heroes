@@ -19,7 +19,9 @@ must name its cheat surface + how it's closed, same discipline as gate-safety.
 1. `node --check <file>.js` after every JS edit.
 2. Run the gates (all must pass):
    - `node _audit_gate.js --fast` — sim drift, 0 drift required (3 metrics ±tolerance).
-   - `./_teleport_gate.sh` — egregious ≤4, runaway ≤4 (seed=1337, 4 games).
+   - `./_teleport_gate.sh` — egregious ≤4, runaway ≤6, loop ≤0 (seed=1337, 4
+     games; loop = DEF-side big-circular-path class, see Pending). Loop math is
+     unit-proven by `node _teleport_loop_selftest.js`.
    - `node tools/_anim_pose_audit.js` — 27 animation families, 0 flags required.
    - `node tools/_playsheet_probe.js` (28 checks) / `tools/_catch_matrix_probe.js` (9) /
      `tools/_ipc_clock_probe.js` (19) when touching plays/catching/clock.
@@ -333,6 +335,21 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   jersey) — or add a path-shape (curvature/turn-accumulation) detector to the
   battery to catch loops the magnitude gate misses. Did NOT ship a speculative
   fix without a repro (would risk the zero-margin runaway gate).
+  PATH-SHAPE DETECTOR SHIPPED (the "NEXT" above): `_teleport_detect.js` now has a
+  LOOP class wired into `_teleport_gate.sh` (baseline `loop`). It flags a player
+  whose path WINDS ≥330° around its own centroid with radius-of-gyration ≥5yd and
+  a FAT minor principal axis ≥3yd — the geometry of a real circle. Winding (not
+  raw heading-change accumulation) is the key: end-of-play tackle jitter sits far
+  from the centroid so it contributes ~0, a straight run winds only ~180°, and a
+  thin out-and-back has ~0 minor axis — all rejected. Side is resolved by name vs
+  the possessing team's offensive starters; only DEF-side loops are gated (the
+  bug), offense YAC circles are informational. Seed-1337 baseline: 0 def / 2 off
+  (the #27 defender loop still does NOT reproduce in seed). The classifier math
+  is proven on synthetic paths by `node _teleport_loop_selftest.js` (circle
+  flags; straight / out-and-back / tight-circle / jitter do not). So a defender
+  loop would now be caught by tooling the moment it appears in the battery; a
+  user repro (jersey + down/distance/coverage) would let us capture that seed and
+  confirm the gate trips, then fix against it.
 - Defender runs cross-field BEFORE the throw (probe found CBs covering
   22-34yd pre-throw): on a deflection/dropped-pick the engine credits a
   specific defender, but his formation SLOT can be on the opposite side
