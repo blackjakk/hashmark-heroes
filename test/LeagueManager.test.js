@@ -23,6 +23,14 @@ describe("LeagueManager × ProofSettlement (proven standings)", function () {
   let gt, team, ps, lm;
   let owner, homeOwner, awayOwner, runner, challenger, other;
 
+  // Acquire a franchise NFT through the real GRID purchase flow → ownerOf(teamId).
+  async function buyTeam(buyer, teamId) {
+    const price = await team.TEAM_PRICE();
+    await gt.mintReward(buyer.address, price);
+    await gt.connect(buyer).approve(await team.getAddress(), price);
+    await team.connect(buyer).purchaseTeam(teamId);
+  }
+
   // Settle a ProofSettlement match (happy path) between two seats with a result.
   async function settle(matchId, homeSigner, awaySigner, hs, as_, rh = TRUTH) {
     await ps.openMatch(matchId, homeSigner.address, awaySigner.address);
@@ -41,12 +49,12 @@ describe("LeagueManager × ProofSettlement (proven standings)", function () {
   beforeEach(async function () {
     [owner, homeOwner, awayOwner, runner, challenger, other] = await ethers.getSigners();
     gt = await ethers.deployContract("GridironToken");
-    team = await ethers.deployContract("MockTeamNFT");   // ownerOf stand-in (see contract)
+    team = await ethers.deployContract("TeamNFT", [await gt.getAddress()]);   // real, now-deployable NFT
     ps = await ethers.deployContract("ProofSettlement", [BOND, WINDOW]);
     lm = await ethers.deployContract("LeagueManager", [await team.getAddress(), await gt.getAddress()]);
     await lm.setProofSettlement(await ps.getAddress());
-    await team.setOwner(HOME_ID, homeOwner.address);
-    await team.setOwner(AWAY_ID, awayOwner.address);
+    await buyTeam(homeOwner, HOME_ID);   // ownerOf(HOME_ID) = homeOwner
+    await buyTeam(awayOwner, AWAY_ID);
     // season 1 → advance to PreSeason so setSchedule is allowed
     await lm.startSeason();   // FreeAgency
     await lm.advancePhase();  // Draft

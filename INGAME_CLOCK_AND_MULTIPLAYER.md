@@ -460,12 +460,19 @@ dependency at all.**
 > `matchId` + canonical `resultHash` for provenance. 11 integration tests green
 > (`test/LeagueManager.test.js`): happy path (home/away/tie), the guards, the
 > anti-spoof owner-binding, and a disputed match whose RESOLVED truth (not the
-> slashed lie) is what lands in the standings. STILL TODO: a VRF seed upgrade,
-> deployment, and cross-machine determinism (below) — the resolver is the
-> remaining trust point until an on-chain re-sim verifier lands. (Note: the real
-> `TeamNFT`'s 32-team constructor exceeds the EIP-3860 init-code limit — a
-> pre-existing deploy blocker to slim before mainnet; tests use a `MockTeamNFT`
-> ownerOf stand-in.)
+> slashed lie) is what lands in the standings — using the REAL `TeamNFT` (below).
+>
+> **DEPLOYABLE (TeamNFT slimmed):** `TeamNFT` was undeployable — its 32-team
+> metadata (32×7 string literals) lived in the constructor, blowing the EIP-3860
+> init-code limit (94,136 B > 49,152). Fixed by moving metadata OUT of bytecode:
+> the constructor only mints the 32 NFTs; the owner seeds metadata post-deploy via
+> `setTeams(ids, data)` (data rides in calldata, `scripts/teams.js`), with an
+> optional `lockMetadata()` to freeze it. Init code 94,136 → 10,126 B, runtime
+> 8,825 B — both well under the EVM caps. `deploy.js` seeds the 32 teams in
+> chunks; 6 tests green (`test/TeamNFT.test.js`) incl. an explicit
+> deploy-within-size-limits assertion. STILL TODO: a VRF seed upgrade, a deploy
+> run on MegaETH, and cross-machine determinism (below) — the resolver is the
+> remaining trust point until an on-chain re-sim verifier lands.
 >
 > **MEASURED (cross-machine libm risk):** `server/determinism-hazard-probe.js`
 > enumerates the unspecified-precision `Math.*` calls on the RE-SIM outcome path

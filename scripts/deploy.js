@@ -22,6 +22,16 @@ async function main() {
   const teamAddr = await teamNFT.getAddress();
   console.log("TeamNFT       :", teamAddr);
 
+  // Seed franchise metadata post-deploy (chunked; data rides in calldata, not in
+  // the contract bytecode — see scripts/teams.js / TeamNFT.setTeams).
+  const { TEAMS, toStructTuple } = require("./teams.js");
+  const CHUNK = 8;
+  for (let i = 0; i < TEAMS.length; i += CHUNK) {
+    const slice = TEAMS.slice(i, i + CHUNK);
+    await (await teamNFT.setTeams(slice.map(t => t.id), slice.map(toStructTuple))).wait();
+  }
+  console.log(`TeamNFT metadata seeded: ${TEAMS.length} teams`);
+
   // ── 3. PlayerNFT ───────────────────────────────────────────────────────────
   const PlayerNFT = await ethers.getContractFactory("PlayerNFT");
   const playerNFT = await PlayerNFT.deploy();
