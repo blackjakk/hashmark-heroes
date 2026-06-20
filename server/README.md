@@ -83,6 +83,26 @@ PORTABLE=1 node server/determinism-hazard-probe.js  # same, with the portable-ma
                                    # mode ON → 0 outcome-path libm calls, infinite margin
 ```
 
+## Verifying a settled match (challenger / auditor tool)
+
+`verify-artifact.js` is the standalone, trustless verifier — what an optimistic
+challenger or an auditor runs to dispute or confirm a result. Given a match
+artifact (the public `{seed, rosters, tape, math}` + its claimed `hash` /
+`resultHash`), it INDEPENDENTLY re-sims in the artifact's declared math mode and
+recomputes both hashes:
+
+```bash
+node server/verify-artifact.js http://host:8787/api/artifact/ID?token=T
+node server/verify-artifact.js saved-artifact.json
+curl -s .../api/artifact/ID?token=T | node server/verify-artifact.js -
+```
+
+Exit `0` = PROVEN (both hashes reproduce), `1` = MISMATCH (the claimed result is
+not what the inputs re-sim to → the basis for a challenge), `2` = load/sim error.
+No server or trust required — just `(seed+inputs) → deterministic result`. The
+core `verifyArtifact()` is unit-checked in `h2h-probe.js` (PROVEN on the genuine
+artifact; MISMATCH on a tampered `resultHash` and on a tampered inputs `hash`).
+
 ### Cross-machine determinism (the validator-fork risk)
 
 Challenge-by-re-sim is only sound if every validator computes the byte-identical

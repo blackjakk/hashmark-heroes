@@ -15,6 +15,8 @@ process.env.H2H_DATA = require("os").tmpdir() + "/h2h-probe-data-" + Date.now();
 const { start } = require("./h2h-server.js");
 const { loadEngine } = require("./engine-host.js");
 const { resultHash } = require("./result-hash.js");
+const { artifactInputsHash } = require("./artifact.js");
+const { verifyArtifact } = require("./verify-artifact.js");
 const crypto = require("crypto");
 
 const PORT = 18787;
@@ -161,11 +163,7 @@ function policy(side, kind, ctx) {
     replay.homeScore === finalEv.result.homeScore && replay.awayScore === finalEv.result.awayScore
     && replay.plays.length === finalEv.result.plays,
     `replay ${replay.homeScore}-${replay.awayScore}/${replay.plays.length} vs server ${finalEv.result.homeScore}-${finalEv.result.awayScore}/${finalEv.result.plays}`);
-  const localHash = crypto.createHash("sha256").update(JSON.stringify({
-    v: 2, seed: art.seed, homeTeamId: art.homeTeamId, awayTeamId: art.awayTeamId,
-    settings: art.settings, math: art.math, rosters: art.rosters, tape: art.tape,
-  })).digest("hex");
-  check("artifact (INPUTS) hash recomputes identically", localHash === art.hash);
+  check("artifact (INPUTS) hash recomputes identically", artifactInputsHash(art) === art.hash);
   // The strong property: the canonical OUTCOME hash of the independent re-sim
   // matches what the server posted — so the entire play-by-play + box score is
   // reproduced, not just the final score and play count.
@@ -173,6 +171,18 @@ function policy(side, kind, ctx) {
   check("canonical resultHash recomputes identically (full outcome verified)",
     localResultHash === finalEv.resultHash && art.resultHash === finalEv.resultHash,
     `resim ${localResultHash.slice(0, 12)} · server ${(finalEv.resultHash || "—").slice(0, 12)} · artifact ${(art.resultHash || "—").slice(0, 12)}`);
+
+  // ── the standalone verifier (verify-artifact.js) on the real artifact ──
+  const vProven = verifyArtifact(art);
+  check("verify-artifact: PROVEN on the genuine artifact",
+    vProven.inputsOk && vProven.outcomeOk && !vProven.error,
+    `inputs=${vProven.inputsOk} outcome=${vProven.outcomeOk}${vProven.error ? " err=" + vProven.error : ""}`);
+  const vTamperOutcome = verifyArtifact({ ...art, resultHash: "0".repeat(64) });
+  check("verify-artifact: MISMATCH on a tampered resultHash",
+    vTamperOutcome.inputsOk && !vTamperOutcome.outcomeOk);
+  const vTamperInputs = verifyArtifact({ ...art, hash: "0".repeat(64) });
+  check("verify-artifact: MISMATCH on a tampered inputs hash",
+    !vTamperInputs.inputsOk && vTamperInputs.outcomeOk);
 
   closeH(); closeA();
 

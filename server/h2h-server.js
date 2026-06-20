@@ -39,6 +39,7 @@ const fs = require("fs");
 const path = require("path");
 const { loadEngine } = require("./engine-host.js");
 const { resultHash } = require("./result-hash.js");
+const { artifactInputs, artifactInputsHash } = require("./artifact.js");
 
 const PORT = Number(process.argv[2] || process.env.H2H_PORT || 8787);
 const DATA_DIR = process.env.H2H_DATA || path.join(__dirname, "data");
@@ -63,12 +64,15 @@ const otherSide = (s) => (s === "home" ? "away" : "home");
 
 function artifactOf(m) {
   // `math` declares the transcendental mode a re-simmer MUST use to reproduce
-  // the result bit-for-bit (see PORTABLE_MATH above). v2 added it.
-  return { v: 2, seed: m.seed, homeTeamId: m.homeTeamId, awayTeamId: m.awayTeamId,
-           settings: m.settings, math: PORTABLE_MATH ? "portable" : "native",
-           rosters: m.rosters, tape: m.tape };
+  // the result bit-for-bit (see PORTABLE_MATH above). Canonical shape +
+  // hashing live in artifact.js so producer and verifier never drift.
+  return artifactInputs({
+    seed: m.seed, homeTeamId: m.homeTeamId, awayTeamId: m.awayTeamId,
+    settings: m.settings, math: PORTABLE_MATH ? "portable" : "native",
+    rosters: m.rosters, tape: m.tape,
+  });
 }
-function artifactHash(m) { return sha256(JSON.stringify(artifactOf(m))); }
+function artifactHash(m) { return artifactInputsHash(artifactOf(m)); }
 
 // ── persistence: append-only JSONL per match ───────────────────────────────
 // Header (seed/teams/rosters/settings/tokens) + one line per tape entry +
