@@ -308,8 +308,16 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   100%/100% (backing stays FIELD×resolution = crisp). The _bcastGeom
   ResizeObserver/per-frame-check + lane squeezes remain (correct, but
   were treating a symptom).
-- User QA outstanding: field alignment with side panel open, carry/KR
-  facing (carry sheet was drawn mirrored — flipped at slice).
+- User QA (field alignment + carry/KR facing): VISUALLY VERIFIED off-chain this
+  session via headless-Chromium screenshots of the real broadcast (`H2H_STATIC=1
+  node server/h2h-server.js`). Field alignment is correct with the side panel
+  open across normal / short (1366×540) / hiDPI-2× viewports (the autoDensity
+  fix holds — players sit on the LOS, in-bounds; no sideline jam). Carry facing
+  is correct: rendering `drawPlayerSprite` for carry/qb_carry east vs west
+  alongside the known-good `run` reference, carry-EAST faces right (matches
+  run-EAST) and carry-WEST mirrors it — the slice-time `--flip-east` fix worked.
+  Re-confirm in your own playtest; if carry ever reads mirrored again, re-slice
+  the carry sheet toggling `--flip-east` (see Slicing new sheets).
 - "Defense doesn't move" / frozen defender (pass plays) SOLVED in two
   passes: (1) parked zone defenders had dd.t=0 + track-held position;
   (2) the NICKEL BACK (idxNB) fell through every coverage branch (not an
