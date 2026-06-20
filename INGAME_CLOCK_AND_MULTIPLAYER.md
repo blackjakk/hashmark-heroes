@@ -433,11 +433,25 @@ dependency at all.**
 > `server/determinism-probe.js` proves the hash is STABLE (same inputs →
 > same hash, several seeds × 2), SENSITIVE (different seeds differ), and
 > TAMPER-EVIDENT (a score-preserving one-field edit flips it); the strong
-> property is also asserted end-to-end in `server/h2h-probe.js`. STILL
-> on-chain-only-design: the `LeagueManager` settlement function, an
-> unforgeable seed source (VRF / commit-reveal), the challenge window, and
-> cross-machine determinism (same-machine is proven; libm float drift across
-> validators is the open risk to de-risk before mainnet).
+> property is also asserted end-to-end in `server/h2h-probe.js`.
+>
+> **DRAFTED + TESTED (on-chain settlement):** `contracts/ProofSettlement.sol`
+> replaces the `LeagueManager.recordResult(scores)` trust hole with optimistic,
+> challenge-by-re-sim settlement: (1) COMMIT–REVEAL seed — both players commit
+> `keccak(matchId,addr,nonce)` then reveal, so the canonical seed
+> `keccak(nonceHome,nonceAway)` is unforgeable; (2) BONDED PROPOSE of
+> `(artifactHash, resultHash, score)`; (3) optimistic CHALLENGE window in which
+> anyone can post a conflicting `resultHash` with a matching bond; (4) SETTLE —
+> unchallenged ⇒ finalize and refund; challenged ⇒ the `resolver` (re-sim
+> referee — multisig now, on-chain verifier / fraud proof later) supplies the
+> canonical `resultHash` and the matching side takes both bonds, the liar is
+> slashed. Bond + window are deploy params; seed source is swappable
+> (commit-reveal now, VRF later). 20 Hardhat tests green
+> (`test/ProofSettlement.test.js`), incl. the end-to-end cheat story (false
+> proposal slashed, honest challenger's truth settles). STILL TODO: wire the
+> settled result into `LeagueManager` standings, a VRF seed upgrade, deployment,
+> and cross-machine determinism (below) — the resolver is the remaining trust
+> point until an on-chain re-sim verifier lands.
 >
 > **MEASURED (cross-machine libm risk):** `server/determinism-hazard-probe.js`
 > enumerates the unspecified-precision `Math.*` calls on the RE-SIM outcome path
