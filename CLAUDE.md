@@ -202,6 +202,28 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
 
 ## Pending
 
+- Gen-time determinism hole (SOLVED): `pickBodyType` (play-render.js) assigned
+  `bodyType` with raw `Math.random()`, and `bodyType` feeds the contested-catch
+  `bodyBonus` (play-engine.js ~6170) — so it's OUTCOME-AFFECTING. With raw
+  Math.random the same seeded roster/draft-class generation produced different
+  body types run-to-run → silently perturbed catch outcomes. Production GAME
+  re-sim was safe (body types are persisted roster fields, fixed inputs), and the
+  audit gate masked it (globally overrides Math.random), but it broke seed-
+  reproducible roster/class GENERATION — which on-chain full-draft mode needs
+  ((seed+inputs)→hash must re-sim byte-identically, gen included). Surfaced as a
+  FLAKY playsheet seam check (the probe seeds `_rand` via `_setSimRng` but NOT
+  Math.random, so gen drifted while the seam comparison ran). Fix: pickBodyType
+  now draws from `_rand()` (falls back to Math.random only when no sim RNG is
+  active, so unseeded gen stays stochastic). RULE: any gen-time value that feeds
+  the sim must use `_rand()`, never raw `Math.random()`. Removing the gen noise
+  also EXPOSED that the RUN_TOSS/RUN_DRAW playsheet checks were passing by stream
+  luck — a 4th-down 🎩 FAKE PUNT (kind="run", no runType) slipped the "every run
+  is pitch/draw" assertion; the probe filtered kneel/spike but not ST fakes, so
+  the filter now excludes `fake (punt|field goal)` too (they're situational
+  overrides, not designed runs — matches the "specials suppressed" intent).
+  Net: playsheet now STABLY green (28/28, was flaky on the seam), all gates green,
+  teleport-neutral (egregious 1, runaway 5), realism 16/16 NFL bands.
+
 - Season highlights linked to the WRONG play / playoff highlights TEXT-only
   (SOLVED): captureGameHighlights stored only quarter/time + a text `clip`, so
   frnReplayHighlight re-found the play by fuzzy game-clock match against

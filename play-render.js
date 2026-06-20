@@ -372,24 +372,33 @@ const BODY_TYPES = {
   COMPACT:     { padW: 7.6,  torsoLen: 9.0,  torsoBotW: 2.8, legLen: 9.0,  armLen: 7.4, helmH: 4.0, scale: 1.24, bulk: 0.4 },
 };
 const LINE_BODY_POOL = ["HUGE", "BIG", "HEAVY_SHORT", "TALL_HEAVY", "BIG", "TALL_HEAVY"];
+// DETERMINISM: body type is an OUTCOME-AFFECTING attribute (it feeds the
+// contested-catch bodyBonus in play-engine's catch resolution), so this MUST
+// draw from the seeded _rand() — NOT raw Math.random() — for roster/draft-class
+// generation to be reproducible from a seed (the on-chain anti-cheat invariant:
+// (seed+inputs)→hash must re-sim byte-identically, gen included). With raw
+// Math.random the same seeded gen produced different body types run-to-run,
+// which silently perturbed catch outcomes (caught by the playsheet seam probe,
+// which seeds _rand but not Math.random). _rand falls back to Math.random only
+// when no sim RNG is active, so unseeded gen stays stochastic as before.
 function pickBodyType(pos, archetype) {
   if (pos === "OL" || pos === "DL") {
     // Linemen come in different sizes — pick from a pool so a line is visually varied.
     // Archetype tilts toward specific looks: POWER → HUGE, SPEED → TALL_HEAVY/BIG, etc.
     if (pos === "DL") {
-      if (archetype === "POWER")      return Math.random() < 0.55 ? "HUGE" : "BIG";
-      if (archetype === "SPEED")      return Math.random() < 0.55 ? "TALL_HEAVY" : "BIG";
-      if (archetype === "PENETRATOR") return Math.random() < 0.50 ? "BIG" : "TALL_HEAVY";
+      if (archetype === "POWER")      return _rand() < 0.55 ? "HUGE" : "BIG";
+      if (archetype === "SPEED")      return _rand() < 0.55 ? "TALL_HEAVY" : "BIG";
+      if (archetype === "PENETRATOR") return _rand() < 0.50 ? "BIG" : "TALL_HEAVY";
       if (archetype === "TWEENER")    return "BIG";
-      return Math.random() < 0.45 ? "TALL_HEAVY" : "BIG";
+      return _rand() < 0.45 ? "TALL_HEAVY" : "BIG";
     }
     // OL
-    if (archetype === "ANCHOR")    return Math.random() < 0.55 ? "HUGE" : "HEAVY_SHORT";
-    if (archetype === "MAULER")    return Math.random() < 0.55 ? "HUGE" : "BIG";
-    if (archetype === "ATHLETIC")  return Math.random() < 0.6  ? "TALL_HEAVY" : "BIG";
-    if (archetype === "PLUG")      return Math.random() < 0.65 ? "HEAVY_SHORT" : "HUGE";
-    if (archetype === "TECHNICIAN")return Math.random() < 0.55 ? "BIG" : "TALL_HEAVY";
-    return LINE_BODY_POOL[Math.floor(Math.random() * LINE_BODY_POOL.length)];
+    if (archetype === "ANCHOR")    return _rand() < 0.55 ? "HUGE" : "HEAVY_SHORT";
+    if (archetype === "MAULER")    return _rand() < 0.55 ? "HUGE" : "BIG";
+    if (archetype === "ATHLETIC")  return _rand() < 0.6  ? "TALL_HEAVY" : "BIG";
+    if (archetype === "PLUG")      return _rand() < 0.65 ? "HEAVY_SHORT" : "HUGE";
+    if (archetype === "TECHNICIAN")return _rand() < 0.55 ? "BIG" : "TALL_HEAVY";
+    return LINE_BODY_POOL[Math.floor(_rand() * LINE_BODY_POOL.length)];
   }
   if (pos === "RB") {
     if (archetype === "POWER") return "BIG";
@@ -401,9 +410,9 @@ function pickBodyType(pos, archetype) {
     if (archetype === "DEEP_THREAT" || archetype === "POSSESSION" || archetype === "ROUTE_RUNNER") return "LEAN";
     if (archetype === "RED_ZONE") return "BROAD";
     if (archetype === "SLOT") return "COMPACT";
-    return Math.random() < 0.7 ? "LEAN" : "NORMAL";
+    return _rand() < 0.7 ? "LEAN" : "NORMAL";
   }
-  if (pos === "TE") return archetype === "RECEIVING" ? "BROAD" : Math.random() < 0.5 ? "TALL_HEAVY" : "BIG";
+  if (pos === "TE") return archetype === "RECEIVING" ? "BROAD" : _rand() < 0.5 ? "TALL_HEAVY" : "BIG";
   if (pos === "LB") return archetype === "THUMPER" ? "BIG" : "BROAD";
   if (pos === "CB") {
     if (archetype === "SHUTDOWN") return "LEAN";

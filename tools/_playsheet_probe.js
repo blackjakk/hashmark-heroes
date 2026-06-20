@@ -98,7 +98,7 @@ const probe = `;(function(){
   // 4 — RUN_TOSS: every home designed run is a pitch; specials suppressed.
   {
     const res = runGame((c) => c.kind === "playcall" ? "RUN_TOSS" : null);
-    const runs = homePlays(res, ["run"]).filter(p => !/kneel|spike/i.test(p.desc || ""));
+    const runs = homePlays(res, ["run"]).filter(p => !/kneel|spike|fake (punt|field goal)/i.test(p.desc || ""));
     const offType = runs.filter(p => (p.runType || "inside") !== "pitch");
     ok(runs.length >= 8, "RUN_TOSS game produced " + runs.length + " home designed runs");
     ok(offType.length === 0, "every home run is runType pitch"
@@ -110,7 +110,7 @@ const probe = `;(function(){
   // 6 — RUN_DRAW honored (call-only variant).
   {
     const res = runGame((c) => c.kind === "playcall" ? "RUN_DRAW" : null);
-    const runs = homePlays(res, ["run"]).filter(p => !/kneel|spike/i.test(p.desc || ""));
+    const runs = homePlays(res, ["run"]).filter(p => !/kneel|spike|fake (punt|field goal)/i.test(p.desc || ""));
     const off = runs.filter(p => (p.runType || "inside") !== "draw");
     ok(runs.length >= 8 && off.length === 0, "RUN_DRAW: every home run is a draw (" + runs.length + ")");
   }
@@ -118,7 +118,7 @@ const probe = `;(function(){
   // 7 — READ_OPTION forces the QB option path (pitch read live).
   {
     const res = runGame((c) => c.kind === "playcall" ? "READ_OPTION" : null);
-    const runs = homePlays(res, ["run"]).filter(p => !/kneel|spike/i.test(p.desc || ""));
+    const runs = homePlays(res, ["run"]).filter(p => !/kneel|spike|fake (punt|field goal)/i.test(p.desc || ""));
     const opt = runs.filter(p => p.isSpeedOption);
     ok(runs.length >= 8 && opt.length === runs.length,
        "READ_OPTION: every home run is a speed option (" + opt.length + "/" + runs.length + ")");
@@ -130,7 +130,7 @@ const probe = `;(function(){
   // 8 — Trick plays: REVERSE and FLEA_FLICKER forced.
   {
     const res = runGame((c) => c.kind === "playcall" ? "REVERSE" : null);
-    const runs = homePlays(res, ["run"]).filter(p => !/kneel|spike/i.test(p.desc || ""));
+    const runs = homePlays(res, ["run"]).filter(p => !/kneel|spike|fake (punt|field goal)/i.test(p.desc || ""));
     const rev = runs.filter(p => p.isReverse);
     ok(runs.length >= 5 && rev.length === runs.length,
        "REVERSE: every home run is a reverse (" + rev.length + "/" + runs.length + ")");
@@ -161,7 +161,7 @@ const probe = `;(function(){
   // 10 — RPO: a coherent give/pull mix (inside gives + QUICK_GAME pulls).
   {
     const res = runGame((c) => c.kind === "playcall" ? "RPO" : null);
-    const runs = homePlays(res, ["run"]).filter(p => !/kneel|spike/i.test(p.desc || ""));
+    const runs = homePlays(res, ["run"]).filter(p => !/kneel|spike|fake (punt|field goal)/i.test(p.desc || ""));
     const passes = homePlays(res).filter(p => p.concept);
     const badRun = runs.filter(p => (p.runType || "inside") !== "inside" || p.isQBRun || p.isReverse);
     const badPass = passes.filter(p => p.concept !== "QUICK_GAME");
