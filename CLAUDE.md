@@ -186,9 +186,13 @@ must name its cheat surface + how it's closed, same discipline as gate-safety.
   0.74 (GC_TINT_SHADOW). PANTS stay white (skip white below waist
   minY+0.66*h, upright only; GC_TINT_WAIST — was 0.56, which cut mid-torso and
   left the lower jersey white above the pants; 0.66 = the real waistband).
-  FACEMASK spared: skip white
-  touching skin in the HEAD band (top 40%) only — bare arms below are skin
-  too and a body-wide skip made a polka-dot jersey. Skin mask snapshotted
+  FACE + FACEMASK spared (not team-colored): the team color goes on the helmet
+  dome/shell, never the face opening. The old 1px skin-adjacency skip left the
+  whole cheek/jaw/chin ring tinted; now a FACE-OPENING BOX (skin/face bbox
+  expanded ×GC_TINT_FACE_W=1.15 wide, +GC_TINT_FACE_DOWN=0.30 below the chin,
+  HEAD band only, needs a detected face) stays white. Bare arms below are skin
+  too and a body-wide skip made a polka-dot jersey — hence head-band only. Skin
+  mask snapshotted
   from ORIGINAL pixels (a warm tint passes isSkin → cascade-dots otherwise).
   - QA the tint with `node tools/_jersey_color_probe.js [pose]` (regression gate,
     0 flags). It MEASURES color accuracy per region across all 32 teams + stress

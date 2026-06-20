@@ -524,6 +524,7 @@ function _tintedSprite(srcImg, key, hexColor) {
     // frozen original mask breaks that feedback (blue never tripped it).
     const skinMask = new Uint8Array(W * H);
     let minX = W, minY = H, maxX = 0, maxY = 0;
+    let sMinX = W, sMinY = H, sMaxX = 0, sMaxY = 0, skinCount = 0;   // FACE (skin) bbox
     const lums = [];   // luminance of every TINTABLE white pixel
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
@@ -532,7 +533,12 @@ function _tintedSprite(srcImg, key, hexColor) {
           if (x < minX) minX = x; if (x > maxX) maxX = x;
           if (y < minY) minY = y; if (y > maxY) maxY = y;
           const r0 = d[i0], g0 = d[i0 + 1], b0 = d[i0 + 2];
-          if (isSkin(r0, g0, b0)) skinMask[y * W + x] = 1;
+          if (isSkin(r0, g0, b0)) {
+            skinMask[y * W + x] = 1;
+            skinCount++;
+            if (x < sMinX) sMinX = x; if (x > sMaxX) sMaxX = x;
+            if (y < sMinY) sMinY = y; if (y > sMaxY) sMaxY = y;
+          }
           else if (isWhite(r0, g0, b0)) lums.push((r0 + g0 + b0) / 765);
         }
       }
@@ -573,6 +579,20 @@ function _tintedSprite(srcImg, key, hexColor) {
     // applying the skin-adjacency skip there left the jersey edges white
     // (a red/white polka-dot jersey). The face/mask only live up top.
     const headLine = _upright ? minY + 0.40 * (maxY - minY) : minY + 0.50 * (maxY - minY);
+    // FACE-OPENING protection. The team color belongs on the helmet dome/shell,
+    // NOT on the face or facemask (user: "you don't have to color the face and
+    // the facemask"). The 1px skin-adjacency skip left the whole cheek/jaw/chin
+    // ring around the face tinted. Instead protect the FACE-OPENING BOX: the skin
+    // (face) bbox expanded outward for the facemask cage + chin guard. White in
+    // that box stays white (neutral mask), skin stays skin; the dome/shell around
+    // it still tints. GC_TINT_FACE_W / _DOWN tune the expansion.
+    const _faceWf  = (typeof window !== "undefined" && window.GC_TINT_FACE_W   != null) ? window.GC_TINT_FACE_W   : 1.15;
+    const _faceDnf = (typeof window !== "undefined" && window.GC_TINT_FACE_DOWN != null) ? window.GC_TINT_FACE_DOWN : 0.30;
+    const _hasFace = skinCount > 6;
+    const _faceCx  = (sMinX + sMaxX) / 2;
+    const _faceHalf = ((sMaxX - sMinX) / 2) * _faceWf;
+    const _faceTop = sMinY - 1;                                  // from the brow
+    const _faceBot = sMaxY + (sMaxY - sMinY) * _faceDnf;          // down past the chin (facemask)
     // FULL-COLOR cel ramp with depth. The earlier white-wash read flat and
     // washed out, and lerping the highlight toward white desaturated it
     // (red went pink). Instead BRIGHTEN the team color for the highlight
@@ -598,18 +618,10 @@ function _tintedSprite(srcImg, key, hexColor) {
         const r = d[i], g = d[i + 1], b = d[i + 2], a = d[i + 3];
         if (a === 0 || !isWhite(r, g, b)) continue;
         if (y > waistCol[x]) continue;                  // below the curved hem → pants stay white
-        // Facemask: skip a white pixel touching skin — HEAD band only.
-        if (y < headLine) {
-          let nearSkin = false;
-          for (let dy = -1; dy <= 1 && !nearSkin; dy++) {
-            for (let dx = -1; dx <= 1; dx++) {
-              const nx = x + dx, ny = y + dy;
-              if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
-              if (skinMask[ny * W + nx]) { nearSkin = true; break; }
-            }
-          }
-          if (nearSkin) continue;
-        }
+        // Face + facemask: leave the FACE-OPENING uncolored (helmet dome/shell
+        // around it still tints). Only in the HEAD band; needs a detected face.
+        if (_hasFace && y < headLine
+            && y >= _faceTop && y <= _faceBot && Math.abs(x - _faceCx) <= _faceHalf) continue;
         const lum = (r + g + b) / 765;
         if (lum >= _hiCut) { d[i] = hiR; d[i + 1] = hiG; d[i + 2] = hiB; }   // highlight
         else if (lum >= _shCut) { d[i] = cr; d[i + 1] = cg; d[i + 2] = cb; } // full color
