@@ -438,6 +438,21 @@ dependency at all.**
 > unforgeable seed source (VRF / commit-reveal), the challenge window, and
 > cross-machine determinism (same-machine is proven; libm float drift across
 > validators is the open risk to de-risk before mainnet).
+>
+> **MEASURED (cross-machine libm risk):** `server/determinism-hazard-probe.js`
+> enumerates the unspecified-precision `Math.*` calls on the RE-SIM outcome path
+> (rosters fixed): `Math.pow` ~994, `Math.log` ~354, `Math.cos` ~336 per game
+> (`sin`/`hypot` are render-only; `sqrt` is correctly-rounded → safe). Perturbing
+> each by ±4 ULP (realistic libm disagreement) flips NO result; the outcome only
+> diverges once ALL transcendentals are pushed ~10¹² ULP (≈2.4e-4 relative,
+> ~2.7e11× a real libm gap) — the gaussian `normal()`'s `Math.round` plus the
+> engine's discrete decision thresholds absorb tiny drift. So the practical risk
+> is tiny but NONZERO (one near-boundary roll on one forked game breaks a proof).
+> Resolution stands: make re-sim bit-exact by construction (pin the validator
+> Node/V8 build, or wasm / portable fdlibm for those 3 calls), then the hazard
+> probe is a gate at 0. The 3 call-sites: `play-engine.js` `normal()` (Box-Muller
+> log+cos), the `Math.pow(overall-40, 2)` selection weight (~`:2433`), and the
+> red-zone `Math.log` penalty (~`:5844`/`:6920`).
 
 **The v1 scaffold** (`server/h2h-server.js`, zero-dep; engine loaded by
 `server/engine-host.js`, the audit's bundle pattern):

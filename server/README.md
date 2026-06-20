@@ -76,7 +76,34 @@ node server/h2h-recovery-probe.js  # SIGKILL mid-match → respawn → exact sta
 node server/h2h-client-probe.js    # two REAL headless browsers through the actual UI
 node server/determinism-probe.js   # result-hash.js is sound: stable re-sim, seed-
                                    # sensitive, tamper-evident vs a score-preserving edit
+node server/determinism-hazard-probe.js  # CROSS-MACHINE: enumerate outcome-path libm
+                                   # calls + measure how far they can drift before the
+                                   # result flips (the on-chain validator-fork risk)
 ```
+
+### Cross-machine determinism (the validator-fork risk)
+
+Challenge-by-re-sim is only sound if every validator computes the byte-identical
+result. ECMAScript leaves `Math.sin/cos/log/pow/exp/atan2/hypot/...` precision
+**implementation-defined** (only `sqrt` is correctly-rounded), so different
+Node/V8/libm builds can disagree in the last bit. `determinism-hazard-probe.js`
+turns that open risk into a measured list:
+
+- **Outcome-path libm calls** (during re-sim, fixed rosters): `Math.pow` ~994,
+  `Math.log` ~354, `Math.cos` ~336 per game. `Math.sin`/`hypot` are render-only
+  (not in the headless outcome path).
+- **Per-function sensitivity** at ±4 ULP (the upper end of realistic libm
+  disagreement): **none** flip the result.
+- **Safety margin**: the outcome only diverges once *all* transcendentals are
+  perturbed by ~10¹² ULP (≈2.4e-4 relative) — roughly **2.7×10¹¹×** a realistic
+  libm gap. The gaussian's `Math.round` (play-engine.js `normal()`) and the
+  engine's discrete decision thresholds absorb tiny perturbations.
+
+So today's risk is vanishingly small in practice **but not zero** — a single
+near-boundary roll on one forked game breaks an on-chain proof. The sound fix is
+bit-exactness by construction: **pin the validator Node/V8 build**, or compile
+the sim to wasm / swap those 3 outcome-path libm calls for portable
+(fdlibm/table) implementations. After that, this probe becomes a gate at 0.
 
 ## API sketch
 
