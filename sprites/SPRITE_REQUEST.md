@@ -244,3 +244,31 @@ tackled is `fall`):
 Torso/legs **layered** sets for throw-on-the-run and catch-in-stride
 composition — needs the same characters exported as separate torso and
 legs layers per frame. Hold off until the waves above are judged.
+
+## Re-gen task — ARM↔BODY DAYLIGHT (user-requested true gap)
+
+Symptom: the recess between a swung-out arm and the torso "fills in color"
+(it has no daylight, so the team tint paints the whole pocket and the arm
+merges into the body). Confirmed in-art: that pocket is solid white fabric, not
+transparent — so it CANNOT be fixed by the tint/renderer; the sprite must be
+redrawn with real transparent space there. Affects every pose where an arm is
+held away from the body — priority: **run, carry** (most screen time), then
+qb_carry, juke/spin/truck, celebrate.
+
+Regeneration prompt (attach the locked character turnaround as the reference):
+
+> Pixel-art sprite sheet, 104px-scale cells in a strict equal-size grid,
+> transparent background. Same character as the attached turnaround. [POSE +
+> per-frame description as in the pose's section above.] CRITICAL: wherever an
+> arm is held away from the torso, leave REAL DAYLIGHT — fully transparent
+> background — in the gap between the arm and the body. Do NOT fill that gap
+> with jersey, shading, or any fabric; the inner edge of the arm must be a clean
+> silhouette against transparency so you can see through to the field behind.
+> White jersey, white/grey pants, dark outline, feet at bottom-center of each
+> cell, proportions matching the reference.
+
+After generating, re-slice as usual (`_slice_sheet.py <sheet> <folder> --dirs …
+--out sprites2`) and re-run `node tools/_jersey_color_probe.js` + a headless
+zoom to confirm the gap survived bg-removal (the enclosed daylight must end up
+TRANSPARENT, not re-filled — check remove_bg reached it; if not, the wedge opens
+to the outside so the outside-flood should clear it).
