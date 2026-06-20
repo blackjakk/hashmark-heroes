@@ -180,6 +180,15 @@ Renderer contract the character must keep:
   offsets, and nameplates are tuned to that)
 - similar overall proportions — a much taller/wider body needs constant
   retuning (possible, but say so and we'll do it deliberately)
+- ARM↔BODY DAYLIGHT: when an arm is held away from the torso (run swing,
+  carry, the down-swung arm), draw real DAYLIGHT — transparent background —
+  in the gap between the arm and the body. Do NOT fill that recess with
+  jersey/fabric. The team tint only RECOLORS existing pixels; it cannot carve
+  a see-through gap, so a fused arm-to-body reads as a solid color blob in the
+  cavity (user-reported: "the cavity between the arm and the chest is filling
+  in color"). Confirmed in-art: that pocket is solid white fabric, not trapped
+  background, so it can only be fixed here, at generation/slice time. Keep the
+  inner arm edge a clean silhouette against transparency.
 
 ## Frame counts — yes, MORE frames where they matter
 

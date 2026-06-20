@@ -246,6 +246,14 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
 
 ## Pending
 
+- Arm↔body daylight gap (SPRITE-ART, not tint): user circled the recess between
+  the down-swung arm and the body "filling in color." Confirmed in-art (raw
+  structure viz): that pocket is SOLID WHITE FABRIC drawn behind the arm, not
+  trapped background — so the tint has no empty pixels to reveal and CANNOT carve
+  a see-through gap (it only recolors). The tint mitigations shipped (cavity
+  shadow `GC_TINT_CAVITY`/`_REACH` darken the recess for depth), but a true gap
+  needs the SPRITE regenerated/sliced with real daylight between arm and torso —
+  documented as a renderer-contract rule in `sprites/SPRITE_REQUEST.md` (Step 0).
 - Gen-time determinism hole (SOLVED): `pickBodyType` (play-render.js) assigned
   `bodyType` with raw `Math.random()`, and `bodyType` feeds the contested-catch
   `bodyBonus` (play-engine.js ~6170) — so it's OUTCOME-AFFECTING. With raw
