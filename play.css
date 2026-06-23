@@ -3557,7 +3557,7 @@
     animation: hud-zone-pulse 1s ease-in-out infinite alternate;
   }
   .hud-zone.gold {
-    background: #f5c542; color: #000;
+    background: var(--blgold); color: #000;
     animation: hud-zone-pulse 1s ease-in-out infinite alternate;
   }
   @keyframes hud-zone-pulse {
@@ -10150,7 +10150,7 @@
     box-shadow: 0 0 0 1px rgba(80, 180, 255, .6) inset;
   }
   .frn-resign-cap-year .num-preview {
-    color: #f5c542; font-size: .65rem; font-weight: 600; margin-left: .25rem;
+    color: var(--blgold); font-size: .65rem; font-weight: 600; margin-left: .25rem;
     display: none;
   }
   /* Lift the row slightly when hovered so the visual relationship to
@@ -10532,7 +10532,7 @@
     background: linear-gradient(180deg, #0a0d12 0%, #050607 100%);
   }
   .bspn-logo {
-    font-family: "Bebas Neue","Anton","Arial Black",sans-serif;
+    font-family: var(--font-display);
     font-size: 2.4rem; font-weight: 900; color: var(--bspn-red);
     letter-spacing: -2px; font-style: italic; transform: skewX(-7deg);
     text-shadow: 0 0 14px rgba(255,57,57,0.45), 0 1px 0 #200;

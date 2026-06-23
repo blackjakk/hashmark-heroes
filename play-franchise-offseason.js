@@ -2142,7 +2142,7 @@ function _showWeekRecapIfReady() {
           ${typeof h.homeScore === "number" ? ` · ${h.homeScore}-${h.awayScore}` : ""}
         </div>
       </div>
-      <button class="btn btn-gold" onclick="frnReplayClip('${h.id}')">▶</button>
+      ${DS.button({ label: "▶", variant: "gold", on: `frnReplayClip('${h.id}')` })}
     </div>`;
   }).join("");
   const el = document.createElement("div");
@@ -2157,7 +2157,7 @@ function _showWeekRecapIfReady() {
       </div>
       <div class="frn-week-recap-cards">${cards}</div>
       <div class="frn-week-recap-cta">
-        <button class="btn btn-outline" onclick="frnDismissWeekRecap()">✗ Dismiss</button>
+        ${DS.button({ label: "✗ Dismiss", variant: "outline", on: "frnDismissWeekRecap()" })}
         <button class="btn btn-gold-big" onclick="frnOpenReplaysTab()">📺 OPEN REPLAY LIBRARY</button>
       </div>
     </div>`;
@@ -2293,7 +2293,7 @@ function renderFrnReplayLib() {
             </div>
           </div>
           <div class="frn-rpl-actions">
-            <button class="btn btn-gold" onclick="frnReplayClip('${h.id}')">▶ REPLAY</button>
+            ${DS.button({ label: "▶ REPLAY", variant: "gold", on: `frnReplayClip('${h.id}')` })}
           </div>
         </div>`;
       }).join("")
@@ -4144,7 +4144,7 @@ function frnOpenStreetFA(posFilter) {
   const spots = (typeof rosterSpaceLeft === "function") ? rosterSpaceLeft(myId) : 1;
   const POS = ["ALL", "QB", "RB", "WR", "TE", "OL", "DL", "LB", "CB", "S", "K", "P"];
   const chips = POS.map(ps =>
-    `<button class="btn ${((ps === "ALL" && !posFilter) || ps === posFilter) ? "btn-gold" : "btn-outline"}" style="font-size:.6rem;padding:.15rem .45rem" onclick="frnOpenStreetFA(${ps === "ALL" ? "" : `'${ps}'`})">${ps}</button>`).join("");
+    DS.button({ label: ps, variant: ((ps === "ALL" && !posFilter) || ps === posFilter) ? "gold" : "outline", on: `frnOpenStreetFA(${ps === "ALL" ? "" : `'${ps}'`})`, attrs: { style: "font-size:.6rem;padding:.15rem .45rem" } })).join("");
   const rows = pool.slice(0, 30).map(p => {
     const price = _streetFAPrice(p);
     const esc = (p.name || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -4177,7 +4177,7 @@ function frnOpenStreetFA(posFilter) {
     </p>
     <div style="display:flex;gap:.25rem;justify-content:center;flex-wrap:wrap;margin-bottom:.6rem">${chips}</div>
     <div class="frn-resign-list" style="max-height:52vh;overflow-y:auto">${rows || `<div style="color:var(--gray);text-align:center;padding:1rem;font-style:italic">Nobody left on the street${posFilter ? ` at ${posFilter}` : ""}.</div>`}</div>
-    <div class="frn-resign-recap-cta"><button class="btn btn-outline" onclick="frnCloseStreetFA()">← Close</button></div>
+    <div class="frn-resign-recap-cta">${DS.button({ label: "← Close", variant: "outline", on: "frnCloseStreetFA()" })}</div>
   </div>`;
   el.addEventListener("click", e => { if (e.target === el) frnCloseStreetFA(); });
   el.tabIndex = -1;
@@ -7281,7 +7281,7 @@ function renderFrnAnalytics(defaultTab) {
               </div>
             </td>
             <td colspan="2" style="white-space:nowrap;padding:.4rem .5rem">
-              <button class="btn btn-outline" onclick="frnPayCutClose()" style="font-size:.62rem;padding:.2rem .5rem">✗ Cancel</button>
+              ${DS.button({ label: "✗ Cancel", variant: "outline", on: "frnPayCutClose()", attrs: { style: "font-size:.62rem;padding:.2rem .5rem" } })}
             </td>
           </tr>`;
         }
@@ -7298,7 +7298,7 @@ function renderFrnAnalytics(defaultTab) {
               · freed <b style="color:var(--green-lt)">$${freed.toFixed(1)}M</b> on cap
             </td>
             <td colspan="2" style="white-space:nowrap;padding:.4rem .5rem">
-              <button class="btn btn-gold" onclick="frnPayCutClose()" style="font-size:.62rem;padding:.2rem .5rem">✓ OK</button>
+              ${DS.button({ label: "✓ OK", variant: "gold", on: "frnPayCutClose()", attrs: { style: "font-size:.62rem;padding:.2rem .5rem" } })}
             </td>
           </tr>`;
         }
@@ -7313,8 +7313,8 @@ function renderFrnAnalytics(defaultTab) {
             You can keep him or release him.
           </td>
           <td colspan="2" style="white-space:nowrap;padding:.4rem .5rem">
-            <button class="btn btn-outline" onclick="frnReleasePlayer('${escName}','${p.position}');frnPayCutClose()" style="font-size:.62rem;padding:.2rem .5rem;color:var(--red);border-color:#552020">✗ Release</button>
-            <button class="btn btn-outline" onclick="frnPayCutClose()" style="font-size:.62rem;padding:.2rem .5rem;margin-left:.2rem">Keep</button>
+            ${DS.button({ label: "✗ Release", variant: "outline", on: `frnReleasePlayer('${escName}','${p.position}');frnPayCutClose()`, attrs: { style: "font-size:.62rem;padding:.2rem .5rem;color:var(--red);border-color:#552020" } })}
+            ${DS.button({ label: "Keep", variant: "outline", on: "frnPayCutClose()", attrs: { style: "font-size:.62rem;padding:.2rem .5rem;margin-left:.2rem" } })}
           </td>
         </tr>`;
       }
@@ -7325,7 +7325,7 @@ function renderFrnAnalytics(defaultTab) {
         const totalDead = Math.round(newProration * (remaining + totalVoid) * 10) / 10;
         const voidBtns = Array.from({ length: Math.min(3, maxNewVoid) + 1 }).map((_, n) => {
           const sel = n === voidYearsAdd;
-          return `<button class="btn ${sel ? "btn-gold" : "btn-outline"}" onclick="frnRestructure(${chosenTeamId},'${escName}','${p.position}',${n})" style="font-size:.56rem;padding:.12rem .35rem;min-width:auto">+${n}v</button>`;
+          return DS.button({ label: `+${n}v`, variant: sel ? "gold" : "outline", on: `frnRestructure(${chosenTeamId},'${escName}','${p.position}',${n})`, attrs: { style: "font-size:.56rem;padding:.12rem .35rem;min-width:auto" } });
         }).join("");
         return `<tr style="background:rgba(200,169,0,.1)">
           <td style="font-weight:700;color:var(--gold)">${_escHtml(p.name)}</td>
@@ -7343,8 +7343,8 @@ function renderFrnAnalytics(defaultTab) {
             </div>
           </td>
           <td colspan="2" style="white-space:nowrap;padding:.4rem .5rem">
-            <button class="btn btn-gold" onclick="frnRestructureConfirm()" style="font-size:.62rem;padding:.2rem .55rem;margin-right:.3rem">✓ Restructure</button>
-            <button class="btn btn-outline" onclick="frnRestructureCancel()" style="font-size:.62rem;padding:.2rem .55rem">✗ Cancel</button>
+            ${DS.button({ label: "✓ Restructure", variant: "gold", on: "frnRestructureConfirm()", attrs: { style: "font-size:.62rem;padding:.2rem .55rem;margin-right:.3rem" } })}
+            ${DS.button({ label: "✗ Cancel", variant: "outline", on: "frnRestructureCancel()", attrs: { style: "font-size:.62rem;padding:.2rem .55rem" } })}
           </td>
         </tr>`;
       }
@@ -7367,8 +7367,8 @@ function renderFrnAnalytics(defaultTab) {
         </td>
         <td style="color:var(--gray);font-size:.65rem">${c.remaining}yr left</td>
         <td style="font-size:.65rem">
-          ${canRestructure ? `<button class="btn btn-outline" onclick="frnRestructure(${chosenTeamId},'${escName}','${p.position}')" style="font-size:.58rem;padding:.15rem .4rem;color:var(--gold);margin-right:.15rem" title="Convert base salary to signing bonus — frees cap now, adds dead money">↺ Restructure</button>` : ""}
-          ${(c.remaining||0) >= 2 && c.payCutRequestedSeason !== franchise.season ? `<button class="btn btn-outline" onclick="frnRequestPayCut('${escName}','${p.position}')" style="font-size:.58rem;padding:.15rem .4rem;color:var(--green-lt)" title="Ask the player to take a pay cut. Accept chance depends on age, market overpay, and cut depth.">💰 Pay cut</button>` : ""}
+          ${canRestructure ? DS.button({ label: "↺ Restructure", variant: "outline", on: `frnRestructure(${chosenTeamId},'${escName}','${p.position}')`, title: "Convert base salary to signing bonus — frees cap now, adds dead money", attrs: { style: "font-size:.58rem;padding:.15rem .4rem;color:var(--gold);margin-right:.15rem" } }) : ""}
+          ${(c.remaining||0) >= 2 && c.payCutRequestedSeason !== franchise.season ? DS.button({ label: "💰 Pay cut", variant: "outline", on: `frnRequestPayCut('${escName}','${p.position}')`, title: "Ask the player to take a pay cut. Accept chance depends on age, market overpay, and cut depth.", attrs: { style: "font-size:.58rem;padding:.15rem .4rem;color:var(--green-lt)" } }) : ""}
           ${expiring ? `<span style="color:var(--red)">EXPIRING</span>` : ""}
         </td>
       </tr>`;
@@ -7658,7 +7658,7 @@ function renderFrnAnalytics(defaultTab) {
           ${restructureCandidates.map(p => {
             const escN = p.name.replace(/'/g,"\'");
             const capHit = currentYearCapHit(p);
-            return `<button class="btn btn-outline" onclick="renderFrnAnalytics('mysheet');setTimeout(()=>frnRestructure(${chosenTeamId},'${escN}','${p.position}'),50)" style="font-size:.62rem;padding:.2rem .5rem;color:var(--gold)">↺ ${p.name} $${capHit.toFixed(1)}M</button>`;
+            return DS.button({ label: `↺ ${p.name} $${capHit.toFixed(1)}M`, variant: "outline", on: `renderFrnAnalytics('mysheet');setTimeout(()=>frnRestructure(${chosenTeamId},'${escN}','${p.position}'),50)`, attrs: { style: "font-size:.62rem;padding:.2rem .5rem;color:var(--gold)" } });
           }).join("")}
         </div>` : ""}
       <div style="font-size:.62rem;color:var(--gray)">Yr 2/3 projections assume current roster with age progression. Expiring contracts show as $0.</div>`;
@@ -7694,7 +7694,7 @@ function renderFrnAnalytics(defaultTab) {
         <td style="color:#ff9090;font-size:.65rem">${deadTotal>0.5?`☠ $${deadPY.toFixed(1)}M×${deadYrs}yr`:"No dead cap"}</td>
         <td style="color:var(--green-lt);font-weight:700">+$${savings.toFixed(1)}M</td>
         <td style="color:var(--gray);font-size:.65rem">${p.contract.remaining}yr left</td>
-        <td><button class="btn btn-outline" onclick="frnReleasePlayer('${escN}','${p.position}');showFranchiseDashboard()" style="font-size:.58rem;padding:.15rem .4rem;color:var(--red)">✗ Release</button></td>
+        <td>${DS.button({ label: "✗ Release", variant: "outline", on: `frnReleasePlayer('${escN}','${p.position}');showFranchiseDashboard()`, attrs: { style: "font-size:.58rem;padding:.15rem .4rem;color:var(--red)" } })}</td>
       </tr>`;
     }).join("");
 
@@ -7988,7 +7988,7 @@ function renderFrnAnalytics(defaultTab) {
     <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.7rem;flex-wrap:wrap">
       <div style="font-size:1.05rem;font-weight:900;color:var(--gold)">📊 CAP & CONTRACT ANALYTICS</div>
       <div style="color:var(--gray);font-size:.72rem">Season ${franchise.season} · Cap: $${cap.toFixed(0)}M</div>
-      <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="margin-left:auto;font-size:.72rem">← Back</button>
+      ${DS.button({ label: "← Back", variant: "outline", on: "showFranchiseDashboard()", attrs: { style: "margin-left:auto;font-size:.72rem" } })}
     </div>
     <div class="frn-ana-tabs">${tabBarHtml}</div>
     <div class="frn-ana-body">${bodyHtml}</div>`;
@@ -8734,8 +8734,8 @@ function _renderHoldoutCenterRow(d) {
       <div style="flex:1;display:flex;flex-direction:column;gap:.2rem;margin:0 .6rem">${yearPills}</div>
       <div class="frn-resign-btns" style="flex-direction:column;gap:.3rem">
         ${deadTotal >= 0.5 ? `<span style="color:#ff9090;font-size:.6rem;text-align:center">☠ Dead $${bonusProration.toFixed(1)}M×${offerYears}yr</span>` : ""}
-        <button class="btn btn-gold" onclick="frnHoldoutMidSubmitOffer('${escName}')" style="white-space:nowrap">${meetsAsk ? "✓ Sign Extension" : "📤 Submit Counter"}</button>
-        <button class="btn btn-outline" onclick="frnHoldoutMidPreviewClose()" style="font-size:.65rem">← Back</button>
+        ${DS.button({ label: meetsAsk ? "✓ Sign Extension" : "📤 Submit Counter", variant: "gold", on: `frnHoldoutMidSubmitOffer('${escName}')`, attrs: { style: "white-space:nowrap" } })}
+        ${DS.button({ label: "← Back", variant: "outline", on: "frnHoldoutMidPreviewClose()", attrs: { style: "font-size:.65rem" } })}
       </div>
     </div>`;
   }
@@ -8873,7 +8873,7 @@ function _renderHoldoutCenterRow(d) {
     <div style="display:flex;gap:.2rem;justify-content:center;align-items:center;flex-wrap:wrap">
       ${["BALANCED","BACKLOADED","FRONTLOADED"].map(s => {
         const desc = s==="BALANCED"?"flat salaries":s==="BACKLOADED"?"cheap now, costly later":"costly now, cheap later";
-        return `<button class="btn ${struct===s?"btn-gold":"btn-outline"}" onclick="frnHoldoutMidSetStructure('${escName}','${s}')" style="font-size:.55rem;padding:.1rem .3rem" title="${desc}">${s[0]+s.slice(1).toLowerCase()}</button>`;
+        return DS.button({ label: s[0]+s.slice(1).toLowerCase(), variant: struct===s?"gold":"outline", on: `frnHoldoutMidSetStructure('${escName}','${s}')`, title: desc, attrs: { style: "font-size:.55rem;padding:.1rem .3rem" } });
       }).join("")}
     </div>
     <div style="display:flex;gap:.25rem;justify-content:center;flex-wrap:wrap">${chipsHtml}</div>
@@ -8971,7 +8971,7 @@ function _holdoutCenterInnerHtml() {
     <p style="color:var(--blgray, #9aa7b8);text-align:center;margin:.4rem 0 .8rem;font-size:.72rem">Walk-year stars demanding an extension. Tag-floored asks. Counter below the ask — he can accept, come down, or dig in (${_MID_HOLDOUT_MAX_ROUNDS} rounds of talks). Refuse → 1-game sit-out + flight risk. Defer → +2 weeks, +3% AAV (max 2×).</p>
     <div class="frn-resign-list" style="margin-top:.6rem">${rows}</div>
     <div class="frn-resign-recap-cta">
-      <button class="btn btn-outline" onclick="frnCloseHoldoutCenter()">← Close</button>
+      ${DS.button({ label: "← Close", variant: "outline", on: "frnCloseHoldoutCenter()" })}
     </div>
   </div>`;
 }
@@ -9341,7 +9341,7 @@ function _extensionModalInnerHtml() {
       ${teamImpactHtml}
     </div>
     <div class="frn-resign-recap-cta" style="display:flex;gap:.4rem;justify-content:flex-end">
-      <button class="btn btn-outline" onclick="frnCloseExtensionModal()" style="font-size:.7rem">← Cancel</button>
+      ${DS.button({ label: "← Cancel", variant: "outline", on: "frnCloseExtensionModal()", attrs: { style: "font-size:.7rem" } })}
       <button class="btn btn-gold-big" onclick="frnExtensionSign()" style="font-size:.8rem;letter-spacing:1px">✓ SIGN EXTENSION</button>
     </div>
   </div>`;
@@ -9590,7 +9590,7 @@ function _renderCounterComposer(opts) {
         <span style="color:${oddsColor};font-weight:700;font-size:.8rem">${oddsPct}%</span>
         <div class="frn-counter-odds-bar"><div style="width:${oddsPct}%;background:${oddsColor}"></div></div>
       </div>
-      <button class="btn btn-gold" style="font-size:.65rem;padding:.25rem .7rem;margin-left:auto" onclick="${onClose}">✓ Done</button>
+      ${DS.button({ label: "✓ Done", variant: "gold", on: onClose, attrs: { style: "font-size:.65rem;padding:.25rem .7rem;margin-left:auto" } })}
     </div>
   </div>`;
 }
@@ -9893,8 +9893,8 @@ function _renderResignUI(cap, capCommitted) {
           <div style="flex:1;display:flex;flex-direction:column;gap:.2rem;margin:0 .6rem">${yearPills}</div>
           <div class="frn-resign-btns" style="flex-direction:column;gap:.3rem">
             ${deadTotal >= 0.5 ? `<span style="color:#ff9090;font-size:.6rem;text-align:center">☠ Dead $${bonusProration.toFixed(1)}M×${r.offerYears}yr</span>` : ""}
-            <button class="btn btn-gold" onclick="frnResignDecide(${idx},'accept')" style="white-space:nowrap">✓ Sign Deal</button>
-            <button class="btn btn-outline" onclick="_resignPreview=null;_renderResignUIRefresh()" style="font-size:.65rem">← Back</button>
+            ${DS.button({ label: "✓ Sign Deal", variant: "gold", on: `frnResignDecide(${idx},'accept')`, attrs: { style: "white-space:nowrap" } })}
+            ${DS.button({ label: "← Back", variant: "outline", on: "_resignPreview=null;_renderResignUIRefresh()", attrs: { style: "font-size:.65rem" } })}
           </div>
         </div>`;
     }
@@ -10059,14 +10059,9 @@ function _renderResignUI(cap, capCommitted) {
               <span style="color:var(--gray);font-size:.58rem">Structure:</span>
               ${["BALANCED","BACKLOADED","FRONTLOADED"].map(s => {
                 const desc = s==="BALANCED"?"flat salaries":s==="BACKLOADED"?"cheap now, costly later":"costly now, cheap later";
-                return `<button class="btn ${struct===s?"btn-gold":"btn-outline"}" onclick="frnResignSetStructure(${idx},'${s}')" style="font-size:.55rem;padding:.1rem .3rem" title="${desc}">${s[0]+s.slice(1).toLowerCase()}</button>`;
+                return DS.button({ label: s[0]+s.slice(1).toLowerCase(), variant: struct===s?"gold":"outline", on: `frnResignSetStructure(${idx},'${s}')`, title: desc, attrs: { style: "font-size:.55rem;padding:.1rem .3rem" } });
               }).join("")}
-              ${r.offerYears >= 2 ? `<button
-                class="btn ${r.teamOption?"btn-gold":"btn-outline"}"
-                onclick="frnResignToggleTeamOption(${idx})"
-                style="font-size:.55rem;padding:.1rem .3rem"
-                title="Add a team option on the final year. AAV drops 3% in exchange. You can walk before the option year fires without dead cap.">
-                📋 Opt${r.teamOption?" ✓":""}</button>` : ""}
+              ${r.offerYears >= 2 ? DS.button({ label: `📋 Opt${r.teamOption?" ✓":""}`, variant: r.teamOption?"gold":"outline", on: `frnResignToggleTeamOption(${idx})`, title: "Add a team option on the final year. AAV drops 3% in exchange. You can walk before the option year fires without dead cap.", attrs: { style: "font-size:.55rem;padding:.1rem .3rem" } }) : ""}
             </div>
           </div>
           <div class="frn-resign-btns">
@@ -10143,15 +10138,8 @@ function _renderResignUI(cap, capCommitted) {
               </div>
             </div>
             <div style="display:flex;gap:.35rem">
-              <button class="btn btn-gold" onclick="frnTeamOptionDecide('${escNm}','${p.position}',true)"
-                      style="font-size:.65rem;padding:.28rem .55rem" title="Keep him at option value $${optVal.toFixed(1)}M">
-                ✓ Pick up
-              </button>
-              <button class="btn btn-outline" onclick="frnTeamOptionDecide('${escNm}','${p.position}',false)"
-                      style="font-size:.65rem;padding:.28rem .55rem;color:#ff9090;border-color:#552020"
-                      title="Player walks to FA cleanly (no dead cap)">
-                ↗ Decline
-              </button>
+              ${DS.button({ label: "✓ Pick up", variant: "gold", on: `frnTeamOptionDecide('${escNm}','${p.position}',true)`, title: `Keep him at option value $${optVal.toFixed(1)}M`, attrs: { style: "font-size:.65rem;padding:.28rem .55rem" } })}
+              ${DS.button({ label: "↗ Decline", variant: "outline", on: `frnTeamOptionDecide('${escNm}','${p.position}',false)`, title: "Player walks to FA cleanly (no dead cap)", attrs: { style: "font-size:.65rem;padding:.28rem .55rem;color:#ff9090;border-color:#552020" } })}
             </div>
           </div>`;
         }).join("")}
@@ -10224,7 +10212,7 @@ function _renderResignUI(cap, capCommitted) {
     <div class="frn-actions" style="justify-content:center;margin-top:1.2rem;flex-wrap:wrap;gap:.5rem">
       ${pending > 0 || optionPending.length > 0
         ? `<div style="color:var(--gray);font-size:.78rem">${pending + optionPending.length} decision${(pending+optionPending.length)>1?"s":""} remaining</div>`
-        : `<button class="btn btn-gold" onclick="frnOpenResignRecap()">✓ Review &amp; Continue →</button>`}
+        : DS.button({ label: "✓ Review & Continue →", variant: "gold", on: "frnOpenResignRecap()" })}
     </div>`;
 }
 
@@ -10356,7 +10344,7 @@ function frnOpenResignRecap() {
       ${compHtml}
 
       <div class="frn-resign-recap-cta">
-        <button class="btn btn-outline" onclick="frnCloseResignRecap()">← Back to edit</button>
+        ${DS.button({ label: "← Back to edit", variant: "outline", on: "frnCloseResignRecap()" })}
         <button class="btn btn-gold-big" onclick="frnCloseResignRecap();frnConfirmResignings()">✓ CONFIRM &amp; CONTINUE</button>
       </div>
     </div>`;
@@ -12019,7 +12007,7 @@ function frnOpenHoldoutRecap() {
       </section>` : ""}
 
       <div class="frn-resign-recap-cta">
-        <button class="btn btn-outline" onclick="frnCloseHoldoutRecap()">← Back to edit</button>
+        ${DS.button({ label: "← Back to edit", variant: "outline", on: "frnCloseHoldoutRecap()" })}
         <button class="btn btn-gold-big" onclick="frnCloseHoldoutRecap();frnConfirmGoToDraft()">📋 Continue to Draft →</button>
       </div>
     </div>`;
@@ -16386,8 +16374,8 @@ function _renderHoldoutsBlock() {
         <div style="flex:1;display:flex;flex-direction:column;gap:.2rem;margin:0 .6rem">${yearPills}</div>
         <div class="frn-resign-btns" style="flex-direction:column;gap:.3rem">
           ${deadTotal >= 0.5 ? `<span style="color:#ff9090;font-size:.6rem;text-align:center">☠ Dead $${bonusProration.toFixed(1)}M×${offerYears}yr</span>` : ""}
-          <button class="btn btn-gold" onclick="frnHoldoutExtend('${escName}')" style="white-space:nowrap">✓ Sign Extension</button>
-          <button class="btn btn-outline" onclick="frnHoldoutPreviewClose()" style="font-size:.65rem">← Back</button>
+          ${DS.button({ label: "✓ Sign Extension", variant: "gold", on: `frnHoldoutExtend('${escName}')`, attrs: { style: "white-space:nowrap" } })}
+          ${DS.button({ label: "← Back", variant: "outline", on: "frnHoldoutPreviewClose()", attrs: { style: "font-size:.65rem" } })}
         </div>
       </div>`;
     }
@@ -16536,7 +16524,7 @@ function _renderHoldoutsBlock() {
             <span style="color:var(--gray);font-size:.58rem">Structure:</span>
             ${["BALANCED","BACKLOADED","FRONTLOADED"].map(s => {
               const desc = s==="BALANCED"?"flat salaries":s==="BACKLOADED"?"cheap now, costly later":"costly now, cheap later";
-              return `<button class="btn ${struct===s?"btn-gold":"btn-outline"}" onclick="frnHoldoutSetStructure('${escName}','${s}')" style="font-size:.55rem;padding:.1rem .3rem" title="${desc}">${s[0]+s.slice(1).toLowerCase()}</button>`;
+              return DS.button({ label: s[0]+s.slice(1).toLowerCase(), variant: struct===s?"gold":"outline", on: `frnHoldoutSetStructure('${escName}','${s}')`, title: desc, attrs: { style: "font-size:.55rem;padding:.1rem .3rem" } });
             }).join("")}
           </div>
         </div>
@@ -18658,7 +18646,7 @@ function renderFrnTrade() {
           ? "Offseason · open market (no deadline)"
           : `Trade deadline: Week ${TRADE_DEADLINE_WEEK} · ${franchise.week > TRADE_DEADLINE_WEEK ? "<span style=\"color:var(--red)\">PASSED</span>" : `Week ${franchise.week} of ${FRANCHISE_WEEKS}`}`
       }</div>
-      <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="margin-left:auto">← Back</button>
+      ${DS.button({ label: "← Back", variant: "outline", on: "showFranchiseDashboard()", attrs: { style: "margin-left:auto" } })}
     </div>
     <div class="frn-ana-tabs">${tabHtml}</div>
     ${sortHtml}
@@ -18832,7 +18820,7 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
     <div class="frn-fa-summary" style="margin-bottom:.5rem">
       ${partnerId
         ? `Trading with: <b style="color:var(--gold-lt)">${partnerTeam.city} ${partnerTeam.name}</b>
-           <button class="btn btn-outline" onclick="frnClearTradePartner()" style="font-size:.6rem;padding:.15rem .45rem;margin-left:.4rem">× Clear</button>`
+           ${DS.button({ label: "× Clear", variant: "outline", on: "frnClearTradePartner()", attrs: { style: "font-size:.6rem;padding:.15rem .45rem;margin-left:.4rem" } })}`
         : `<span style="color:var(--gray)">Click any player to set the trade partner</span>`}
       <span style="margin-left:auto">Override:
         <select onchange="frnOpenTrade(this.value||null,'propose')" style="background:var(--bg3);color:var(--white);border:1px solid var(--border);padding:.2rem .35rem;font-family:inherit;font-size:.7rem">${teamOptionsHtml}</select>
@@ -18843,7 +18831,7 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
       ${(() => {
         const myDC = _outstandingDeadCap(franchise.chosenTeamId);
         return myDC.totalDollars >= 0.5
-          ? `<button class="btn btn-outline" onclick="frnAutoFillAbsorption()" style="color:#ff9090;border-color:#ff9090;font-size:.6rem;padding:.15rem .45rem" title="Request partner absorbs your $${myDC.totalDollars.toFixed(1)}M in dead cap">💸 Recoup $${myDC.totalDollars.toFixed(1)}M dead</button>`
+          ? DS.button({ label: `💸 Recoup $${myDC.totalDollars.toFixed(1)}M dead`, variant: "outline", on: "frnAutoFillAbsorption()", title: `Request partner absorbs your $${myDC.totalDollars.toFixed(1)}M in dead cap`, attrs: { style: "color:#ff9090;border-color:#ff9090;font-size:.6rem;padding:.15rem .45rem" } })
           : "";
       })()}
     </div>
@@ -18889,11 +18877,7 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
           </div>` : ""}
       </div>` : ""}
     <div class="frn-actions" style="justify-content:center;margin-top:.8rem;gap:.5rem;flex-wrap:wrap">
-      ${(partnerId && tp.youReceive?.length) ? `<button class="btn btn-outline" onclick="frnSuggestShopPackage()"
-        style="color:var(--gold);border-color:var(--gold)"
-        title="Auto-build a package from your inventory that aims to meet their acceptance threshold. Picks first, then a spare from a position of depth surplus, then cash absorb to fill.">
-        💡 Suggest package
-      </button>` : ""}
+      ${(partnerId && tp.youReceive?.length) ? DS.button({ label: "💡 Suggest package", variant: "outline", on: "frnSuggestShopPackage()", title: "Auto-build a package from your inventory that aims to meet their acceptance threshold. Picks first, then a spare from a position of depth surplus, then cash absorb to fill.", attrs: { style: "color:var(--gold);border-color:var(--gold)" } }) : ""}
       <button class="btn btn-gold-big" onclick="frnSubmitTrade()"
         ${(_tradeIsEmpty(tp) || !partnerId || franchise.week > TRADE_DEADLINE_WEEK)?"disabled style=\"opacity:.5;cursor:not-allowed\"":""}>
         📨 SUBMIT PROPOSAL
@@ -19188,8 +19172,8 @@ function _renderSalaryAbsorptionSection(myTeam, partnerTeam, tp) {
             ${theirAbsorb > 0 ? ` → <span style="color:var(--green-lt)">$${myRemaining}M</span>` : ""}
           </div>
         </div>
-        <button class="btn btn-outline" onclick="frnSetAbsorption('their',${sendDeadCap.toFixed(1)})" style="font-size:.6rem;padding:.2rem .45rem">Max</button>
-        <button class="btn btn-outline" onclick="frnSetAbsorption('their',0)" style="font-size:.6rem;padding:.2rem .45rem;color:var(--gray)">Clear</button>
+        ${DS.button({ label: "Max", variant: "outline", on: `frnSetAbsorption('their',${sendDeadCap.toFixed(1)})`, attrs: { style: "font-size:.6rem;padding:.2rem .45rem" } })}
+        ${DS.button({ label: "Clear", variant: "outline", on: "frnSetAbsorption('their',0)", attrs: { style: "font-size:.6rem;padding:.2rem .45rem;color:var(--gray)" } })}
       </div>
     </div>`);
   }
@@ -19217,7 +19201,7 @@ function _renderSalaryAbsorptionSection(myTeam, partnerTeam, tp) {
             ${yourAbsorb > 0 ? `+$${yourAbsorb.toFixed(1)}M` : "—"}
           </div>
         </div>
-        <button class="btn btn-outline" onclick="frnSetAbsorption('your',0)" style="font-size:.6rem;padding:.2rem .45rem;color:var(--gray)">Clear</button>
+        ${DS.button({ label: "Clear", variant: "outline", on: "frnSetAbsorption('your',0)", attrs: { style: "font-size:.6rem;padding:.2rem .45rem;color:var(--gray)" } })}
       </div>
     </div>`);
   }
@@ -19378,14 +19362,8 @@ function _renderTradeBlockTab(myRoster, sortBy) {
       <td style="color:var(--gold)">$${(p.contract?.aav||0).toFixed(1)}M</td>
       <td>${p.contract?.remaining||0}yr</td>
       <td>
-        <button class="btn ${p.onTradeBlock?'btn-gold':'btn-outline'}"
-          onclick="frnToggleBlock('${escName}')" style="font-size:.6rem;padding:.2rem .55rem">
-          ${p.onTradeBlock?"✓ ON BLOCK":"+ Block"}
-        </button>
-        ${p.onTradeBlock ? `<button class="btn btn-outline" onclick="frnEditAsk('${escName}')"
-          style="font-size:.6rem;padding:.2rem .55rem;margin-left:.2rem">
-          ${ask?"✎ Edit Ask":"💲 Set Ask"}
-        </button>` : ""}
+        ${DS.button({ label: p.onTradeBlock ? "✓ ON BLOCK" : "+ Block", variant: p.onTradeBlock ? "gold" : "outline", on: `frnToggleBlock('${escName}')`, attrs: { style: "font-size:.6rem;padding:.2rem .55rem" } })}
+        ${p.onTradeBlock ? DS.button({ label: ask ? "✎ Edit Ask" : "💲 Set Ask", variant: "outline", on: `frnEditAsk('${escName}')`, attrs: { style: "font-size:.6rem;padding:.2rem .55rem;margin-left:.2rem" } }) : ""}
       </td>
     </tr>`;
   }).join("");
@@ -19396,9 +19374,7 @@ function _renderTradeBlockTab(myRoster, sortBy) {
         <div style="color:#ff9090;font-weight:900;font-size:.75rem">☠ DEAD CAP: $${myDeadCap.totalDollars.toFixed(1)}M outstanding</div>
         <div style="color:var(--gray);font-size:.62rem;margin-top:.15rem">From traded / released players. Demand cash in a trade proposal to offset it.</div>
       </div>
-      <button class="btn btn-outline" onclick="frnRecoupDeadCapMode()" style="color:#ff9090;border-color:#ff9090;white-space:nowrap;margin-left:auto">
-        💸 Request Salary Absorption to Recoup
-      </button>
+      ${DS.button({ label: "💸 Request Salary Absorption to Recoup", variant: "outline", on: "frnRecoupDeadCapMode()", attrs: { style: "color:#ff9090;border-color:#ff9090;white-space:nowrap;margin-left:auto" } })}
     </div>` : "";
 
   return `
@@ -19457,13 +19433,10 @@ function _renderBlockAskForm(playerName) {
   const playerTV = Math.round(_playerTradeValue(player) * 10) / 10;
   return `
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="frnCancelAsk()">← Back</button>
+      ${DS.button({ label: "← Back", variant: "outline", on: "frnCancelAsk()" })}
       <div style="font-weight:900">Set price for ${player.name}</div>
       <div style="color:var(--gray);font-size:.7rem">(${player.position}, age ${player.age||"?"}, ${gradeLabel(scoutGrade(player))} · contract ${player.contract?.remaining||0}yr left @ $${(player.contract?.aav||0).toFixed(1)}M)</div>
-      <button class="btn btn-gold" onclick="frnAskSuggest()" style="margin-left:auto"
-        title="Fills the form with a fair asking price (10% above your scout's market value, ~${playerTV} trade-value units).">
-        💡 Suggest fair price
-      </button>
+      ${DS.button({ label: "💡 Suggest fair price", variant: "gold", on: "frnAskSuggest()", title: `Fills the form with a fair asking price (10% above your scout's market value, ~${playerTV} trade-value units).`, attrs: { style: "margin-left:auto" } })}
     </div>
     <div class="frn-fa-summary">
       <span style="color:var(--gray)">Asking price is <b style="color:var(--gold)">public</b> — every team sees it. Anyone whose package matches sends an offer next week.${ad._suggestedFor === player.name ? ` <span style="color:var(--gold)">· Suggested target: ${ad._targetValue} value units (${playerTV} player + 10% premium).</span>` : ""}</span>
@@ -19890,15 +19863,14 @@ function _renderTradeOffersTab() {
         const counterCount = o.counterCount || 0;
         const counterUsed = counterCount >= 2;
         const counterChips = counterUsed ? "" : Object.entries(COUNTER_PRESETS).map(([k, p]) =>
-          `<button class="btn btn-outline" onclick="frnCounterOffer('${o.id}','${k}')"
-            style="font-size:.58rem;padding:.18rem .4rem;margin:.1rem .15rem .1rem 0" title="Ask them to add ${p.label}. They'll accept if they have headroom, refuse if not.">${p.label}</button>`
+          DS.button({ label: p.label, variant: "outline", on: `frnCounterOffer('${o.id}','${k}')`, title: `Ask them to add ${p.label}. They'll accept if they have headroom, refuse if not.`, attrs: { style: "font-size:.58rem;padding:.18rem .4rem;margin:.1rem .15rem .1rem 0" } })
         ).join("");
         const lastResult = o.counterResult
           ? `<div style="font-size:.62rem;color:${o.counterResult.startsWith("accepted")?"var(--green-lt)":"#ff9090"};margin-top:.25rem">${o.counterResult.startsWith("accepted")?"↑":"✗"} ${o.counterResult}</div>`
           : "";
         return `<div class="frn-offer-actions">
-          <button class="btn btn-gold" onclick="frnAcceptOffer('${o.id}')">✓ Accept</button>
-          <button class="btn btn-outline" onclick="frnRejectOffer('${o.id}')" style="color:var(--red)">✗ Reject</button>
+          ${DS.button({ label: "✓ Accept", variant: "gold", on: `frnAcceptOffer('${o.id}')` })}
+          ${DS.button({ label: "✗ Reject", variant: "outline", on: `frnRejectOffer('${o.id}')`, attrs: { style: "color:var(--red)" } })}
         </div>
         ${o.isFromAsk ? `<div style="margin-top:.4rem;padding:.35rem .45rem;background:var(--bg2);border:1px solid var(--border);border-radius:3px">
           <div style="font-size:.6rem;color:var(--gray);letter-spacing:.5px;margin-bottom:.2rem">
@@ -21255,8 +21227,8 @@ function _renderDraftFloor() {
         ${expanded ? `<div class="frn-trade-offer-confirm">
           <div class="frn-trade-offer-confirm-note">Move up to <b>${o.pickLabel}</b>: ${team?.name} slides back to your pick and receives <b>${o.giveLabels.join(" + ")}</b>. Confirm to jump the line.</div>
           <div class="frn-trade-offer-actions">
-            <button class="btn btn-gold" style="font-size:.58rem;padding:.24rem .6rem;font-weight:800" onclick="frnDraftTradeUp('${o.id}')">✓ CONFIRM TRADE UP</button>
-            <button class="btn btn-outline" style="font-size:.58rem;padding:.24rem .5rem" onclick="frnDraftCancelTradeUpReview()">✕ Cancel</button>
+            ${DS.button({ label: "✓ CONFIRM TRADE UP", variant: "gold", on: `frnDraftTradeUp('${o.id}')`, attrs: { style: "font-size:.58rem;padding:.24rem .6rem;font-weight:800" } })}
+            ${DS.button({ label: "✕ Cancel", variant: "outline", on: "frnDraftCancelTradeUpReview()", attrs: { style: "font-size:.58rem;padding:.24rem .5rem" } })}
           </div>
         </div>` : ""}
       </div>`;
@@ -21282,9 +21254,8 @@ function _renderDraftFloor() {
           </div>
         </div>
         <div style="display:flex;gap:.4rem;align-items:center">
-          ${canTradeUp && !d._tradeUpOpen ? `<button class="btn btn-outline" style="font-size:.6rem;padding:.4rem .7rem;white-space:nowrap;color:#86e0a3;border-color:#86e0a3" onclick="frnDraftOpenTradeUp()" title="Jump ahead to grab a sliding target — pauses the draft">📈 Trade Up</button>` : ""}
-          <button class="btn btn-gold" style="font-size:.7rem;padding:.4rem .9rem;white-space:nowrap"
-            onclick="frnSkipDraftFloor()">⏩ Skip to my pick</button>
+          ${canTradeUp && !d._tradeUpOpen ? DS.button({ label: "📈 Trade Up", variant: "outline", on: "frnDraftOpenTradeUp()", title: "Jump ahead to grab a sliding target — pauses the draft", attrs: { style: "font-size:.6rem;padding:.4rem .7rem;white-space:nowrap;color:#86e0a3;border-color:#86e0a3" } }) : ""}
+          ${DS.button({ label: "⏩ Skip to my pick", variant: "gold", on: "frnSkipDraftFloor()", attrs: { style: "font-size:.7rem;padding:.4rem .9rem;white-space:nowrap" } })}
         </div>
       </div>
       ${tradeUpHtml}
@@ -21758,10 +21729,8 @@ function renderFrnDraftPreshow() {
       <!-- CTA — bigger, more inviting, with meta caption -->
       <div style="text-align:center;margin:2rem 0 .8rem;padding:1.2rem 1rem;background:linear-gradient(180deg, rgba(245,197,66,.04), transparent);border-top:1px solid var(--blborder)">
         <div style="display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap">
-          <button class="btn btn-outline" style="font-size:.85rem;padding:.85rem 1.6rem;letter-spacing:.8px;font-weight:800;border-radius:3px"
-            onclick="frnOpenPreScout()" title="Spend your pre-draft scouting reports to sharpen grades before the clock starts">🔍 SCOUT THE CLASS</button>
-          <button class="btn btn-gold" style="font-size:1rem;padding:.85rem 2.4rem;letter-spacing:1.2px;font-weight:900;border-radius:3px"
-            onclick="frnBeginDraftActual()">📋 BEGIN DRAFT →</button>
+          ${DS.button({ label: "🔍 SCOUT THE CLASS", variant: "outline", on: "frnOpenPreScout()", title: "Spend your pre-draft scouting reports to sharpen grades before the clock starts", attrs: { style: "font-size:.85rem;padding:.85rem 1.6rem;letter-spacing:.8px;font-weight:800;border-radius:3px" } })}
+          ${DS.button({ label: "📋 BEGIN DRAFT →", variant: "gold", on: "frnBeginDraftActual()", attrs: { style: "font-size:1rem;padding:.85rem 2.4rem;letter-spacing:1.2px;font-weight:900;border-radius:3px" } })}
         </div>
         <div style="font-size:.6rem;color:var(--gray);margin-top:.5rem;letter-spacing:.5px">
           ${d.pickOrder?.length || 224} picks · ${(franchise.season||0)+1} season class · ${_preScoutsLeft()} scouting reports to spend
@@ -24421,7 +24390,7 @@ function renderFrnDraft() {
         <button class="frn-draft-target-btn${isTargeted?" active":""}" onclick="frnDraftToggleTarget('${esc}')" title="${isTargeted?"Remove from this draft's targets":"Mark as target for this draft only"}">★</button>
         <button class="frn-draft-watch-btn${isWatched?" active":""}" onclick="frnDraftWatchToggle('${esc}')" title="${isWatched?"Remove from your watchlist (cross-screen)":"Add to your watchlist — same list as pre-show / trade / FA"}">👁</button>
         <div class="frn-dp-cat-cluster">${catButtons}</div>
-        <button class="btn btn-gold" style="padding:.2rem .5rem;font-size:.6rem" onclick="frnDraftPick('${esc}')">DRAFT</button>
+        ${DS.button({ label: "DRAFT", variant: "gold", on: `frnDraftPick('${esc}')`, attrs: { style: "padding:.2rem .5rem;font-size:.6rem" } })}
       </div>
     </div>`;
   };
@@ -24555,8 +24524,8 @@ function renderFrnDraft() {
         ${expanded ? `<div class="frn-trade-offer-confirm">
           <div class="frn-trade-offer-confirm-note">Trade back to <b>${slideTo}</b>: ${team?.name} jumps to your pick, you acquire <b>${youGet}</b>${surplus>0?` <span style="color:var(--green-lt)">(+${surplus} value)</span>`:""}.</div>
           <div class="frn-trade-offer-actions">
-            <button class="btn btn-gold" style="font-size:.58rem;padding:.24rem .6rem;font-weight:800" onclick="frnDraftAcceptTrade('${o.id}')">✓ CONFIRM TRADE</button>
-            <button class="btn btn-outline" style="font-size:.58rem;padding:.24rem .5rem" onclick="frnDraftCancelTradeReview()">✕ Cancel</button>
+            ${DS.button({ label: "✓ CONFIRM TRADE", variant: "gold", on: `frnDraftAcceptTrade('${o.id}')`, attrs: { style: "font-size:.58rem;padding:.24rem .6rem;font-weight:800" } })}
+            ${DS.button({ label: "✕ Cancel", variant: "outline", on: "frnDraftCancelTradeReview()", attrs: { style: "font-size:.58rem;padding:.24rem .5rem" } })}
           </div>
         </div>` : ""}
       </div>`;
@@ -24637,14 +24606,9 @@ function renderFrnDraft() {
             <div style="color:var(--gray);font-size:.73rem">${myTeam?.city} ${myTeam?.name}</div>
           </div>
           <div style="display:flex;flex-direction:column;gap:.2rem;align-items:flex-end">
-            <button class="btn btn-gold" style="font-size:.6rem;padding:.22rem .55rem;white-space:nowrap"
-              onclick="frnAutoPickThisSlot()"
-              title="Pick for me — uses AI scoring, prefers your targets">🤖 Auto-Pick</button>
-            <button class="btn btn-outline" style="font-size:.55rem;padding:.18rem .5rem;white-space:nowrap"
-              onclick="frnSimRound()">⏭ Sim Rest of R${round}</button>
-            <button class="btn btn-outline" style="font-size:.55rem;padding:.18rem .5rem;white-space:nowrap;color:#e8a000;border-color:#e8a000"
-              onclick="frnAutoDraftRemaining()"
-              title="Skip to UDFA — autopick every remaining slot">⏩ Auto-Draft Rest</button>
+            ${DS.button({ label: "🤖 Auto-Pick", variant: "gold", on: "frnAutoPickThisSlot()", title: "Pick for me — uses AI scoring, prefers your targets", attrs: { style: "font-size:.6rem;padding:.22rem .55rem;white-space:nowrap" } })}
+            ${DS.button({ label: `⏭ Sim Rest of R${round}`, variant: "outline", on: "frnSimRound()", attrs: { style: "font-size:.55rem;padding:.18rem .5rem;white-space:nowrap" } })}
+            ${DS.button({ label: "⏩ Auto-Draft Rest", variant: "outline", on: "frnAutoDraftRemaining()", title: "Skip to UDFA — autopick every remaining slot", attrs: { style: "font-size:.55rem;padding:.18rem .5rem;white-space:nowrap;color:#e8a000;border-color:#e8a000" } })}
           </div>
         </div>
         ${tradePanelHtml}
@@ -25046,8 +25010,8 @@ function renderFrnPreDraftScout() {
           <div style="color:var(--gray);font-size:.68rem">${myTeam ? `${myTeam.city} ${myTeam.name}` : "Your team"} · ${(franchise.season||0)+1} class</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:.3rem;align-items:flex-end">
-          <button class="btn btn-outline" style="font-size:.6rem;padding:.28rem .65rem" onclick="frnClosePreScout()">← Back to combine</button>
-          <button class="btn btn-gold" style="font-size:.7rem;padding:.4rem .9rem;font-weight:900" onclick="frnBeginDraftActual()">📋 BEGIN DRAFT →</button>
+          ${DS.button({ label: "← Back to combine", variant: "outline", on: "frnClosePreScout()", attrs: { style: "font-size:.6rem;padding:.28rem .65rem" } })}
+          ${DS.button({ label: "📋 BEGIN DRAFT →", variant: "gold", on: "frnBeginDraftActual()", attrs: { style: "font-size:.7rem;padding:.4rem .9rem;font-weight:900" } })}
         </div>
       </div>
 
@@ -25068,7 +25032,7 @@ function renderFrnPreDraftScout() {
       <div class="frn-prescout-list">${rowsHtml || `<div style="color:var(--gray);font-style:italic;padding:1rem;text-align:center">No prospects at ${filter}</div>`}</div>
 
       <div style="text-align:center;margin:1.4rem 0 .6rem;padding-top:1rem;border-top:1px solid var(--blborder)">
-        <button class="btn btn-gold" style="font-size:.95rem;padding:.8rem 2.2rem;letter-spacing:1px;font-weight:900" onclick="frnBeginDraftActual()">📋 BEGIN DRAFT →</button>
+        ${DS.button({ label: "📋 BEGIN DRAFT →", variant: "gold", on: "frnBeginDraftActual()", attrs: { style: "font-size:.95rem;padding:.8rem 2.2rem;letter-spacing:1px;font-weight:900" } })}
         <div style="font-size:.58rem;color:var(--gray);margin-top:.45rem">${left} report${left===1?"":"s"} unspent · scouting is free, the clock isn't</div>
       </div>
     </div>`;
@@ -26586,7 +26550,7 @@ function renderFrnUDFAScramble() {
       <span style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s card">${_escHtml(p.name)}</span>
       ${_posPillHtml(p.position)}
       ${gradeBadge(p)}
-      <button class="btn btn-outline" onclick="frnDraftUnclaimUDFA('${esc}')">× Remove</button>
+      ${DS.button({ label: "× Remove", variant: "outline", on: `frnDraftUnclaimUDFA('${esc}')` })}
     </div>`;
   }).join("");
 
@@ -26672,7 +26636,7 @@ function renderFrnUDFAScramble() {
       </div>
       <div class="frn-dp-actions">
         <button class="frn-draft-watch-btn${isWatched?" active":""}" onclick="frnDraftWatchToggle('${esc}')" title="${isWatched?"Remove from your watchlist":"Add to your watchlist"}">👁</button>
-        <button class="btn btn-gold" ${canClaim?"":"disabled style=\"opacity:.35;cursor:not-allowed\""} onclick="frnDraftClaimUDFA('${esc}')">+ SIGN</button>
+        ${DS.button({ label: "+ SIGN", variant: "gold", on: `frnDraftClaimUDFA('${esc}')`, disabled: !canClaim, attrs: { style: canClaim ? null : "opacity:.35;cursor:not-allowed" } })}
       </div>
     </div>`;
   };
@@ -26714,7 +26678,7 @@ function renderFrnUDFAScramble() {
 
   const canAutoSign = claims.size < UDFA_USER_CLAIM_CAP;
   const autoBtn = canAutoSign
-    ? `<button class="btn btn-gold" style="margin-left:.5rem;font-size:.62rem;letter-spacing:.4px" onclick="frnDraftAutoSignUdfa()" title="Auto-fill remaining slots with best available at your top deficit positions">✨ AUTO-SIGN BEST FITS</button>`
+    ? DS.button({ label: "✨ AUTO-SIGN BEST FITS", variant: "gold", on: "frnDraftAutoSignUdfa()", title: "Auto-fill remaining slots with best available at your top deficit positions", attrs: { style: "margin-left:.5rem;font-size:.62rem;letter-spacing:.4px" } })
     : "";
 
   $("frnHomeContent").innerHTML = `

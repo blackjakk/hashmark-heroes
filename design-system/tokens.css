@@ -1,0 +1,85 @@
+/* design-system/tokens.css
+   ──────────────────────────────────────────────────────────────────────────
+   Hashmark Design System — TOKEN LAYER.
+
+   SINGLE SOURCE OF TRUTH; ADDITIVE; NEVER EDIT THE RAW PALETTE HERE.
+
+   This block ONLY adds new `--ds-*` scales (spacing / radius / shadow /
+   z-index / motion) and SEMANTIC color aliases that POINT AT the existing
+   palette vars already defined in play.css's `:root` (--bg, --gold, --white,
+   …). It does NOT redefine, rename, or shadow any existing palette / font /
+   caption token. The existing --font-* and --bspn-* tokens are referenced
+   directly by ds.css; they are listed in comments below for discoverability
+   but are NOT redeclared here.
+
+   Loaded AFTER fonts/fonts.css and BEFORE play.css (no `?v=` stamp), so these
+   additions sit on top of play.css's :root without touching it. Components in
+   ds.css are styled EXCLUSIVELY from these tokens — no raw hex / font literals.
+   ────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── Spacing scale ──────────────────────────────────────────────────── */
+  --ds-space-0: 0;
+  --ds-space-1: .2rem;
+  --ds-space-2: .35rem;
+  --ds-space-3: .5rem;
+  --ds-space-4: .65rem;
+  --ds-space-5: .85rem;
+  --ds-space-6: 1rem;
+  --ds-space-8: 1.5rem;
+
+  /* ── Radius scale ───────────────────────────────────────────────────── */
+  --ds-radius-xs: 2px;
+  --ds-radius-sm: 3px;
+  --ds-radius-md: 6px;
+  --ds-radius-lg: 10px;
+  --ds-radius-xl: 16px;
+  --ds-radius-full: 999px;
+
+  /* ── Shadow scale ───────────────────────────────────────────────────── */
+  --ds-shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+  --ds-shadow-md: 0 8px 24px -12px rgba(0,0,0,.7);
+  --ds-shadow-lg: 0 16px 64px rgba(0,0,0,.85);
+  --ds-shadow-inset: inset 0 1px 0 rgba(255,255,255,.05);
+
+  /* ── Z-index scale ──────────────────────────────────────────────────── */
+  --ds-z-base: 1;
+  --ds-z-sticky: 40;
+  --ds-z-dropdown: 100;
+  --ds-z-modal: 4000;
+  --ds-z-overlay: 4200;
+  --ds-z-toast: 5000;
+  --ds-z-top: 9999;
+
+  /* ── Motion scale ───────────────────────────────────────────────────── */
+  --ds-dur-fast: .1s;
+  --ds-dur-normal: .12s;
+  --ds-dur-slow: .2s;
+  --ds-ease: ease;
+  --ds-ease-out: cubic-bezier(.2,.7,.3,1);
+
+  /* ── Semantic color aliases ─────────────────────────────────────────────
+     Alias-only: each points at an EXISTING palette var from play.css :root.
+     Do NOT redefine the raw palette here. */
+  --ds-bg: var(--bg);
+  --ds-surface: var(--bg2);
+  --ds-surface-2: var(--bg3);
+  --ds-border: var(--border);
+  --ds-text: var(--white);
+  --ds-text-muted: var(--gray);
+  --ds-primary: var(--gold);
+  --ds-primary-strong: var(--gold-lt);
+  --ds-on-primary: var(--bg1);
+  --ds-success: var(--green-lt);
+  --ds-danger: var(--red);
+  --ds-info: var(--blgold);
+
+  /* ── Type roles (ALREADY DEFINED in play.css :root — referenced directly,
+        NOT redeclared) ──────────────────────────────────────────────────
+     --font-display : condensed caps (team names, section titles, logo)
+     --font-num     : heavy condensed numerals (scores, clock, big stats)
+     --font-mono    : data, labels, chips, list rows
+     --font-prose   : proportional body / narrative copy
+     Caption scale (also in play.css :root):
+     --bspn-cap (.56rem)  --bspn-lbl (.64rem)  --bspn-txt (.74rem) */
+}

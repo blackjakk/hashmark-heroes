@@ -9,6 +9,8 @@ cd "$(dirname "$0")/.."
 BUILD="$(date +%Y%m%d%H%M%S)"
 # Stamp (or restamp) script src queries
 sed -i -E "s|src=\"(play-[a-z0-9-]+\.js)(\?v=[0-9]*)?\"|src=\"\1?v=${BUILD}\"|g" play.html
+# Design System JS (design-system/ds.js) — same cache-bust so DS changes ship clean.
+sed -i -E "s|src=\"(design-system/ds\.js)(\?v=[0-9]*)?\"|src=\"\1?v=${BUILD}\"|g" play.html
 # Stamp the GC_BUILD constant (insert if missing)
 if grep -q 'window.GC_BUILD' play.html; then
   sed -i -E "s|window.GC_BUILD=\"[0-9]*\"|window.GC_BUILD=\"${BUILD}\"|" play.html

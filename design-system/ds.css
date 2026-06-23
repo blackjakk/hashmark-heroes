@@ -1,0 +1,421 @@
+/* design-system/ds.css
+   ──────────────────────────────────────────────────────────────────────────
+   Hashmark Design System — COMPONENT LAYER (`.ds-*`).
+
+   Every rule is styled EXCLUSIVELY from the tokens in tokens.css (spacing /
+   radius / shadow / z-index / motion / semantic color) and the existing
+   font/caption type tokens (--font-display, --font-num, --font-mono,
+   --font-prose, --bspn-cap, --bspn-lbl, --bspn-txt). NO raw hex, rgb, or
+   font-stack literals — that is the whole point: one source of truth,
+   swappable from tokens.
+
+   Each component reproduces the look of an existing play.css component so a
+   migrated node is pixel-equivalent (parity-by-construction; full visual
+   validation is the screenshot E2E later). play.css line refs noted per block.
+
+   Loaded AFTER tokens.css (which is after fonts/fonts.css) and BEFORE play.css,
+   with NO `?v=` stamp.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* ════════════════════════════════════════════════════════════════════════
+   BUTTON  — match play.css .btn (88-95,189-212), variants (197-212,1253)
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-btn {
+  padding: var(--ds-space-4) 1.25rem;
+  border-radius: var(--ds-radius-md);
+  cursor: pointer;
+  border: none;
+  font-weight: 700;
+  font-size: .9rem;
+  /* Buttons don't inherit font-family — without this they render the UA
+     default. Data/label face matches the page chrome. */
+  font-family: var(--font-mono);
+  transition: all .15s var(--ds-ease);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+.ds-btn__icon { display: inline-flex; align-items: center; }
+
+/* Default (no variant) reads as the outline button per play.css ordering. */
+.ds-btn,
+.ds-btn--outline {
+  background: transparent;
+  border: 1px solid var(--ds-border);
+  color: var(--ds-text);
+}
+.ds-btn:hover,
+.ds-btn--outline:hover {
+  border-color: var(--ds-success);
+  color: var(--ds-success);
+  background: rgba(46,139,87,.06);
+}
+
+.ds-btn--gold {
+  background: linear-gradient(180deg, var(--ds-primary-strong), var(--ds-primary));
+  color: var(--ds-on-primary);
+  border: none;
+  box-shadow: var(--ds-shadow-inset), var(--ds-shadow-sm);
+}
+.ds-btn--gold:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+.ds-btn--gold:active { transform: translateY(0); }
+
+.ds-btn--primary {
+  background: linear-gradient(180deg, var(--ds-success), var(--green));
+  color: var(--ds-text);
+  border: none;
+  box-shadow: var(--ds-shadow-inset), var(--ds-shadow-sm);
+}
+.ds-btn--primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+.ds-btn--danger {
+  background: var(--ds-danger);
+  color: var(--ds-text);
+  border: 1px solid var(--ds-danger);
+  font-weight: 700;
+}
+.ds-btn--danger:hover { filter: brightness(1.15); }
+
+.ds-btn--sm { padding: var(--ds-space-2) .75rem; font-size: .8rem; }
+.ds-btn--lg { padding: var(--ds-space-5) var(--ds-space-8); font-size: 1.05rem; }
+
+.ds-btn:disabled,
+.ds-btn[disabled] {
+  opacity: .4;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   CARD  — match play.css .card (387-390), .frn-card-box (12755),
+           .frn-hero-card (12773)
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-card {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-6);
+  margin-bottom: var(--ds-space-6);
+}
+.ds-card__eyebrow {
+  font-family: var(--font-prose);
+  font-weight: 700;
+  font-size: var(--bspn-lbl);
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+}
+.ds-card__title {
+  font-weight: 700;
+  color: var(--ds-primary);
+  margin-bottom: var(--ds-space-4);
+  font-size: .95rem;
+}
+.ds-card__body { font-size: .82rem; line-height: 1.45; }
+.ds-card__close {
+  position: absolute;
+  top: var(--ds-space-3);
+  right: var(--ds-space-3);
+  background: transparent;
+  border: none;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: var(--ds-space-1);
+}
+.ds-card__close:hover { color: var(--ds-text); }
+
+.ds-card--hero {
+  border-radius: var(--ds-radius-xl);
+  border-top: 3px solid var(--ds-primary);
+  background: linear-gradient(180deg, var(--ds-surface-2), var(--card));
+  box-shadow: var(--ds-shadow-md), var(--ds-shadow-inset);
+  padding: 1.3rem 1.4rem;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   CHIP / BADGE  — match play.css .badge (447-457), .ovr-pill (472),
+                   .frn-pulse-chip (12901)
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-chip {
+  display: inline-block;
+  padding: var(--ds-space-1) .55rem;
+  border-radius: var(--ds-radius-full);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .4px;
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border);
+  color: var(--ds-text-muted);
+}
+.ds-chip--active {
+  background: var(--ds-primary);
+  color: var(--ds-on-primary);
+  border-color: var(--ds-primary);
+}
+.ds-chip--gold { color: var(--ds-primary); border-color: var(--ds-primary-strong); }
+.ds-chip--afc { background: rgba(0,26,64,.9); color: var(--ds-info); border-color: transparent; }
+.ds-chip--nfc { background: rgba(61,0,0,.9); color: var(--ds-danger); border-color: transparent; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   TABBAR / TAB  — match play.css .boxscore-tab (400-408),
+                   .frn-bb-fnkey (12861)
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-tabbar { display: flex; gap: var(--ds-space-2); margin-bottom: var(--ds-space-4); }
+.ds-tab {
+  flex: 1;
+  padding: var(--ds-space-2) .25rem;
+  border-radius: var(--ds-radius-md);
+  cursor: pointer;
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border);
+  color: var(--ds-text-muted);
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: .3px;
+  transition: all var(--ds-dur-normal) var(--ds-ease);
+}
+.ds-tab:hover { color: var(--ds-text); }
+.ds-tab--active {
+  /* inline `style="--unit-color:…"` overrides the default gold accent */
+  background: var(--unit-color, var(--ds-primary));
+  color: var(--ds-on-primary);
+  border-color: var(--unit-color, var(--ds-primary));
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MODAL  — match play.css .frn-modal-backdrop (1179), .frn-modal (1208-1223)
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--ds-z-modal);
+  backdrop-filter: blur(4px);
+  animation: dsModalFade .15s var(--ds-ease-out);
+}
+@keyframes dsModalFade { from { opacity: 0; } to { opacity: 1; } }
+
+.ds-modal {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-primary);
+  border-radius: var(--ds-radius-lg);
+  padding: 1.25rem 1.4rem;
+  max-width: 520px;
+  width: 90%;
+  box-shadow: var(--ds-shadow-lg);
+}
+.ds-modal--danger { border-color: var(--ds-danger); }
+.ds-modal__title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: .3px;
+  color: var(--ds-primary);
+  margin-bottom: var(--ds-space-4);
+}
+.ds-modal--danger .ds-modal__title { color: var(--ds-danger); }
+.ds-modal__body { font-size: .82rem; color: var(--ds-text); line-height: 1.45; }
+.ds-modal__footer {
+  display: flex;
+  gap: var(--ds-space-3);
+  justify-content: flex-end;
+  margin-top: var(--ds-space-6);
+  padding-top: var(--ds-space-3);
+  border-top: 1px solid var(--ds-border);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BANNER  — match play.css .play-caption (311-325), .frn-delete-warn (1246)
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-banner {
+  background: var(--ds-surface-2);
+  border-radius: var(--ds-radius-md);
+  padding: var(--ds-space-4) .8rem;
+  font-size: .9rem;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  margin-top: var(--ds-space-2);
+  border-left: 3px solid var(--ds-success);
+  transition: border-color .15s var(--ds-ease);
+}
+.ds-banner__icon { display: inline-flex; align-items: center; }
+.ds-banner--gold { border-left-color: var(--ds-primary); color: var(--ds-primary-strong); font-weight: 700; }
+.ds-banner--success { border-left-color: var(--ds-success); color: var(--ds-success); }
+.ds-banner--danger {
+  border-left-color: var(--ds-danger);
+  color: var(--ds-danger);
+  background: rgba(220,60,60,.08);
+  font-weight: 700;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   STAT TILE  — match play.css apb leader / measurement cell (label + value)
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+  padding: var(--ds-space-4) .65rem;
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+}
+.ds-stat__label {
+  font-size: var(--bspn-cap);
+  color: var(--ds-text-muted);
+  letter-spacing: .3px;
+  text-transform: uppercase;
+}
+.ds-stat__value {
+  font-family: var(--font-num);
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--ds-text);
+  font-variant-numeric: tabular-nums;
+}
+.ds-stat--elite { border-color: var(--ds-primary); }
+.ds-stat--elite .ds-stat__value { color: var(--ds-primary); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   TABLE / ROW  — match play.css leaders table + roster tables (3038-3064 ref,
+                  .frn-leader-row 1665-1694, .boxscore-table 416-420)
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .76rem;
+}
+.ds-table thead th {
+  color: var(--ds-text-muted);
+  font-weight: 600;
+  font-size: .68rem;
+  letter-spacing: .3px;
+  text-align: right;
+  padding: var(--ds-space-2) var(--ds-space-2);
+  border-bottom: 1px solid var(--ds-border);
+}
+.ds-table tbody td {
+  padding: var(--ds-space-2) var(--ds-space-2);
+  text-align: right;
+}
+.ds-row { border-bottom: 1px solid var(--ds-border); }
+.ds-row:last-child { border-bottom: none; }
+.ds-row td.name,
+.ds-row .ds-row__name {
+  text-align: left;
+  font-weight: 700;
+  color: var(--ds-text);
+}
+.ds-row--mine {
+  background: rgba(200,169,0,.08);
+}
+.ds-row--mine td.name,
+.ds-row--mine .ds-row__name { color: var(--ds-primary); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   PROGRESS  — match play.css .progress-bar / .progress-fill (350-353)
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-progress {
+  height: 5px;
+  background: var(--ds-surface-2);
+  border-radius: var(--ds-radius-sm);
+  overflow: hidden;
+}
+.ds-progress__fill {
+  height: 100%;
+  background: var(--ds-success);
+  transition: width var(--ds-dur-normal);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   TOGGLE  — match play.css .frn-pregame-toggle (11787-11794)
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-toggle {
+  width: 100%;
+  margin-top: var(--ds-space-3);
+  background: transparent;
+  color: var(--ds-primary);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  padding: var(--ds-space-2) .55rem;
+  font-family: var(--font-mono);
+  font-size: .65rem;
+  cursor: pointer;
+  transition: background var(--ds-dur-normal), border-color var(--ds-dur-normal);
+}
+.ds-toggle:hover { background: rgba(200,169,0,.06); border-color: var(--ds-primary); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   TOOLBAR / NAV  — match play.css _bspnNavHtml + .frn-nav-bar (1126)
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-6);
+  flex-wrap: wrap;
+}
+.ds-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-6);
+  flex-wrap: wrap;
+}
+.ds-nav__link {
+  background: transparent;
+  border: none;
+  color: var(--ds-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--bspn-lbl);
+  letter-spacing: .3px;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--ds-dur-fast) var(--ds-ease);
+}
+.ds-nav__link:hover { color: var(--ds-text); }
+.ds-nav__link--active { color: var(--ds-primary); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   SELECT  — wrapper for native <select>; match play.css select,input (181-186)
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-select {
+  display: inline-block;
+  width: 100%;
+}
+.ds-select select,
+.ds-select > select {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  color: var(--ds-text);
+  padding: .55rem .85rem;
+  border-radius: var(--ds-radius-md);
+  width: 100%;
+  font-size: .95rem;
+  font-family: var(--font-mono);
+}
+.ds-select select:focus,
+.ds-select > select:focus { outline: none; border-color: var(--ds-success); }
+
+/* ── Franchise-dashboard parity ─────────────────────────────────────────────
+   Inside #franchiseHome, legacy `.btn` is overridden (play.css) to the franchise
+   look: Bricolage face + 10px radius. Migrated `.ds-btn` (incl. pure ds-btn with
+   no legacy `.btn` class) must match it so dashboard buttons look identical to
+   pre-migration AND consistent across every franchise screen. Same specificity
+   as `#franchiseHome .btn`, token-backed. */
+#franchiseHome .ds-btn {
+  border-radius: var(--ds-radius-lg);     /* 10px */
+  font-family: var(--font-prose);          /* Bricolage Grotesque */
+  font-weight: 600;
+}

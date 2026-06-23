@@ -503,7 +503,7 @@ function renderFrnProjectedFAs(sort) {
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap">
       <div style="font-size:1.05rem;font-weight:900;color:var(--gold)">📅 PROJECTED FREE AGENTS</div>
       <div style="color:var(--gray);font-size:.7rem">Players whose contract expires after Season ${franchise.season}</div>
-      <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="margin-left:auto">← Back</button>
+      ${DS.button({label:"← Back",on:"showFranchiseDashboard()",attrs:{style:"margin-left:auto"}})}
     </div>
     ${sortBar}
     <div class="frn-card-title" style="margin-bottom:.4rem">${myTeam.city.toUpperCase()} ${myTeam.name.toUpperCase()} · ${mine.length} expiring</div>
@@ -548,7 +548,7 @@ function renderFrnPracticeSquad(tab) {
         Scout tokens <b style="color:var(--gold-lt)">${visitsLeft}/${SCOUT_TOKEN_CAP}</b>
         <span style="opacity:.6">(+${SCOUT_VISITS_PER_WEEK}/wk · spend freely · overflow & season-end auto-spend)</span>
       </div>
-      <button class="btn btn-outline" onclick="showFranchiseDashboard()">← Back</button>
+      ${DS.button({label:"← Back",on:"showFranchiseDashboard()"})}
     </div>
     <div class="frn-ana-tabs">${tabBar}</div>`;
 
@@ -692,7 +692,7 @@ function _renderPSSignTab(myId, ps) {
   const disabled  = openSlots <= 0;
   const eligP = p => (typeof _psEligible === "function") ? _psEligible(p) : ((p.age || 22) <= PS_MAX_AGE);
   const escn  = n => (n || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
-  const back  = `<button class="btn btn-outline" onclick="renderFrnPracticeSquad('mine')" style="margin-bottom:.6rem">← Back to My PS</button>`;
+  const back  = DS.button({label:"← Back to My PS",on:"renderFrnPracticeSquad('mine')",attrs:{style:"margin-bottom:.6rem"}});
   const head  = `<div style="color:var(--gray);font-size:.7rem;margin-bottom:.6rem">
     Stash young players (≤${PS_MAX_YEARS_EXP} yrs exp · ≤${PS_MAX_AGE} yo) to develop them off your 53.
     ${openSlots > 0 ? `<b style="color:var(--gold-lt)">${openSlots} slot${openSlots===1?"":"s"} open.</b>` : `<b style="color:#ff9090">No slots open — release or promote first.</b>`}
@@ -836,8 +836,7 @@ function renderFrnInjuryReport() {
     const tip = elig.designation === "season"
       ? "Out for the year — frees the roster spot, keeps the cap hit"
       : `Designated to return — out a minimum of ${IR_RETURN_MIN_WEEKS} weeks, uses 1 of your ${irReturnSlotsLeft(myId)} return slots`;
-    return `<td><button class="btn btn-outline" style="font-size:.6rem;padding:.18rem .5rem" title="${tip}"
-      onclick="frnPlaceOnIr('${_bspnEsc(p.name).replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${elig.designation}')">🚑 ${label}</button></td>`;
+    return `<td>${DS.button({label:`🚑 ${label}`,title:tip,on:`frnPlaceOnIr('${_bspnEsc(p.name).replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${elig.designation}')`,attrs:{style:"font-size:.6rem;padding:.18rem .5rem"}})}</td>`;
   };
   const rowHtml = (p, opp) => `
     <tr>
@@ -863,7 +862,7 @@ function renderFrnInjuryReport() {
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap">
       <div style="font-size:1.05rem;font-weight:900;color:var(--gold)">🩹 INJURY REPORT</div>
       <div style="color:var(--gray);font-size:.7rem">Week ${franchise.week} · ${mine.length} on your roster</div>
-      <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="margin-left:auto">← Back</button>
+      ${DS.button({label:"← Back",on:"showFranchiseDashboard()",attrs:{style:"margin-left:auto"}})}
     </div>
     <div class="frn-card-title" style="margin-bottom:.4rem">${myTeam.city.toUpperCase()} ${myTeam.name.toUpperCase()}</div>
     ${mineHtml}
@@ -887,8 +886,7 @@ function renderFrnInjuredReserve() {
     if (typeof irActivationEligible === "function" && irActivationEligible(p)) {
       const dis = open <= 0 ? "disabled" : "";
       const tip = open <= 0 ? "No open roster spot — cut or IR a player first" : "Activate to the 53-man roster";
-      return `<button class="btn btn-gold" style="font-size:.6rem;padding:.18rem .55rem" ${dis} title="${tip}"
-        onclick="frnActivateFromIr('${_bspnEsc(p.name).replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">↩︎ Activate</button>`;
+      return DS.button({label:"↩︎ Activate",variant:"gold",disabled:open<=0,title:tip,on:`frnActivateFromIr('${_bspnEsc(p.name).replace(/'/g,"\\'").replace(/"/g, "&quot;")}')`,attrs:{style:"font-size:.6rem;padding:.18rem .55rem"}});
     }
     if (!healed) return `<span style="color:#ff9090">🩹 ${p.injury.weeksRemaining} wk left</span>`;
     const wait = Math.max(0, (m.minReturnWeek || 0) - (franchise.week || 1));
@@ -914,8 +912,7 @@ function renderFrnInjuredReserve() {
     <div style="margin-top:.7rem;padding:.5rem .6rem;background:rgba(255,255,255,.03);border-radius:4px">
       <div style="font-size:.7rem;color:var(--gold-lt);font-weight:700;margin-bottom:.3rem">${open} open roster spot${open===1?"":"s"} — sign a veteran-minimum replacement:</div>
       <div style="display:flex;gap:.3rem;flex-wrap:wrap">
-        ${POS.map(pos => `<button class="btn btn-outline" style="font-size:.6rem;padding:.18rem .45rem"
-          onclick="frnSignIrReplacement('${pos}')">+ ${pos}</button>`).join("")}
+        ${POS.map(pos => DS.button({label:`+ ${pos}`,on:`frnSignIrReplacement('${pos}')`,attrs:{style:"font-size:.6rem;padding:.18rem .45rem"}})).join("")}
       </div>
       <div style="font-size:.58rem;color:var(--gray);margin-top:.3rem;font-style:italic">Or use Free Agency / Practice Squad to sign a better player.</div>
     </div>` : "";
@@ -924,7 +921,7 @@ function renderFrnInjuredReserve() {
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap">
       <div style="font-size:1.05rem;font-weight:900;color:var(--gold)">🚑 INJURED RESERVE</div>
       <div style="color:var(--gray);font-size:.7rem">Active ${active}/${ACTIVE_ROSTER_LIMIT} · ${list.length} on IR · ${slots} return slot${slots===1?"":"s"} left</div>
-      <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="margin-left:auto">← Back</button>
+      ${DS.button({label:"← Back",on:"showFranchiseDashboard()",attrs:{style:"margin-left:auto"}})}
     </div>
     <div style="font-size:.64rem;color:var(--gray);margin-bottom:.5rem;line-height:1.4">
       IR opens a roster spot for a healthy replacement while the injured player still counts against the cap.
@@ -1065,7 +1062,7 @@ function renderFrnMakeRoom() {
       </p>
       <div>${rows}</div>
       <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:.8rem">
-        <button class="btn ${legal ? 'btn-gold' : 'btn-outline'}" ${legal ? '' : 'disabled'} onclick="frnMakeRoomDone()">${legal ? '✓ Continue' : `Trim ${over} more to continue`}</button>
+        ${DS.button({label:legal ? '✓ Continue' : `Trim ${over} more to continue`,variant:legal ? 'gold' : 'outline',disabled:!legal,on:"frnMakeRoomDone()"})}
       </div>
     </div>`;
 }
@@ -1219,13 +1216,13 @@ function renderFrnChat() {
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap">
       <div style="font-size:1.05rem;font-weight:900;color:var(--gold)">💬 LEAGUE CHAT</div>
       <div style="color:var(--gray);font-size:.72rem">Season ${franchise.season}, Week ${franchise.week}</div>
-      <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="margin-left:auto">← Back</button>
+      ${DS.button({label:"← Back",on:"showFranchiseDashboard()",attrs:{style:"margin-left:auto"}})}
     </div>
     <div class="frn-chat-list">${msgs}</div>
     <div class="frn-chat-compose">
       <input type="text" id="frnChatInput" placeholder="Post to the league…" maxlength="280"
         onkeydown="if(event.key==='Enter'){ frnPostMessage(this.value); this.value=''; }">
-      <button class="btn btn-gold" onclick="(function(){const i=document.getElementById('frnChatInput');frnPostMessage(i.value);i.value='';})()">Post</button>
+      ${DS.button({label:"Post",variant:"gold",on:"(function(){const i=document.getElementById('frnChatInput');frnPostMessage(i.value);i.value='';})()"})}
     </div>`;
   // Auto-scroll to bottom + focus the input
   const list = document.querySelector(".frn-chat-list");
@@ -2513,7 +2510,7 @@ function renderFrnPracticeReport(idx) {
       <div style="font-size:1.05rem;font-weight:900;color:var(--gold)">🏟 PRACTICE REPORT</div>
       ${intensityChip}
       <div style="color:var(--gray);font-size:.72rem">Wk ${report.week} · vs <b style="color:${oppTeam?.primary?_teamInk(oppTeam.primary):"var(--gold)"}">${oppTeam?.city||""} ${oppTeam?.name||"?"}</b></div>
-      <button class="btn btn-outline" onclick="renderFrnScrimmages()" style="margin-left:auto">← Back to practices</button>
+      ${DS.button({label:"← Back to practices",on:"renderFrnScrimmages()",attrs:{style:"margin-left:auto"}})}
     </div>
     ${downgradeBanner}
     <div style="display:grid;grid-template-columns:auto 1fr;gap:.6rem;align-items:start;margin-bottom:.6rem">
@@ -2608,11 +2605,8 @@ function renderFrnScrimmages() {
       ? `<span style="color:var(--gold);font-size:.58rem">✓ ${doneByTeam.get(t.id)?.discoveries?.length || 0} grade revisions</span>`
       : `<span style="color:var(--gray);font-size:.58rem">Reveals combine + sharpens ~${(franchise.rosters[t.id]||[]).length} grades</span>`;
     const actionCell = alreadyDone
-      ? `<button class="btn btn-outline" style="font-size:.6rem;padding:.2rem .55rem"
-           onclick="renderFrnPracticeReport(${allDoneIdx.find(({s}) => s.teamId === t.id)?.i ?? -1})">View report →</button>`
-      : `<button class="btn btn-gold" style="font-size:.62rem;padding:.2rem .55rem${disabled?";opacity:.4;cursor:not-allowed":""}"
-           ${disabled?"disabled":""}
-           onclick="frnRequestScrimmage(${t.id})">Request →</button>`;
+      ? DS.button({label:"View report →",on:`renderFrnPracticeReport(${allDoneIdx.find(({s}) => s.teamId === t.id)?.i ?? -1})`,attrs:{style:"font-size:.6rem;padding:.2rem .55rem"}})
+      : DS.button({label:"Request →",variant:"gold",disabled:disabled,on:`frnRequestScrimmage(${t.id})`,attrs:{style:`font-size:.62rem;padding:.2rem .55rem${disabled?";opacity:.4;cursor:not-allowed":""}`}});
     return `<tr class="frn-jp-row${isUpcoming?" upcoming":""}${isDivision?" division":""}">
       <td style="font-weight:700;padding:.3rem .45rem">
         ${teamLink(t, true)}
@@ -2642,7 +2636,7 @@ function renderFrnScrimmages() {
       <div style="display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap;margin-bottom:.4rem">
         <span style="font-size:.85rem;font-weight:900;color:var(--gold)">PICK INTENSITY</span>
         <span style="color:var(--gray);font-size:.7rem">vs <b style="color:${picked?.primary?_teamInk(picked.primary):"var(--gold)"}">${picked?.city} ${picked?.name}</b></span>
-        <button class="btn btn-outline" onclick="frnJpCancelPicker()" style="margin-left:auto;font-size:.6rem">Cancel</button>
+        ${DS.button({label:"Cancel",on:"frnJpCancelPicker()",attrs:{style:"margin-left:auto;font-size:.6rem"}})}
       </div>
       <div style="font-size:.58rem;color:var(--gray);margin-bottom:.45rem">
         ${picked?.name} also picks an intensity privately. The <b>lower</b> of the two is what you actually run — the conservative side has veto power.
@@ -2712,7 +2706,7 @@ function renderFrnScrimmages() {
       <div style="color:var(--gray);font-size:.72rem">
         One per week · ${usedSlots.toFixed(1)}/${JP_SEASON_CAP} slot budget used (Live Pads + Joint = 1 each, Walk-through = ½)
       </div>
-      <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="margin-left:auto">← Back</button>
+      ${DS.button({label:"← Back",on:"showFranchiseDashboard()",attrs:{style:"margin-left:auto"}})}
     </div>
     <div class="frn-fa-summary">
       Joint practices are exhibitions — no W/L, no stat lines, no season-stat pollution. Three intensities: <b>🚶 Walk-through</b> (tendencies only, ½ slot, zero risk), <b>🤝 Joint Practice</b> (full intel, 1 slot), <b>💥 Live Pads</b> (full intel + AWR boost, 1 slot, real injury risk). Resolved intensity is the MIN of your pick and theirs.
@@ -3425,15 +3419,14 @@ function renderFrnCoaches() {
         <div style="color:var(--gray);font-size:.66rem">Age ${c.age} · <span style="color:var(--gold)">${c.trait}</span></div>
         <div style="color:var(--gray);font-size:.6rem">${traitDesc(c.trait)}</div>
       </div>
-      <button class="btn btn-gold" style="font-size:.65rem;padding:.25rem .65rem"
-        onclick="frnHireCoach(${i})">Hire</button>
+      ${DS.button({label:"Hire",variant:"gold",on:`frnHireCoach(${i})`,attrs:{style:"font-size:.65rem;padding:.25rem .65rem"}})}
     </div>
   `).join("") || `<div style="color:var(--gray);font-size:.7rem;font-style:italic;padding:.4rem">No coaches on the market right now.</div>`;
 
   $("frnHomeContent").innerHTML = `
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap">
       <div style="font-size:1.05rem;font-weight:900;color:var(--gold)">🎩 COACHING STAFF</div>
-      <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="margin-left:auto">← Back</button>
+      ${DS.button({label:"← Back",on:"showFranchiseDashboard()",attrs:{style:"margin-left:auto"}})}
     </div>
     <div class="frn-pg-row">
       <div class="frn-pg-card" style="flex:1">
@@ -3451,12 +3444,8 @@ function renderFrnCoaches() {
               ${myHc.record.championships ? " · 🏆 "+myHc.record.championships : ""}
             </div>
           </div>
-          <button class="btn btn-outline" onclick="frnFireCoach()" style="color:var(--red);font-size:.65rem;padding:.25rem .65rem">
-            ✗ Fire coach (forfeit experience)
-          </button>
-          <button class="btn btn-outline" onclick="renderFrnCoachingStaff()" style="font-size:.65rem;padding:.25rem .65rem;margin-top:.3rem">
-            View Full Staff
-          </button>` : `<div style="color:var(--gray);font-style:italic">No head coach. Hire from free agents below.</div>`}
+          ${DS.button({label:"✗ Fire coach (forfeit experience)",on:"frnFireCoach()",attrs:{style:"color:var(--red);font-size:.65rem;padding:.25rem .65rem"}})}
+          ${DS.button({label:"View Full Staff",on:"renderFrnCoachingStaff()",attrs:{style:"font-size:.65rem;padding:.25rem .65rem;margin-top:.3rem"}})}` : `<div style="color:var(--gray);font-style:italic">No head coach. Hire from free agents below.</div>`}
       </div>
       <div class="frn-pg-card" style="flex:1.2">
         <div class="frn-pg-card-title">FREE AGENT COACHES</div>
@@ -4596,9 +4585,9 @@ async function renderFrnDepthChart() {
       </div>
       <div style="display:flex;gap:.45rem;align-items:center">
         <button class="frn-dc-auto-btn${autoChangedSlots>0?" hot":""}" data-confirm-msg="${autoBtnConfirm.replace(/"/g,"&quot;")}" onclick="(async()=>{ if(await _frnConfirm(this.dataset.confirmMsg)) frnDepthAutoSetOVR(); })()">${autoBtnLabel}</button>
-        <button class="btn ${_dcViewMode === "field" ? "btn-gold" : "btn-outline"}" onclick="frnDepthSetView('${_dcViewMode === "field" ? "list" : "field"}')" title="${_dcViewMode === "field" ? "Back to the list (snap bars, backups, workload plans)" : "Formation view — every slot where it lines up on the field, drag players between spots"}">${_dcViewMode === "field" ? "📋 LIST VIEW" : "🏟 FIELD VIEW"}</button>
-        <button class="btn btn-outline" onclick="frnOpenStreetFA()" title="Sign unsigned free agents mid-season — 1-year street deals, cap and roster rules apply">📥 STREET FAs</button>
-        <button class="btn btn-outline" onclick="showFranchiseDashboard()">← Back</button>
+        ${DS.button({label:_dcViewMode === "field" ? "📋 LIST VIEW" : "🏟 FIELD VIEW",variant:_dcViewMode === "field" ? "gold" : "outline",on:`frnDepthSetView('${_dcViewMode === "field" ? "list" : "field"}')`,title:_dcViewMode === "field" ? "Back to the list (snap bars, backups, workload plans)" : "Formation view — every slot where it lines up on the field, drag players between spots"})}
+        ${DS.button({label:"📥 STREET FAs",on:"frnOpenStreetFA()",title:"Sign unsigned free agents mid-season — 1-year street deals, cap and roster rules apply"})}
+        ${DS.button({label:"← Back",on:"showFranchiseDashboard()"})}
       </div>
     </div>
     ${strengthStrip}
@@ -4609,7 +4598,7 @@ async function renderFrnDepthChart() {
       const policy = franchise.autoManagePolicy?.[myId] || "balanced";
       const policyChip = (key, label, tip) => {
         const on = policy === key;
-        return `<button class="btn btn-outline" style="padding:.26rem .55rem;font-size:.58rem;letter-spacing:.4px;${on?'background:var(--gold);color:#000;border-color:var(--gold);font-weight:700':''}" onclick="frnSetAutoManagePolicy('${key}')" title="${tip}">${label}</button>`;
+        return DS.button({label:label,on:`frnSetAutoManagePolicy('${key}')`,title:tip,attrs:{style:`padding:.26rem .55rem;font-size:.58rem;letter-spacing:.4px;${on?'background:var(--gold);color:#000;border-color:var(--gold);font-weight:700':''}`}});
       };
       const restPol = (typeof _effectiveRestPolicy === "function") ? _effectiveRestPolicy(myId) : { off: 28, def: 28 };
       const sel = (unit, val) => {
@@ -4619,8 +4608,8 @@ async function renderFrnDepthChart() {
       };
       const armed = !!(franchise.restStartersWeek && franchise.restStartersWeek[myId] === (franchise.week || 1));
       const restBtn = armed
-        ? `<button class="btn" style="background:#8ab4f8;color:#06121f;border:1px solid #8ab4f8;font-weight:800;padding:.3rem .65rem;font-size:.6rem" onclick="frnToggleRestStarters()" title="Starters are resting for this week's game — click to undo">✓ RESTING THIS WEEK · undo</button>`
-        : `<button class="btn btn-outline" style="color:#8ab4f8;border-color:#8ab4f8;padding:.3rem .65rem;font-size:.6rem" onclick="frnToggleRestStarters()" title="Bench your starters for this week's game only — your offense plays its backups (you may lose), but starters shed wear and dodge injury rolls. Reverts after the game.">😴 Rest Starters This Week</button>`;
+        ? DS.button({label:"✓ RESTING THIS WEEK · undo",on:"frnToggleRestStarters()",title:"Starters are resting for this week's game — click to undo",attrs:{style:"background:#8ab4f8;color:#06121f;border:1px solid #8ab4f8;font-weight:800;padding:.3rem .65rem;font-size:.6rem"}})
+        : DS.button({label:"😴 Rest Starters This Week",on:"frnToggleRestStarters()",title:"Bench your starters for this week's game only — your offense plays its backups (you may lose), but starters shed wear and dodge injury rolls. Reverts after the game.",attrs:{style:"color:#8ab4f8;border-color:#8ab4f8;padding:.3rem .65rem;font-size:.6rem"}});
       const lbl  = (t) => `<span style="font-size:.55rem;color:var(--gray);letter-spacing:.8px;font-weight:700;white-space:nowrap;text-align:right">${t}</span>`;
       const hint = (t) => `<span style="font-size:.55rem;color:var(--gray);opacity:.75">${t}</span>`;
       return `<div style="margin:.5rem 0;border:1px solid var(--blborder);border-left:3px solid #8ab4f8;border-radius:5px;background:rgba(138,180,248,.035);overflow:hidden">
@@ -5764,9 +5753,9 @@ function renderFrnSnapShares() {
       </div>
       <div style="display:flex;gap:.45rem;align-items:center">
         <button class="frn-dc-auto-btn hot" onclick="frnSnapResetAll()">⟳ AUTO ALL <span class="frn-dc-auto-count">recompute every slot</span></button>
-        ${manualCount ? `<button class="btn btn-outline" onclick="frnSnapClearManual()" style="font-size:.6rem">📌 CLEAR ${manualCount} MANUAL</button>` : ""}
-        <button class="btn btn-outline" onclick="renderFrnDepthChart()" style="font-size:.6rem">→ DEPTH CHART</button>
-        <button class="btn btn-outline" onclick="showFranchiseDashboard()">← Back</button>
+        ${manualCount ? DS.button({label:`📌 CLEAR ${manualCount} MANUAL`,on:"frnSnapClearManual()",attrs:{style:"font-size:.6rem"}}) : ""}
+        ${DS.button({label:"→ DEPTH CHART",on:"renderFrnDepthChart()",attrs:{style:"font-size:.6rem"}})}
+        ${DS.button({label:"← Back",on:"showFranchiseDashboard()"})}
       </div>
     </div>
     ${tabsHtml}
@@ -5886,12 +5875,12 @@ function _buildWeekReviewCard(week, myId) {
       ${outbidCount > 0
         ? `<div class="frn-week-task urgent">
             <span>⚡ ${outbidCount} FA negotiation${outbidCount>1?"s":""} where you've been outbid</span>
-            <button class="btn btn-gold" onclick="renderFrnFANegotiations()" style="font-size:.65rem">Respond</button>
+            ${DS.button({label:"Respond",variant:"gold",on:"renderFrnFANegotiations()",attrs:{style:"font-size:.65rem"}})}
           </div>` : ""}
       ${activeNegs.length > outbidCount
         ? `<div class="frn-week-task">
             <span>🆓 ${activeNegs.length - outbidCount} FA negotiation${activeNegs.length-outbidCount>1?"s":""} active</span>
-            <button class="btn btn-outline" onclick="renderFrnFANegotiations()" style="font-size:.65rem">View</button>
+            ${DS.button({label:"View",on:"renderFrnFANegotiations()",attrs:{style:"font-size:.65rem"}})}
           </div>` : ""}
       ${myInjuries.length
         ? `<div class="frn-week-task">
@@ -5902,14 +5891,14 @@ function _buildWeekReviewCard(week, myId) {
         return pendingTrades.length
           ? `<div class="frn-week-task urgent">
               <span>📨 ${pendingTrades.length} trade offer${pendingTrades.length>1?"s":""} pending</span>
-              <button class="btn btn-gold" onclick="frnOpenTrade(null,'offers')" style="font-size:.65rem">Review</button>
+              ${DS.button({label:"Review",variant:"gold",on:"frnOpenTrade(null,'offers')",attrs:{style:"font-size:.65rem"}})}
             </div>`
           : "";
       })()}
       ${week <= TRADE_DEADLINE_WEEK
         ? `<div class="frn-week-task">
             <span>🔀 Trade deadline: Week ${TRADE_DEADLINE_WEEK} (${TRADE_DEADLINE_WEEK - week} weeks left)</span>
-            <button class="btn btn-outline" onclick="frnOpenTrade()" style="font-size:.65rem">Trade Block</button>
+            ${DS.button({label:"Trade Block",on:"frnOpenTrade()",attrs:{style:"font-size:.65rem"}})}
           </div>` : ""}
     </div>`;
 
@@ -9236,8 +9225,8 @@ function renderFrnRegular() {
           if (_saveLastError) return `<span style="color:#ff7070">⚠ Save issue — export a backup to be safe</span>`;
           return `✓ Auto-saved`;
         })()}</div>
-        <button class="btn btn-outline" onclick="frnExportSave()" style="font-size:.62rem;color:var(--gray)" title="Download backup .json">⬇ Export</button>
-        <button class="btn btn-outline" onclick="frnImportSave()" style="font-size:.62rem;color:var(--gray)" title="Restore from .json">⬆ Import</button>
+        ${DS.button({label:"⬇ Export",on:"frnExportSave()",title:"Download backup .json",attrs:{style:"font-size:.62rem;color:var(--gray)"}})}
+        ${DS.button({label:"⬆ Import",on:"frnImportSave()",title:"Restore from .json",attrs:{style:"font-size:.62rem;color:var(--gray)"}})}
         <span class="frn-footer-spacer"></span>
         <a class="frn-footer-abandon-link" onclick="frnAbandon()" title="Permanently delete this franchise" tabindex="0" role="button">abandon franchise</a>
         </div>
@@ -12207,10 +12196,8 @@ function renderFrnCoachingStaff() {
       ${_renderCoachContractBlock(hc, "hc")}
       ${ (hc.contractYears??2) === 0 ? `<div style="font-size:.63rem;color:var(--red);margin:.25rem 0">⚠ Contract expired — may seek new opportunity</div>` : (hc.contractYears??2) === 1 ? `<div style="font-size:.63rem;color:var(--gold);margin:.25rem 0">Final contract year — extension recommended</div>` : "" }
       <div style="margin-top:.5rem;display:flex;justify-content:flex-end;gap:.4rem">
-        ${(hc.contractYears??2) <= 1 ? `<button class="btn btn-outline" style="font-size:.65rem;color:var(--gold);border-color:var(--gold)"
-          onclick="frnExtendHC()">Extend HC</button>` : ""}
-        <button class="btn btn-outline" style="font-size:.65rem;color:var(--red);border-color:var(--red)"
-          onclick="frnFireStaffSlot('hc')">Fire HC</button>
+        ${(hc.contractYears??2) <= 1 ? DS.button({label:"Extend HC",on:"frnExtendHC()",attrs:{style:"font-size:.65rem;color:var(--gold);border-color:var(--gold)"}}) : ""}
+        ${DS.button({label:"Fire HC",on:"frnFireStaffSlot('hc')",attrs:{style:"font-size:.65rem;color:var(--red);border-color:var(--red)"}})}
       </div>
     </div>` : `<div class="frn-coach-card" style="color:var(--gray);font-style:italic">No head coach — hire from market</div>`;
 
@@ -12260,10 +12247,8 @@ function renderFrnCoachingStaff() {
       ${coord.isFormerPlayer ? `<div style="margin-top:.25rem"><span style="font-size:.57rem;padding:.08rem .35rem;border-radius:3px;background:rgba(255,200,0,.15);color:var(--gold)">🏈 Ex-${coord.formerPos||"?"}${coord.peakOvr?" · OVR "+coord.peakOvr:""}${coord.proBowls>0?" · "+coord.proBowls+"xPB":""}${coord.allPros>0?" · "+coord.allPros+"xAP":""}${coord.sbRings>0?" · "+coord.sbRings+"xSB":""}</span>${coord.careerStatLine ? `<div style="font-size:.57rem;color:var(--gray);margin-top:.15rem">${coord.careerStatLine}</div>` : ""}</div>` : ""}
       ${_renderCoachContractBlock(coord, slot)}
       <div style="margin-top:.4rem;display:flex;justify-content:flex-end;gap:.4rem">
-        ${cYrs <= 1 ? `<button class="btn btn-outline" style="font-size:.62rem;padding:.15rem .5rem;color:var(--gold);border-color:var(--gold)"
-          onclick="frnExtendCoordinator('${slot}')">Extend</button>` : ""}
-        <button class="btn btn-outline" style="font-size:.62rem;padding:.15rem .5rem"
-          onclick="frnFireStaffSlot('${slot}')">Replace ${label}</button>
+        ${cYrs <= 1 ? DS.button({label:"Extend",on:`frnExtendCoordinator('${slot}')`,attrs:{style:"font-size:.62rem;padding:.15rem .5rem;color:var(--gold);border-color:var(--gold)"}}) : ""}
+        ${DS.button({label:`Replace ${label}`,on:`frnFireStaffSlot('${slot}')`,attrs:{style:"font-size:.62rem;padding:.15rem .5rem"}})}
       </div>
     </div>`;
   };
@@ -12289,12 +12274,9 @@ function renderFrnCoachingStaff() {
         ${coach.isFormerPlayer ? `<div style="font-size:.57rem;color:var(--gold)">🏈 Ex-${coach.formerPos||"?"} · Pk ${coach.peakOvr||"?"}${coach.proBowls>0?" · "+coach.proBowls+"xPB":""}${coach.allPros>0?" · "+coach.allPros+"xAP":""}${coach.sbRings>0?" · "+coach.sbRings+"xSB":""}</div>${coach.careerStatLine ? `<div style="font-size:.55rem;color:var(--gray)">${coach.careerStatLine}</div>` : ""}` : ""}
         <div style="font-size:.6rem;color:${tierColor(coach.tier)}">${coach.tier} · $${(coach.salary||0).toFixed(1)}M${coach.age ? " · Age "+coach.age : ""}</div>
         <div style="display:flex;gap:.25rem;margin-top:.3rem;flex-wrap:wrap">
-          ${promoteSlot ? `<button class="btn btn-outline" style="font-size:.53rem;padding:.08rem .3rem;color:var(--green-lt);border-color:var(--green-lt)"
-            onclick="frnPromotePositionCoach('${g}')">→ ${promoteSlot}</button>` : ""}
-          ${coach.tier !== "Elite" ? `<button class="btn btn-outline" style="font-size:.53rem;padding:.08rem .3rem"
-            onclick="frnUpgradePositionCoach('${g}')">↑ Tier</button>` : ""}
-          <button class="btn btn-outline" style="font-size:.53rem;padding:.08rem .3rem;color:var(--red);border-color:var(--red)"
-            onclick="frnReleasePositionCoach('${g}')">✕</button>
+          ${promoteSlot ? DS.button({label:`→ ${promoteSlot}`,on:`frnPromotePositionCoach('${g}')`,attrs:{style:"font-size:.53rem;padding:.08rem .3rem;color:var(--green-lt);border-color:var(--green-lt)"}}) : ""}
+          ${coach.tier !== "Elite" ? DS.button({label:"↑ Tier",on:`frnUpgradePositionCoach('${g}')`,attrs:{style:"font-size:.53rem;padding:.08rem .3rem"}}) : ""}
+          ${DS.button({label:"✕",on:`frnReleasePositionCoach('${g}')`,attrs:{style:"font-size:.53rem;padding:.08rem .3rem;color:var(--red);border-color:var(--red)"}})}
         </div>
       </div>`;
     }
@@ -12302,8 +12284,7 @@ function renderFrnCoachingStaff() {
       <div class="frn-coach-pos-slot" style="border-style:dashed;${isBrowsing ? "border-color:var(--gold);opacity:1" : "opacity:.6"}">
         <div style="font-size:.65rem;color:var(--gray);text-transform:uppercase;letter-spacing:.5px">${g}</div>
         <div style="font-size:.75rem;color:var(--gray);margin:.2rem 0">—</div>
-        <button class="btn btn-outline" style="font-size:.58rem;padding:.1rem .4rem;margin-top:.3rem"
-          onclick="frnHirePositionCoach('${g}')">Hire</button>
+        ${DS.button({label:"Hire",on:`frnHirePositionCoach('${g}')`,attrs:{style:"font-size:.58rem;padding:.1rem .4rem;margin-top:.3rem"}})}
       </div>`;
   }).join("");
 
@@ -12313,8 +12294,7 @@ function renderFrnCoachingStaff() {
     <div style="margin-top:.6rem;background:rgba(255,200,0,.05);border:1px solid rgba(255,200,0,.25);border-radius:6px;padding:.65rem .9rem">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
         <div style="font-size:.75rem;font-weight:700;color:var(--gold)">${_posCoachBrowseGroup} Coach Candidates</div>
-        <button class="btn btn-outline" style="font-size:.6rem;padding:.1rem .45rem"
-          onclick="_posCoachBrowseGroup=null;renderFrnCoachingStaff()">✕ Cancel</button>
+        ${DS.button({label:"✕ Cancel",on:"_posCoachBrowseGroup=null;renderFrnCoachingStaff()",attrs:{style:"font-size:.6rem;padding:.1rem .45rem"}})}
       </div>
       ${pcPool.length === 0
         ? `<div style="font-size:.7rem;color:var(--gray);font-style:italic;margin-bottom:.4rem">No known candidates available right now.</div>`
@@ -12326,11 +12306,9 @@ function renderFrnCoachingStaff() {
               ${c.isFormerPlayer && c.careerStatLine ? `<div style="font-size:.57rem;color:var(--gray);margin-top:.1rem">${c.careerStatLine}</div>` : ""}
               <div style="font-size:.62rem;color:${tierColor(c.tier)};margin-top:.1rem">${c.tier} · $${(c.salary||0).toFixed(1)}M/yr</div>
             </div>
-            <button class="btn btn-outline" style="font-size:.62rem;padding:.15rem .5rem;color:var(--green-lt);border-color:var(--green-lt);white-space:nowrap"
-              onclick="frnHirePositionCoachFromPool('${_posCoachBrowseGroup}',${i})">Hire</button>
+            ${DS.button({label:"Hire",on:`frnHirePositionCoachFromPool('${_posCoachBrowseGroup}',${i})`,attrs:{style:"font-size:.62rem;padding:.15rem .5rem;color:var(--green-lt);border-color:var(--green-lt);white-space:nowrap"}})}
           </div>`).join("")}
-      <button class="btn btn-outline" style="font-size:.65rem;margin-top:.5rem;width:100%"
-        onclick="frnScoutRandomPositionCoach('${_posCoachBrowseGroup}')">🎲 Scout Unknown (Random Tier)</button>
+      ${DS.button({label:"🎲 Scout Unknown (Random Tier)",on:`frnScoutRandomPositionCoach('${_posCoachBrowseGroup}')`,attrs:{style:"font-size:.65rem;margin-top:.5rem;width:100%"}})}
     </div>` : "";
 
   // ── Budget Bar ──
@@ -12471,8 +12449,7 @@ function renderFrnCoachingStaff() {
           ${proposedHtml}
         </div>
         <div style="display:flex;flex-direction:column;gap:.3rem;align-self:flex-start;flex-shrink:0">
-          <button class="btn btn-outline" style="font-size:.65rem;white-space:nowrap"
-            onclick="frnHireCoachFromMarket('hc',${i})">Hire as HC</button>
+          ${DS.button({label:"Hire as HC",on:`frnHireCoachFromMarket('hc',${i})`,attrs:{style:"font-size:.65rem;white-space:nowrap"}})}
           ${_compareBtn("hc", i, c.name)}
         </div>
       </div>
@@ -12499,8 +12476,7 @@ function renderFrnCoachingStaff() {
           ${preview}
         </div>
         <div style="display:flex;flex-direction:column;gap:.3rem;align-self:flex-start;flex-shrink:0">
-          <button class="btn btn-outline" style="font-size:.65rem;white-space:nowrap"
-            onclick="frnHireCoachFromMarket('oc',${i})">Hire as OC</button>
+          ${DS.button({label:"Hire as OC",on:`frnHireCoachFromMarket('oc',${i})`,attrs:{style:"font-size:.65rem;white-space:nowrap"}})}
           ${_compareBtn("oc", i, c.name)}
         </div>
       </div>
@@ -12527,8 +12503,7 @@ function renderFrnCoachingStaff() {
           ${preview}
         </div>
         <div style="display:flex;flex-direction:column;gap:.3rem;align-self:flex-start;flex-shrink:0">
-          <button class="btn btn-outline" style="font-size:.65rem;white-space:nowrap"
-            onclick="frnHireCoachFromMarket('dc',${i})">Hire as DC</button>
+          ${DS.button({label:"Hire as DC",on:`frnHireCoachFromMarket('dc',${i})`,attrs:{style:"font-size:.65rem;white-space:nowrap"}})}
           ${_compareBtn("dc", i, c.name)}
         </div>
       </div>
@@ -12668,8 +12643,7 @@ function renderFrnCoachingStaff() {
              ${scheme?`<div class="frn-cm-compare-row"><span>Scheme</span><b>${scheme}</b></div>`:""}`
         }
         ${c.isFormerPlayer ? `<div class="frn-cm-compare-row"><span>Ex-player</span><b style="color:var(--gold)">${c.formerPos||"?"} · OVR ${c.peakOvr||"?"}</b></div>` : ""}
-        <button class="btn btn-outline" style="font-size:.62rem;margin-top:.35rem;width:100%"
-          onclick="frnHireCoachFromMarket('${role}',${resolved.find(r => r.role===role && r.name===name).idx})">Hire</button>
+        ${DS.button({label:"Hire",on:`frnHireCoachFromMarket('${role}',${resolved.find(r => r.role===role && r.name===name).idx})`,attrs:{style:"font-size:.62rem;margin-top:.35rem;width:100%"}})}
       </div>`;
     }).join("");
     compareHtml = `
@@ -12720,9 +12694,9 @@ function renderFrnCoachingStaff() {
     </style>
     <div style="max-width:780px;margin:0 auto;padding:.5rem 0">
       <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
-        <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="font-size:.7rem;padding:.2rem .6rem">← Back</button>
+        ${DS.button({label:"← Back",on:"showFranchiseDashboard()",attrs:{style:"font-size:.7rem;padding:.2rem .6rem"}})}
         <div style="font-size:1rem;font-weight:700;color:var(--gold)">${myTeam?.city} ${myTeam?.name} — Coaching</div>
-        <button class="btn btn-outline" onclick="renderFrnFrontOffice()" style="font-size:.7rem;padding:.2rem .6rem;margin-left:auto" title="GM / Scout / Trainer / Strength Coach">🏢 Front Office →</button>
+        ${DS.button({label:"🏢 Front Office →",on:"renderFrnFrontOffice()",title:"GM / Scout / Trainer / Strength Coach",attrs:{style:"font-size:.7rem;padding:.2rem .6rem;margin-left:auto"}})}
       </div>
       ${hireBanner}
       ${subNavHtml}
@@ -12837,7 +12811,7 @@ function renderFrnFrontOffice() {
         <div style="margin-top:.55rem;padding:.3rem .45rem;background:rgba(0,0,0,.25);border-left:2px solid var(--gold);border-radius:2px;font-size:.62rem;color:var(--blwhite)">
           <b style="color:var(--gold);letter-spacing:.5px;font-size:.55rem">EFFECT</b><br/>${effectFor(role, p)}
         </div>
-        <button class="btn btn-outline" onclick="frnFOFire('${role}')" style="margin-top:.55rem;color:#c08080;border-color:#c08080;font-size:.6rem;padding:.18rem .5rem" title="Buyout: $${buyout.toFixed(1)}M">✗ Fire ($${buyout.toFixed(1)}M buyout)</button>
+        ${DS.button({label:`✗ Fire ($${buyout.toFixed(1)}M buyout)`,on:`frnFOFire('${role}')`,title:`Buyout: $${buyout.toFixed(1)}M`,attrs:{style:"margin-top:.55rem;color:#c08080;border-color:#c08080;font-size:.6rem;padding:.18rem .5rem"}})}
       </div>
     </div>`;
   };
@@ -12856,7 +12830,7 @@ function renderFrnFrontOffice() {
           </div>
           <div style="color:var(--gold);font-size:.62rem;margin-top:.15rem">${c.trait}</div>
           <div style="color:var(--gray);font-size:.55rem;margin-top:.3rem">Age ${c.age} · ${c.contractYears}yr · $${(c.salary||0).toFixed(1)}M/yr</div>
-          <button class="btn btn-outline accept-btn" onclick="frnFOHire('${role}', ${i})" style="margin-top:.4rem;font-size:.58rem;padding:.16rem .5rem;border-color:var(--gold);color:var(--gold);width:100%">${fo[role] ? "↺ Sign (replaces current)" : "✓ Hire"}</button>
+          ${DS.button({label:fo[role] ? "↺ Sign (replaces current)" : "✓ Hire",on:`frnFOHire('${role}', ${i})`,attrs:{style:"margin-top:.4rem;font-size:.58rem;padding:.16rem .5rem;border-color:var(--gold);color:var(--gold);width:100%"}})}
         </div>`).join("")}
       </div>
     </div>`;
@@ -12864,7 +12838,7 @@ function renderFrnFrontOffice() {
   $("frnHomeContent").innerHTML = `
     <div style="max-width:840px;margin:0 auto;padding:.5rem 0">
       <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.5rem">
-        <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="font-size:.7rem;padding:.2rem .6rem">← Back</button>
+        ${DS.button({label:"← Back",on:"showFranchiseDashboard()",attrs:{style:"font-size:.7rem;padding:.2rem .6rem"}})}
         <div style="font-size:1rem;font-weight:700;color:var(--gold)">${myTeam?.city} ${myTeam?.name} — Front Office</div>
       </div>
       <div style="color:var(--gray);font-size:.7rem;margin-bottom:.7rem;line-height:1.4">
@@ -13022,8 +12996,8 @@ function _renderCoordinatorMarket(myId) {
       </div>
       <div class="frn-poach-action">
         ${isActive
-          ? `<button class="btn btn-outline" style="font-size:.62rem;padding:.15rem .45rem;color:var(--gray)" onclick="frnCancelPoach()">× Close</button>`
-          : `<button class="btn btn-outline" style="font-size:.62rem;padding:.15rem .55rem;color:var(--gold);border-color:var(--gold-lt)" onclick="frnOpenPoach(${t.id},'${role}')">💼 Poach</button>`}
+          ? DS.button({label:"× Close",on:"frnCancelPoach()",attrs:{style:"font-size:.62rem;padding:.15rem .45rem;color:var(--gray)"}})
+          : DS.button({label:"💼 Poach",on:`frnOpenPoach(${t.id},'${role}')`,attrs:{style:"font-size:.62rem;padding:.15rem .55rem;color:var(--gold);border-color:var(--gold-lt)"}})}
       </div>
       ${isActive ? _renderPoachForm(t, role, c) : ""}
     </div>`;
@@ -13066,8 +13040,8 @@ function _renderPoachForm(targetTeam, role, coord) {
         </div>
       </div>
       <div class="frn-poach-form-actions">
-        <button class="btn btn-outline" onclick="frnCancelPoach()" style="font-size:.62rem;color:var(--gray)">Cancel</button>
-        <button class="btn btn-gold" onclick="frnSubmitPoachOffer()" style="font-size:.65rem">📨 SUBMIT POACH OFFER</button>
+        ${DS.button({label:"Cancel",on:"frnCancelPoach()",attrs:{style:"font-size:.62rem;color:var(--gray)"}})}
+        ${DS.button({label:"📨 SUBMIT POACH OFFER",variant:"gold",on:"frnSubmitPoachOffer()",attrs:{style:"font-size:.65rem"}})}
       </div>
     </div>`;
 }
@@ -13354,8 +13328,8 @@ function _renderContractEditor() {
         `).join("")}
       </div>
       <div class="frn-coach-contract-editor-actions">
-        <button class="btn btn-outline" onclick="frnCloseContractEditor()">Cancel</button>
-        <button class="btn btn-gold" onclick="frnSubmitContract()">${d.kind === "extend" ? "Submit Extension" : "Submit Offer"}</button>
+        ${DS.button({label:"Cancel",on:"frnCloseContractEditor()"})}
+        ${DS.button({label:d.kind === "extend" ? "Submit Extension" : "Submit Offer",variant:"gold",on:"frnSubmitContract()"})}
       </div>
     </div>`;
 }
@@ -13406,15 +13380,14 @@ function _renderHcVacancyPanel() {
         40% chance also replaces ${otherSlot.toUpperCase()}<br>
         Chemistry <b style="color:var(--green-lt)">preserved</b> — knows the staff
       </div>
-      <button class="btn btn-outline" style="font-size:.7rem"
-        onclick="frnPromoteCoordinator('${fromSlot}')">Promote to Head Coach</button>
+      ${DS.button({label:"Promote to Head Coach",on:`frnPromoteCoordinator('${fromSlot}')`,attrs:{style:"font-size:.7rem"}})}
     </div>`;
   };
 
   $("frnHomeContent").innerHTML = `
     <div style="max-width:500px;margin:0 auto;padding:.5rem 0">
       <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.6rem">
-        <button class="btn btn-outline" onclick="renderFrnCoachingStaff()" style="font-size:.7rem;padding:.2rem .6rem">← Cancel</button>
+        ${DS.button({label:"← Cancel",on:"renderFrnCoachingStaff()",attrs:{style:"font-size:.7rem;padding:.2rem .6rem"}})}
         <div style="font-size:1rem;font-weight:700;color:var(--gold)">${myTeam?.city} ${myTeam?.name} — HC Vacancy</div>
       </div>
       <div style="font-size:.7rem;color:var(--gray);margin-bottom:.8rem">
@@ -13436,9 +13409,7 @@ function _renderHcVacancyPanel() {
           <b>40%</b> chance new HC replaces DC with their guy<br>
           Chemistry <b style="color:var(--red)">resets</b> — outside hire, no prior relationships
         </div>
-        <button class="btn btn-outline" style="font-size:.7rem" onclick="frnBrowseHcMarket()">
-          Browse Head Coach Market
-        </button>
+        ${DS.button({label:"Browse Head Coach Market",on:"frnBrowseHcMarket()",attrs:{style:"font-size:.7rem"}})}
       </div>
     </div>`;
 }

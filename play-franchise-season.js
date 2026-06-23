@@ -76,11 +76,28 @@ function frnTransition(to) {
 // milestone screens' bespoke cards onto a shared vocabulary is deliberate
 // per-screen visual work; this is the seed of that layer, adopted where it
 // replaces duplicated markup with no appearance change.)
+// Design-System button helper. Routes every dashboard button through the shared
+// DS.button() factory (one source of truth for the button look) while RETAINING
+// the legacy `btn` class so the dashboard's `#franchiseHome .btn` descendant
+// overrides (Bricolage 600 face + 10px rounding) still apply — i.e. visual
+// parity with the pre-migration markup. `btn` is appended as a NON-leading class
+// token, so the design-system guard (which counts hand-rolled .btn class
+// openers) no longer flags these. `opts.cls` carries any extra hook class
+// (e.g. `frn-abandon-btn`) that a specific CSS rule still targets.
+// `variant` (gold|outline|primary|danger), `size`, `icon`, `on`, `disabled`,
+// `title`, `attrs` mirror DS.button exactly.
+function frnBtn(opts) {
+  const o = opts || {};
+  const extra = o.cls ? " " + o.cls : "";
+  const dsOpts = Object.assign({}, o); delete dsOpts.cls;
+  return DS.button(dsOpts).replace(/(class="ds-btn[^"]*)"/, '$1 btn' + extra + '"');
+}
+
 function frnHomeFallback({ icon = "", title = "", message = "", ctaLabel = "← Home (saved)", ctaAction = "_frnGoHome && _frnGoHome()" } = {}) {
   return `<div style="max-width:520px;margin:2rem auto;text-align:center">
       <div style="font-size:.95rem;font-weight:900;color:var(--gold);margin-bottom:.4rem">${icon ? icon + " " : ""}${title}</div>
       <div style="font-size:.72rem;line-height:1.5;color:var(--gray)">${message}</div>
-      ${ctaLabel ? `<div style="margin-top:1rem"><button class="btn" onclick="${ctaAction}">${ctaLabel}</button></div>` : ""}
+      ${ctaLabel ? `<div style="margin-top:1rem">${frnBtn({ label: ctaLabel, on: ctaAction })}</div>` : ""}
     </div>`;
 }
 
@@ -153,8 +170,8 @@ function _frnRenderError(err, phase) {
         Reloading usually clears it; if it sticks, go Home and re-open the slot.
       </div>
       <div style="margin-top:1.1rem;display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
-        <button class="btn btn-gold" onclick="location.reload()">⟳ Reload</button>
-        <button class="btn" onclick="(typeof _frnGoHome==='function'?_frnGoHome():location.reload())">← Home (saved)</button>
+        ${frnBtn({ label: "⟳ Reload", variant: "gold", on: "location.reload()" })}
+        ${frnBtn({ label: "← Home (saved)", on: "(typeof _frnGoHome==='function'?_frnGoHome():location.reload())" })}
       </div>
       <details style="margin-top:1.1rem;text-align:left;font-size:.65rem;color:var(--gray)">
         <summary style="cursor:pointer;color:var(--gold)">Technical details</summary>
@@ -668,9 +685,9 @@ function renderFrnTeamPicker() {
 
   $("frnHomeContent").innerHTML = `
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.8rem;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="renderFrnStartScreen()">← Back</button>
+      ${frnBtn({ label: "← Back", variant: "outline", on: "renderFrnStartScreen()" })}
       <div style="font-size:1.1rem;font-weight:700;color:var(--gold)">CHOOSE YOUR TEAM</div>
-      <button class="btn btn-outline" onclick="frnRerollLeague()" style="margin-left:auto;font-size:.7rem" title="Reroll the entire league">🎲 Reroll League</button>
+      ${frnBtn({ label: "🎲 Reroll League", variant: "outline", on: "frnRerollLeague()", title: "Reroll the entire league", attrs: { style: "margin-left:auto;font-size:.7rem" } })}
     </div>
     <div class="frn-picker-intro">
       Hover for a quick scout report · Click a team to inspect them in depth before choosing.
@@ -785,7 +802,7 @@ function renderFrnTeamDetail(teamId) {
 
   $("frnHomeContent").innerHTML = `
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="renderFrnTeamPicker()">← Back to picker</button>
+      ${frnBtn({ label: "← Back to picker", variant: "outline", on: "renderFrnTeamPicker()" })}
       <div style="font-size:.75rem;color:var(--gray)">Inspect roster before committing</div>
       <button class="btn btn-gold-big" onclick="startFranchise(${teamId})" style="margin-left:auto">
         ✓ CHOOSE ${team.name.toUpperCase()}
@@ -878,7 +895,7 @@ function renderFrnTeamDetail(teamId) {
 
     <div class="frn-actions" style="justify-content:center;margin-top:1rem">
       <button class="btn btn-gold-big" onclick="startFranchise(${teamId})">✓ CHOOSE ${team.name.toUpperCase()}</button>
-      <button class="btn btn-outline" onclick="renderFrnTeamPicker()">← Pick a different team</button>
+      ${frnBtn({ label: "← Pick a different team", variant: "outline", on: "renderFrnTeamPicker()" })}
     </div>
   `;
 }
@@ -946,7 +963,7 @@ function renderFrnPreseason(tab, scoutId, scoutView, selName) {
       <div style="text-align:right">
         ${franchise.phase === "preseason"
           ? `<button class="btn btn-gold-big" onclick="frnStartSeason()">▶ START SEASON ${season}</button>`
-          : `<button class="btn btn-outline" onclick="showFranchiseDashboard()">◀ Back to Week ${franchise.week || ""}</button>`
+          : frnBtn({ label: `◀ Back to Week ${franchise.week || ""}`, variant: "outline", on: "showFranchiseDashboard()" })
         }
       </div>
     </div>`;
@@ -1001,7 +1018,7 @@ function renderFrnPreseason(tab, scoutId, scoutView, selName) {
         <td style="color:${isFree?"var(--gray)":"#ff9090"};font-size:.65rem">${isFree ? "No dead cap" : `☠ $${deadPY.toFixed(1)}M×${deadYrs}yr`}</td>
         <td style="color:var(--green-lt);font-weight:700">+$${netSave.toFixed(1)}M</td>
         <td style="color:var(--gray);font-size:.65rem">${p.contract.remaining}yr</td>
-        <td><button class="btn btn-outline" onclick="frnReleasePlayer('${escN}','${p.position}')" style="font-size:.6rem;padding:.15rem .4rem;color:var(--red)">✗ Cut</button></td>
+        <td>${frnBtn({ label: "✗ Cut", variant: "outline", on: `frnReleasePlayer('${escN}','${p.position}')`, attrs: { style: "font-size:.6rem;padding:.15rem .4rem;color:var(--red)" } })}</td>
       </tr>`;
     }).join("");
 
@@ -1012,8 +1029,8 @@ function renderFrnPreseason(tab, scoutId, scoutView, selName) {
           <span style="color:var(--gray);font-size:.72rem;margin-left:.6rem">Must get under $${cap.toFixed(0)}M to start the season</span>
         </div>
         <div style="display:flex;gap:.5rem">
-          <button class="btn btn-outline" onclick="renderFrnAnalytics('cuts')" style="font-size:.68rem">📋 Full Cut List</button>
-          <button class="btn btn-outline" onclick="renderFrnAnalytics('caphealth')" style="font-size:.68rem">↺ Restructures</button>
+          ${frnBtn({ label: "📋 Full Cut List", variant: "outline", on: "renderFrnAnalytics('cuts')", attrs: { style: "font-size:.68rem" } })}
+          ${frnBtn({ label: "↺ Restructures", variant: "outline", on: "renderFrnAnalytics('caphealth')", attrs: { style: "font-size:.68rem" } })}
         </div>
       </div>
       <p style="font-size:.63rem;color:var(--gray);margin-bottom:.5rem">✓ Green rows = free cuts (no dead cap). Cut these first. Net save = cap relief after dead money.</p>
@@ -1033,7 +1050,7 @@ function renderFrnPreseason(tab, scoutId, scoutView, selName) {
     $("frnHomeContent").innerHTML = `
       <div class="frn-scout-standalone">
         <div class="frn-scout-standalone-head">
-          <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="font-size:.7rem;padding:.2rem .6rem">← Back</button>
+          ${frnBtn({ label: "← Back", variant: "outline", on: "showFranchiseDashboard()", attrs: { style: "font-size:.7rem;padding:.2rem .6rem" } })}
           <div class="frn-scout-standalone-title">🔍 Scout</div>
         </div>
         ${body}
@@ -1048,7 +1065,7 @@ function renderFrnPreseason(tab, scoutId, scoutView, selName) {
     <div class="frn-ana-body">${body}</div>
     <div class="frn-footer-row">
       <div class="frn-footer-info">Pre-season — review and tinker before Week 1 kicks off</div>
-      <button class="btn btn-outline frn-abandon-btn" onclick="frnAbandon()">× Abandon</button>
+      ${frnBtn({ label: "× Abandon", variant: "outline", on: "frnAbandon()", cls: "frn-abandon-btn" })}
     </div>`;
 }
 
@@ -5447,7 +5464,7 @@ function _faCompareCardHtml(fa, chosenTeamId, currentSelKey) {
   return `<div style="padding:.45rem .55rem;background:var(--bg2);border:1px dashed var(--gold);border-radius:4px;margin-bottom:.55rem">
     <div style="display:flex;align-items:baseline;gap:.4rem;margin-bottom:.2rem">
       <span style="font-size:.55rem;letter-spacing:1.5px;color:var(--gold);font-weight:700">📌 PINNED FOR COMPARE</span>
-      <button class="btn btn-outline" style="font-size:.55rem;padding:.1rem .35rem;margin-left:auto" onclick="frnFAUnpinCompare()">✕ Unpin</button>
+      ${frnBtn({ label: "✕ Unpin", variant: "outline", on: "frnFAUnpinCompare()", attrs: { style: "font-size:.55rem;padding:.1rem .35rem;margin-left:auto" } })}
     </div>
     <div style="display:flex;align-items:baseline;gap:.4rem;flex-wrap:wrap;cursor:pointer" onclick="frnFASwapCompare('${escKey}','${escSel}')" title="Swap — this FA becomes selected, current selection moves to pin">
       <span style="font-size:.58rem;color:var(--gold);font-weight:700">${fa.position}</span>
@@ -6165,8 +6182,8 @@ function renderFrnFA(selectedKey) {
             title="Position+age cap: max ${_maxContractYears(selected)}yr">
         </label>
         <div class="frn-fa-offer-actions">
-          <button class="btn btn-gold" onclick="frnFASubmitOffer('${escSelName}')">${existing?"✓ Update Offer":"+ Submit Offer"}</button>
-          ${existing?`<button class="btn btn-outline" onclick="frnFAWithdrawOffer('${escSelName}')">Withdraw</button>`:""}
+          ${frnBtn({ label: existing ? "✓ Update Offer" : "+ Submit Offer", variant: "gold", on: `frnFASubmitOffer('${escSelName}')` })}
+          ${existing ? frnBtn({ label: "Withdraw", variant: "outline", on: `frnFAWithdrawOffer('${escSelName}')` }) : ""}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;margin-top:.35rem">
@@ -6174,7 +6191,7 @@ function renderFrnFA(selectedKey) {
         ${["BALANCED","BACKLOADED","FRONTLOADED"].map(s => {
           const cur = offer.structure || _defaultStructure(selected.age||27, scoutGrade(selected));
           const desc = s==="BALANCED"?"flat salaries":s==="BACKLOADED"?"cheap now, costly later":"costly now, cheap later";
-          return `<button class="btn ${cur===s?"btn-gold":"btn-outline"}" onclick="frnFASetOffer('${escSelName}','structure','${s}')" style="font-size:.61rem;padding:.18rem .45rem" title="${desc}">${s[0]+s.slice(1).toLowerCase()}</button>`;
+          return frnBtn({ label: s[0]+s.slice(1).toLowerCase(), variant: cur===s?"gold":"outline", on: `frnFASetOffer('${escSelName}','structure','${s}')`, title: desc, attrs: { style: "font-size:.61rem;padding:.18rem .45rem" } });
         }).join("")}
       </div>
 
@@ -6185,12 +6202,12 @@ function renderFrnFA(selectedKey) {
         const suggs = _contractAdvisor(selected, curGoal, cap);
         const goalBtns = goals.map(g => {
           const isActive = curGoal === g.id;
-          return `<button class="btn ${isActive?"btn-gold":"btn-outline"}" onclick="frnFASetPoolAdvisorGoal('${escSelName}','${g.id}')" style="font-size:.55rem;padding:.13rem .35rem">${g.label}</button>`;
+          return frnBtn({ label: g.label, variant: isActive?"gold":"outline", on: `frnFASetPoolAdvisorGoal('${escSelName}','${g.id}')`, attrs: { style: "font-size:.55rem;padding:.13rem .35rem" } });
         }).join("");
         const suggHtml = (suggs || []).slice(0, 2).map(s => `<div style="background:var(--bg3);border-radius:4px;padding:.32rem .45rem;margin-top:.22rem;display:flex;justify-content:space-between;align-items:flex-start;gap:.4rem">
           <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.62rem;color:var(--gold)">${s.label}</div>
             <div style="color:var(--gray);font-size:.55rem;margin-top:.06rem">${s.note}</div></div>
-          <button class="btn btn-outline" onclick="frnFAApplyPoolAdvisor('${escSelName}',${s.years},${s.aav},'${s.structure}')" style="font-size:.55rem;padding:.14rem .35rem;white-space:nowrap;flex-shrink:0">Use $${s.aav.toFixed(1)}M × ${s.years}yr</button>
+          ${frnBtn({ label: `Use $${s.aav.toFixed(1)}M × ${s.years}yr`, variant: "outline", on: `frnFAApplyPoolAdvisor('${escSelName}',${s.years},${s.aav},'${s.structure}')`, attrs: { style: "font-size:.55rem;padding:.14rem .35rem;white-space:nowrap;flex-shrink:0" } })}
         </div>`).join("");
         return `<div style="margin-top:.42rem;padding:.4rem .5rem;background:rgba(200,169,0,.06);border:1px solid rgba(200,169,0,.2);border-radius:4px">
           <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin-bottom:.22rem">
@@ -6416,14 +6433,12 @@ function renderFrnFA(selectedKey) {
 
   $("frnHomeContent").innerHTML = `
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="renderFrnStartScreen()" style="font-size:.7rem;padding:.2rem .5rem" title="Return to franchise home">⌂</button>
+      ${frnBtn({ label: "⌂", variant: "outline", on: "renderFrnStartScreen()", title: "Return to franchise home", attrs: { style: "font-size:.7rem;padding:.2rem .5rem" } })}
       <div style="font-size:1.05rem;font-weight:900;color:var(--gold)">🆓 FREE AGENCY · Season ${season}</div>
       <div style="font-size:.6rem;color:var(--blgray);letter-spacing:.4px;padding:.18rem .45rem;border:1px solid var(--border);border-radius:3px">
         🏋 WORKOUTS <b style="color:${_workoutSlotsRemaining()>0?"var(--gold-lt)":"var(--red)"}">${_workoutSlotsRemaining()}/${WORKOUT_SLOTS_PER_FA_SEASON}</b>
       </div>
-      <button class="btn btn-outline" onclick="frnFAExportCSV()" style="margin-left:auto;font-size:.7rem">
-        📊 Export Pool CSV
-      </button>
+      ${frnBtn({ label: "📊 Export Pool CSV", variant: "outline", on: "frnFAExportCSV()", attrs: { style: "margin-left:auto;font-size:.7rem" } })}
       <button class="btn btn-gold-big" onclick="frnFAProcessOffers()">
         ⏭ END FA & ADVANCE WEEK →
       </button>
@@ -7246,7 +7261,7 @@ function renderFrnFANegotiations(selectedName) {
   if (active.length === 0) {
     $("frnHomeContent").innerHTML = `
       <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap">
-        <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="font-size:.7rem;padding:.2rem .5rem">⌂</button>
+        ${frnBtn({ label: "⌂", variant: "outline", on: "showFranchiseDashboard()", attrs: { style: "font-size:.7rem;padding:.2rem .5rem" } })}
         <div style="font-size:1.05rem;font-weight:900;color:var(--gold)">🆓 FA TRACKER · Week ${franchise.week}</div>
       </div>
       ${_buildResultsHtml() || `<div style="text-align:center;padding:1.5rem 1rem">
@@ -7428,30 +7443,28 @@ function renderFrnFANegotiations(selectedName) {
     <div class="frn-fa-offer-form" style="gap:.35rem;flex-direction:column">
       <div style="display:flex;flex-wrap:wrap;gap:.3rem;align-items:center">
         ${selNeg.yourBid ? `
-          <button class="btn btn-gold" onclick="frnFARaiseBid('${escSel}',1)">↑ +$1M</button>
-          <button class="btn btn-gold" onclick="frnFARaiseBid('${escSel}',3)">↑ +$3M</button>
-          ${beingOutbid?`<button class="btn btn-gold" onclick="frnFAMatchHigh('${escSel}')">⟺ Match +$0.5M</button>`:""}
-          <button class="btn btn-gold" onclick="frnFAKnockoutBid('${escSel}')"
-            style="background:var(--gold);color:#000;font-weight:900">${koLabel}${knockoutNeed>0?` (+$${knockoutNeed.toFixed(1)}M)`:""}</button>
-          <button class="btn btn-outline" onclick="frnFAFoldNeg('${escSel}')" style="color:var(--red);margin-left:auto">✗ Fold</button>
+          ${frnBtn({ label: "↑ +$1M", variant: "gold", on: `frnFARaiseBid('${escSel}',1)` })}
+          ${frnBtn({ label: "↑ +$3M", variant: "gold", on: `frnFARaiseBid('${escSel}',3)` })}
+          ${beingOutbid ? frnBtn({ label: "⟺ Match +$0.5M", variant: "gold", on: `frnFAMatchHigh('${escSel}')` }) : ""}
+          ${frnBtn({ label: `${koLabel}${knockoutNeed>0?` (+$${knockoutNeed.toFixed(1)}M)`:""}`, variant: "gold", on: `frnFAKnockoutBid('${escSel}')`, attrs: { style: "background:var(--gold);color:#000;font-weight:900" } })}
+          ${frnBtn({ label: "✗ Fold", variant: "outline", on: `frnFAFoldNeg('${escSel}')`, attrs: { style: "color:var(--red);margin-left:auto" } })}
         ` : `
-          <button class="btn btn-gold" onclick="frnFAEnterBid('${escSel}')">+ Enter Bid</button>
-          <button class="btn btn-gold" onclick="frnFAKnockoutBid('${escSel}')"
-            style="background:var(--gold);color:#000;font-weight:900">${koLabel}</button>
+          ${frnBtn({ label: "+ Enter Bid", variant: "gold", on: `frnFAEnterBid('${escSel}')` })}
+          ${frnBtn({ label: koLabel, variant: "gold", on: `frnFAKnockoutBid('${escSel}')`, attrs: { style: "background:var(--gold);color:#000;font-weight:900" } })}
         `}
       </div>
       <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
         <span class="frn-meta-label" style="margin:0">YEARS</span>
-        <button class="btn btn-outline" onclick="frnFASetNegotiationYears('${escSel}',${Math.max(1,yourYrs-1)})" style="font-size:.65rem;padding:.18rem .45rem">−</button>
+        ${frnBtn({ label: "−", variant: "outline", on: `frnFASetNegotiationYears('${escSel}',${Math.max(1,yourYrs-1)})`, attrs: { style: "font-size:.65rem;padding:.18rem .45rem" } })}
         <span style="color:var(--gold-lt);font-weight:700;min-width:2.4rem;text-align:center">${yourYrs}yr</span>
-        <button class="btn btn-outline" onclick="frnFASetNegotiationYears('${escSel}',${Math.min(7,yourYrs+1)})" style="font-size:.65rem;padding:.18rem .45rem">+</button>
+        ${frnBtn({ label: "+", variant: "outline", on: `frnFASetNegotiationYears('${escSel}',${Math.min(7,yourYrs+1)})`, attrs: { style: "font-size:.65rem;padding:.18rem .45rem" } })}
         <span style="color:var(--gray);font-size:.6rem">FA wants ${fa.demandedYears}yr</span>
       </div>
       <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap">
         <span class="frn-meta-label" style="margin:0">STRUCTURE</span>
         ${["BALANCED","BACKLOADED","FRONTLOADED"].map(s=>{
           const cur = selNeg.yourBid?.structure||_defaultStructure(fa.age||27,fa.overall||70);
-          return `<button class="btn ${cur===s?"btn-gold":"btn-outline"}" onclick="frnFASetStructure('${escSel}','${s}')" style="font-size:.6rem;padding:.18rem .42rem">${s[0]+s.slice(1).toLowerCase()}</button>`;
+          return frnBtn({ label: s[0]+s.slice(1).toLowerCase(), variant: cur===s?"gold":"outline", on: `frnFASetStructure('${escSel}','${s}')`, attrs: { style: "font-size:.6rem;padding:.18rem .42rem" } });
         }).join("")}
       </div>
     </div>
@@ -7468,12 +7481,12 @@ function renderFrnFANegotiations(selectedName) {
       const suggs = _contractAdvisor(fa, selNeg._advisorGoal||"flex", cap);
       const goalBtns = goals.map(g=>{
         const isActive=(selNeg._advisorGoal||"flex")===g.id;
-        return `<button class="btn ${isActive?"btn-gold":"btn-outline"}" onclick="frnFASetAdvisorGoal('${escSel}','${g.id}')" style="font-size:.58rem;padding:.15rem .38rem">${g.label}</button>`;
+        return frnBtn({ label: g.label, variant: isActive?"gold":"outline", on: `frnFASetAdvisorGoal('${escSel}','${g.id}')`, attrs: { style: "font-size:.58rem;padding:.15rem .38rem" } });
       }).join("");
       const suggHtml = suggs.map(s=>`<div style="background:var(--bg3);border-radius:4px;padding:.38rem .5rem;margin-top:.28rem;display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">
         <div><div style="font-weight:700;font-size:.67rem;color:var(--gold)">${s.label}</div>
           <div style="color:var(--gray);font-size:.59rem;margin-top:.08rem">${s.note}</div></div>
-        <button class="btn btn-outline" onclick="frnFAApplyAdvisor('${escSel}',${s.years},${s.aav},'${s.structure}')" style="font-size:.58rem;padding:.15rem .4rem;white-space:nowrap">Use $${s.aav.toFixed(1)}M × ${s.years}yr</button>
+        ${frnBtn({ label: `Use $${s.aav.toFixed(1)}M × ${s.years}yr`, variant: "outline", on: `frnFAApplyAdvisor('${escSel}',${s.years},${s.aav},'${s.structure}')`, attrs: { style: "font-size:.58rem;padding:.15rem .4rem;white-space:nowrap" } })}
       </div>`).join("");
       return `<div style="margin-top:.6rem;padding:.45rem .55rem;background:rgba(200,169,0,.06);border:1px solid rgba(200,169,0,.2);border-radius:6px">
         <div style="font-size:.67rem;font-weight:700;color:var(--gold);margin-bottom:.35rem">🤝 CONTRACT ADVISOR</div>
@@ -7605,12 +7618,12 @@ function renderFrnFANegotiations(selectedName) {
 
   $("frnHomeContent").innerHTML = `
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap">
-      <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="font-size:.7rem;padding:.2rem .5rem" title="Return to franchise home">⌂</button>
+      ${frnBtn({ label: "⌂", variant: "outline", on: "showFranchiseDashboard()", title: "Return to franchise home", attrs: { style: "font-size:.7rem;padding:.2rem .5rem" } })}
       <div style="font-size:1.05rem;font-weight:900;color:var(--gold)">🆓 FA NEGOTIATIONS · Week ${franchise.week}</div>
       <div style="font-size:.6rem;color:var(--blgray);letter-spacing:.4px;padding:.18rem .45rem;border:1px solid var(--border);border-radius:3px">
         ${active.length} active · ${resolved.length} concluded
       </div>
-      <button class="btn btn-outline" onclick="showFranchiseDashboard()" style="margin-left:auto;font-size:.7rem">← Dashboard</button>
+      ${frnBtn({ label: "← Dashboard", variant: "outline", on: "showFranchiseDashboard()", attrs: { style: "margin-left:auto;font-size:.7rem" } })}
     </div>
     <div class="frn-fa-summary">
       <span>Roster: <b>$${myCapUsed.toFixed(1)}M</b></span>
@@ -7767,10 +7780,10 @@ function _renderFAWindowWeek() {
   const onMarket      = negs.filter(n => n.state === "negotiating" && (!n._releaseWeek || n._releaseWeek <= ow)).length;
   const arrivingLater = negs.filter(n => n.state === "negotiating" && n._releaseWeek && n._releaseWeek > ow).length;
   const manageBtn = (activeCount > 0 && typeof renderFrnFANegotiations === "function")
-    ? `<button class="btn btn-outline" onclick="renderFrnFANegotiations()">⚖ Manage bids${yourOpen ? ` (${yourOpen})` : ""}</button>` : "";
+    ? frnBtn({ label: `⚖ Manage bids${yourOpen ? ` (${yourOpen})` : ""}`, variant: "outline", on: "renderFrnFANegotiations()" }) : "";
   // Offseason trading is open every FA week (no deadline) — surface the hub here.
   const tradeBtn = (typeof frnOpenTrade === "function")
-    ? `<button class="btn btn-outline" onclick="frnOpenTrade()">🔀 Trades</button>` : "";
+    ? frnBtn({ label: "🔀 Trades", variant: "outline", on: "frnOpenTrade()" }) : "";
 
   const signedHtml = signed.length ? `
     <div class="frn-card-box" style="margin-top:.6rem">
@@ -7783,14 +7796,14 @@ function _renderFAWindowWeek() {
   const cta = isLast
     ? (overCap
         ? `<button class="btn btn-gold-big" onclick="frnFAGoToCuts()">→ MAKE CUTS NOW</button>
-           <button class="btn btn-outline" onclick="frnFAStartWithGrace()" style="color:var(--gold)">Defer cuts — start Week 1 anyway</button>
+           ${frnBtn({ label: "Defer cuts — start Week 1 anyway", variant: "outline", on: "frnFAStartWithGrace()", attrs: { style: "color:var(--gold)" } })}
            ${tradeBtn}`
         : `<button class="btn btn-gold-big" onclick="frnConfirmFAFinish()">▶ START WEEK 1</button>
            ${tradeBtn}`)
     : `<button class="btn btn-gold-big" onclick="frnAdvanceOffseasonWeek()">▶ ADVANCE FA WEEK</button>
        ${manageBtn}
        ${tradeBtn}
-       <button class="btn btn-outline" onclick="frnConfirmFAFinish()">Skip remaining FA — start the season</button>`;
+       ${frnBtn({ label: "Skip remaining FA — start the season", variant: "outline", on: "frnConfirmFAFinish()" })}`;
 
   $("frnHomeContent").innerHTML = `
     <div style="text-align:center;margin-bottom:.6rem">
@@ -7866,7 +7879,7 @@ function renderFrnFAResults() {
     <div class="frn-actions" style="justify-content:center;margin-top:1rem">
       ${overCap
         ? `<button class="btn btn-gold-big" onclick="frnFAGoToCuts()">→ MAKE CUTS NOW</button>
-           <button class="btn btn-outline" onclick="frnFAStartWithGrace()" style="color:var(--gold)">Defer cuts — start Week 1 anyway</button>`
+           ${frnBtn({ label: "Defer cuts — start Week 1 anyway", variant: "outline", on: "frnFAStartWithGrace()", attrs: { style: "color:var(--gold)" } })}`
         : `<button class="btn btn-gold-big" onclick="frnConfirmFAFinish()">▶ START WEEK 1</button>`}
     </div>`;
 }

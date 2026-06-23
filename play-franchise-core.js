@@ -4885,7 +4885,7 @@ function renderFrnStartScreen() {
         <div class="fps-slot-time">${s.lastSaved ? new Date(s.lastSaved).toLocaleString() : ""}</div>
       </div>
       <div class="fps-slot-actions">
-        <button class="btn btn-gold" onclick="frnSwitchSlot(${s.id})">▶ Load</button>
+        ${DS.button({ label: "▶ Load", variant: "gold", on: `frnSwitchSlot(${s.id})` })}
         <div class="frn-slot-menu-wrap">
           <button class="btn btn-outline frn-slot-menu-btn" onclick="_frnToggleSlotMenu(${s.id}, event)" aria-label="More actions">⋯</button>
           <div class="frn-slot-menu" id="frnSlotMenu${s.id}">
@@ -5124,7 +5124,7 @@ function _frnRenderCreateError(err) {
       <div class="frn-welcome-title" style="color:var(--gold)">⚠ Couldn't start that franchise</div>
       <div class="frn-welcome-sub" style="margin-top:.5rem">Something went wrong building the league — no franchise was created. Pick a team and try again, or reload.</div>
       <div style="margin-top:1.1rem;display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
-        <button class="btn btn-gold" onclick="(typeof renderFrnStartScreen==='function'?renderFrnStartScreen():location.reload())">← Back to start</button>
+        ${DS.button({ label: "← Back to start", variant: "gold", on: "(typeof renderFrnStartScreen==='function'?renderFrnStartScreen():location.reload())" })}
         <button class="btn" onclick="location.reload()">⟳ Reload</button>
       </div>
       <details style="margin-top:1.1rem;text-align:left;font-size:.65rem;color:var(--gray)">

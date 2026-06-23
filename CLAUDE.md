@@ -50,6 +50,10 @@ must name its cheat surface + how it's closed, same discipline as gate-safety.
      `tools/_ipc_clock_probe.js` (19) when touching plays/catching/clock.
    - `node tools/_bh_normal_probe.js` (4 checks) when touching the GC_BH_NORMAL
      ball-handler normal-play pilot (`_bhSpecForPass`/`_bhNormalPassAnim`).
+   - `node tools/_ds_guard.js` — Design System no-bypass ratchet (0 NEW font/color/
+     hand-rolled-component bypasses vs `tools/_ds_guard_baseline.json`) when touching
+     franchise UI. Plus `node tools/_ds_component_test.js` (59) + `node tools/_ds_e2e.js`
+     when touching `design-system/`. See "Design System" below.
 3. **`./tools/_stamp_build.sh`** before any push that changes JS or art — rewrites
    `?v=` stamps in play.html and `window.GC_BUILD` (play-sprites appends it to all
    sprite/manifest URLs). Without this, browsers serve stale mixes.
@@ -57,6 +61,35 @@ must name its cheat surface + how it's closed, same discipline as gate-safety.
    `git push -u origin claude/charming-cray-ggpd7f && git push origin claude/charming-cray-ggpd7f:main`
    (main is always fast-forwarded). User uploads sprite sheets to main via GitHub
    web upload — fetch/merge those in before pushing.
+
+## Design System (DOM/franchise UI) — route ALL new UI through it
+
+The franchise UI (DOM chrome — NOT the canvas/PIXI game render) is built on one unified
+Design System in `design-system/`. **Non-negotiable: all NEW franchise UI goes through
+`DS.*` factories + `.ds-*` classes + tokens — never hand-roll.** The `_ds_guard` ratchet
+enforces it (a build gate). This is a DOM-only layer; it must stay determinism-neutral.
+- Files: `design-system/tokens.css` (the token layer — `--ds-*` spacing/radius/shadow/
+  z-index/motion + semantic color aliases; ADDITIVE, never edit the raw palette there),
+  `design-system/ds.css` (`.ds-*` component classes, token-only), `design-system/ds.js`
+  (`window.DS` HTML-string factories). Includes: tokens.css+ds.css before play.css (no
+  `?v=`); ds.js before the `play-franchise-*` scripts (stamped by `_stamp_build.sh`).
+  Contract = `design-system/CONTRACT.md`; usage = `design-system/README.md`; how to add a
+  component = `design-system/CONTRIBUTING.md`.
+- API: `DS.button/card/chip/tab/tabBar/modal(+modalHtml)/banner/statTile/row/table/progress/
+  toggle/toolbar/select` + helpers `esc/attrs/cx/mount`. Factories return HTML STRINGS (match
+  the innerHTML idiom); inline handlers via `on:"frnFoo('x')"`; text auto-escaped (`DS.esc`);
+  `body`/`cells`/`on`/`attrs` are TRUSTED; extra hook/legacy classes via `class:`/`cls:`.
+  `DS.modal()` mirrors `_frnConfirmModal` (Promise, backdrop/Esc=cancel, Enter=confirm).
+- Migration status: ~170 buttons routed through `DS.button` (guard component bypasses
+  235→60). Grandfathered (in the baseline, do not regress): `_frnConfirmModal` (probes +
+  team-theming depend on `.frn-modal-backdrop`), `btn-gold-big` large-CTAs, and self-styled
+  buttons (`frn-resign-btn` etc.). `#franchiseHome .ds-btn` parity rule keeps migrated
+  buttons matching the legacy franchise look.
+- GUARD RULES: `node tools/_ds_guard.js` must exit 0 (no count ABOVE baseline). Migrating
+  more LOWERS counts (fine). Run `node tools/_ds_guard.js --update-baseline` ONLY after a
+  verified migration, to lock the gain. Never raise the baseline to admit a new bypass.
+- Review: the `design-system-review` skill (`.claude/skills/design-system-review/`) is the
+  checklist for any UI diff (guard + tokens + components + tests + determinism gates + no-go).
 
 ## Pass route library (engine `_buildPassRouteTracks`)
 
