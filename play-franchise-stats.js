@@ -5919,7 +5919,7 @@ function _buildWeekReviewCard(week, myId) {
       <div class="frn-card-title" style="margin-top:.6rem">📋 WEEKLY TASKS</div>
       ${tasksHtml}
       <div class="frn-next-actions">
-        <button class="btn btn-gold-big" onclick="frnConfirmAdvanceWeek()">▶ ADVANCE TO WEEK ${week + 1}</button>
+        ${DS.button({ label:`▶ ADVANCE TO WEEK ${week + 1}`, class:"btn btn-gold-big", on:"frnConfirmAdvanceWeek()" })}
         ${_renderSimForwardPanel()}
       </div>
     </div>`;
@@ -8575,7 +8575,7 @@ function renderFrnRegular() {
       <div class="frn-next-card" style="text-align:center;border-color:var(--gold-lt)">
         <div style="font-size:1.3rem;font-weight:900;color:var(--gold);margin-bottom:.5rem">REGULAR SEASON COMPLETE</div>
         <div style="color:var(--gray);margin-bottom:1rem">Final record: ${recStr} · PF ${myStand.pf} / PA ${myStand.pa}</div>
-        <button class="btn btn-gold-big" onclick="frnConfirmStartPlayoffs()">🏆 START PLAYOFFS</button>
+        ${DS.button({ label:"🏆 START PLAYOFFS", class:"btn btn-gold-big", on:"frnConfirmStartPlayoffs()" })}
       </div>`;
   } else if (!myGames.some(g => g.week === week) && week <= FRANCHISE_WEEKS) {
     // BYE WEEK — no game on the schedule this week. Rest week: wear and

@@ -804,9 +804,7 @@ function renderFrnTeamDetail(teamId) {
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap">
       ${frnBtn({ label: "← Back to picker", variant: "outline", on: "renderFrnTeamPicker()" })}
       <div style="font-size:.75rem;color:var(--gray)">Inspect roster before committing</div>
-      <button class="btn btn-gold-big" onclick="startFranchise(${teamId})" style="margin-left:auto">
-        ✓ CHOOSE ${team.name.toUpperCase()}
-      </button>
+      ${DS.button({ label: `✓ CHOOSE ${team.name.toUpperCase()}`, class: "btn btn-gold-big", on: `startFranchise(${teamId})`, attrs: { style: "margin-left:auto" } })}
     </div>
 
     <div class="frn-team-banner" style="--banner-color:${team.primary}">
@@ -894,7 +892,7 @@ function renderFrnTeamDetail(teamId) {
     </div>
 
     <div class="frn-actions" style="justify-content:center;margin-top:1rem">
-      <button class="btn btn-gold-big" onclick="startFranchise(${teamId})">✓ CHOOSE ${team.name.toUpperCase()}</button>
+      ${DS.button({ label: `✓ CHOOSE ${team.name.toUpperCase()}`, class: "btn btn-gold-big", on: `startFranchise(${teamId})` })}
       ${frnBtn({ label: "← Pick a different team", variant: "outline", on: "renderFrnTeamPicker()" })}
     </div>
   `;
@@ -962,7 +960,7 @@ function renderFrnPreseason(tab, scoutId, scoutView, selName) {
       </div>
       <div style="text-align:right">
         ${franchise.phase === "preseason"
-          ? `<button class="btn btn-gold-big" onclick="frnStartSeason()">▶ START SEASON ${season}</button>`
+          ? DS.button({ label: `▶ START SEASON ${season}`, class: "btn btn-gold-big", on: "frnStartSeason()" })
           : frnBtn({ label: `◀ Back to Week ${franchise.week || ""}`, variant: "outline", on: "showFranchiseDashboard()" })
         }
       </div>
@@ -6439,9 +6437,7 @@ function renderFrnFA(selectedKey) {
         🏋 WORKOUTS <b style="color:${_workoutSlotsRemaining()>0?"var(--gold-lt)":"var(--red)"}">${_workoutSlotsRemaining()}/${WORKOUT_SLOTS_PER_FA_SEASON}</b>
       </div>
       ${frnBtn({ label: "📊 Export Pool CSV", variant: "outline", on: "frnFAExportCSV()", attrs: { style: "margin-left:auto;font-size:.7rem" } })}
-      <button class="btn btn-gold-big" onclick="frnFAProcessOffers()">
-        ⏭ END FA & ADVANCE WEEK →
-      </button>
+      ${DS.button({ label: "⏭ END FA & ADVANCE WEEK →", class: "btn btn-gold-big", on: "frnFAProcessOffers()" })}
     </div>
     <div class="frn-fa-summary" id="frn-fa-summary-bar">
       <span>Roster: <b>$${myCapUsed.toFixed(1)}M</b></span>
@@ -7795,12 +7791,12 @@ function _renderFAWindowWeek() {
 
   const cta = isLast
     ? (overCap
-        ? `<button class="btn btn-gold-big" onclick="frnFAGoToCuts()">→ MAKE CUTS NOW</button>
+        ? `${DS.button({ label: "→ MAKE CUTS NOW", class: "btn btn-gold-big", on: "frnFAGoToCuts()" })}
            ${frnBtn({ label: "Defer cuts — start Week 1 anyway", variant: "outline", on: "frnFAStartWithGrace()", attrs: { style: "color:var(--gold)" } })}
            ${tradeBtn}`
-        : `<button class="btn btn-gold-big" onclick="frnConfirmFAFinish()">▶ START WEEK 1</button>
+        : `${DS.button({ label: "▶ START WEEK 1", class: "btn btn-gold-big", on: "frnConfirmFAFinish()" })}
            ${tradeBtn}`)
-    : `<button class="btn btn-gold-big" onclick="frnAdvanceOffseasonWeek()">▶ ADVANCE FA WEEK</button>
+    : `${DS.button({ label: "▶ ADVANCE FA WEEK", class: "btn btn-gold-big", on: "frnAdvanceOffseasonWeek()" })}
        ${manageBtn}
        ${tradeBtn}
        ${frnBtn({ label: "Skip remaining FA — start the season", variant: "outline", on: "frnConfirmFAFinish()" })}`;
@@ -7878,9 +7874,9 @@ function renderFrnFAResults() {
     </div>
     <div class="frn-actions" style="justify-content:center;margin-top:1rem">
       ${overCap
-        ? `<button class="btn btn-gold-big" onclick="frnFAGoToCuts()">→ MAKE CUTS NOW</button>
+        ? `${DS.button({ label: "→ MAKE CUTS NOW", class: "btn btn-gold-big", on: "frnFAGoToCuts()" })}
            ${frnBtn({ label: "Defer cuts — start Week 1 anyway", variant: "outline", on: "frnFAStartWithGrace()", attrs: { style: "color:var(--gold)" } })}`
-        : `<button class="btn btn-gold-big" onclick="frnConfirmFAFinish()">▶ START WEEK 1</button>`}
+        : `${DS.button({ label: "▶ START WEEK 1", class: "btn btn-gold-big", on: "frnConfirmFAFinish()" })}`}
     </div>`;
 }
 
@@ -9001,11 +8997,14 @@ function renderFrnFACuts() {
   // — FINAL FOOTER —
   const footerHtml = `
     <div class="frn-cuts-footer">
-      <button class="btn btn-gold-big ${(!overCap || willBeLegal)?"":"disabled"}"
-        ${(overCap && !willBeLegal)?`disabled style="opacity:.45;cursor:not-allowed" title="Stage enough cuts to clear $${remainingNeed.toFixed(1)}M before starting Week 1."`:""}
-        onclick="${(!overCap || willBeLegal)?"frnConfirmFAFinish()":"return false"}">
-        ▶ START WEEK 1
-      </button>
+      ${DS.button({
+        label: "▶ START WEEK 1",
+        class: `btn btn-gold-big ${(!overCap || willBeLegal)?"":"disabled"}`,
+        on: `${(!overCap || willBeLegal)?"frnConfirmFAFinish()":"return false"}`,
+        disabled: (overCap && !willBeLegal),
+        title: (overCap && !willBeLegal) ? `Stage enough cuts to clear $${remainingNeed.toFixed(1)}M before starting Week 1.` : null,
+        attrs: (overCap && !willBeLegal) ? { style: "opacity:.45;cursor:not-allowed" } : null
+      })}
       ${overCap && !willBeLegal ? `<div class="frn-cuts-footer-warn">Stage at least $${remainingNeed.toFixed(1)}M more in cuts to start the season.</div>` : ""}
     </div>`;
 
