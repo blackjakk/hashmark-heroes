@@ -2158,7 +2158,7 @@ function _showWeekRecapIfReady() {
       <div class="frn-week-recap-cards">${cards}</div>
       <div class="frn-week-recap-cta">
         ${DS.button({ label: "✗ Dismiss", variant: "outline", on: "frnDismissWeekRecap()" })}
-        <button class="btn btn-gold-big" onclick="frnOpenReplaysTab()">📺 OPEN REPLAY LIBRARY</button>
+        ${DS.button({ label: "📺 OPEN REPLAY LIBRARY", class: "btn-gold-big", on: "frnOpenReplaysTab()" })}
       </div>
     </div>`;
   document.body.appendChild(el);
@@ -4158,8 +4158,8 @@ function frnOpenStreetFA(posFilter) {
         </div>
         <span style="color:var(--gold);font-weight:700;font-size:.78rem;margin-right:.6rem">$${price.toFixed(1)}M · 1yr</span>
         ${blocked
-          ? `<button class="btn frn-resign-btn" disabled style="opacity:.45" title="${blocked}">✗ ${blocked.toUpperCase()}</button>`
-          : `<button class="btn frn-resign-btn accept-btn" onclick="frnSignStreetFA('${esc}')">✍ SIGN</button>`}
+          ? DS.button({ label: `✗ ${blocked.toUpperCase()}`, class: "frn-resign-btn", disabled: true, title: blocked, attrs: { style: "opacity:.45" } })
+          : DS.button({ label: "✍ SIGN", class: "frn-resign-btn accept-btn", on: `frnSignStreetFA('${esc}')` })}
       </div>
     </div>`;
   }).join("");
@@ -8852,10 +8852,10 @@ function _renderHoldoutCenterRow(d) {
       ? `<div class="frn-offer-talk tone-final">🗣 His camp is done negotiating — meet the ask, or trade / defer / refuse.</div>`
       : "");
   const submitBtn = meetsAsk
-    ? `<button class="btn btn-gold frn-offer-submit" onclick="frnHoldoutMidSubmitOffer('${escName}')" title="Matches his full ask — signs on the spot">✓ Meet the Ask</button>`
+    ? DS.button({ label: "✓ Meet the Ask", class: "btn-gold frn-offer-submit", on: `frnHoldoutMidSubmitOffer('${escName}')`, title: "Matches his full ask — signs on the spot" })
     : talksDone
-    ? `<button class="btn btn-outline frn-offer-submit" disabled title="No negotiation rounds left — he only signs at his full ask now">🚫 Done negotiating</button>`
-    : `<button class="btn btn-gold frn-offer-submit" onclick="frnHoldoutMidSubmitOffer('${escName}')" title="Below his ask — he may accept, come down, or dig in">📤 Counter · ${Math.round(odds * 100)}% accept</button>`;
+    ? DS.button({ label: "🚫 Done negotiating", class: "btn-outline frn-offer-submit", disabled: true, title: "No negotiation rounds left — he only signs at his full ask now" })
+    : DS.button({ label: `📤 Counter · ${Math.round(odds * 100)}% accept`, class: "btn-gold frn-offer-submit", on: `frnHoldoutMidSubmitOffer('${escName}')`, title: "Below his ask — he may accept, come down, or dig in" });
   const offerPanel = `<div class="frn-offer-panel">
     <div class="frn-offer-panel-eyebrow"><span>YOUR OFFER</span><span style="color:var(--gray);letter-spacing:0">ask $${d.demandedAAV.toFixed(1)}M × ${d.demandedYears}yr</span></div>
     <div class="frn-offer-aav-row">
@@ -8960,7 +8960,7 @@ function _holdoutCenterInnerHtml() {
         <div style="font-family:var(--font-prose);font-size:.85rem;color:var(--white);margin-bottom:.35rem">Every walk-year extension demand has been settled.</div>
         <div style="font-family:var(--font-prose);font-size:.72rem;color:var(--gray);max-width:42ch;margin:0 auto;line-height:1.45">Stars in the final year of their deal can demand a new contract any week of the season — the dashboard ribbon lights up when one does, and you'll have four weeks to extend, counter, trade, defer, or refuse.</div>
       </div>
-      <div class="frn-resign-recap-cta"><button class="btn btn-gold-big" onclick="frnCloseHoldoutCenter()">✓ Close</button></div>
+      <div class="frn-resign-recap-cta">${DS.button({ label: "✓ Close", class: "btn-gold-big", on: "frnCloseHoldoutCenter()" })}</div>
     </div>`;
   }
   const rows = pending.map(_renderHoldoutCenterRow).join("");
@@ -9342,7 +9342,7 @@ function _extensionModalInnerHtml() {
     </div>
     <div class="frn-resign-recap-cta" style="display:flex;gap:.4rem;justify-content:flex-end">
       ${DS.button({ label: "← Cancel", variant: "outline", on: "frnCloseExtensionModal()", attrs: { style: "font-size:.7rem" } })}
-      <button class="btn btn-gold-big" onclick="frnExtensionSign()" style="font-size:.8rem;letter-spacing:1px">✓ SIGN EXTENSION</button>
+      ${DS.button({ label: "✓ SIGN EXTENSION", class: "btn-gold-big", on: "frnExtensionSign()", attrs: { style: "font-size:.8rem;letter-spacing:1px" } })}
     </div>
   </div>`;
 }
@@ -10065,10 +10065,9 @@ function _renderResignUI(cap, capCommitted) {
             </div>
           </div>
           <div class="frn-resign-btns">
-            <button class="btn frn-resign-btn accept-btn" onclick="_resignPreview=${idx};_renderResignUIRefresh()">Review &amp; Sign</button>
-            <button class="btn frn-resign-btn accept-btn ${_resignCounterFor === idx ? 'active' : ''}" style="border-color:var(--gold-lt);color:var(--gold-lt)" onclick="${_resignCounterFor === idx ? 'frnResignCounterClose()' : `frnResignCounter(${idx})`}" title="Open the counter composer — tune AAV / years / snap to a preset">${_resignCounterFor === idx ? '↻ Close' : '↻ Counter'}</button>
-            ${_franchiseTagAvailable() ? `<button class="btn frn-resign-btn accept-btn" style="border-color:var(--gold);color:var(--gold)"
-              onclick="frnResignTag(${idx})" title="Franchise tag: 1yr fully guaranteed at top-5 position avg ($${_franchiseTagAAV({position: r.pos, name: r.name}, cap).toFixed(1)}M)">🏷 Tag</button>` : ""}
+            ${DS.button({ label: "Review & Sign", class: "frn-resign-btn accept-btn", on: `_resignPreview=${idx};_renderResignUIRefresh()` })}
+            ${DS.button({ label: _resignCounterFor === idx ? '↻ Close' : '↻ Counter', class: `frn-resign-btn accept-btn ${_resignCounterFor === idx ? 'active' : ''}`, on: _resignCounterFor === idx ? 'frnResignCounterClose()' : `frnResignCounter(${idx})`, title: "Open the counter composer — tune AAV / years / snap to a preset", attrs: { style: "border-color:var(--gold-lt);color:var(--gold-lt)" } })}
+            ${_franchiseTagAvailable() ? DS.button({ label: "🏷 Tag", class: "frn-resign-btn accept-btn", on: `frnResignTag(${idx})`, title: `Franchise tag: 1yr fully guaranteed at top-5 position avg ($${_franchiseTagAAV({position: r.pos, name: r.name}, cap).toFixed(1)}M)`, attrs: { style: "border-color:var(--gold);color:var(--gold)" } }) : ""}
             <button class="btn frn-resign-btn decline-btn" onclick="frnResignDecide(${idx},'decline')" title="${compPick?compPick.label:''}">Let Walk${compPick?`<span style="font-size:.5rem;display:block;color:var(--gold-lt)">${compPick.label}</span>`:""}</button>
           </div>
         </div>
@@ -10345,7 +10344,7 @@ function frnOpenResignRecap() {
 
       <div class="frn-resign-recap-cta">
         ${DS.button({ label: "← Back to edit", variant: "outline", on: "frnCloseResignRecap()" })}
-        <button class="btn btn-gold-big" onclick="frnCloseResignRecap();frnConfirmResignings()">✓ CONFIRM &amp; CONTINUE</button>
+        ${DS.button({ label: "✓ CONFIRM & CONTINUE", class: "btn-gold-big", on: "frnCloseResignRecap();frnConfirmResignings()" })}
       </div>
     </div>`;
   el.addEventListener("click", e => { if (e.target === el) frnCloseResignRecap(); });
@@ -12008,7 +12007,7 @@ function frnOpenHoldoutRecap() {
 
       <div class="frn-resign-recap-cta">
         ${DS.button({ label: "← Back to edit", variant: "outline", on: "frnCloseHoldoutRecap()" })}
-        <button class="btn btn-gold-big" onclick="frnCloseHoldoutRecap();frnConfirmGoToDraft()">📋 Continue to Draft →</button>
+        ${DS.button({ label: "📋 Continue to Draft →", class: "btn-gold-big", on: "frnCloseHoldoutRecap();frnConfirmGoToDraft()" })}
       </div>
     </div>`;
   el.addEventListener("click", e => { if (e.target === el) frnCloseHoldoutRecap(); });
@@ -16253,8 +16252,8 @@ function renderFrnOffseason() {
         title = _reorderFA ? "READY FOR FREE AGENCY?" : "READY TO DRAFT?";
         sub   = _reorderFA ? "All re-signings settled. Free agency is up next, then the draft." : "All offseason changes settled. The draft is up next.";
         cta   = _reorderFA
-          ? `<button class="btn btn-gold-big" onclick="frnConfirmGoToDraft()">🆓 Go to Free Agency →</button>`
-          : `<button class="btn btn-gold-big" onclick="frnConfirmGoToDraft()">📋 Go to Draft →</button>`;
+          ? DS.button({ label: "🆓 Go to Free Agency →", class: "btn-gold-big", on: "frnConfirmGoToDraft()" })
+          : DS.button({ label: "📋 Go to Draft →", class: "btn-gold-big", on: "frnConfirmGoToDraft()" });
       } else if (pending > 0) {
         title = "READY TO ADVANCE?";
         const chips = [
@@ -16265,7 +16264,7 @@ function renderFrnOffseason() {
         ].filter(Boolean).join("");
         sub = `<div style="display:flex;gap:.35rem;justify-content:center;flex-wrap:wrap;margin-bottom:.35rem">${chips}</div>
                <div style="color:#e8a000;font-size:.7rem">⚠ Proceeding will defer ${pending===1?"this demand":"these demands"} to next season as ${pending===1?"a flight risk":"flight risks"}.</div>`;
-        cta = `<button class="btn btn-gold-big" onclick="frnOpenHoldoutRecap()">📋 Review &amp; Continue to Draft →</button>`;
+        cta = DS.button({ label: "📋 Review & Continue to Draft →", class: "btn-gold-big", on: "frnOpenHoldoutRecap()" });
       } else {
         title = "READY TO ADVANCE?";
         const chips = [
@@ -16274,7 +16273,7 @@ function renderFrnOffseason() {
           ignored  ? `<span class="chip red">✗ ${ignored} ignored</span>` : "",
         ].filter(Boolean).join("");
         sub = `<div style="display:flex;gap:.35rem;justify-content:center;flex-wrap:wrap">${chips}</div>`;
-        cta = `<button class="btn btn-gold-big" onclick="frnOpenHoldoutRecap()">📋 Review &amp; Continue to Draft →</button>`;
+        cta = DS.button({ label: "📋 Review & Continue to Draft →", class: "btn-gold-big", on: "frnOpenHoldoutRecap()" });
       }
 
       return `<div class="frn-off-footer">
@@ -16529,8 +16528,8 @@ function _renderHoldoutsBlock() {
           </div>
         </div>
         <div class="frn-resign-btns">
-          <button class="btn frn-resign-btn accept-btn" onclick="frnHoldoutPreview('${escName}')">Review &amp; Extend</button>
-          <button class="btn frn-resign-btn accept-btn ${_holdoutCounterFor === h.name ? 'active' : ''}" style="border-color:var(--gold-lt);color:var(--gold-lt)" onclick="${_holdoutCounterFor === h.name ? 'frnHoldoutCounterClose()' : `frnHoldoutCounter('${escName}')`}" title="Open the counter composer — tune AAV / years / snap to a preset">${_holdoutCounterFor === h.name ? '↻ Close' : '↻ Counter'}</button>
+          ${DS.button({ label: "Review & Extend", class: "frn-resign-btn accept-btn", on: `frnHoldoutPreview('${escName}')` })}
+          ${DS.button({ label: _holdoutCounterFor === h.name ? '↻ Close' : '↻ Counter', class: `frn-resign-btn accept-btn ${_holdoutCounterFor === h.name ? 'active' : ''}`, on: _holdoutCounterFor === h.name ? 'frnHoldoutCounterClose()' : `frnHoldoutCounter('${escName}')`, title: "Open the counter composer — tune AAV / years / snap to a preset", attrs: { style: "border-color:var(--gold-lt);color:var(--gold-lt)" } })}
           <button class="btn frn-resign-btn" style="border-color:var(--gold);color:var(--gold)" onclick="frnHoldoutTrade('${escName}')" title="Flip him for assets">🔀 Trade<span style="font-size:.5rem;display:block;color:var(--gold-lt)">${tradeVal}</span></button>
           <button class="btn frn-resign-btn decline-btn" onclick="frnHoldoutIgnore('${escName}')" title="Locker-room fallout: -2 OVR immediately · dev frozen next offseason · 40% chance of formal trade request · low re-sign odds at expiry">✗ Ignore<span style="font-size:.5rem;display:block;color:#ff9090">-2 OVR · dev freeze · flight</span></button>
         </div>
@@ -18870,18 +18869,12 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
         ${!tp.result.accepted && tp.result.suggestion ? `
           <div style="margin-top:.35rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
             <span style="font-size:.63rem;color:var(--gray)">${tp.result.suggestion.partial ? "Closest pick you have:" : "Try adding:"}</span>
-            <button class="btn" style="font-size:.63rem;padding:.2rem .5rem;background:var(--bg3);color:var(--gold);border:1px solid var(--gold)"
-              onclick="frnToggleTradePick('send','${tp.result.suggestion.key}')">
-              ➕ ${tp.result.suggestion.label}
-            </button>
+            ${DS.button({ label: `➕ ${tp.result.suggestion.label}`, class: "btn", on: `frnToggleTradePick('send','${tp.result.suggestion.key}')`, attrs: { style: "font-size:.63rem;padding:.2rem .5rem;background:var(--bg3);color:var(--gold);border:1px solid var(--gold)" } })}
           </div>` : ""}
       </div>` : ""}
     <div class="frn-actions" style="justify-content:center;margin-top:.8rem;gap:.5rem;flex-wrap:wrap">
       ${(partnerId && tp.youReceive?.length) ? DS.button({ label: "💡 Suggest package", variant: "outline", on: "frnSuggestShopPackage()", title: "Auto-build a package from your inventory that aims to meet their acceptance threshold. Picks first, then a spare from a position of depth surplus, then cash absorb to fill.", attrs: { style: "color:var(--gold);border-color:var(--gold)" } }) : ""}
-      <button class="btn btn-gold-big" onclick="frnSubmitTrade()"
-        ${(_tradeIsEmpty(tp) || !partnerId || franchise.week > TRADE_DEADLINE_WEEK)?"disabled style=\"opacity:.5;cursor:not-allowed\"":""}>
-        📨 SUBMIT PROPOSAL
-      </button>
+      ${DS.button({ label: "📨 SUBMIT PROPOSAL", class: "btn-gold-big", on: "frnSubmitTrade()", disabled: (_tradeIsEmpty(tp) || !partnerId || franchise.week > TRADE_DEADLINE_WEEK), attrs: { style: (_tradeIsEmpty(tp) || !partnerId || franchise.week > TRADE_DEADLINE_WEEK) ? "opacity:.5;cursor:not-allowed" : null } })}
     </div>
     ${tp._suggestedTarget && partnerId && tp.youReceive?.length ? (() => {
       const _offer  = _tradeSendValue(tp);
@@ -19482,10 +19475,7 @@ function _renderBlockAskForm(playerName) {
     </div>
 
     <div class="frn-actions" style="justify-content:center;margin-top:.7rem">
-      <button class="btn btn-gold-big" onclick="frnSubmitAsk()"
-        ${(totalPicks===0 && refundTotal===0 && !ad.minPlayerGrade)?"disabled style=\"opacity:.5;cursor:not-allowed\"":""}>
-        📨 LIST ON BLOCK
-      </button>
+      ${DS.button({ label: "📨 LIST ON BLOCK", class: "btn-gold-big", on: "frnSubmitAsk()", disabled: (totalPicks===0 && refundTotal===0 && !ad.minPlayerGrade), attrs: { style: (totalPicks===0 && refundTotal===0 && !ad.minPlayerGrade) ? "opacity:.5;cursor:not-allowed" : null } })}
     </div>`;
 }
 
@@ -19654,8 +19644,8 @@ function _renderTradeShopMarketTab(myId, sortBy, tp, cap) {
       ? `<span class="frn-trade-dead-mini" title="Dead cap from his current team's bonus proration — IF you acquired him this would NOT transfer to you (only acquired bonus does)">☠ $${dead.toFixed(1)}M</span>` : "";
     const isUntouchable = stance === "untouchable";
     const proposeBtn = isUntouchable
-      ? `<button class="btn btn-outline frn-trade-propose-btn" disabled title="This team won't move this player">⛔ N/A</button>`
-      : `<button class="btn btn-gold frn-trade-propose-btn" onclick="frnShopProposeForPlayer(${teamId},'${escName}')" title="Open the Propose Trade tab with this player pre-selected">→ Propose</button>`;
+      ? DS.button({ label: "⛔ N/A", class: "btn-outline frn-trade-propose-btn", disabled: true, title: "This team won't move this player" })
+      : DS.button({ label: "→ Propose", class: "btn-gold frn-trade-propose-btn", on: `frnShopProposeForPlayer(${teamId},'${escName}')`, title: "Open the Propose Trade tab with this player pre-selected" });
     return `<div class="frn-trade-market-row${isUntouchable?" untouchable":""}">
       <span class="frn-trade-pos">${p.position}</span>
       <span class="frn-trade-name" onclick="frnOpenPlayerCard('${escName}')" title="View ${_escHtml(p.name)}'s player card">${watchIcon}${p.name}</span>
@@ -24551,7 +24541,7 @@ function renderFrnDraft() {
             <span>${r.why}</span><span style="color:${r.conf.color}"> · ${r.conf.short}</span>
           </div>
         </div>
-        <button class="btn btn-gold frn-draft-rec-draft" onclick="frnDraftPick('${esc}')" title="Draft ${_escHtml(r.p.name)}">DRAFT</button>
+        ${DS.button({ label: "DRAFT", class: "btn-gold frn-draft-rec-draft", on: `frnDraftPick('${esc}')`, title: "Draft " + r.p.name })}
       </div>`;
     }).join("")}
     <div class="frn-draft-rec-foot">Ranked by need × value × your scouting · scout more to sharpen</div>
@@ -25490,7 +25480,7 @@ function _renderPostDraftGrade(myPicks) {
         </div>
         ${udfaHtmlSolo}
         <div style="margin-top:.75rem;text-align:center">
-          <button class="btn btn-gold-big" onclick="frnConfirmDraftContinueToSeason()">▶ BEGIN NEW SEASON</button>
+          ${DS.button({ label: "▶ BEGIN NEW SEASON", class: "btn-gold-big", on: "frnConfirmDraftContinueToSeason()" })}
         </div>
       </div>`;
     return;
@@ -25620,7 +25610,7 @@ function _renderPostDraftGrade(myPicks) {
       </div>
       ${udfaHtml}
       <div style="margin-top:.75rem;text-align:center">
-        <button class="btn btn-gold-big" onclick="frnConfirmDraftContinueToSeason()">▶ BEGIN NEW SEASON</button>
+        ${DS.button({ label: "▶ BEGIN NEW SEASON", class: "btn-gold-big", on: "frnConfirmDraftContinueToSeason()" })}
       </div>
     </div>`;
 }
@@ -26711,7 +26701,7 @@ function renderFrnUDFAScramble() {
       <div class="frn-off-footer-title">READY TO FINISH?</div>
       <div class="frn-off-footer-sub">AI teams will claim 1-2 UDFAs each, then remaining roster gaps auto-fill.</div>
       <div class="frn-off-footer-cta">
-        <button class="btn btn-gold-big" onclick="frnDraftFinishScramble()">✓ FINISH DRAFT →</button>
+        ${DS.button({ label: "✓ FINISH DRAFT →", class: "btn-gold-big", on: "frnDraftFinishScramble()" })}
       </div>
     </div>`;
 }
