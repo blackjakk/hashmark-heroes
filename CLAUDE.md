@@ -80,11 +80,14 @@ enforces it (a build gate). This is a DOM-only layer; it must stay determinism-n
   the innerHTML idiom); inline handlers via `on:"frnFoo('x')"`; text auto-escaped (`DS.esc`);
   `body`/`cells`/`on`/`attrs` are TRUSTED; extra hook/legacy classes via `class:`/`cls:`.
   `DS.modal()` mirrors `_frnConfirmModal` (Promise, backdrop/Esc=cancel, Enter=confirm).
-- Migration status: ~170 buttons routed through `DS.button` (guard component bypasses
-  235→60). Grandfathered (in the baseline, do not regress): `_frnConfirmModal` (probes +
-  team-theming depend on `.frn-modal-backdrop`), `btn-gold-big` large-CTAs, and self-styled
-  buttons (`frn-resign-btn` etc.). `#franchiseHome .ds-btn` parity rule keeps migrated
-  buttons matching the legacy franchise look.
+- Migration status: ~200 buttons routed through `DS.button` (guard component bypasses
+  235→20) and the scattered sentiment/grade color palette tokenized (color literals
+  1664→1396 via byte-identical `--ds-grade-*`/`--ds-accent-blue`/`--ds-slate`/`--ds-neutral`
+  swaps INSIDE `style="…"` only — never canvas/PIXI/SVG/data hexes, which can't use CSS
+  `var()`). Grandfathered (in the baseline, do not regress): `_frnConfirmModal` (probes +
+  team-theming depend on `.frn-modal-backdrop`), `btn-gold-big` large-CTAs, self-styled
+  buttons (`frn-resign-btn` etc.), and rich-`<span>`-label buttons (DS.button escapes labels).
+  `#franchiseHome .ds-btn` parity rule keeps migrated buttons matching the legacy look.
 - GUARD RULES: `node tools/_ds_guard.js` must exit 0 (no count ABOVE baseline). Migrating
   more LOWERS counts (fine). Run `node tools/_ds_guard.js --update-baseline` ONLY after a
   verified migration, to lock the gain. Never raise the baseline to admit a new bypass.

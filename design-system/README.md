@@ -126,6 +126,29 @@ All values from `CONTRACT.md`. Use these tokens — do not inline the raw values
 | `--ds-danger` | `var(--red)` | Danger/destructive |
 | `--ds-info` | `var(--blgold)` | Info |
 
+### Sentiment / grade palette (raw values — the single source of truth for the scattered grade colors)
+
+Byte-identical captures of the recurring sentiment/grade literals (positive → caution → negative).
+Use these in inline `style="…"` / CSS. **Do NOT** use them for canvas/PIXI/SVG/data colors — those
+need a literal hex (CSS `var()` doesn't resolve there).
+
+| Token | Value | Meaning |
+| --- | --- | --- |
+| `--ds-grade-pos` | `#86e0a3` | Positive / good |
+| `--ds-grade-pos-soft` | `#cce8d6` | Positive, soft |
+| `--ds-grade-caution` | `#e8a000` | Caution / amber |
+| `--ds-grade-caution-soft` | `#e0b078` | Caution, tan |
+| `--ds-grade-warn` | `#ffc850` | Warning gold |
+| `--ds-grade-neg` | `#ff8a8a` | Negative / bad |
+| `--ds-grade-neg-soft` | `#ff9b9b` | Negative, soft |
+| `--ds-grade-neg-mid` | `#ff9090` | Negative, mid |
+| `--ds-grade-neg-strong` | `#ff6b6b` | Negative, strong |
+| `--ds-grade-neg-muted` | `#c08080` | Negative, muted |
+| `--ds-gold-dim` | `#a98a2e` | Dim gold label |
+| `--ds-accent-blue` | `#86c8ff` | Info / accent blue |
+| `--ds-slate` | `#5d6b66` | Muted slate border |
+| `--ds-neutral` | `#888` | Neutral gray placeholder |
+
 ### Type (already exist — DS references them directly)
 
 | Token | Use |

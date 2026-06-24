@@ -694,7 +694,7 @@ function renderFrnTeamPicker() {
       League tiers: <span style="color:var(--gold-lt)">P=Powerhouse</span> ·
       <span style="color:#9be09b">C=Contender</span> ·
       <span style="color:var(--gray)">A=Average</span> ·
-      <span style="color:#c08080">R=Rebuilding</span>
+      <span style="color:var(--ds-grade-neg-muted)">R=Rebuilding</span>
     </div>
     ${pickerHtml}
   `;
@@ -833,7 +833,7 @@ function renderFrnTeamDetail(teamId) {
       </div>
       <div class="frn-vital-cell">
         <span class="frn-vital-label">CAP SPACE</span>
-        <span class="frn-vital-value" style="color:${capLeft<20?'#ff9090':capLeft>50?'#7dff97':'var(--gold)'}">$${capLeft.toFixed(0)}M</span>
+        <span class="frn-vital-value" style="color:${capLeft<20?'var(--ds-grade-neg-mid)':capLeft>50?'#7dff97':'var(--gold)'}">$${capLeft.toFixed(0)}M</span>
         <span class="frn-vital-sub">$${capUsedPrev.toFixed(0)}M committed</span>
       </div>
       <div class="frn-vital-cell">
@@ -1340,7 +1340,7 @@ function _buildReleaseDecisionPanel(roster) {
     const totalDead = isJ1 ? ((j1Year1 || 0) + (j1Year2 || 0)) : deadTotal;
     const isPending = (isJ1 && june1) || (!isJ1 && !june1);
     const confirmBtn = isJ1 && !j1Eligible
-      ? `<div style="font-size:.6rem;color:#888;text-align:center;padding:.5rem 0">
+      ? `<div style="font-size:.6rem;color:var(--ds-neutral);text-align:center;padding:.5rem 0">
           ${deadYrs < 2 ? "Needs ≥2yr dead to defer" : `0 / ${JUNE1_DESIGNATIONS_PER_TEAM} designations left`}
         </div>`
       : `<button onclick="frnReleasePlayer('${escNm}','${p.position}',${isJ1});frnReleasePlayerConfirm()"
@@ -1361,7 +1361,7 @@ function _buildReleaseDecisionPanel(roster) {
       </div>
       <div style="display:flex;justify-content:space-between;font-size:.7rem;padding:.15rem 0">
         <span>Dead cap</span>
-        <span style="color:#ff9090;font-weight:700">−$${(y1Dead||0).toFixed(1)}M</span>
+        <span style="color:var(--ds-grade-neg-mid);font-weight:700">−$${(y1Dead||0).toFixed(1)}M</span>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:.78rem;padding:.25rem 0;border-top:1px solid var(--border);margin-top:.15rem">
         <span style="font-weight:700">Net Y1</span>
@@ -1371,11 +1371,11 @@ function _buildReleaseDecisionPanel(roster) {
         <div style="font-size:.6rem;color:var(--gray);letter-spacing:.5px;margin:.4rem 0 .15rem">FUTURE YEARS</div>
         ${y2Plus.map(y => `<div style="display:flex;justify-content:space-between;font-size:.68rem;padding:.1rem 0">
           <span>${y.y}${y.note?` <span style="color:var(--gray);font-size:.55rem">${y.note}</span>`:""}</span>
-          <span style="color:#ff9090">−$${(y.amt||0).toFixed(1)}M</span>
+          <span style="color:var(--ds-grade-neg-mid)">−$${(y.amt||0).toFixed(1)}M</span>
         </div>`).join("")}` : ""}
       <div style="display:flex;justify-content:space-between;font-size:.65rem;color:var(--gray);padding:.3rem 0 .5rem;border-top:1px solid var(--border);margin-top:.25rem">
         <span>Total dead</span>
-        <span style="color:#ff9090">$${totalDead.toFixed(1)}M</span>
+        <span style="color:var(--ds-grade-neg-mid)">$${totalDead.toFixed(1)}M</span>
       </div>
       ${confirmBtn}
     </div>`;
@@ -1529,7 +1529,7 @@ function _buildScoutPlayerPanel(p, scouted) {
   const injRiskBit = injHist.length >= 3
     ? `<span style="font-size:.57rem;color:var(--red);font-weight:700">⚠ Injury-prone (${injHist.length}×)</span>`
     : injHist.length
-    ? `<span style="font-size:.57rem;color:#e8a000">${injHist.length}× prior injury</span>` : "";
+    ? `<span style="font-size:.57rem;color:var(--ds-grade-caution)">${injHist.length}× prior injury</span>` : "";
   const curInjHtml = p.injury
     ? (() => {
         const onset = _currentInjuryOnset(p);
@@ -2091,10 +2091,10 @@ function _buildCareerCard(p) {
       <div style="margin:.35rem 0 .1rem;padding:.4rem .55rem;background:rgba(255,255,255,.04);border-left:2px solid var(--gray);border-radius:2px">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.25rem">
           <div style="font-size:.57rem;color:var(--gray);letter-spacing:.4px">COLLEGE${school ? ` · ${school.toUpperCase()}` : ""}</div>
-          ${level ? `<div style="font-size:.54rem;color:#e8a000;letter-spacing:.4px;font-weight:700">${level}</div>` : ""}
+          ${level ? `<div style="font-size:.54rem;color:var(--ds-grade-caution);letter-spacing:.4px;font-weight:700">${level}</div>` : ""}
         </div>
         ${(career.length || collLine) ? `<table style="width:100%;border-collapse:collapse;font-family:'IBM Plex Mono','JetBrains Mono',monospace">${careerRows}${seniorRow}</table>` : ""}
-        ${collKnock ? `<div style="font-size:.6rem;color:#e8a000;margin-top:.3rem">⚠ ${collKnock}</div>` : ""}
+        ${collKnock ? `<div style="font-size:.6rem;color:var(--ds-grade-caution);margin-top:.3rem">⚠ ${collKnock}</div>` : ""}
       </div>` : "";
     return `<div class="frn-career-card">
       <div class="frn-card-title">📊 CAREER</div>
@@ -2175,7 +2175,7 @@ function _buildCareerCard(p) {
   // _rollSeasonStatsToCareer from franchise.seasonPlayoffStats.
   const poStats = p.careerPlayoffStats || {};
   const poGP = +(poStats.gp || 0);
-  const playoffRow = poGP > 0 ? `<tr style="font-weight:700;color:#ffc850">
+  const playoffRow = poGP > 0 ? `<tr style="font-weight:700;color:var(--ds-grade-warn)">
     <td colspan="${totalsColspan}" title="Playoff games only — not double-counted in CAREER above">🏆 PLAYOFFS</td>
     <td>${poGP}</td>
     ${cols.map(c => `<td>${poStats[c.key]||0}</td>`).join("")}
@@ -4915,10 +4915,10 @@ function _moralePanelHtml(p) {
   const dis    = `disabled style="opacity:.4;cursor:not-allowed"`;
 
   const chips = [];
-  if (p._wantsOut)      chips.push(`<span style="color:#ff8a8a;font-weight:800;border:1px solid #ff8a8a;padding:.02rem .3rem;font-size:.56rem">📢 WANTS OUT</span>`);
+  if (p._wantsOut)      chips.push(`<span style="color:var(--ds-grade-neg);font-weight:800;border:1px solid var(--ds-grade-neg);padding:.02rem .3rem;font-size:.56rem">📢 WANTS OUT</span>`);
   if (p._promise)       chips.push(`<span style="color:var(--gold-lt);font-size:.58rem">🎯 promised a role · ${Math.max(0, (p._promise.deadline - w))}wk to deliver</span>`);
-  if (p._brokenPromises)chips.push(`<span style="color:#ff8a8a;font-size:.56rem" title="${p._brokenPromises} broken promise(s) — talks land softer">trust ✗${p._brokenPromises}</span>`);
-  if (p._cancerCalmUntil > w) chips.push(`<span style="color:#86e0a3;font-size:.56rem">🕊 calm · ${p._cancerCalmUntil - w}wk</span>`);
+  if (p._brokenPromises)chips.push(`<span style="color:var(--ds-grade-neg);font-size:.56rem" title="${p._brokenPromises} broken promise(s) — talks land softer">trust ✗${p._brokenPromises}</span>`);
+  if (p._cancerCalmUntil > w) chips.push(`<span style="color:var(--ds-grade-pos);font-size:.56rem">🕊 calm · ${p._cancerCalmUntil - w}wk</span>`);
 
   const acts = [];
   const talked = p._talkedSeason === franchise.season;
@@ -5153,7 +5153,7 @@ function _buildPlayerDetailPanel(p) {
     ${streaksBlock}
     ${gameLogBlock ? `<div style="margin-top:.6rem">${gameLogBlock}</div>` : ""}
     <div style="margin-top:.6rem">${_buildVitalsBlock(p)}</div>
-    ${_isInjuryProne(p) ? `<div style="margin-top:.45rem;font-size:.6rem;color:#ff9090;letter-spacing:.5px;font-weight:700" title="Injured 3+ times — elevated recurrence risk">⚠ INJURY-PRONE · ${(p.injuryHistory||[]).length} prior injuries</div>` : ""}
+    ${_isInjuryProne(p) ? `<div style="margin-top:.45rem;font-size:.6rem;color:var(--ds-grade-neg-mid);letter-spacing:.5px;font-weight:700" title="Injured 3+ times — elevated recurrence risk">⚠ INJURY-PRONE · ${(p.injuryHistory||[]).length} prior injuries</div>` : ""}
     ${p.coachable ? `<div style="margin-top:.45rem;font-size:.6rem;color:#7ec8e3;letter-spacing:.5px;font-weight:700" title="Absorbs coaching exceptionally well — amplified TEC growth with a Film Mastermind DC">📋 COACHABLE</div>` : ""}
     ${flav ? `<div class="frn-player-flavor" style="margin-top:.55rem">${flav}</div>` : ""}
     ${contractBlock ? `<div style="margin-top:.6rem">${contractBlock}</div>` : ""}
@@ -5911,9 +5911,9 @@ function renderFrnFA(selectedKey) {
     const borderCol = needLvl === 2 ? "#ff6b6b44" : needLvl === 1 ? "#e8a00044" : hot ? "#ff993344" : "transparent";
     const heatBadge = hot ? `<span style="font-size:.6rem;line-height:1">🔥</span>` : warm ? `<span style="font-size:.6rem;line-height:1">👀</span>` : "";
     const needBadge = needLvl === 2
-      ? `<span style="font-size:.5rem;color:#ff9090;font-weight:700;letter-spacing:.2px;flex-shrink:0">NEED</span>`
+      ? `<span style="font-size:.5rem;color:var(--ds-grade-neg-mid);font-weight:700;letter-spacing:.2px;flex-shrink:0">NEED</span>`
       : needLvl === 1
-      ? `<span style="font-size:.5rem;color:#e8a000;font-weight:700;letter-spacing:.2px;flex-shrink:0">FILL</span>` : "";
+      ? `<span style="font-size:.5rem;color:var(--ds-grade-caution);font-weight:700;letter-spacing:.2px;flex-shrink:0">FILL</span>` : "";
     // Show suitor count on the row for hot players (saves a click)
     const rowSuitors = (hot || warm)
       ? TEAMS.filter(t => t.id !== chosenTeamId && _faAIInterest(t.id, p) >= 0.1).length : 0;
@@ -6008,7 +6008,7 @@ function renderFrnFA(selectedKey) {
       .sort((a, b) => _teamGM(b.t.id).faAgg - _teamGM(a.t.id).faAgg)[0];
     const threatGM = _threat ? _teamGM(_threat.t.id) : null;
     const threatLine = (threatGM && threatGM.faAgg >= 1.05)
-      ? `<div style="font-size:.57rem;color:#e8a000;margin-top:.14rem">⚠ ${_threat.t.name}'s GM is a <b>${threatGM.icon} ${threatGM.label}</b> — ${threatGM.blurb}</div>`
+      ? `<div style="font-size:.57rem;color:var(--ds-grade-caution);margin-top:.14rem">⚠ ${_threat.t.name}'s GM is a <b>${threatGM.icon} ${threatGM.label}</b> — ${threatGM.blurb}</div>`
       : "";
     const heatColor = suitors >= 6 ? "var(--red)" : suitors >= 3 ? "#e8a000" : heatGrade >= 80 ? "#e8a000" : "var(--border)";
     const ageStage = selected.age <= 25 ? "🌱 Ascending" : selected.age <= 27 ? "⬆ Young Prime"
@@ -6299,7 +6299,7 @@ function renderFrnFA(selectedKey) {
           const wasIdx = isOwned ? same.findIndex(s => s.name === p.name) : null;
           const moved = isOwned && wasIdx !== null && wasIdx !== i;
           const moveTag = moved
-            ? `<span style="font-size:.55rem;color:#e8a000;margin-left:.3rem">← from ${rolesByIdx[wasIdx] || `#${wasIdx+1}`}</span>`
+            ? `<span style="font-size:.55rem;color:var(--ds-grade-caution);margin-left:.3rem">← from ${rolesByIdx[wasIdx] || `#${wasIdx+1}`}</span>`
             : "";
           return `<div style="display:grid;grid-template-columns:4rem 1fr 2.5rem 1.4rem;gap:.4rem;padding:.2rem .35rem;background:${p.isYou?"rgba(0,180,0,.10)":i % 2 === 0 ? "rgba(255,255,255,.025)":"transparent"};font-size:.62rem;align-items:baseline;border-left:${p.isYou?"3px solid var(--green-lt)":"3px solid transparent"};margin-bottom:.1rem">
             <span style="color:${p.isYou?"var(--green-lt)":"var(--gray)"};font-weight:700;font-size:.55rem">${role}</span>
@@ -6366,7 +6366,7 @@ function renderFrnFA(selectedKey) {
       : "display:flex;align-items:center;gap:.3rem;padding:.22rem .05rem;border-bottom:1px solid rgba(255,255,255,.04)";
     const actionBtn = selected ? (isQueued
       ? `<button onclick="frnFAToggleCut('${escForSel}','${ep}',false)" title="Undo — keep this player"
-          style="background:rgba(255,70,70,.18);border:1px solid #ff6b6b;color:#ff9090;font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0"
+          style="background:rgba(255,70,70,.18);border:1px solid var(--ds-grade-neg-strong);color:var(--ds-grade-neg-mid);font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0"
           onmouseover="this.style.background='rgba(255,70,70,.35)'" onmouseout="this.style.background='rgba(255,70,70,.18)'">× UNDO</button>`
       : `<button onclick="frnFAToggleCut('${escForSel}','${ep}',true)" title="Flag for cut"
           style="background:none;border:1px solid var(--border);color:var(--gray);font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0"
@@ -6394,14 +6394,14 @@ function renderFrnFA(selectedKey) {
     const epid = (p.pid  || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     return `<div style="background:rgba(255,60,60,.13);border:1px solid rgba(255,107,107,.55);border-radius:4px;padding:.38rem .48rem;margin-bottom:.28rem">
       <div style="display:flex;align-items:center;gap:.35rem;margin-bottom:.28rem">
-        <span style="font-size:.58rem;color:#ff9090;font-weight:700;flex-shrink:0">${p.position}</span>
+        <span style="font-size:.58rem;color:var(--ds-grade-neg-mid);font-weight:700;flex-shrink:0">${p.position}</span>
         <span style="font-size:.74rem;font-weight:900;color:#ffcccc;flex:1;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px"
           onclick="event.stopPropagation();frnOpenPlayerCard('${ep}','${epid}')">${_escHtml(p.name)}</span>
         ${gradeBadge(p)}
         <span style="font-size:.62rem;color:var(--green-lt);font-weight:700;flex-shrink:0">+$${aav.toFixed(1)}M</span>
       </div>
       <button onclick="frnFAToggleCut('${escForSel}','${ep}',false)"
-        style="width:100%;background:rgba(255,70,70,.22);border:1px solid #ff6b6b;color:#ffaaaa;font-size:.66rem;font-weight:700;padding:.28rem .4rem;border-radius:3px;cursor:pointer;font-family:inherit;letter-spacing:.4px;text-align:center"
+        style="width:100%;background:rgba(255,70,70,.22);border:1px solid var(--ds-grade-neg-strong);color:#ffaaaa;font-size:.66rem;font-weight:700;padding:.28rem .4rem;border-radius:3px;cursor:pointer;font-family:inherit;letter-spacing:.4px;text-align:center"
         onmouseover="this.style.background='rgba(255,70,70,.38)';this.style.color='#fff'"
         onmouseout="this.style.background='rgba(255,70,70,.22)';this.style.color='#ffaaaa'">
         × UNDO CUT — Keep ${p.name}
@@ -6409,7 +6409,7 @@ function renderFrnFA(selectedKey) {
     </div>`;
   };
   const queuedSection = _cutQueued.length
-    ? `<div style="font-size:.55rem;letter-spacing:.6px;color:#ff9090;font-weight:700;margin:.1rem 0 .28rem;display:flex;align-items:center;gap:.35rem">✂ QUEUED TO CUT <span style="background:rgba(255,70,70,.25);border-radius:3px;padding:.05rem .3rem">${_cutQueued.length}</span></div>`
+    ? `<div style="font-size:.55rem;letter-spacing:.6px;color:var(--ds-grade-neg-mid);font-weight:700;margin:.1rem 0 .28rem;display:flex;align-items:center;gap:.35rem">✂ QUEUED TO CUT <span style="background:rgba(255,70,70,.25);border-radius:3px;padding:.05rem .3rem">${_cutQueued.length}</span></div>`
       + _cutQueued.map(_buildQueuedCard).join("")
       + `<div style="height:.3rem;border-bottom:1px solid var(--border);margin-bottom:.4rem"></div>`
     : "";
@@ -6472,18 +6472,18 @@ function renderFrnFA(selectedKey) {
           const rows = sugg.map(s => {
             const escName = (s.player.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
             const dead = s.deadTotal >= 0.5
-              ? `<span style="color:#ff9090;font-size:.5rem">☠$${s.deadTotal.toFixed(1)}M</span>`
+              ? `<span style="color:var(--ds-grade-neg-mid);font-size:.5rem">☠$${s.deadTotal.toFixed(1)}M</span>`
               : `<span style="color:var(--green-lt);font-size:.5rem">clean</span>`;
             return `<div style="display:grid;grid-template-columns:1.5rem 1fr 2.3rem 1.3rem;gap:.3rem;padding:.22rem .3rem;background:rgba(255,255,255,.02);font-size:.6rem;align-items:baseline;margin-bottom:.12rem;border-radius:3px">
               <span style="color:var(--blgray);font-weight:700;font-size:.55rem">${s.player.position}</span>
               <span onclick="frnOpenPlayerCard('${escName}')" title="View player card" style="font-size:.66rem;color:var(--blwhite);cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.player.name}</span>
               <span style="color:var(--green-lt);font-weight:700;text-align:right;font-size:.6rem">+$${s.netSavings.toFixed(1)}M</span>
-              <button onclick="frnFAToggleCut('${sel.replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${escName}',true)" style="background:rgba(255,70,70,.18);border:1px solid #ff6b6b;color:#ffaaaa;font-size:.52rem;padding:.1rem .25rem;border-radius:3px;cursor:pointer;font-family:inherit;font-weight:700">CUT</button>
-              <span style="grid-column:2/4;color:var(--gray);font-size:.5rem;padding-left:0">${dead} · ${s.player.age}yr · OVR ${s.player.overall} · <i style="color:#e8a000">${s.reason}</i></span>
+              <button onclick="frnFAToggleCut('${sel.replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${escName}',true)" style="background:rgba(255,70,70,.18);border:1px solid var(--ds-grade-neg-strong);color:#ffaaaa;font-size:.52rem;padding:.1rem .25rem;border-radius:3px;cursor:pointer;font-family:inherit;font-weight:700">CUT</button>
+              <span style="grid-column:2/4;color:var(--gray);font-size:.5rem;padding-left:0">${dead} · ${s.player.age}yr · OVR ${s.player.overall} · <i style="color:var(--ds-grade-caution)">${s.reason}</i></span>
             </div>`;
           }).join("");
           return `<div style="padding:.4rem .5rem;background:rgba(255,107,107,.06);border:1px solid rgba(255,107,107,.18);border-radius:4px;margin-bottom:.5rem">
-            <div style="font-size:.55rem;letter-spacing:1px;color:#ff9090;font-weight:700;margin-bottom:.22rem">💸 SUGGESTED CUTS · by net savings</div>
+            <div style="font-size:.55rem;letter-spacing:1px;color:var(--ds-grade-neg-mid);font-weight:700;margin-bottom:.22rem">💸 SUGGESTED CUTS · by net savings</div>
             ${rows}
           </div>`;
         })()}
@@ -7501,7 +7501,7 @@ function renderFrnFANegotiations(selectedName) {
       </div>
       ${posAavs.length?`<div style="font-size:.6rem;color:var(--gray);margin-top:.3rem">
         ${fa.position} market — top5 avg <b style="color:var(--gold-lt)">$${top5Avg.toFixed(1)}M</b> · median <b style="color:var(--gold-lt)">$${mktMedian.toFixed(1)}M</b> · top <b style="color:var(--gold)">$${mktTop1.toFixed(1)}M</b>.
-        Demand: <b style="color:var(--gold-lt)">$${fa.demandedAAV.toFixed(1)}M</b>${fa.originalDemandAAV&&fa.originalDemandAAV>fa.demandedAAV?` <span style="color:#ff9090">(was $${fa.originalDemandAAV.toFixed(1)}M, dropped ${fa.demandDropsCount}×)</span>`:""}.
+        Demand: <b style="color:var(--gold-lt)">$${fa.demandedAAV.toFixed(1)}M</b>${fa.originalDemandAAV&&fa.originalDemandAAV>fa.demandedAAV?` <span style="color:var(--ds-grade-neg-mid)">(was $${fa.originalDemandAAV.toFixed(1)}M, dropped ${fa.demandDropsCount}×)</span>`:""}.
       </div>`:""}
     </div>
 
@@ -7551,7 +7551,7 @@ function renderFrnFANegotiations(selectedName) {
       : "display:flex;align-items:center;gap:.3rem;padding:.22rem .05rem;border-bottom:1px solid rgba(255,255,255,.04)";
     const actionBtn = isQueued
       ? `<button onclick="frnNegToggleCut('${escSel}','${ep}',false)"
-          style="background:rgba(255,70,70,.18);border:1px solid #ff6b6b;color:#ff9090;font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0"
+          style="background:rgba(255,70,70,.18);border:1px solid var(--ds-grade-neg-strong);color:var(--ds-grade-neg-mid);font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0"
           onmouseover="this.style.background='rgba(255,70,70,.35)'" onmouseout="this.style.background='rgba(255,70,70,.18)'">× UNDO</button>`
       : `<button onclick="frnNegToggleCut('${escSel}','${ep}',true)"
           style="background:none;border:1px solid var(--border);color:var(--gray);font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0"
@@ -7577,14 +7577,14 @@ function renderFrnFANegotiations(selectedName) {
     const aav  = p.contract?.aav||0;
     return `<div style="background:rgba(255,60,60,.13);border:1px solid rgba(255,107,107,.55);border-radius:4px;padding:.38rem .48rem;margin-bottom:.28rem">
       <div style="display:flex;align-items:center;gap:.35rem;margin-bottom:.28rem">
-        <span style="font-size:.58rem;color:#ff9090;font-weight:700;flex-shrink:0">${p.position}</span>
+        <span style="font-size:.58rem;color:var(--ds-grade-neg-mid);font-weight:700;flex-shrink:0">${p.position}</span>
         <span style="font-size:.74rem;font-weight:900;color:#ffcccc;flex:1;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px"
           onclick="event.stopPropagation();frnOpenPlayerCard('${ep}','${epid}')">${_escHtml(p.name)}</span>
         ${gradeBadge(p)}
         <span style="font-size:.62rem;color:var(--green-lt);font-weight:700;flex-shrink:0">+$${aav.toFixed(1)}M</span>
       </div>
       <button onclick="frnNegToggleCut('${escSel}','${ep}',false)"
-        style="width:100%;background:rgba(255,70,70,.22);border:1px solid #ff6b6b;color:#ffaaaa;font-size:.66rem;font-weight:700;padding:.28rem .4rem;border-radius:3px;cursor:pointer;font-family:inherit;letter-spacing:.4px;text-align:center"
+        style="width:100%;background:rgba(255,70,70,.22);border:1px solid var(--ds-grade-neg-strong);color:#ffaaaa;font-size:.66rem;font-weight:700;padding:.28rem .4rem;border-radius:3px;cursor:pointer;font-family:inherit;letter-spacing:.4px;text-align:center"
         onmouseover="this.style.background='rgba(255,70,70,.38)';this.style.color='#fff'"
         onmouseout="this.style.background='rgba(255,70,70,.22)';this.style.color='#ffaaaa'">
         × UNDO CUT — Keep ${p.name}
@@ -7593,7 +7593,7 @@ function renderFrnFANegotiations(selectedName) {
   };
 
   const queuedSection = _cutQueued.length
-    ? `<div style="font-size:.55rem;letter-spacing:.6px;color:#ff9090;font-weight:700;margin:.1rem 0 .28rem;display:flex;align-items:center;gap:.35rem">✂ QUEUED TO CUT <span style="background:rgba(255,70,70,.25);border-radius:3px;padding:.05rem .3rem">${_cutQueued.length}</span></div>`
+    ? `<div style="font-size:.55rem;letter-spacing:.6px;color:var(--ds-grade-neg-mid);font-weight:700;margin:.1rem 0 .28rem;display:flex;align-items:center;gap:.35rem">✂ QUEUED TO CUT <span style="background:rgba(255,70,70,.25);border-radius:3px;padding:.05rem .3rem">${_cutQueued.length}</span></div>`
       + _cutQueued.map(_negQueuedCard).join("")
       + `<div style="height:.3rem;border-bottom:1px solid var(--border);margin-bottom:.4rem"></div>`
     : "";
@@ -8666,12 +8666,12 @@ function renderFrnFACuts() {
           <div class="frn-cuts-hero-title">${overCap ? "⚠ CUT TO BE CAP-LEGAL" : "✓ CAP-LEGAL"}</div>
           <div class="frn-cuts-hero-sub">
             ${overCap
-              ? `Free <b style="color:#ff8a8a">$${needToFree.toFixed(1)}M</b> to get cap-legal — <b>cut</b>, <b>restructure</b> (♻), or <b>trade for picks</b> (🔀 shop). Trading sheds the cap hit AND returns value.`
-              : `Roster is locked in at <b style="color:#86e0a3">$${room.toFixed(1)}M</b> under the cap. Hit START to lock the season.`}
+              ? `Free <b style="color:var(--ds-grade-neg)">$${needToFree.toFixed(1)}M</b> to get cap-legal — <b>cut</b>, <b>restructure</b> (♻), or <b>trade for picks</b> (🔀 shop). Trading sheds the cap hit AND returns value.`
+              : `Roster is locked in at <b style="color:var(--ds-grade-pos)">$${room.toFixed(1)}M</b> under the cap. Hit START to lock the season.`}
           </div>
         </div>
         <div class="frn-cuts-hero-right">
-          <div class="frn-cuts-cap-num" style="color:${overCap?'#ff8a8a':'#86e0a3'}">
+          <div class="frn-cuts-cap-num" style="color:${overCap?'var(--ds-grade-neg)':'var(--ds-grade-pos)'}">
             $${used.toFixed(1)}<span class="frn-cuts-cap-num-sub">M</span>
           </div>
           <div class="frn-cuts-cap-cap">/ $${cap.toFixed(0)}M cap</div>
@@ -8830,7 +8830,7 @@ function renderFrnFACuts() {
     <div class="frn-cuts-pending">
       <div class="frn-cuts-pending-header">
         <span class="frn-cuts-pending-title">📋 PENDING CUTS · ${pendingEconList.length}</span>
-        <span class="frn-cuts-pending-freed" style="color:${willBeLegal?'#86e0a3':'#ffc850'}">
+        <span class="frn-cuts-pending-freed" style="color:${willBeLegal?'var(--ds-grade-pos)':'var(--ds-grade-warn)'}">
           Frees <b>$${pendingFreed.toFixed(1)}M</b>${overCap?` of <b>$${needToFree.toFixed(1)}M</b> needed`:""}
           ${overCap && willBeLegal ? `<span class="frn-cuts-legal-pill">✓ WILL BE LEGAL</span>` : ""}
           ${overCap && !willBeLegal ? `<span class="frn-cuts-short-pill">$${remainingNeed.toFixed(1)}M short</span>` : ""}
@@ -8839,12 +8839,12 @@ function renderFrnFACuts() {
       <div class="frn-cuts-pending-rows">
         ${pendingEconList.map(e => {
           const p = e.p, econ = e.econ;
-          const dead = econ.totalDeadOnCut > 0 ? `<span style="color:#ffc850">−$${econ.totalDeadOnCut.toFixed(1)}M dead</span>` : `<span style="color:#86e0a3">$0 dead</span>`;
+          const dead = econ.totalDeadOnCut > 0 ? `<span style="color:var(--ds-grade-warn)">−$${econ.totalDeadOnCut.toFixed(1)}M dead</span>` : `<span style="color:var(--ds-grade-pos)">$0 dead</span>`;
           return `<div class="frn-cuts-pending-row">
             <span class="frn-cuts-pos">${p.position}</span>
             <span class="frn-cuts-name">${_escHtml(p.name)}</span>
             <span class="frn-cuts-ovr">${p.overall||"-"}</span>
-            <span class="frn-cuts-econ">$${econ.hit.toFixed(1)}M hit · ${dead} · <b style="color:#86e0a3">+$${econ.netRelief.toFixed(1)}M net</b></span>
+            <span class="frn-cuts-econ">$${econ.hit.toFixed(1)}M hit · ${dead} · <b style="color:var(--ds-grade-pos)">+$${econ.netRelief.toFixed(1)}M net</b></span>
             <button class="frn-cuts-undo-btn" onclick="frnFACutsTogglePending('${cleanName(p.name)}')">✕ undo</button>
           </div>`;
         }).join("")}
@@ -8959,7 +8959,7 @@ function renderFrnFACuts() {
       <td class="frn-cuts-td-yrs">${yrs}yr</td>
       <td class="frn-cuts-td-aav">$${(p.contract?.aav||0).toFixed(1)}M</td>
       <td class="frn-cuts-td-hit">$${econ.hit.toFixed(1)}M</td>
-      <td class="frn-cuts-td-dead" style="color:${econ.totalDeadOnCut>0?'#ffc850':'var(--gray)'}">${econ.totalDeadOnCut>0?`−$${econ.totalDeadOnCut.toFixed(1)}M`:"—"}</td>
+      <td class="frn-cuts-td-dead" style="color:${econ.totalDeadOnCut>0?'var(--ds-grade-warn)':'var(--gray)'}">${econ.totalDeadOnCut>0?`−$${econ.totalDeadOnCut.toFixed(1)}M`:"—"}</td>
       <td class="frn-cuts-td-net" style="color:${reliefCol};font-weight:900">${econ.netRelief>=0?'+':'−'}$${Math.abs(econ.netRelief).toFixed(1)}M</td>
       <td class="frn-cuts-td-note">
         <span style="color:${verdict.color};font-weight:700">${verdict.label}</span>

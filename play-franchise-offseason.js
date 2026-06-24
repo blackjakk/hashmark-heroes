@@ -5823,7 +5823,7 @@ function _renderBracketTree() {
     // Abbrev TEXT uses the contrast-lifted ink; raw primary stays on
     // --team-color for the card's border tint.
     const ink = (typeof _teamInk === "function") ? _teamInk(t?.primary || "#888") : (t?.primary || "#888");
-    return `<div class="frn-bt-team ${isWin?"win":""} ${isLoss?"loss":""} ${teamId===myId?"mine":""}" style="--team-color:${t?.primary||'#888'};--team-ink-text:${ink}">
+    return `<div class="frn-bt-team ${isWin?"win":""} ${isLoss?"loss":""} ${teamId===myId?"mine":""}" style="--team-color:${t?.primary||'var(--ds-neutral)'};--team-ink-text:${ink}">
       <span class="seed">${seedOf(teamId)||"?"}</span>
       <span class="name">${t ? (t.abbr || t.name.slice(0,3).toUpperCase()) : "?"}</span>
       <span class="score">${score != null ? score : ""}</span>
@@ -5852,7 +5852,7 @@ function _renderBracketTree() {
     const t = getTeam(teamId);
     const ink = (typeof _teamInk === "function") ? _teamInk(t?.primary || "#888") : (t?.primary || "#888");
     return `<div class="frn-bt-card bye ${teamId===myId?"user-path":""}">
-      <div class="frn-bt-team ${teamId===myId?"mine":""}" style="--team-color:${t?.primary||'#888'};--team-ink-text:${ink}">
+      <div class="frn-bt-team ${teamId===myId?"mine":""}" style="--team-color:${t?.primary||'var(--ds-neutral)'};--team-ink-text:${ink}">
         <span class="seed">${seedOf(teamId)||1}</span>
         <span class="name">${t ? (t.abbr || t.name.slice(0,3).toUpperCase()) : "?"}</span>
         <span class="score frn-bt-bye-tag">BYE</span>
@@ -7233,7 +7233,7 @@ function renderFrnAnalytics(defaultTab) {
               return `<span title="Yr${i+1}: $${base.toFixed(1)}M base + $${(c.bonusProration||0).toFixed(1)}M proration" style="font-size:.55rem;padding:.1rem .28rem;border-radius:3px;background:${isCur?"var(--gold)":"var(--bg3)"};color:${isCur?"#000":"var(--gray)"}">Yr${i+1} $${hit.toFixed(1)}M</span>`;
             }).join("") + (voidYrs > 0 ? Array.from({length:voidYrs}).map((_,vi) => {
               const accel = Math.round((c.bonusProration || 0) * voidYrs * 10) / 10;
-              return `<span title="Void year — phantom proration. If contract ends here, $${accel.toFixed(1)}M accelerates as dead cap." style="font-size:.55rem;padding:.1rem .28rem;border-radius:3px;background:rgba(190,80,80,.2);color:#ff9090;border:1px dashed rgba(255,144,144,.4)">V${vi+1} ☠</span>`;
+              return `<span title="Void year — phantom proration. If contract ends here, $${accel.toFixed(1)}M accelerates as dead cap." style="font-size:.55rem;padding:.1rem .28rem;border-radius:3px;background:rgba(190,80,80,.2);color:var(--ds-grade-neg-mid);border:1px dashed rgba(255,144,144,.4)">V${vi+1} ☠</span>`;
             }).join("") : "")
           }</div>`
         : "";
@@ -7250,8 +7250,8 @@ function renderFrnAnalytics(defaultTab) {
       if (isPendingPayCut) {
         const { currentAav, market, overpayPct, result, newAav, cutPct, acceptChance } = _payCutPending;
         if (result == null) {
-          const overpayLabel = overpayPct >= 0.25 ? `<span style="color:#ff9090;font-weight:700">overpaid by ${(overpayPct*100).toFixed(0)}%</span>`
-                            : overpayPct >= 0.05 ? `<span style="color:#e8a000">slightly above market</span>`
+          const overpayLabel = overpayPct >= 0.25 ? `<span style="color:var(--ds-grade-neg-mid);font-weight:700">overpaid by ${(overpayPct*100).toFixed(0)}%</span>`
+                            : overpayPct >= 0.05 ? `<span style="color:var(--ds-grade-caution)">slightly above market</span>`
                             : overpayPct >= -0.05 ? `<span style="color:var(--gray)">fair value</span>`
                             : `<span style="color:var(--green-lt)">underpaid — he'll laugh</span>`;
           const presetBtn = (pct) => {
@@ -7304,10 +7304,10 @@ function renderFrnAnalytics(defaultTab) {
         }
         // Declined
         return `<tr style="background:rgba(180,80,80,.14)">
-          <td style="font-weight:700;color:#ff9090">${_escHtml(p.name)}</td>
+          <td style="font-weight:700;color:var(--ds-grade-neg-mid)">${_escHtml(p.name)}</td>
           <td style="color:var(--gray)">${p.position}</td>
           <td colspan="6" style="font-size:.7rem;padding:.4rem .5rem">
-            <span style="color:#ff9090;font-weight:700">✗ REFUSED</span>
+            <span style="color:var(--ds-grade-neg-mid);font-weight:700">✗ REFUSED</span>
             · won't take ${Math.round(cutPct*100)}% cut (${Math.round((acceptChance||0)*100)}% was the odds).
             Stays at <b style="color:var(--white)">$${currentAav.toFixed(1)}M</b>.
             You can keep him or release him.
@@ -7334,12 +7334,12 @@ function renderFrnAnalytics(defaultTab) {
             <div style="display:flex;flex-wrap:wrap;align-items:center;gap:.5rem">
               <span>Convert <b style="color:var(--white)">$${currentBase.toFixed(1)}M</b> base → bonus, prorate over ${remaining + totalVoid}yr</span>
               <span style="color:var(--green-lt)">▼ Frees <b>$${freed.toFixed(1)}M</b> now</span>
-              <span style="color:#ff9090">▲ Dead $${newProration.toFixed(1)}M/yr × ${remaining + totalVoid}yr = $${totalDead.toFixed(1)}M</span>
+              <span style="color:var(--ds-grade-neg-mid)">▲ Dead $${newProration.toFixed(1)}M/yr × ${remaining + totalVoid}yr = $${totalDead.toFixed(1)}M</span>
             </div>
             <div style="display:flex;align-items:center;gap:.4rem;margin-top:.3rem;font-size:.6rem;color:var(--gray)">
               <span title="Void years are phantom contract years that extend bonus proration. When the deal naturally expires, all void-year bonus accelerates as dead cap.">VOID YEARS:</span>
               ${voidBtns}
-              ${maxNewVoid === 0 ? `<span style="color:#888;font-size:.55rem">(capped at 5yr total proration)</span>` : ""}
+              ${maxNewVoid === 0 ? `<span style="color:var(--ds-neutral);font-size:.55rem">(capped at 5yr total proration)</span>` : ""}
             </div>
           </td>
           <td colspan="2" style="white-space:nowrap;padding:.4rem .5rem">
@@ -7382,12 +7382,12 @@ function renderFrnAnalytics(defaultTab) {
       return `<tr style="background:rgba(190,80,80,.08)">
         <td style="font-weight:700">🚑 ${p.name}</td>
         <td style="color:var(--gray)">${p.position}</td>
-        <td colspan="3" style="color:#ff9090;font-size:.62rem">Injured Reserve · ${kind}${lbl?` · ${lbl}`:""}</td>
+        <td colspan="3" style="color:var(--ds-grade-neg-mid);font-size:.62rem">Injured Reserve · ${kind}${lbl?` · ${lbl}`:""}</td>
         <td style="color:${aavColor(capHit)};font-weight:700">$${capHit.toFixed(1)}M</td>
         <td colspan="4" style="color:var(--gray);font-size:.6rem">counts vs cap — off the active 53</td>
       </tr>`;
     }).join("");
-    const irHeader = irRows ? `<tr><td colspan="10" style="padding:.3rem .5rem;font-size:.6rem;letter-spacing:.5px;color:#ff9090;background:rgba(190,80,80,.12);font-weight:700">INJURED RESERVE — ${irRoster.length} player${irRoster.length===1?"":"s"}, still on the cap</td></tr>` : "";
+    const irHeader = irRows ? `<tr><td colspan="10" style="padding:.3rem .5rem;font-size:.6rem;letter-spacing:.5px;color:var(--ds-grade-neg-mid);background:rgba(190,80,80,.12);font-weight:700">INJURED RESERVE — ${irRoster.length} player${irRoster.length===1?"":"s"}, still on the cap</td></tr>` : "";
     return `
       <div class="frn-ana-capbar">
         <div class="frn-ana-capbar-fill" style="width:${Math.min(100,totalUsed/cap*100).toFixed(1)}%;background:${totalUsed/cap>=0.95?"var(--red)":totalUsed/cap>=0.85?"#e8a000":"var(--green)"}"></div>
@@ -7454,7 +7454,7 @@ function renderFrnAnalytics(defaultTab) {
     }).join("");
     return `
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.7rem">
-        <div style="padding:.55rem .65rem;background:rgba(255,255,255,.025);border-left:3px solid #5d6b66;border-radius:2px">
+        <div style="padding:.55rem .65rem;background:rgba(255,255,255,.025);border-left:3px solid var(--ds-slate);border-radius:2px">
           <div style="font-size:.55rem;color:var(--gray);letter-spacing:1px;margin-bottom:.15rem">TOTAL VS MARKET</div>
           <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.5rem;color:${totalColor};line-height:1">${totalPct.toFixed(0)}%</div>
           <div style="font-size:.62rem;color:var(--gray);margin-top:.1rem">$${totalActual.toFixed(0)}M actual · $${totalMarket.toFixed(0)}M market${rookieCount > 0 ? ` · ${rookieCount} on rookie deals` : ""}</div>
@@ -7479,8 +7479,8 @@ function renderFrnAnalytics(defaultTab) {
             <div style="font-size:.62rem;color:var(--gray);margin-top:.1rem">${bargain.player.position} · ${bargain.pct.toFixed(0)}% of market · ${cost}</div>
           </div>`;
         })()}
-        <div style="padding:.55rem .65rem;background:rgba(255,155,155,.06);border-left:3px solid #ff9b9b;border-radius:2px">
-          <div style="font-size:.55rem;color:#ff9b9b;letter-spacing:1px;margin-bottom:.15rem">🔴 BIGGEST OVERPAY</div>
+        <div style="padding:.55rem .65rem;background:rgba(255,155,155,.06);border-left:3px solid var(--ds-grade-neg-soft);border-radius:2px">
+          <div style="font-size:.55rem;color:var(--ds-grade-neg-soft);letter-spacing:1px;margin-bottom:.15rem">🔴 BIGGEST OVERPAY</div>
           <div style="font-weight:700;font-size:.75rem">${_playerLinkSmart(overpay.player.name)}</div>
           <div style="font-size:.62rem;color:var(--gray);margin-top:.1rem">${overpay.player.position} · ${overpay.pct.toFixed(0)}% of market · costs $${overpay.delta.toFixed(1)}M extra</div>
         </div>
@@ -7512,7 +7512,7 @@ function renderFrnAnalytics(defaultTab) {
       return `<div style="padding:.7rem .9rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:3px">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.25rem">
           <span style="font-size:.55rem;color:var(--gray);letter-spacing:1.2px;font-weight:700">${label}</span>
-          <span style="font-size:.55rem;color:#5d6b66">${p.year}</span>
+          <span style="font-size:.55rem;color:var(--ds-slate)">${p.year}</span>
         </div>
         <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.4rem">
           <span style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.7rem;color:${color};line-height:1;letter-spacing:.5px">$${p.committed.toFixed(0)}M</span>
@@ -7527,7 +7527,7 @@ function renderFrnAnalytics(defaultTab) {
         </div>
         ${p.topExpiring.length ? `
           <div style="padding-top:.35rem;border-top:1px solid var(--blborder)">
-            <div style="font-size:.5rem;color:#e0b078;letter-spacing:1px;margin-bottom:.18rem">⏳ EXPIRES THIS YEAR</div>
+            <div style="font-size:.5rem;color:var(--ds-grade-caution-soft);letter-spacing:1px;margin-bottom:.18rem">⏳ EXPIRES THIS YEAR</div>
             ${p.topExpiring.map(e => `<div style="display:flex;justify-content:space-between;font-size:.6rem;padding:.05rem 0">
               <span style="color:var(--white)">${e.position} ${e.name}</span>
               <span style="color:var(--gray)">$${e.hit.toFixed(1)}M</span>
@@ -7583,18 +7583,18 @@ function renderFrnAnalytics(defaultTab) {
     const strongest = needs.slice().reverse().slice(0, 3).filter(n => n.delta > 1);
     return `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.7rem">
-        <div style="padding:.55rem .65rem;background:rgba(255,155,155,.06);border-left:3px solid #ff9b9b;border-radius:2px">
-          <div style="font-size:.55rem;color:#ff9b9b;letter-spacing:1px;margin-bottom:.2rem">🎯 BIGGEST NEEDS</div>
+        <div style="padding:.55rem .65rem;background:rgba(255,155,155,.06);border-left:3px solid var(--ds-grade-neg-soft);border-radius:2px">
+          <div style="font-size:.55rem;color:var(--ds-grade-neg-soft);letter-spacing:1px;margin-bottom:.2rem">🎯 BIGGEST NEEDS</div>
           ${weakest.length ? weakest.map(n => `<div style="display:flex;justify-content:space-between;font-size:.7rem;padding:.05rem 0">
             <span style="color:var(--white)"><b style="color:var(--gold)">${n.pos}</b> — #${n.rank} in league</span>
-            <span style="color:#ff9b9b;font-weight:700">${n.delta.toFixed(1)} below avg</span>
+            <span style="color:var(--ds-grade-neg-soft);font-weight:700">${n.delta.toFixed(1)} below avg</span>
           </div>`).join("") : `<div style="color:var(--gray);font-size:.7rem;font-style:italic">No glaring weaknesses — well-rounded roster.</div>`}
         </div>
-        <div style="padding:.55rem .65rem;background:rgba(134,224,163,.06);border-left:3px solid #86e0a3;border-radius:2px">
-          <div style="font-size:.55rem;color:#86e0a3;letter-spacing:1px;margin-bottom:.2rem">💪 STRONGEST UNITS</div>
+        <div style="padding:.55rem .65rem;background:rgba(134,224,163,.06);border-left:3px solid var(--ds-grade-pos);border-radius:2px">
+          <div style="font-size:.55rem;color:var(--ds-grade-pos);letter-spacing:1px;margin-bottom:.2rem">💪 STRONGEST UNITS</div>
           ${strongest.length ? strongest.map(n => `<div style="display:flex;justify-content:space-between;font-size:.7rem;padding:.05rem 0">
             <span style="color:var(--white)"><b style="color:var(--gold)">${n.pos}</b> — #${n.rank} in league</span>
-            <span style="color:#86e0a3;font-weight:700">+${n.delta.toFixed(1)} above avg</span>
+            <span style="color:var(--ds-grade-pos);font-weight:700">+${n.delta.toFixed(1)} above avg</span>
           </div>`).join("") : `<div style="color:var(--gray);font-size:.7rem;font-style:italic">No elite units — balanced across positions.</div>`}
         </div>
       </div>
@@ -7642,7 +7642,7 @@ function renderFrnAnalytics(defaultTab) {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.6rem;margin-bottom:1rem">
         <div class="frn-stat-box"><div class="frn-stat-val" style="color:${used1/cap>0.9?"var(--red)":"var(--gold)"}">$${used1.toFixed(1)}M</div><div class="frn-stat-lbl">CAP USED</div></div>
         <div class="frn-stat-box"><div class="frn-stat-val" style="color:var(--green-lt)">$${(cap-used1).toFixed(1)}M</div><div class="frn-stat-lbl">CAP ROOM</div></div>
-        <div class="frn-stat-box"><div class="frn-stat-val" style="color:#ff9090">$${deadTotal.toFixed(1)}M</div><div class="frn-stat-lbl">TOTAL DEAD CAP</div></div>
+        <div class="frn-stat-box"><div class="frn-stat-val" style="color:var(--ds-grade-neg-mid)">$${deadTotal.toFixed(1)}M</div><div class="frn-stat-lbl">TOTAL DEAD CAP</div></div>
         <div class="frn-stat-box"><div class="frn-stat-val">${expiring}</div><div class="frn-stat-lbl">EXPIRING</div></div>
         <div class="frn-stat-box"><div class="frn-stat-val">${restructureCandidates.length}</div><div class="frn-stat-lbl">RESTRUCTURE-ELIGIBLE</div></div>
       </div>
@@ -7691,7 +7691,7 @@ function renderFrnAnalytics(defaultTab) {
         <td style="color:var(--red);font-weight:700">$${capHit.toFixed(1)}M</td>
         <td style="color:var(--gray);font-size:.65rem">$${market.toFixed(1)}M mkt</td>
         <td style="color:${overpaid>3?"var(--red)":"var(--gray)"};font-size:.65rem">${overpaid>0?"+$"+overpaid.toFixed(1)+"M over":"≈ fair"}</td>
-        <td style="color:#ff9090;font-size:.65rem">${deadTotal>0.5?`☠ $${deadPY.toFixed(1)}M×${deadYrs}yr`:"No dead cap"}</td>
+        <td style="color:var(--ds-grade-neg-mid);font-size:.65rem">${deadTotal>0.5?`☠ $${deadPY.toFixed(1)}M×${deadYrs}yr`:"No dead cap"}</td>
         <td style="color:var(--green-lt);font-weight:700">+$${savings.toFixed(1)}M</td>
         <td style="color:var(--gray);font-size:.65rem">${p.contract.remaining}yr left</td>
         <td>${DS.button({ label: "✗ Release", variant: "outline", on: `frnReleasePlayer('${escN}','${p.position}');showFranchiseDashboard()`, attrs: { style: "font-size:.58rem;padding:.15rem .4rem;color:var(--red)" } })}</td>
@@ -8248,7 +8248,7 @@ function _contractContextBar(position, marketValue, cap) {
   return `<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.2rem">
     <span style="font-size:.58rem;color:var(--gray)">MKT <b style="color:var(--white)">$${marketValue.toFixed(1)}M</b></span>
     <span style="font-size:.58rem;color:var(--gray)">TOP-5 AVG <b style="color:var(--gold)">$${avg5.toFixed(1)}M</b></span>
-    <span style="font-size:.58rem;color:var(--gray)">LG MAX <b style="color:#e8a000">$${lmax.toFixed(1)}M</b></span>
+    <span style="font-size:.58rem;color:var(--gray)">LG MAX <b style="color:var(--ds-grade-caution)">$${lmax.toFixed(1)}M</b></span>
   </div>`;
 }
 
@@ -8733,7 +8733,7 @@ function _renderHoldoutCenterRow(d) {
       </div>
       <div style="flex:1;display:flex;flex-direction:column;gap:.2rem;margin:0 .6rem">${yearPills}</div>
       <div class="frn-resign-btns" style="flex-direction:column;gap:.3rem">
-        ${deadTotal >= 0.5 ? `<span style="color:#ff9090;font-size:.6rem;text-align:center">☠ Dead $${bonusProration.toFixed(1)}M×${offerYears}yr</span>` : ""}
+        ${deadTotal >= 0.5 ? `<span style="color:var(--ds-grade-neg-mid);font-size:.6rem;text-align:center">☠ Dead $${bonusProration.toFixed(1)}M×${offerYears}yr</span>` : ""}
         ${DS.button({ label: meetsAsk ? "✓ Sign Extension" : "📤 Submit Counter", variant: "gold", on: `frnHoldoutMidSubmitOffer('${escName}')`, attrs: { style: "white-space:nowrap" } })}
         ${DS.button({ label: "← Back", variant: "outline", on: "frnHoldoutMidPreviewClose()", attrs: { style: "font-size:.65rem" } })}
       </div>
@@ -8770,9 +8770,9 @@ function _renderHoldoutCenterRow(d) {
     : "";
   const offerDelta = offer - d.demandedAAV;
   const offerDeltaStr = offerDelta < 0
-    ? `<span style="color:#86e0a3;font-size:.6rem">saves $${(-offerDelta).toFixed(1)}M/yr</span>`
+    ? `<span style="color:var(--ds-grade-pos);font-size:.6rem">saves $${(-offerDelta).toFixed(1)}M/yr</span>`
     : offerDelta > 0
-    ? `<span style="color:#ff8a8a;font-size:.6rem">over by $${offerDelta.toFixed(1)}M/yr</span>`
+    ? `<span style="color:var(--ds-grade-neg);font-size:.6rem">over by $${offerDelta.toFixed(1)}M/yr</span>`
     : `<span style="color:var(--gray);font-size:.6rem">matches demand</span>`;
   const demandHtml = `<div class="frn-resign-demand" style="display:flex;flex-direction:column;gap:.15rem">
     ${curAav > 0 ? `
@@ -8885,7 +8885,7 @@ function _renderHoldoutCenterRow(d) {
     <div style="display:flex;justify-content:space-between;align-items:center">
       ${deadTotal < 0.5
         ? `<span style="color:var(--gray);font-size:.58rem">No dead cap</span>`
-        : `<span style="color:#ff9090;font-size:.58rem">☠ Dead $${bonusProration.toFixed(1)}M×${offerYears}yr = $${deadTotal.toFixed(1)}M</span>`}
+        : `<span style="color:var(--ds-grade-neg-mid);font-size:.58rem">☠ Dead $${bonusProration.toFixed(1)}M×${offerYears}yr = $${deadTotal.toFixed(1)}M</span>`}
       <span class="frn-offer-rounds" title="Failed below-ask offers burn a round — after ${_MID_HOLDOUT_MAX_ROUNDS} he's at his final number">TALKS ${roundsDots}</span>
     </div>
     ${talkHtml}
@@ -8912,7 +8912,7 @@ function _renderHoldoutCenterRow(d) {
         ${(d.defers || 0) < _MID_HOLDOUT_MAX_DEFERS
           ? `<button class="btn frn-resign-btn" style="border-color:var(--blgray, #9aa7b8);color:var(--blgray, #9aa7b8)" onclick="frnHoldoutMidDefer('${escName}')" title="Push deadline +2 wks. Demand rises 3% each defer. Max ${_MID_HOLDOUT_MAX_DEFERS}×.">⏳ Defer<span style="font-size:.5rem;display:block">+2 wks · +3% AAV</span></button>`
           : `<button class="btn frn-resign-btn" disabled title="Already deferred max times" style="opacity:.4">⏳ Defer<span style="font-size:.5rem;display:block">max reached</span></button>`}
-        <button class="btn frn-resign-btn decline-btn" onclick="frnHoldoutMidRefuse('${escName}')" title="Player sits this week and walks at expiry">✗ Refuse<span style="font-size:.5rem;display:block;color:#ff9090">sits 1 game</span></button>
+        <button class="btn frn-resign-btn decline-btn" onclick="frnHoldoutMidRefuse('${escName}')" title="Player sits this week and walks at expiry">✗ Refuse<span style="font-size:.5rem;display:block;color:var(--ds-grade-neg-mid)">sits 1 game</span></button>
       </div>
     </div>
   </div>`;
@@ -9238,7 +9238,7 @@ function _extensionModalInnerHtml() {
       <span style="color:var(--gray);font-weight:700">Yr ${i+1}</span>
       <div style="position:relative;height:10px;background:var(--bg3);border-radius:1px;overflow:hidden;border:1px solid var(--blborder)">
         <div style="position:absolute;top:0;left:0;height:100%;width:${pctClamp}%;background:${barColor};transition:width .12s"></div>
-        ${pct > 100 ? `<div style="position:absolute;top:0;left:100%;height:100%;width:6px;background:#ff8a8a;animation:frn-extension-shake 0.6s infinite"></div>` : ""}
+        ${pct > 100 ? `<div style="position:absolute;top:0;left:100%;height:100%;width:6px;background:var(--ds-grade-neg);animation:frn-extension-shake 0.6s infinite"></div>` : ""}
       </div>
       <span style="color:var(--white);text-align:right;font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:.3px">$${total.toFixed(0)}M / $${projCap.toFixed(0)}M</span>
       <span style="color:${freeColor};text-align:right;font-weight:700;font-family:'Bebas Neue','Anton',sans-serif">${free < 0 ? "⚠ −$" + (-free).toFixed(1) : "$" + free.toFixed(1)}M</span>
@@ -9271,7 +9271,7 @@ function _extensionModalInnerHtml() {
   const teamImpactHtml = teamImpactRows ? `
     <div style="margin-top:.55rem;padding:.4rem .55rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.25rem">
-        <span style="font-size:.55rem;color:#a98a2e;letter-spacing:1.2px;font-weight:700">📊 TEAM CAP IMPACT</span>
+        <span style="font-size:.55rem;color:var(--ds-gold-dim);letter-spacing:1.2px;font-weight:700">📊 TEAM CAP IMPACT</span>
         <span style="color:var(--gray);font-size:.5rem">with this deal applied · cap projected +5%/yr</span>
       </div>
       ${capDeltaHtml}
@@ -9297,9 +9297,9 @@ function _extensionModalInnerHtml() {
   // user just signed. Instead show "revising offer just signed".
   const signedThisCycle = cur && cur.startSeason === (franchise.season || 1);
   const replacingHtml = signedThisCycle
-    ? `<span style="color:#86e0a3;font-size:.65rem">revising offer just signed: ${cur.years || cur.remaining}yr · $${(cur.aav || 0).toFixed(1)}M/yr</span>`
+    ? `<span style="color:var(--ds-grade-pos);font-size:.65rem">revising offer just signed: ${cur.years || cur.remaining}yr · $${(cur.aav || 0).toFixed(1)}M/yr</span>`
     : curAav > 0
-    ? `<span style="color:#e0b078;font-size:.65rem">replaces $${curAav.toFixed(1)}M × ${curRemaining}yr left</span>`
+    ? `<span style="color:var(--ds-grade-caution-soft);font-size:.65rem">replaces $${curAav.toFixed(1)}M × ${curRemaining}yr left</span>`
     : `<span style="color:var(--gray);font-size:.65rem">no existing deal</span>`;
   return `<div class="frn-resign-recap-card" style="max-width:780px">
     <button class="frn-resign-recap-close" onclick="frnCloseExtensionModal()">×</button>
@@ -9335,7 +9335,7 @@ function _extensionModalInnerHtml() {
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">
         <span style="font-size:.55rem;color:var(--gray);letter-spacing:1.2px;font-weight:700">STRUCTURE</span>
         <div style="display:flex;gap:.25rem">${structBtns}</div>
-        ${totalDead >= 0.5 ? `<span style="color:#ff8a8a;font-size:.55rem;margin-left:auto">☠ Dead cap if cut: $${totalDead.toFixed(1)}M</span>` : ""}
+        ${totalDead >= 0.5 ? `<span style="color:var(--ds-grade-neg);font-size:.55rem;margin-left:auto">☠ Dead cap if cut: $${totalDead.toFixed(1)}M</span>` : ""}
       </div>
       <div style="display:flex;flex-direction:column;gap:.18rem">${yearPills}</div>
       ${teamImpactHtml}
@@ -9855,7 +9855,7 @@ function _renderResignUI(cap, capCommitted) {
         ? `<span style="color:var(--green-lt);font-weight:700">✓ SIGNED</span> · $${r.offer.toFixed(1)}M × ${r.offerYears}yr`
         : isTagged
         ? `<span style="color:var(--gold);font-weight:700">🏷 TAGGED</span> · 1yr / $${r.tagAAV?.toFixed(1)}M guaranteed`
-        : `<span style="color:#ff8a8a;font-weight:700">✗ WALK</span> · enters free agency`;
+        : `<span style="color:var(--ds-grade-neg);font-weight:700">✗ WALK</span> · enters free agency`;
       return `
         <div class="frn-resign-collapsed ${isAccept?"accepted":isTagged?"tagged":"declined"}"
              onclick="frnResignReopen(${idx})" title="Click to reopen">
@@ -9892,7 +9892,7 @@ function _renderResignUI(cap, capCommitted) {
           </div>
           <div style="flex:1;display:flex;flex-direction:column;gap:.2rem;margin:0 .6rem">${yearPills}</div>
           <div class="frn-resign-btns" style="flex-direction:column;gap:.3rem">
-            ${deadTotal >= 0.5 ? `<span style="color:#ff9090;font-size:.6rem;text-align:center">☠ Dead $${bonusProration.toFixed(1)}M×${r.offerYears}yr</span>` : ""}
+            ${deadTotal >= 0.5 ? `<span style="color:var(--ds-grade-neg-mid);font-size:.6rem;text-align:center">☠ Dead $${bonusProration.toFixed(1)}M×${r.offerYears}yr</span>` : ""}
             ${DS.button({ label: "✓ Sign Deal", variant: "gold", on: `frnResignDecide(${idx},'accept')`, attrs: { style: "white-space:nowrap" } })}
             ${DS.button({ label: "← Back", variant: "outline", on: "_resignPreview=null;_renderResignUIRefresh()", attrs: { style: "font-size:.65rem" } })}
           </div>
@@ -9949,9 +9949,9 @@ function _renderResignUI(cap, capCommitted) {
     // Offer vs demand delta
     const offerDelta = r.offer - demand.aav;
     const offerDeltaStr = offerDelta < 0
-      ? `<span style="color:#86e0a3;font-size:.6rem">saves $${(-offerDelta).toFixed(1)}M/yr</span>`
+      ? `<span style="color:var(--ds-grade-pos);font-size:.6rem">saves $${(-offerDelta).toFixed(1)}M/yr</span>`
       : offerDelta > 0
-      ? `<span style="color:#ff8a8a;font-size:.6rem">over by $${offerDelta.toFixed(1)}M/yr</span>`
+      ? `<span style="color:var(--ds-grade-neg);font-size:.6rem">over by $${offerDelta.toFixed(1)}M/yr</span>`
       : `<span style="color:var(--gray);font-size:.6rem">matches demand</span>`;
     const demandHtml = `<div class="frn-resign-demand" style="display:flex;flex-direction:column;gap:.15rem">
       ${curAav > 0 ? `
@@ -9995,7 +9995,7 @@ function _renderResignUI(cap, capCommitted) {
     metaBits.push(`${depth} other ${r.pos} ≥75 OVR`);
     if (faMkt > 0) metaBits.push(`${faMkt} FA${r.pos}s avail`);
     if (yrs >= 1) metaBits.push(`${yrs}-yr veteran`);
-    if (flightRisk) metaBits.push(`<span style="color:#ff8a8a">⚠ flight risk</span>`);
+    if (flightRisk) metaBits.push(`<span style="color:var(--ds-grade-neg)">⚠ flight risk</span>`);
     const metaHtml = `<div class="frn-resign-meta">${metaBits.join(" · ")}</div>`;
 
     // Hover-preview hits — what THIS deal adds to each cap year, so the
@@ -10054,7 +10054,7 @@ function _renderResignUI(cap, capCommitted) {
             </div>
             <span style="color:var(--gray);font-size:.6rem;text-align:right">total $${(r.offer * r.offerYears).toFixed(1)}M</span>
             ${deadTotal < 0.5 ? `<span style="color:var(--gray);font-size:.6rem">No dead cap</span>`
-              : `<span style="color:#ff9090;font-size:.6rem;text-align:right" title="Prorated signing bonus — counts as dead cap if you release this player.">☠ Dead $${bonusProration.toFixed(1)}M×${r.offerYears}yr = $${deadTotal.toFixed(1)}M</span>`}
+              : `<span style="color:var(--ds-grade-neg-mid);font-size:.6rem;text-align:right" title="Prorated signing bonus — counts as dead cap if you release this player.">☠ Dead $${bonusProration.toFixed(1)}M×${r.offerYears}yr = $${deadTotal.toFixed(1)}M</span>`}
             <div style="display:flex;gap:.2rem;justify-content:flex-end;margin-top:.25rem;align-items:center;flex-wrap:wrap">
               <span style="color:var(--gray);font-size:.58rem">Structure:</span>
               ${["BALANCED","BACKLOADED","FRONTLOADED"].map(s => {
@@ -10655,7 +10655,7 @@ function renderFrnAwards() {
       <div class="bspnlive-award-card-name" style="color:var(--blgray);font-style:italic">— vacant —</div>
     </div>`;
     const t = rec.teamId ? getTeam(rec.teamId) : null;
-    return `<div class="bspnlive-award-card" style="--card-color:${rec.teamPrimary || t?.primary || '#888'};--card-ink:${_teamInk(rec.teamPrimary || t?.primary || '#888')}">
+    return `<div class="bspnlive-award-card" style="--card-color:${rec.teamPrimary || t?.primary || 'var(--ds-neutral)'};--card-ink:${_teamInk(rec.teamPrimary || t?.primary || 'var(--ds-neutral)')}">
       <div class="bspnlive-award-card-stripe"></div>
       <div class="bspnlive-award-card-icon">${icon}</div>
       <div class="bspnlive-award-card-label">${label}</div>
@@ -10670,7 +10670,7 @@ function renderFrnAwards() {
       <div class="bspnlive-award-card-icon">🎩</div>
       <div class="bspnlive-award-card-label">COACH OF THE YEAR</div>
       <div class="bspnlive-award-card-name" style="color:var(--blgray);font-style:italic">— vacant —</div>
-    </div>` : `<div class="bspnlive-award-card" style="--card-ink:${_teamInk(latest.coy.teamPrimary || '#888')};--card-color:${latest.coy.teamPrimary || '#888'}">
+    </div>` : `<div class="bspnlive-award-card" style="--card-ink:${_teamInk(latest.coy.teamPrimary || 'var(--ds-neutral)')};--card-color:${latest.coy.teamPrimary || 'var(--ds-neutral)'}">
       <div class="bspnlive-award-card-stripe"></div>
       <div class="bspnlive-award-card-icon">🎩</div>
       <div class="bspnlive-award-card-label">COACH OF THE YEAR</div>
@@ -10705,7 +10705,7 @@ function renderFrnAwards() {
       <div class="bspnlive-award-card-name" style="color:var(--blgray);font-style:italic">— no votes cast —</div>
     </div>`;
     const t = rec.teamId ? getTeam(rec.teamId) : null;
-    return `<div class="bspnlive-award-card" style="--card-color:${rec.teamPrimary || t?.primary || '#888'};--card-ink:${_teamInk(rec.teamPrimary || t?.primary || '#888')}">
+    return `<div class="bspnlive-award-card" style="--card-color:${rec.teamPrimary || t?.primary || 'var(--ds-neutral)'};--card-ink:${_teamInk(rec.teamPrimary || t?.primary || 'var(--ds-neutral)')}">
       <div class="bspnlive-award-card-stripe"></div>
       <div class="bspnlive-award-card-icon">${icon}</div>
       <div class="bspnlive-award-card-label">${label}</div>
@@ -12001,7 +12001,7 @@ function frnOpenHoldoutRecap() {
         ${ignored.map(h => `<div class="frn-resign-recap-row">
           <span style="color:var(--blwhite)">${h.name}</span>
           <span style="color:var(--blgray)">${h.position} · ${h.overall} OVR</span>
-          <span style="color:#ff8a8a;margin-left:auto">walks at expiry</span>
+          <span style="color:var(--ds-grade-neg);margin-left:auto">walks at expiry</span>
         </div>`).join("")}
       </section>` : ""}
 
@@ -14069,7 +14069,7 @@ function _devChartPosShow(evt, pos) {
     const dColor = p.delta > 0 ? "#86e0a3" : p.delta < 0 ? "#ff9b9b" : "#7a8b85";
     const dStr   = p.delta > 0 ? `+${p.delta}` : p.delta < 0 ? `${p.delta}` : "—";
     return `<div style="display:grid;grid-template-columns:1fr 2rem 3rem;gap:.4rem;align-items:baseline;padding:.1rem 0;font-size:10.5px">
-      <span style="color:#cce8d6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}<span style="color:#5d6b66;font-size:9px;margin-left:.3rem">${p.age || ""}</span></span>
+      <span style="color:var(--ds-grade-pos-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}<span style="color:var(--ds-slate);font-size:9px;margin-left:.3rem">${p.age || ""}</span></span>
       <span style="color:${dColor};font-weight:700;text-align:right">${dStr}</span>
       <span style="color:#7a8b85;font-size:9.5px;text-align:right;font-family:'Bebas Neue',sans-serif;letter-spacing:.5px">${p.preOvr}→${p.postOvr}</span>
     </div>`;
@@ -14078,7 +14078,7 @@ function _devChartPosShow(evt, pos) {
   el.innerHTML = `
     <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:.3rem;margin-bottom:.3rem;border-bottom:1px solid #2a3a32">
       <span style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:#f5c542;letter-spacing:1.2px">${pos}</span>
-      <span style="color:#5d6b66;font-size:9.5px">${players.length} player${players.length===1?"":"s"} · NET <b style="color:${netColor}">${netStr}</b></span>
+      <span style="color:var(--ds-slate);font-size:9.5px">${players.length} player${players.length===1?"":"s"} · NET <b style="color:${netColor}">${netStr}</b></span>
     </div>
     ${rows}`;
   // Position above the hovered bar. Use the SVG bar's bounding rect
@@ -14119,8 +14119,8 @@ function _devChartTierShow(evt, tier) {
     const dColor = p.delta > 0 ? "#86e0a3" : p.delta < 0 ? "#ff9b9b" : "#7a8b85";
     const dArr = p.delta > 0 ? `▲ +${p.delta}` : p.delta < 0 ? `▼ ${p.delta}` : "━";
     return `<div style="display:grid;grid-template-columns:1fr 2.4rem 2.8rem;gap:.4rem;align-items:baseline;padding:.1rem 0;font-size:10.5px">
-      <span style="color:#cce8d6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}<span style="color:#5d6b66;font-size:9px;margin-left:.3rem">${p.pos} · ${p.age || ""}</span></span>
-      <span style="color:#cce8d6;font-family:'Bebas Neue',sans-serif;font-size:13px;text-align:right;letter-spacing:.5px">${p.postOvr}</span>
+      <span style="color:var(--ds-grade-pos-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}<span style="color:var(--ds-slate);font-size:9px;margin-left:.3rem">${p.pos} · ${p.age || ""}</span></span>
+      <span style="color:var(--ds-grade-pos-soft);font-family:'Bebas Neue',sans-serif;font-size:13px;text-align:right;letter-spacing:.5px">${p.postOvr}</span>
       <span style="color:${dColor};font-weight:700;text-align:right;font-size:10px">${dArr}</span>
     </div>`;
   }).join("");
@@ -14128,7 +14128,7 @@ function _devChartTierShow(evt, tier) {
   el.innerHTML = `
     <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:.3rem;margin-bottom:.3rem;border-bottom:1px solid #2a3a32">
       <span style="font-family:'Bebas Neue',sans-serif;font-size:15px;color:${meta.color};letter-spacing:1.5px">${tier} TIER</span>
-      <span style="color:#5d6b66;font-size:9.5px">${players.length} player${players.length===1?"":"s"} · <span style="color:${meta.color};font-style:italic">${meta.label}</span></span>
+      <span style="color:var(--ds-slate);font-size:9.5px">${players.length} player${players.length===1?"":"s"} · <span style="color:${meta.color};font-style:italic">${meta.label}</span></span>
     </div>
     ${rows}`;
   // Tier-color border-left so the tooltip visually anchors to the
@@ -14173,7 +14173,7 @@ function _devChartHistoryShow(evt, kind, season) {
   // Delta formatter — for AGE, rising is amber (concern); for OVR,
   // rising is green (good). Same arrow rules either way.
   const _fmtDelta = (d) => {
-    if (d == null) return `<span style="color:#5d6b66">—</span>`;
+    if (d == null) return `<span style="color:var(--ds-slate)">—</span>`;
     const sign = d > 0 ? "+" : "";
     const arrow = d > 0 ? "▲" : d < 0 ? "▼" : "━";
     const goodColor = "#86e0a3", badColor = "#ff9b9b", neutral = "#7a8b85";
@@ -14186,15 +14186,15 @@ function _devChartHistoryShow(evt, kind, season) {
   el.innerHTML = `
     <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:.3rem;margin-bottom:.25rem;border-bottom:1px solid #2a3a32">
       <span style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:${color};letter-spacing:1.3px">SEASON ${cur.season}</span>
-      <span style="color:#5d6b66;font-size:9.5px">${label}</span>
+      <span style="color:var(--ds-slate);font-size:9.5px">${label}</span>
     </div>
     <div style="display:flex;justify-content:center;align-items:baseline;gap:.3rem;padding:.2rem 0 .4rem">
       <span style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:${color};letter-spacing:1px;line-height:1">${val.toFixed(1)}</span>
-      ${unit ? `<span style="color:#5d6b66;font-size:10px">${unit}</span>` : ""}
+      ${unit ? `<span style="color:var(--ds-slate);font-size:10px">${unit}</span>` : ""}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;padding-top:.25rem;border-top:1px solid #2a3a32;font-size:10px">
-      <div><span style="color:#5d6b66">vs prior</span> ${_fmtDelta(dVsPrev)}</div>
-      <div style="text-align:right"><span style="color:#5d6b66">vs current</span> ${_fmtDelta(dVsCur)}</div>
+      <div><span style="color:var(--ds-slate)">vs prior</span> ${_fmtDelta(dVsPrev)}</div>
+      <div style="text-align:right"><span style="color:var(--ds-slate)">vs current</span> ${_fmtDelta(dVsCur)}</div>
     </div>`;
   el.style.borderLeft = `3px solid ${color}`;
   el.style.borderColor = `#a98a2e ${color} #a98a2e #a98a2e`;
@@ -15026,7 +15026,7 @@ function _buildOffseasonCapHorizon() {
   }
   return `<div style="margin-bottom:.6rem;padding:.5rem .6rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:4px">
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.5rem;margin-bottom:.4rem">
-      <span style="font-size:.52rem;color:#a98a2e;letter-spacing:1.2px;font-weight:700">💰 CAP HORIZON <span style="color:var(--gray);font-weight:400;letter-spacing:.3px">· room as deals roll off · cap +5%/yr</span></span>
+      <span style="font-size:.52rem;color:var(--ds-gold-dim);letter-spacing:1.2px;font-weight:700">💰 CAP HORIZON <span style="color:var(--gray);font-weight:400;letter-spacing:.3px">· room as deals roll off · cap +5%/yr</span></span>
       <div style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap">
         ${_signedN ? `<span style="font-size:.52rem;color:var(--gray)">✍ Signed this offseason: <b style="color:#8ab4f8">${_signedN} deal${_signedN > 1 ? "s" : ""} · $${_signedAav.toFixed(1)}M/yr</b></span>` : ""}
         <button class="frn-cap-btn" onclick="renderFrnAnalytics('horizon')" style="font-size:.52rem" title="Open the full multi-year Cap Horizon — per-year detail + which players expire">📅 Full Horizon →</button>
@@ -15066,7 +15066,7 @@ function _buildOffseasonGainsSheet() {
     if (c && c.startSeason === _curSeason) {
       const yrs = c.years || c.remaining || 0;
       const aav = c.aav || 0;
-      return `<button onclick="frnExtendPlayer('${safeName}')" style="font-size:.5rem;letter-spacing:.4px;padding:.18rem .45rem;border-radius:2px;border:1px solid #86e0a3;background:rgba(134,224,163,.12);color:#86e0a3;cursor:pointer;font-family:inherit;font-weight:700" title="Signed this offseason — click to revise">✅ ${yrs}yr · $${aav.toFixed(1)}M/yr</button>`;
+      return `<button onclick="frnExtendPlayer('${safeName}')" style="font-size:.5rem;letter-spacing:.4px;padding:.18rem .45rem;border-radius:2px;border:1px solid var(--ds-grade-pos);background:rgba(134,224,163,.12);color:var(--ds-grade-pos);cursor:pointer;font-family:inherit;font-weight:700" title="Signed this offseason — click to revise">✅ ${yrs}yr · $${aav.toFixed(1)}M/yr</button>`;
     }
     return `<button onclick="frnExtendPlayer('${safeName}')" style="font-size:.55rem;letter-spacing:.5px;padding:.15rem .45rem;border-radius:2px;border:1px solid var(--blborder);background:transparent;color:var(--gold);cursor:pointer;font-family:inherit" title="Open contract extension">📝 EXTEND</button>`;
   };
@@ -15143,9 +15143,9 @@ function _buildOffseasonGainsSheet() {
   // matches, the whole upper report would silently empty. Surface
   // a notice so the user knows the filter is the cause.
   const emptyFilterNotice = (filterIsActive && myChg.length === 0)
-    ? `<div style="margin:.4rem 0;padding:.4rem .6rem;background:rgba(224,176,120,.08);border:1px solid #e0b078;border-radius:3px;font-size:.65rem;color:#e0b078;display:flex;align-items:center;gap:.5rem">
+    ? `<div style="margin:.4rem 0;padding:.4rem .6rem;background:rgba(224,176,120,.08);border:1px solid var(--ds-grade-caution-soft);border-radius:3px;font-size:.65rem;color:var(--ds-grade-caution-soft);display:flex;align-items:center;gap:.5rem">
         <span>⚠ No players match these filters.</span>
-        <button onclick="frnGainsFilterSet('ALL');frnGainsFilterReasonSet('ALL');" style="background:transparent;border:1px solid #e0b078;color:#e0b078;padding:.15rem .5rem;font-size:.55rem;cursor:pointer;font-family:inherit;border-radius:2px">CLEAR ALL</button>
+        <button onclick="frnGainsFilterSet('ALL');frnGainsFilterReasonSet('ALL');" style="background:transparent;border:1px solid var(--ds-grade-caution-soft);color:var(--ds-grade-caution-soft);padding:.15rem .5rem;font-size:.55rem;cursor:pointer;font-family:inherit;border-radius:2px">CLEAR ALL</button>
       </div>` : "";
   const gainers   = myChg.filter(c => c.delta > 0);
   const steady    = myChg.filter(c => c.delta === 0);
@@ -15279,10 +15279,10 @@ function _buildOffseasonGainsSheet() {
     const capLine = lr.captains.length
       ? `<div style="font-size:.6rem;margin-bottom:.2rem"><span style="color:var(--gold);font-weight:700">⭐ Captains</span> <span style="color:var(--blwhite)">${lr.captains.map(c => esc(c.name)).join(", ")}</span></div>` : "";
     const canLine = lr.cancers.length
-      ? `<div style="font-size:.6rem;margin-bottom:.2rem;color:#ff8a8a"><b>☢ Cancers</b> ${lr.cancers.map(c => esc(c.name)).join(", ")} <span style="color:#ffb3b3">· −${Math.round((1 - lr.devMul) * 100)}% team dev</span></div>` : "";
+      ? `<div style="font-size:.6rem;margin-bottom:.2rem;color:var(--ds-grade-neg)"><b>☢ Cancers</b> ${lr.cancers.map(c => esc(c.name)).join(", ")} <span style="color:#ffb3b3">· −${Math.round((1 - lr.devMul) * 100)}% team dev</span></div>` : "";
     const pairLines = lr.pairs.length
       ? `<div style="font-size:.55rem;color:var(--gray);letter-spacing:.5px;margin:.25rem 0 .1rem">MENTORSHIPS · +${Math.round((MENTOR_DEV_BOOST - 1) * 100)}% dev</div>`
-        + lr.pairs.map(pr => `<div style="font-size:.6rem;margin-bottom:.12rem"><span style="color:var(--gold)">${esc(pr.mentor.name)}</span> <span style="color:var(--gray)">→ mentoring</span> <span style="color:#86e0a3;font-weight:700">${esc(pr.mentee.name)}</span> <span style="color:var(--gray)">(${pr.pos})</span></div>`).join("")
+        + lr.pairs.map(pr => `<div style="font-size:.6rem;margin-bottom:.12rem"><span style="color:var(--gold)">${esc(pr.mentor.name)}</span> <span style="color:var(--gray)">→ mentoring</span> <span style="color:var(--ds-grade-pos);font-weight:700">${esc(pr.mentee.name)}</span> <span style="color:var(--gray)">(${pr.pos})</span></div>`).join("")
       : `<div style="font-size:.58rem;color:var(--gray);font-style:italic">No active mentorships — pair a veteran leader with a young player at his position.</div>`;
     return `<div style="margin-bottom:.6rem;padding:.55rem .7rem;background:rgba(255,255,255,.02);border:1px solid var(--blborder);border-left:2px solid var(--gold);border-radius:3px">
       <div style="font-size:.55rem;color:var(--gold);letter-spacing:1.2px;font-weight:700;margin-bottom:.35rem">🛋 LOCKER ROOM</div>
@@ -15331,7 +15331,7 @@ function _buildOffseasonGainsSheet() {
     return `
     <div style="margin-bottom:.6rem;padding:.55rem .7rem;background:rgba(255,255,255,.02);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">
-        <span style="font-size:.55rem;color:#a98a2e;letter-spacing:1.5px;font-weight:700">📊 TEAM STATUS</span>
+        <span style="font-size:.55rem;color:var(--ds-gold-dim);letter-spacing:1.5px;font-weight:700">📊 TEAM STATUS</span>
         <span style="color:var(--gray);font-size:.6rem">— how the roster's looking right now</span>
       </div>
       <div style="display:flex;gap:.7rem;flex-wrap:wrap;align-items:stretch">
@@ -15408,15 +15408,15 @@ function _buildOffseasonGainsSheet() {
         flags.push(`<span style="font-size:.55rem;color:var(--red);padding:.05rem .3rem;border:1px solid var(--red);border-radius:1px">🩹 ${p.injury.label || "INJ"} ${p.injury.weeksRemaining}w</span>`);
       }
       if (p.contract?.remaining != null && p.contract.remaining <= 1) {
-        flags.push(`<span style="font-size:.55rem;color:#e0b078;padding:.05rem .3rem;border:1px solid #e0b078;border-radius:1px">⏳ EXPIRING</span>`);
+        flags.push(`<span style="font-size:.55rem;color:var(--ds-grade-caution-soft);padding:.05rem .3rem;border:1px solid var(--ds-grade-caution-soft);border-radius:1px">⏳ EXPIRING</span>`);
       }
       if (c?.potentialBumped) {
-        flags.push(`<span style="font-size:.55rem;color:#86c8ff;padding:.05rem .3rem;border:1px solid #86c8ff;border-radius:1px">💎 CEILING ↑</span>`);
+        flags.push(`<span style="font-size:.55rem;color:var(--ds-accent-blue);padding:.05rem .3rem;border:1px solid var(--ds-accent-blue);border-radius:1px">💎 CEILING ↑</span>`);
       }
       // Age stage
-      const ageStage = (p.age || 0) >= peakAge + 3 ? `<span style="color:#ff9b9b">declining</span>`
-                     : (p.age || 0) > peakAge        ? `<span style="color:#e0b078">post-peak</span>`
-                     : (p.age || 0) >= 25            ? `<span style="color:#86e0a3">in prime</span>`
+      const ageStage = (p.age || 0) >= peakAge + 3 ? `<span style="color:var(--ds-grade-neg-soft)">declining</span>`
+                     : (p.age || 0) > peakAge        ? `<span style="color:var(--ds-grade-caution-soft)">post-peak</span>`
+                     : (p.age || 0) >= 25            ? `<span style="color:var(--ds-grade-pos)">in prime</span>`
                      : (p.age || 0) >= 23            ? `<span style="color:#5ed4d4">ascending</span>`
                      :                                  `<span style="color:#a8d8b6">young</span>`;
       const deltaStr = delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : "—";
@@ -15463,7 +15463,7 @@ function _buildOffseasonGainsSheet() {
     return `
     <div style="margin-bottom:.6rem;padding:.55rem .7rem;background:linear-gradient(180deg,rgba(245,197,66,.04),transparent);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">
-        <span style="font-size:.55rem;color:#a98a2e;letter-spacing:1.5px;font-weight:700">⭐ STAR WATCH</span>
+        <span style="font-size:.55rem;color:var(--ds-gold-dim);letter-spacing:1.5px;font-weight:700">⭐ STAR WATCH</span>
         <span style="color:var(--gray);font-size:.6rem">— top of your roster, where they stand</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:.3rem">${rows}</div>
@@ -15497,15 +15497,15 @@ function _buildOffseasonGainsSheet() {
     return `
     <div style="margin-bottom:.6rem;padding:.5rem .65rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem">
-        <span style="font-size:.55rem;color:#a98a2e;letter-spacing:1.5px;font-weight:700">💰 VALUE SPOTLIGHT</span>
+        <span style="font-size:.55rem;color:var(--ds-gold-dim);letter-spacing:1.5px;font-weight:700">💰 VALUE SPOTLIGHT</span>
         <span style="color:var(--gray);font-size:.55rem;margin-left:auto;cursor:pointer" onclick="renderFrnAnalytics('value')">full ledger →</span>
       </div>
       ${bargains.length ? `
-        <div style="font-size:.5rem;color:#86e0a3;letter-spacing:1px;margin-bottom:.15rem;font-weight:700">🟢 BIGGEST BARGAINS</div>
+        <div style="font-size:.5rem;color:var(--ds-grade-pos);letter-spacing:1px;margin-bottom:.15rem;font-weight:700">🟢 BIGGEST BARGAINS</div>
         ${bargains.map(_row).join("")}
       ` : ""}
       ${overpays.length ? `
-        <div style="font-size:.5rem;color:#ff9b9b;letter-spacing:1px;margin:.4rem 0 .15rem;font-weight:700">🔴 BIGGEST OVERPAYS</div>
+        <div style="font-size:.5rem;color:var(--ds-grade-neg-soft);letter-spacing:1px;margin:.4rem 0 .15rem;font-weight:700">🔴 BIGGEST OVERPAYS</div>
         ${overpays.map(_row).join("")}
       ` : ""}
     </div>`;
@@ -15536,7 +15536,7 @@ function _buildOffseasonGainsSheet() {
     return `
     <div style="margin-bottom:.6rem;padding:.5rem .65rem;background:rgba(255,155,155,.05);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem">
-        <span style="font-size:.55rem;color:#e0b078;letter-spacing:1.5px;font-weight:700">⏳ AGING CLIFF RADAR</span>
+        <span style="font-size:.55rem;color:var(--ds-grade-caution-soft);letter-spacing:1.5px;font-weight:700">⏳ AGING CLIFF RADAR</span>
         <span style="color:var(--gray);font-size:.55rem;margin-left:auto">next 3 yrs</span>
       </div>
       ${watch.map(_row).join("")}
@@ -15554,10 +15554,10 @@ function _buildOffseasonGainsSheet() {
     if (!candidates.length) return "";
     const _row = (p) => {
       const ageStage = (p.age || 0) > (p.peakAge || 27)
-        ? `<span style="color:#e0b078">post-peak</span>`
+        ? `<span style="color:var(--ds-grade-caution-soft)">post-peak</span>`
         : (p.age || 0) === (p.peakAge || 27)
-        ? `<span style="color:#86c8ff">at peak</span>`
-        : `<span style="color:#86e0a3">last yr of prime</span>`;
+        ? `<span style="color:var(--ds-accent-blue)">at peak</span>`
+        : `<span style="color:var(--ds-grade-pos)">last yr of prime</span>`;
       return `<div style="display:grid;grid-template-columns:1.8rem 1fr 2.4rem 5rem;gap:.3rem;align-items:baseline;padding:.12rem 0;font-size:.65rem">
         <span style="color:var(--gold);font-size:.6rem;font-weight:700">${p.position}</span>
         <span style="color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_playerLinkSmart(p.name)}</span>
@@ -15595,7 +15595,7 @@ function _buildOffseasonGainsSheet() {
     return `
     <div style="margin-bottom:.6rem;padding:.5rem .65rem;background:rgba(255,155,155,.05);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem">
-        <span style="font-size:.55rem;color:#ff9b9b;letter-spacing:1.5px;font-weight:700">🎯 POSITION NEEDS</span>
+        <span style="font-size:.55rem;color:var(--ds-grade-neg-soft);letter-spacing:1.5px;font-weight:700">🎯 POSITION NEEDS</span>
         <span style="color:var(--gray);font-size:.55rem;margin-left:auto;cursor:pointer" onclick="renderFrnAnalytics('needs')">full breakdown →</span>
       </div>
       ${weakest.map(_row).join("")}
@@ -15613,7 +15613,7 @@ function _buildOffseasonGainsSheet() {
     return `
     <div style="margin-bottom:.6rem;padding:.55rem .7rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">
-        <span style="font-size:.55rem;color:#a98a2e;letter-spacing:1.5px;font-weight:700">📝 INTERNAL CAMP NOTES</span>
+        <span style="font-size:.55rem;color:var(--ds-gold-dim);letter-spacing:1.5px;font-weight:700">📝 INTERNAL CAMP NOTES</span>
         <span style="color:var(--gray);font-size:.6rem;font-style:italic">— from the building, off the record</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.4rem">
@@ -15621,7 +15621,7 @@ function _buildOffseasonGainsSheet() {
           <div style="padding:.35rem .5rem;border-left:2px solid #2a3a32;background:rgba(255,255,255,.015)">
             <div style="display:flex;align-items:center;gap:.35rem;margin-bottom:.15rem">
               <span style="font-size:.7rem">${n.icon}</span>
-              <span style="font-size:.6rem;color:#a98a2e;letter-spacing:.5px;font-weight:700">${n.header}</span>
+              <span style="font-size:.6rem;color:var(--ds-gold-dim);letter-spacing:.5px;font-weight:700">${n.header}</span>
             </div>
             <div style="color:var(--white);font-size:.68rem;font-style:italic;line-height:1.4">"${n.text}"</div>
           </div>`).join("")}
@@ -15664,8 +15664,8 @@ function _buildOffseasonGainsSheet() {
     });
   const _topOvrRow = (c, i) => {
     const tier = _ceilingTier(c.potential || c.postOvr, c.draftRound);
-    const contractFlag = c.contractYearsLeft === 0 ? `<span style="color:#ff9b9b;font-size:.55rem;font-weight:700">EXPIRED</span>`
-                      : c.contractYearsLeft === 1 ? `<span style="color:#e0b078;font-size:.55rem;font-weight:700">1yr</span>`
+    const contractFlag = c.contractYearsLeft === 0 ? `<span style="color:var(--ds-grade-neg-soft);font-size:.55rem;font-weight:700">EXPIRED</span>`
+                      : c.contractYearsLeft === 1 ? `<span style="color:var(--ds-grade-caution-soft);font-size:.55rem;font-weight:700">1yr</span>`
                       : c.contractYearsLeft != null ? `<span style="color:var(--gray);font-size:.55rem">${c.contractYearsLeft}yr</span>` : "";
     const dStr = c.delta > 0 ? `+${c.delta}` : c.delta < 0 ? `${c.delta}` : "—";
     const dColor = c.delta > 0 ? "#86e0a3" : c.delta < 0 ? "#ff9b9b" : "var(--gray)";
@@ -15706,14 +15706,14 @@ function _buildOffseasonGainsSheet() {
   const top5Gainers = myChg.filter(c => c.delta > 0)
     .sort((a, b) => b.delta - a.delta).slice(0, 5);
   const top5Movers = top5Gainers.length ? `
-    <div style="margin-bottom:.55rem;padding:.4rem .55rem;background:rgba(134,224,163,.06);border-left:3px solid #86e0a3;border-radius:3px">
-      <div style="font-size:.55rem;color:#86e0a3;letter-spacing:1.5px;margin-bottom:.2rem">🚀 TOP 5 GAINERS</div>
+    <div style="margin-bottom:.55rem;padding:.4rem .55rem;background:rgba(134,224,163,.06);border-left:3px solid var(--ds-grade-pos);border-radius:3px">
+      <div style="font-size:.55rem;color:var(--ds-grade-pos);letter-spacing:1.5px;margin-bottom:.2rem">🚀 TOP 5 GAINERS</div>
       ${top5Gainers.map((c, i) => `
         <div style="display:flex;align-items:center;gap:.4rem;padding:.12rem 0;font-size:.65rem">
           <span style="color:var(--gray);width:.9rem">${i+1}.</span>
           <span style="font-weight:700">${_playerLinkSmart(c.name)}</span>
           <span style="color:var(--gray);font-size:.6rem">${c.pos} · age ${c.ageNow}</span>
-          <span style="color:#86e0a3;font-size:.62rem">${c.preOvr} → ${c.postOvr} (+${c.delta})</span>
+          <span style="color:var(--ds-grade-pos);font-size:.62rem">${c.preOvr} → ${c.postOvr} (+${c.delta})</span>
         </div>`).join("")}
     </div>` : "";
 
@@ -15730,10 +15730,10 @@ function _buildOffseasonGainsSheet() {
   // can keep growing past where they used to cap. Worth its own panel.
   const ceilingReveals = myChg.filter(c => c.potentialBumped);
   const heroBlock = ceilingReveals.length ? `
-    <div style="margin-bottom:.6rem;padding:.55rem .7rem;background:linear-gradient(90deg,rgba(134,200,255,.12),rgba(134,200,255,.02));border-left:3px solid #86c8ff;border-radius:3px">
+    <div style="margin-bottom:.6rem;padding:.55rem .7rem;background:linear-gradient(90deg,rgba(134,200,255,.12),rgba(134,200,255,.02));border-left:3px solid var(--ds-accent-blue);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.3rem">
         <span style="font-size:1.15rem">💎</span>
-        <span style="font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:1.5px;color:#86c8ff;font-size:.85rem">HIDDEN GEM REVEAL${ceilingReveals.length===1?"":"S"}</span>
+        <span style="font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:1.5px;color:var(--ds-accent-blue);font-size:.85rem">HIDDEN GEM REVEAL${ceilingReveals.length===1?"":"S"}</span>
         <span style="color:var(--gray);font-size:.6rem;margin-left:auto">ceiling raised — they can keep growing past their old cap</span>
       </div>
       ${ceilingReveals.map(c => {
@@ -15753,7 +15753,7 @@ function _buildOffseasonGainsSheet() {
           <span style="font-weight:700">${_playerLinkSmart(c.name)}</span>
           <span style="color:var(--gray);font-size:.65rem">${c.pos} · age ${c.ageNow}</span>
           <span style="color:var(--gray);font-size:.65rem;margin-left:auto">
-            ${tierShifted ? `tier <b style="color:${tFrom.color}">${tFrom.grade}</b> → <b style="color:${tTo.color};font-size:.85rem">${tTo.grade}</b> · ` : ""}<span style="color:#86c8ff;font-style:italic">ceiling ${magnitude}</span>
+            ${tierShifted ? `tier <b style="color:${tFrom.color}">${tFrom.grade}</b> → <b style="color:${tTo.color};font-size:.85rem">${tTo.grade}</b> · ` : ""}<span style="color:var(--ds-accent-blue);font-style:italic">ceiling ${magnitude}</span>
           </span>
         </div>`;
       }).join("")}
@@ -15789,7 +15789,7 @@ function _buildOffseasonGainsSheet() {
                     : champExtras.pipeline >= 4 ? "var(--gold)"
                     : "#7a8b85";
     const holdoutChip = champExtras.holdouts > 0
-      ? `<span title="Active extension demands"><span style="color:#ff9b9b">🗣 <b>${champExtras.holdouts}</b> holdout${champExtras.holdouts>1?"s":""}</span></span>`
+      ? `<span title="Active extension demands"><span style="color:var(--ds-grade-neg-soft)">🗣 <b>${champExtras.holdouts}</b> holdout${champExtras.holdouts>1?"s":""}</span></span>`
       : "";
     return `
       <div style="display:flex;gap:.55rem;flex-wrap:wrap;font-size:.6rem;color:var(--gray);padding:.3rem .4rem;background:rgba(255,255,255,.02);border-radius:2px;border:1px solid var(--blborder)">
@@ -15807,13 +15807,13 @@ function _buildOffseasonGainsSheet() {
   // display line.
   const peakHtml = peakProj ? (() => {
     const label = peakProj.yearsAway === 0
-      ? `<span style="color:#86e0a3">peaking now</span>`
+      ? `<span style="color:var(--ds-grade-pos)">peaking now</span>`
       : peakProj.yearsAway === 1
-      ? `<span style="color:#86c8ff">peak in 1 yr</span>`
+      ? `<span style="color:var(--ds-accent-blue)">peak in 1 yr</span>`
       : peakProj.yearsAway <= 3
-      ? `<span style="color:#86c8ff">peak in ${peakProj.yearsAway} yrs</span>`
-      : `<span style="color:#e0b078">peak ${peakProj.yearsAway}+ yrs out</span>`;
-    return `<span title="Assumes current roster stays intact (no FA/draft/trades modeled). Estimated by aging each player forward and tracking when aggregate avg OVR peaks." style="cursor:help">📈 ${label} <span style="color:#5d6b66;font-size:.6rem">(SEASON ${peakProj.year} · ${peakProj.ovr.toFixed(1)} OVR)</span></span>`;
+      ? `<span style="color:var(--ds-accent-blue)">peak in ${peakProj.yearsAway} yrs</span>`
+      : `<span style="color:var(--ds-grade-caution-soft)">peak ${peakProj.yearsAway}+ yrs out</span>`;
+    return `<span title="Assumes current roster stays intact (no FA/draft/trades modeled). Estimated by aging each player forward and tracking when aggregate avg OVR peaks." style="cursor:help">📈 ${label} <span style="color:var(--ds-slate);font-size:.6rem">(SEASON ${peakProj.year} · ${peakProj.ovr.toFixed(1)} OVR)</span></span>`;
   })() : "";
   const champWindowHtml = champWindow ? `
     <div style="padding:.7rem .85rem;background:linear-gradient(180deg, rgba(134,200,255,.05), rgba(255,255,255,.015));border:1px solid var(--blborder);border-radius:4px">
@@ -15821,7 +15821,7 @@ function _buildOffseasonGainsSheet() {
         <div style="text-align:center;padding:0 .5rem;border-right:1px solid var(--blborder);min-width:80px">
           <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.6rem;color:${champWindow.color};letter-spacing:1px;line-height:1">${champWindow.verdict}</div>
           ${champWindow.windowYrs > 0 ? `<div style="font-size:.55rem;color:var(--gray);letter-spacing:.8px;margin-top:.15rem">~${champWindow.windowYrs} yr window</div>` : ""}
-          <div style="font-size:.5rem;color:#5d6b66;margin-top:.1rem">🏆 CHAMPIONSHIP</div>
+          <div style="font-size:.5rem;color:var(--ds-slate);margin-top:.1rem">🏆 CHAMPIONSHIP</div>
         </div>
         <div style="min-width:0">
           <div style="display:flex;gap:.6rem;flex-wrap:wrap;font-size:.65rem;color:var(--gray);margin-bottom:.4rem">
@@ -15831,7 +15831,7 @@ function _buildOffseasonGainsSheet() {
           </div>
           ${champExtrasHtml ? `<div style="margin-bottom:.35rem">${champExtrasHtml}</div>` : ""}
           ${peakHtml ? `<div style="font-size:.65rem;padding:.18rem 0;margin-bottom:.3rem;border-top:1px dashed var(--blborder);padding-top:.3rem">${peakHtml}</div>` : ""}
-          <div style="font-size:.65rem;color:#cce8d6;font-style:italic;line-height:1.4;padding:.25rem .4rem;background:rgba(255,255,255,.025);border-left:2px solid ${champWindow.color};border-radius:1px">
+          <div style="font-size:.65rem;color:var(--ds-grade-pos-soft);font-style:italic;line-height:1.4;padding:.25rem .4rem;background:rgba(255,255,255,.025);border-left:2px solid ${champWindow.color};border-radius:1px">
             ${champWindow.guidance}
           </div>
         </div>
@@ -15855,24 +15855,24 @@ function _buildOffseasonGainsSheet() {
     const dStr = dSum > 0 ? `+${dSum}` : `${dSum}`;
     const dCol = dSum > 0 ? "#86e0a3" : dSum < 0 ? "#ff9b9b" : "#7a8b85";
     const eventChips = [
-      overall.breakouts ? `<span style="color:#86e0a3">▲ ${overall.breakouts} breakout${overall.breakouts===1?"":"s"}</span>` : "",
-      overall.reveals   ? `<span style="color:#86c8ff">💎 ${overall.reveals} ceiling reveal${overall.reveals===1?"":"s"}</span>` : "",
+      overall.breakouts ? `<span style="color:var(--ds-grade-pos)">▲ ${overall.breakouts} breakout${overall.breakouts===1?"":"s"}</span>` : "",
+      overall.reveals   ? `<span style="color:var(--ds-accent-blue)">💎 ${overall.reveals} ceiling reveal${overall.reveals===1?"":"s"}</span>` : "",
       overall.rehabs    ? `<span style="color:#a8d8b6">🏥 ${overall.rehabs} rehab${overall.rehabs===1?"":"s"}</span>` : "",
-      overall.cliffs    ? `<span style="color:#e0b078">⏳ ${overall.cliffs} cliff hit${overall.cliffs===1?"":"s"}</span>` : "",
-    ].filter(Boolean).join(`<span style="color:#5d6b66"> · </span>`);
+      overall.cliffs    ? `<span style="color:var(--ds-grade-caution-soft)">⏳ ${overall.cliffs} cliff hit${overall.cliffs===1?"":"s"}</span>` : "",
+    ].filter(Boolean).join(`<span style="color:var(--ds-slate)"> · </span>`);
     return `
     <div style="margin-bottom:.6rem;padding:.7rem .85rem;background:linear-gradient(180deg, rgba(245,197,66,.05), rgba(255,255,255,.015));border:1px solid var(--blborder);border-radius:4px">
       <div style="display:grid;grid-template-columns:auto 1fr;gap:1.1rem;align-items:center">
         <div style="text-align:center;padding:0 .5rem;border-right:1px solid var(--blborder)">
           <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:3.4rem;color:${overall.color};letter-spacing:1px;line-height:.95">${overall.grade}</div>
           <div style="font-size:.55rem;color:var(--gray);letter-spacing:1.5px;margin-top:.1rem">CAMP REPORT</div>
-          <div style="font-size:.5rem;color:#5d6b66;margin-top:.05rem">${overall.count} players</div>
+          <div style="font-size:.5rem;color:var(--ds-slate);margin-top:.05rem">${overall.count} players</div>
         </div>
         <div style="min-width:0">
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:baseline;margin-bottom:.5rem;font-size:.7rem">
             <span style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.3rem;color:${dCol};letter-spacing:.5px;line-height:1">${dStr} OVR</span>
-            <span style="color:#5d6b66;font-size:.55rem;letter-spacing:1px">NET ${dSum > 0 ? "GAIN" : dSum < 0 ? "LOSS" : "FLAT"}</span>
-            ${eventChips ? `<span style="color:#5d6b66"> · </span>${eventChips}` : ""}
+            <span style="color:var(--ds-slate);font-size:.55rem;letter-spacing:1px">NET ${dSum > 0 ? "GAIN" : dSum < 0 ? "LOSS" : "FLAT"}</span>
+            ${eventChips ? `<span style="color:var(--ds-slate)"> · </span>${eventChips}` : ""}
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(58px,1fr));gap:.3rem">
             ${byPos.map(p => {
@@ -15903,21 +15903,21 @@ function _buildOffseasonGainsSheet() {
     ${(biggestUp && biggestUp.delta > 0) || (biggestDn && biggestDn.delta < 0) ? `
       <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem;font-size:.7rem">
         ${(biggestUp && biggestUp.delta > 0) ? `
-          <div style="flex:1;min-width:200px;padding:.4rem .55rem;background:rgba(134,224,163,.08);border-left:3px solid #86e0a3;border-radius:2px">
-            <div style="font-size:.55rem;color:#86e0a3;letter-spacing:1.2px">🚀 BIGGEST GAINER</div>
+          <div style="flex:1;min-width:200px;padding:.4rem .55rem;background:rgba(134,224,163,.08);border-left:3px solid var(--ds-grade-pos);border-radius:2px">
+            <div style="font-size:.55rem;color:var(--ds-grade-pos);letter-spacing:1.2px">🚀 BIGGEST GAINER</div>
             <div style="margin-top:.15rem;font-weight:700">${_playerLinkSmart(biggestUp.name)}
               <span style="color:var(--gray);font-size:.65rem">${biggestUp.pos}</span>
-              · ${biggestUp.preOvr} → <b style="color:#86e0a3">${biggestUp.postOvr}</b>
-              <span style="color:#86e0a3">(+${biggestUp.delta})</span>
+              · ${biggestUp.preOvr} → <b style="color:var(--ds-grade-pos)">${biggestUp.postOvr}</b>
+              <span style="color:var(--ds-grade-pos)">(+${biggestUp.delta})</span>
             </div>
           </div>` : ""}
         ${(biggestDn && biggestDn.delta < 0) ? `
-          <div style="flex:1;min-width:200px;padding:.4rem .55rem;background:rgba(255,155,155,.08);border-left:3px solid #ff9b9b;border-radius:2px">
-            <div style="font-size:.55rem;color:#ff9b9b;letter-spacing:1.2px">📉 BIGGEST DROP</div>
+          <div style="flex:1;min-width:200px;padding:.4rem .55rem;background:rgba(255,155,155,.08);border-left:3px solid var(--ds-grade-neg-soft);border-radius:2px">
+            <div style="font-size:.55rem;color:var(--ds-grade-neg-soft);letter-spacing:1.2px">📉 BIGGEST DROP</div>
             <div style="margin-top:.15rem;font-weight:700">${_playerLinkSmart(biggestDn.name)}
               <span style="color:var(--gray);font-size:.65rem">${biggestDn.pos}</span>
-              · ${biggestDn.preOvr} → <b style="color:#ff9b9b">${biggestDn.postOvr}</b>
-              <span style="color:#ff9b9b">(${biggestDn.delta})</span>
+              · ${biggestDn.preOvr} → <b style="color:var(--ds-grade-neg-soft)">${biggestDn.postOvr}</b>
+              <span style="color:var(--ds-grade-neg-soft)">(${biggestDn.delta})</span>
             </div>
           </div>` : ""}
       </div>` : ""}`;
@@ -15986,7 +15986,7 @@ function _buildOffseasonGainsSheet() {
                     : "a little room";
     const confidence = isNewlyKnown ? "rough read" : "uncertain";
     const newBadge = isNewlyKnown
-      ? `<span style="display:inline-block;font-size:.5rem;padding:.05rem .25rem;border-radius:2px;background:rgba(134,200,255,.15);color:#86c8ff;border:1px solid #86c8ff60;margin-right:.25rem;letter-spacing:.5px;font-weight:700">🔍 NEW</span>`
+      ? `<span style="display:inline-block;font-size:.5rem;padding:.05rem .25rem;border-radius:2px;background:rgba(134,200,255,.15);color:var(--ds-accent-blue);border:1px solid #86c8ff60;margin-right:.25rem;letter-spacing:.5px;font-weight:700">🔍 NEW</span>`
       : "";
     return `<span style="color:var(--gray);font-size:.6rem">${newBadge}<b style="color:${t.color}">${t.grade}?</b> · <span style="color:var(--gray);font-style:italic">${roomLabel} (${confidence})</span></span>`;
   };
@@ -15995,8 +15995,8 @@ function _buildOffseasonGainsSheet() {
   const _contractCell = (c) => {
     if (c.contractYearsLeft == null) return `<span style="color:var(--gray);font-size:.58rem">—</span>`;
     const yrs = c.contractYearsLeft;
-    if (yrs <= 0)  return `<span style="color:#ff9b9b;font-size:.58rem;font-weight:700">EXPIRED</span>`;
-    if (yrs === 1) return `<span style="color:#e0b078;font-size:.58rem;font-weight:700">1yr · EXPIRING</span>`;
+    if (yrs <= 0)  return `<span style="color:var(--ds-grade-neg-soft);font-size:.58rem;font-weight:700">EXPIRED</span>`;
+    if (yrs === 1) return `<span style="color:var(--ds-grade-caution-soft);font-size:.58rem;font-weight:700">1yr · EXPIRING</span>`;
     return `<span style="color:var(--gray);font-size:.58rem">${yrs}yr</span>`;
   };
 
@@ -16021,20 +16021,20 @@ function _buildOffseasonGainsSheet() {
     return { aavNow, aavLater, delta: aavLater - aavNow };
   };
   const resignBlock = resignEmergencies.length ? `
-    <div style="margin-bottom:.6rem;padding:.45rem .65rem;background:rgba(224,176,120,.08);border-left:3px solid #e0b078;border-radius:3px">
-      <div style="font-size:.55rem;color:#e0b078;letter-spacing:1.5px;margin-bottom:.2rem">⚠ RE-SIGN PRIORITY (gained value + expiring)</div>
+    <div style="margin-bottom:.6rem;padding:.45rem .65rem;background:rgba(224,176,120,.08);border-left:3px solid var(--ds-grade-caution-soft);border-radius:3px">
+      <div style="font-size:.55rem;color:var(--ds-grade-caution-soft);letter-spacing:1.5px;margin-bottom:.2rem">⚠ RE-SIGN PRIORITY (gained value + expiring)</div>
       ${resignEmergencies.map(c => {
         const cost = _projectExtensionCost(c);
         const costHtml = cost ? `<span style="color:var(--gray);font-size:.6rem;margin-right:.4rem">
-          extend now <b style="color:#86c8ff">$${cost.aavNow.toFixed(1)}M/yr</b>${cost.delta >= 0.2 ? ` · wait → <b style="color:#e0b078">$${cost.aavLater.toFixed(1)}M</b> (+$${cost.delta.toFixed(1)}M)` : ""}
+          extend now <b style="color:var(--ds-accent-blue)">$${cost.aavNow.toFixed(1)}M/yr</b>${cost.delta >= 0.2 ? ` · wait → <b style="color:var(--ds-grade-caution-soft)">$${cost.aavLater.toFixed(1)}M</b> (+$${cost.delta.toFixed(1)}M)` : ""}
         </span>` : "";
         return `
         <div style="display:flex;align-items:center;gap:.5rem;padding:.15rem 0;font-size:.7rem;flex-wrap:wrap">
           <span style="font-weight:700">${_playerLinkSmart(c.name)}</span>
           <span style="color:var(--gray);font-size:.62rem">${c.pos} · age ${c.ageNow}</span>
-          <span style="color:#86e0a3;font-size:.65rem">${c.preOvr} → ${c.postOvr} (+${c.delta})</span>
+          <span style="color:var(--ds-grade-pos);font-size:.65rem">${c.preOvr} → ${c.postOvr} (+${c.delta})</span>
           ${costHtml}
-          <span style="color:#e0b078;font-size:.62rem;margin-left:auto;font-weight:700">${c.contractYearsLeft === 0 ? "EXPIRED" : c.contractYearsLeft + "yr left"}</span>
+          <span style="color:var(--ds-grade-caution-soft);font-size:.62rem;margin-left:auto;font-weight:700">${c.contractYearsLeft === 0 ? "EXPIRED" : c.contractYearsLeft + "yr left"}</span>
         </div>`;
       }).join("")}
     </div>` : "";
@@ -16048,13 +16048,13 @@ function _buildOffseasonGainsSheet() {
   const depthRisks = myChg.filter(c => c.delta <= -3 && c.postOvr >= 72)
     .sort((a, b) => a.delta - b.delta).slice(0, 6);
   const depthBlock = depthRisks.length ? `
-    <div style="margin-bottom:.6rem;padding:.45rem .65rem;background:rgba(255,155,155,.08);border-left:3px solid #ff9b9b;border-radius:3px">
-      <div style="font-size:.55rem;color:#ff9b9b;letter-spacing:1.5px;margin-bottom:.2rem">⚠ DEPTH AT RISK (starter-grade regressions)</div>
+    <div style="margin-bottom:.6rem;padding:.45rem .65rem;background:rgba(255,155,155,.08);border-left:3px solid var(--ds-grade-neg-soft);border-radius:3px">
+      <div style="font-size:.55rem;color:var(--ds-grade-neg-soft);letter-spacing:1.5px;margin-bottom:.2rem">⚠ DEPTH AT RISK (starter-grade regressions)</div>
       ${depthRisks.map(c => `
         <div style="display:flex;align-items:center;gap:.5rem;padding:.15rem 0;font-size:.7rem">
           <span style="font-weight:700">${_playerLinkSmart(c.name)}</span>
           <span style="color:var(--gray);font-size:.62rem">${c.pos} · age ${c.ageNow}</span>
-          <span style="color:#ff9b9b;font-size:.65rem">${c.preOvr} → ${c.postOvr} (${c.delta})</span>
+          <span style="color:var(--ds-grade-neg-soft);font-size:.65rem">${c.preOvr} → ${c.postOvr} (${c.delta})</span>
           <span style="color:var(--gray);font-size:.6rem;margin-left:auto">${(c.reasons || []).includes("cliff_hit") ? "⏳ hit the cliff" : (c.reasons || []).includes("aging") ? "⏳ aging" : "regression"}</span>
         </div>`).join("")}
     </div>` : "";
@@ -16124,7 +16124,7 @@ function _buildOffseasonGainsSheet() {
         <div style="min-width:0;font-size:.7rem">
           <span style="font-weight:700">${_playerLinkSmart(c.name)}</span>
           <span style="color:var(--gray);font-size:.58rem"> ${c.pos} · ${c.postOvr} OVR · age ${c.ageNow}</span>
-          <span style="color:#ff9b9b;font-weight:900;font-family:'Bebas Neue','Anton',sans-serif;font-size:.95rem;margin-left:.2rem">${c.delta}</span>
+          <span style="color:var(--ds-grade-neg-soft);font-weight:900;font-family:'Bebas Neue','Anton',sans-serif;font-size:.95rem;margin-left:.2rem">${c.delta}</span>
         </div>
         ${_tradeCellHtml(c.name, c.pos, c.pid)}
       </div>`).join("");
@@ -16176,7 +16176,7 @@ function _buildOffseasonGainsSheet() {
 
     <div data-devtab="players"${_hide("players")}>
       <div style="margin-bottom:.6rem;padding:.4rem .5rem;background:rgba(255,255,255,.02);border:1px solid var(--blborder);border-radius:3px">
-        <div style="font-size:.5rem;color:#a98a2e;letter-spacing:1.2px;font-weight:700;margin-bottom:.25rem">🔍 FILTER PLAYER DRILL-DOWN</div>
+        <div style="font-size:.5rem;color:var(--ds-gold-dim);letter-spacing:1.2px;font-weight:700;margin-bottom:.25rem">🔍 FILTER PLAYER DRILL-DOWN</div>
         ${chipsHtml}
       </div>
       ${emptyFilterNotice}
@@ -16214,7 +16214,7 @@ function renderFrnOffseason() {
 
   let chgHtml = "";
   if (retires.length) {
-    chgHtml += `<div style="color:#ff9090;font-weight:700;margin-top:.4rem">Retirements (${retires.length})</div>`;
+    chgHtml += `<div style="color:var(--ds-grade-neg-mid);font-weight:700;margin-top:.4rem">Retirements (${retires.length})</div>`;
     chgHtml += retires.map(c => `<div class="frn-off-change retire">— ${c.name} (${c.pos}, age ${c.age})</div>`).join("");
   }
   if (rookies.length) {
@@ -16263,7 +16263,7 @@ function renderFrnOffseason() {
           `<span class="chip neutral">${pending} pending</span>`,
         ].filter(Boolean).join("");
         sub = `<div style="display:flex;gap:.35rem;justify-content:center;flex-wrap:wrap;margin-bottom:.35rem">${chips}</div>
-               <div style="color:#e8a000;font-size:.7rem">⚠ Proceeding will defer ${pending===1?"this demand":"these demands"} to next season as ${pending===1?"a flight risk":"flight risks"}.</div>`;
+               <div style="color:var(--ds-grade-caution);font-size:.7rem">⚠ Proceeding will defer ${pending===1?"this demand":"these demands"} to next season as ${pending===1?"a flight risk":"flight risks"}.</div>`;
         cta = DS.button({ label: "📋 Review & Continue to Draft →", class: "btn-gold-big", on: "frnOpenHoldoutRecap()" });
       } else {
         title = "READY TO ADVANCE?";
@@ -16329,7 +16329,7 @@ function _renderHoldoutsBlock() {
       const labels = {
         "extended":    { cls: "accepted", lbl: `<span style="color:var(--green-lt);font-weight:700">✓ EXTENDED</span> · $${(h.offer||h.demandedAAV).toFixed(1)}M × ${(h.offerYears||h.demandedYears)}yr` },
         "trade-block": { cls: "tagged",   lbl: `<span style="color:var(--gold);font-weight:700">🔀 TRADE BLOCK</span> · ${_holdoutTradeValue(h, live)}` },
-        "ignored":     { cls: "declined", lbl: `<span style="color:#ff8a8a;font-weight:700">✗ IGNORED</span> · flight risk` },
+        "ignored":     { cls: "declined", lbl: `<span style="color:var(--ds-grade-neg);font-weight:700">✗ IGNORED</span> · flight risk` },
       };
       const spec = labels[h.resolved] || { cls: "", lbl: h.resolved };
       return `<div class="frn-resign-collapsed ${spec.cls}"
@@ -16372,7 +16372,7 @@ function _renderHoldoutsBlock() {
         </div>
         <div style="flex:1;display:flex;flex-direction:column;gap:.2rem;margin:0 .6rem">${yearPills}</div>
         <div class="frn-resign-btns" style="flex-direction:column;gap:.3rem">
-          ${deadTotal >= 0.5 ? `<span style="color:#ff9090;font-size:.6rem;text-align:center">☠ Dead $${bonusProration.toFixed(1)}M×${offerYears}yr</span>` : ""}
+          ${deadTotal >= 0.5 ? `<span style="color:var(--ds-grade-neg-mid);font-size:.6rem;text-align:center">☠ Dead $${bonusProration.toFixed(1)}M×${offerYears}yr</span>` : ""}
           ${DS.button({ label: "✓ Sign Extension", variant: "gold", on: `frnHoldoutExtend('${escName}')`, attrs: { style: "white-space:nowrap" } })}
           ${DS.button({ label: "← Back", variant: "outline", on: "frnHoldoutPreviewClose()", attrs: { style: "font-size:.65rem" } })}
         </div>
@@ -16418,9 +16418,9 @@ function _renderHoldoutsBlock() {
       : "";
     const offerDelta = offer - h.demandedAAV;
     const offerDeltaStr = offerDelta < 0
-      ? `<span style="color:#86e0a3;font-size:.6rem">saves $${(-offerDelta).toFixed(1)}M/yr</span>`
+      ? `<span style="color:var(--ds-grade-pos);font-size:.6rem">saves $${(-offerDelta).toFixed(1)}M/yr</span>`
       : offerDelta > 0
-      ? `<span style="color:#ff8a8a;font-size:.6rem">over by $${offerDelta.toFixed(1)}M/yr</span>`
+      ? `<span style="color:var(--ds-grade-neg);font-size:.6rem">over by $${offerDelta.toFixed(1)}M/yr</span>`
       : `<span style="color:var(--gray);font-size:.6rem">matches demand</span>`;
     // Underpaid math — the WHY behind this demand. _detectHoldouts only
     // surfaces players whose current AAV is < 75% of market, so every
@@ -16518,7 +16518,7 @@ function _renderHoldoutsBlock() {
           <span style="color:var(--gray);font-size:.6rem;text-align:right">total $${(offer * offerYears).toFixed(1)}M</span>
           ${deadTotal < 0.5
             ? `<span style="color:var(--gray);font-size:.6rem">No dead cap</span>`
-            : `<span style="color:#ff9090;font-size:.6rem;text-align:right" title="Prorated signing bonus — counts as dead cap if you release this player.">☠ Dead $${bonusProration.toFixed(1)}M×${offerYears}yr = $${deadTotal.toFixed(1)}M</span>`}
+            : `<span style="color:var(--ds-grade-neg-mid);font-size:.6rem;text-align:right" title="Prorated signing bonus — counts as dead cap if you release this player.">☠ Dead $${bonusProration.toFixed(1)}M×${offerYears}yr = $${deadTotal.toFixed(1)}M</span>`}
           <div style="display:flex;gap:.2rem;justify-content:flex-end;margin-top:.25rem;align-items:center;flex-wrap:wrap">
             <span style="color:var(--gray);font-size:.58rem">Structure:</span>
             ${["BALANCED","BACKLOADED","FRONTLOADED"].map(s => {
@@ -16531,7 +16531,7 @@ function _renderHoldoutsBlock() {
           ${DS.button({ label: "Review & Extend", class: "frn-resign-btn accept-btn", on: `frnHoldoutPreview('${escName}')` })}
           ${DS.button({ label: _holdoutCounterFor === h.name ? '↻ Close' : '↻ Counter', class: `frn-resign-btn accept-btn ${_holdoutCounterFor === h.name ? 'active' : ''}`, on: _holdoutCounterFor === h.name ? 'frnHoldoutCounterClose()' : `frnHoldoutCounter('${escName}')`, title: "Open the counter composer — tune AAV / years / snap to a preset", attrs: { style: "border-color:var(--gold-lt);color:var(--gold-lt)" } })}
           <button class="btn frn-resign-btn" style="border-color:var(--gold);color:var(--gold)" onclick="frnHoldoutTrade('${escName}')" title="Flip him for assets">🔀 Trade<span style="font-size:.5rem;display:block;color:var(--gold-lt)">${tradeVal}</span></button>
-          <button class="btn frn-resign-btn decline-btn" onclick="frnHoldoutIgnore('${escName}')" title="Locker-room fallout: -2 OVR immediately · dev frozen next offseason · 40% chance of formal trade request · low re-sign odds at expiry">✗ Ignore<span style="font-size:.5rem;display:block;color:#ff9090">-2 OVR · dev freeze · flight</span></button>
+          <button class="btn frn-resign-btn decline-btn" onclick="frnHoldoutIgnore('${escName}')" title="Locker-room fallout: -2 OVR immediately · dev frozen next offseason · 40% chance of formal trade request · low re-sign odds at expiry">✗ Ignore<span style="font-size:.5rem;display:block;color:var(--ds-grade-neg-mid)">-2 OVR · dev freeze · flight</span></button>
         </div>
       </div>
       ${counterHtml}
@@ -18707,7 +18707,7 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
     const sel = receiveSet.has(p.name) && partnerId === teamId;
     const kicker = p.contract?.tradeKicker || 0;
     const kickerTag = kicker >= 0.05
-      ? `<span style="color:#e8a000;font-size:.55rem;font-weight:700" title="Trade kicker — one-time cap hit if acquired">⚡ $${kicker.toFixed(1)}M</span>` : "";
+      ? `<span style="color:var(--ds-grade-caution);font-size:.55rem;font-weight:700" title="Trade kicker — one-time cap hit if acquired">⚡ $${kicker.toFixed(1)}M</span>` : "";
     // Stance tag: ⛔ untouchable / 💸 on the partner's shopping list
     let stanceTag = "";
     if (partnerId) {
@@ -18739,10 +18739,10 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
   const sendRows = _sortRoster(sendRoster, sortBy).map(p => {
     const escName = (p.name||"").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const sel = sendSet.has(p.name);
-    const blockTag = p.onTradeBlock ? `<span style="color:#e8a000;font-size:.55rem;font-weight:700">●BLK</span>` : "";
+    const blockTag = p.onTradeBlock ? `<span style="color:var(--ds-grade-caution);font-size:.55rem;font-weight:700">●BLK</span>` : "";
     const dead = (p.contract?.bonusProration || 0) * (p.contract?.remaining || 0);
     const deadTag = dead >= 0.05 && sel
-      ? `<span style="color:#ff9090;font-size:.55rem;font-weight:700" title="Dead cap you'll absorb">☠ $${dead.toFixed(1)}M</span>` : "";
+      ? `<span style="color:var(--ds-grade-neg-mid);font-size:.55rem;font-weight:700" title="Dead cap you'll absorb">☠ $${dead.toFixed(1)}M</span>` : "";
     return `<label class="frn-trade-player ${sel?"selected":""}">
       <input type="checkbox" ${sel?"checked":""}
         onchange="frnToggleTradePlayer('send','${escName}')">
@@ -18825,8 +18825,8 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
         <select onchange="frnOpenTrade(this.value||null,'propose')" style="background:var(--bg3);color:var(--white);border:1px solid var(--border);padding:.2rem .35rem;font-family:inherit;font-size:.7rem">${teamOptionsHtml}</select>
       </span>
       <span>Proj cap: <b style="color:${projCap>cap?'var(--red)':'var(--gold)'}">$${projCap.toFixed(1)}M</b></span>
-      ${sendDeadCap >= 0.05 ? `<span style="color:#ff9090;font-size:.65rem" title="Prorated bonus you absorb when trading these players away">☠ Dead: $${sendDeadCap.toFixed(1)}M</span>` : ""}
-      ${recvKickers >= 0.05 ? `<span style="color:#e8a000;font-size:.65rem" title="One-time trade kicker cap hit on elite player acquisition">⚡ Kicker: $${recvKickers.toFixed(1)}M</span>` : ""}
+      ${sendDeadCap >= 0.05 ? `<span style="color:var(--ds-grade-neg-mid);font-size:.65rem" title="Prorated bonus you absorb when trading these players away">☠ Dead: $${sendDeadCap.toFixed(1)}M</span>` : ""}
+      ${recvKickers >= 0.05 ? `<span style="color:var(--ds-grade-caution);font-size:.65rem" title="One-time trade kicker cap hit on elite player acquisition">⚡ Kicker: $${recvKickers.toFixed(1)}M</span>` : ""}
       ${(() => {
         const myDC = _outstandingDeadCap(franchise.chosenTeamId);
         return myDC.totalDollars >= 0.5
@@ -19146,8 +19146,8 @@ function _renderSalaryAbsorptionSection(myTeam, partnerTeam, tp) {
       <div class="frn-card-title">THEY ABSORB YOUR DEAD CAP
         <span style="color:var(--gray);font-weight:400;margin-left:auto;font-size:.6rem">${partnerName} covers your cost</span>
       </div>
-      <div style="padding:.4rem .6rem;background:var(--bg3);font-size:.7rem;margin-bottom:.4rem;border-left:3px solid #ff9090">
-        Trading these players generates <b style="color:#ff9090">$${sendDeadCap.toFixed(1)}M</b> dead cap for you.
+      <div style="padding:.4rem .6rem;background:var(--bg3);font-size:.7rem;margin-bottom:.4rem;border-left:3px solid var(--ds-grade-neg-mid)">
+        Trading these players generates <b style="color:var(--ds-grade-neg-mid)">$${sendDeadCap.toFixed(1)}M</b> dead cap for you.
         Request that ${partnerName} absorbs part of it.
       </div>
       <div style="display:flex;gap:.6rem;align-items:flex-end;padding:.4rem .5rem;flex-wrap:wrap">
@@ -19161,7 +19161,7 @@ function _renderSalaryAbsorptionSection(myTeam, partnerTeam, tp) {
         <div style="padding-bottom:.25rem;white-space:nowrap">
           <div style="color:var(--gray);font-size:.6rem">Your dead cap</div>
           <div style="font-weight:700">
-            <span style="color:#ff9090${theirAbsorb > 0 ? ";text-decoration:line-through" : ""}">$${sendDeadCap.toFixed(1)}M</span>
+            <span style="color:var(--ds-grade-neg-mid)${theirAbsorb > 0 ? ";text-decoration:line-through" : ""}">$${sendDeadCap.toFixed(1)}M</span>
             ${theirAbsorb > 0 ? ` → <span style="color:var(--green-lt)">$${myRemaining}M</span>` : ""}
           </div>
         </div>
@@ -19176,8 +19176,8 @@ function _renderSalaryAbsorptionSection(myTeam, partnerTeam, tp) {
       <div class="frn-card-title">YOU ABSORB THEIR DEAD CAP
         <span style="color:var(--gray);font-weight:400;margin-left:auto;font-size:.6rem">Sweetener — you cover their cost</span>
       </div>
-      <div style="padding:.4rem .6rem;background:var(--bg3);font-size:.7rem;margin-bottom:.4rem;border-left:3px solid #e8a000">
-        Their players carry <b style="color:#e8a000">$${recvDeadCap.toFixed(1)}M</b> dead cap.
+      <div style="padding:.4rem .6rem;background:var(--bg3);font-size:.7rem;margin-bottom:.4rem;border-left:3px solid var(--ds-grade-caution)">
+        Their players carry <b style="color:var(--ds-grade-caution)">$${recvDeadCap.toFixed(1)}M</b> dead cap.
         Offer to absorb some to sweeten your proposal (hits your cap).
       </div>
       <div style="display:flex;gap:.6rem;align-items:flex-end;padding:.4rem .5rem;flex-wrap:wrap">
@@ -19364,7 +19364,7 @@ function _renderTradeBlockTab(myRoster, sortBy) {
   const deadCapBanner = myDeadCap.totalDollars >= 0.5 ? `
     <div style="background:rgba(255,100,100,0.08);border:1px solid rgba(255,100,100,.3);padding:.5rem .75rem;margin-bottom:.6rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
       <div>
-        <div style="color:#ff9090;font-weight:900;font-size:.75rem">☠ DEAD CAP: $${myDeadCap.totalDollars.toFixed(1)}M outstanding</div>
+        <div style="color:var(--ds-grade-neg-mid);font-weight:900;font-size:.75rem">☠ DEAD CAP: $${myDeadCap.totalDollars.toFixed(1)}M outstanding</div>
         <div style="color:var(--gray);font-size:.62rem;margin-top:.15rem">From traded / released players. Demand cash in a trade proposal to offset it.</div>
       </div>
       ${DS.button({ label: "💸 Request Salary Absorption to Recoup", variant: "outline", on: "frnRecoupDeadCapMode()", attrs: { style: "color:#ff9090;border-color:#ff9090;white-space:nowrap;margin-left:auto" } })}
@@ -19828,8 +19828,8 @@ function _renderTradeOffersTab() {
       <span class="frn-offer-verdict" style="color:${verdict.c};background:${verdict.bg};border-color:${verdict.c}">${verdict.t}</span>
       <span class="frn-offer-sum-bit" title="Estimated trade value (talent · age · contract · picks)">value <b style="color:${verdict.c}">${getVal.toFixed(0)}</b> <span style="opacity:.6">vs</span> <b>${giveVal.toFixed(0)}</b></span>
       <span class="frn-offer-sum-bit" title="Annual cap change (AAV coming in − AAV going out)">cap <b style="color:${capChange<=0?'var(--green-lt)':'#ffb0b0'}">${capStr}</b></span>
-      ${totalKicker>=0.05?`<span class="frn-offer-sum-bit" style="color:#e8a000" title="One-time kicker you absorb">⚡$${totalKicker.toFixed(1)}M</span>`:""}
-      ${totalDead>=0.05?`<span class="frn-offer-sum-bit" style="color:#ff9090" title="Dead cap you eat by dealing them">☠$${totalDead.toFixed(1)}M</span>`:""}
+      ${totalKicker>=0.05?`<span class="frn-offer-sum-bit" style="color:var(--ds-grade-caution)" title="One-time kicker you absorb">⚡$${totalKicker.toFixed(1)}M</span>`:""}
+      ${totalDead>=0.05?`<span class="frn-offer-sum-bit" style="color:var(--ds-grade-neg-mid)" title="Dead cap you eat by dealing them">☠$${totalDead.toFixed(1)}M</span>`:""}
       ${needNote?`<span class="frn-offer-sum-bit" style="color:var(--green-lt)">${needNote}</span>`:""}
     </div>`;
 
@@ -19865,7 +19865,7 @@ function _renderTradeOffersTab() {
         ${o.isFromAsk ? `<div style="margin-top:.4rem;padding:.35rem .45rem;background:var(--bg2);border:1px solid var(--border);border-radius:3px">
           <div style="font-size:.6rem;color:var(--gray);letter-spacing:.5px;margin-bottom:.2rem">
             ↺ COUNTER · ${counterCount}/2 used
-            ${counterUsed ? `<span style="color:#888"> — no more counters allowed</span>` : ""}
+            ${counterUsed ? `<span style="color:var(--ds-neutral)"> — no more counters allowed</span>` : ""}
           </div>
           ${counterChips}
           ${lastResult}
@@ -21150,7 +21150,7 @@ function _renderDraftFloor() {
                       : isMostRecent ? "var(--gold)" : "transparent";
     const esc = (pk.prospectName||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     const tag = isTarget
-      ? ` <span style="color:#ff8a8a;font-size:.55rem;letter-spacing:.5px">· YOUR TARGET</span>`
+      ? ` <span style="color:var(--ds-grade-neg);font-size:.55rem;letter-spacing:.5px">· YOUR TARGET</span>`
       : isWatched
       ? ` <span style="color:#cce7ff;font-size:.55rem;letter-spacing:.5px">· 👁 WATCHED</span>`
       : "";
@@ -21200,7 +21200,7 @@ function _renderDraftFloor() {
   const tradeUpOpts = d._tradeUpOpen ? (d._tradeUpOptions || []) : [];
   const tradeUpHtml = d._tradeUpOpen ? `<div class="frn-draft-trade-card frn-draft-tradeup-card">
     <div class="frn-draft-trade-head">
-      <span style="color:#86e0a3">📈 TRADE UP</span>
+      <span style="color:var(--ds-grade-pos)">📈 TRADE UP</span>
       <button class="frn-trade-shop-btn" onclick="frnDraftCloseTradeUp()">✕ Close / resume</button>
     </div>
     ${tradeUpOpts.length ? tradeUpOpts.map(o => {
@@ -21209,7 +21209,7 @@ function _renderDraftFloor() {
       return `<div class="frn-draft-trade-offer${expanded?" expanded":""}">
         <div class="frn-trade-offer-main">
           <div class="frn-trade-offer-info">
-            <div class="frn-trade-offer-team">Jump to <span style="color:#86e0a3">${o.pickLabel}</span> <span style="color:var(--gray);font-weight:400;letter-spacing:0">· from ${team?.city||""} ${team?.name||"?"}</span>${o.gmLabel?`<span style="color:#86e0a3;font-weight:600;font-size:.55rem;margin-left:.3rem" title="${o.gmLabel==='Hoarder'?'loves to trade down — fair price':o.gmLabel==='Win-Now'?'reluctant to move down — drives a hard bargain':'willing to move down'}">${o.gmIcon} ${o.gmLabel}</span>`:""}</div>
+            <div class="frn-trade-offer-team">Jump to <span style="color:var(--ds-grade-pos)">${o.pickLabel}</span> <span style="color:var(--gray);font-weight:400;letter-spacing:0">· from ${team?.city||""} ${team?.name||"?"}</span>${o.gmLabel?`<span style="color:var(--ds-grade-pos);font-weight:600;font-size:.55rem;margin-left:.3rem" title="${o.gmLabel==='Hoarder'?'loves to trade down — fair price':o.gmLabel==='Win-Now'?'reluctant to move down — drives a hard bargain':'willing to move down'}">${o.gmIcon} ${o.gmLabel}</span>`:""}</div>
             <div class="frn-trade-offer-detail">you send <b style="color:var(--white)">${o.giveLabels.join(" + ")}</b></div>
           </div>
           ${expanded ? "" : `<button class="frn-trade-review-btn frn-tradeup-review" onclick="frnDraftReviewTradeUp('${o.id}')">REVIEW →</button>`}
@@ -21258,7 +21258,7 @@ function _renderDraftFloor() {
         </div>
         <div style="color:var(--gold-lt);font-size:1.4rem;letter-spacing:2px;animation:floor-pulse 1s infinite">⏳</div>
       </div>` : ""}
-      ${posRun ? `<div style="background:rgba(232,160,0,.10);border-left:3px solid #e8a000;padding:.35rem .55rem;margin-bottom:.5rem;font-size:.66rem;color:#e8a000;font-weight:700">🔥 ${posRun.pos} run — ${posRun.cnt} in last 6 picks</div>` : ""}
+      ${posRun ? `<div style="background:rgba(232,160,0,.10);border-left:3px solid var(--ds-grade-caution);padding:.35rem .55rem;margin-bottom:.5rem;font-size:.66rem;color:var(--ds-grade-caution);font-weight:700">🔥 ${posRun.pos} run — ${posRun.cnt} in last 6 picks</div>` : ""}
       <div style="background:var(--bg2);border:1px solid var(--border);padding:.45rem .55rem;border-radius:3px">
         <div style="font-size:.55rem;color:var(--gold);letter-spacing:1.5px;font-weight:700;margin-bottom:.3rem">RECENT PICKS · ${floorPicks.length} since you</div>
         ${pickRows || `<div style="color:var(--gray);font-size:.65rem;font-style:italic;padding:.5rem;text-align:center">Waiting for first pick…</div>`}
@@ -21404,8 +21404,8 @@ function renderFrnDraftPreshow() {
     const r = p._combineResult;
     if (!r) return "";
     if (r.isSuperathlete) return `<span style="font-size:.5rem;font-weight:800;color:var(--gold);margin-left:.2rem" title="A+ overall combine grade">★</span>`;
-    if (r.isRiser)  return `<span style="font-size:.5rem;font-weight:800;color:#86e0a3;margin-left:.2rem" title="COMBINE RISER">📈</span>`;
-    if (r.isFaller) return `<span style="font-size:.5rem;font-weight:800;color:#ff8a8a;margin-left:.2rem" title="COMBINE FALLER">📉</span>`;
+    if (r.isRiser)  return `<span style="font-size:.5rem;font-weight:800;color:var(--ds-grade-pos);margin-left:.2rem" title="COMBINE RISER">📈</span>`;
+    if (r.isFaller) return `<span style="font-size:.5rem;font-weight:800;color:var(--ds-grade-neg);margin-left:.2rem" title="COMBINE FALLER">📉</span>`;
     return "";
   };
   const combineRow = (label, icon, items, fmt, units, testKey) => {
@@ -21541,8 +21541,8 @@ function renderFrnDraftPreshow() {
         // if any of them have content so empty subs don't add height.
         const subBits = [
           archetype ? `<span style="color:#5ed4d4">${archetype}</span>` : "",
-          comp ? `<span style="color:#86c8ff;font-style:italic">comp: ${comp}</span>` : "",
-          knock ? `<span style="color:#e0b078">⚠ ${knock}</span>` : "",
+          comp ? `<span style="color:var(--ds-accent-blue);font-style:italic">comp: ${comp}</span>` : "",
+          knock ? `<span style="color:var(--ds-grade-caution-soft)">⚠ ${knock}</span>` : "",
         ].filter(Boolean);
         const subLine = subBits.length
           ? `<div style="font-size:.5rem;color:var(--gray);margin-top:.08rem;display:flex;gap:.5rem;flex-wrap:wrap">${subBits.join("")}</div>`
@@ -21587,13 +21587,13 @@ function renderFrnDraftPreshow() {
   };
   const surprisesHtml = (surprises.warriors.length || surprises.disappointments.length) ? `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
-      <div style="background:rgba(134,224,163,.06);border:1px solid #86e0a3;border-radius:3px;padding:.5rem .65rem">
-        <div style="font-size:.6rem;color:#86e0a3;letter-spacing:1.2px;font-weight:700;margin-bottom:.25rem">🚀 WORKOUT WARRIORS</div>
+      <div style="background:rgba(134,224,163,.06);border:1px solid var(--ds-grade-pos);border-radius:3px;padding:.5rem .65rem">
+        <div style="font-size:.6rem;color:var(--ds-grade-pos);letter-spacing:1.2px;font-weight:700;margin-bottom:.25rem">🚀 WORKOUT WARRIORS</div>
         <div style="color:var(--gray);font-size:.5rem;margin-bottom:.3rem;font-style:italic">elite combine · low-to-mid scout grade · potential sleepers</div>
         ${surprises.warriors.length ? surprises.warriors.map(e => _surpriseRow(e, "warrior")).join("") : `<div style="color:var(--gray);font-size:.6rem;font-style:italic;padding:.3rem">no big sleepers this class</div>`}
       </div>
-      <div style="background:rgba(255,155,155,.06);border:1px solid #ff9b9b;border-radius:3px;padding:.5rem .65rem">
-        <div style="font-size:.6rem;color:#ff9b9b;letter-spacing:1.2px;font-weight:700;margin-bottom:.25rem">⚠ WORKOUT DISAPPOINTMENTS</div>
+      <div style="background:rgba(255,155,155,.06);border:1px solid var(--ds-grade-neg-soft);border-radius:3px;padding:.5rem .65rem">
+        <div style="font-size:.6rem;color:var(--ds-grade-neg-soft);letter-spacing:1.2px;font-weight:700;margin-bottom:.25rem">⚠ WORKOUT DISAPPOINTMENTS</div>
         <div style="color:var(--gray);font-size:.5rem;margin-bottom:.3rem;font-style:italic">high scout grade · weak combine · re-evaluate before draft</div>
         ${surprises.disappointments.length ? surprises.disappointments.map(e => _surpriseRow(e, "disappointment")).join("") : `<div style="color:var(--gray);font-size:.6rem;font-style:italic;padding:.3rem">no notable red flags</div>`}
       </div>
@@ -21622,7 +21622,7 @@ function renderFrnDraftPreshow() {
           ${meta?`<span style="color:var(--gold-lt);font-size:.55rem">${meta}</span>`:""}
         </div>
         ${story?`<div style="color:var(--gray);font-size:.55rem;margin-top:.1rem">${story}</div>`:""}
-        ${knock?`<div style="color:#e8a000;font-size:.55rem;margin-top:.08rem">⚠ ${knock}</div>`:""}
+        ${knock?`<div style="color:var(--ds-grade-caution);font-size:.55rem;margin-top:.08rem">⚠ ${knock}</div>`:""}
       </div>
       <span style="color:${sgColor};font-weight:700;text-align:right">${grade}</span>
     </div>`;
@@ -21656,7 +21656,7 @@ function renderFrnDraftPreshow() {
            + tip strip ("☆ to bookmark") + skip-to-draft link -->
       <div style="text-align:center;padding:1.2rem 0 1rem;background:radial-gradient(ellipse at center top, rgba(245,197,66,.07), transparent 65%);margin-bottom:.5rem;position:relative">
         <a href="javascript:void(0)" onclick="frnBeginDraftActual()" style="position:absolute;top:.6rem;right:.8rem;color:var(--gold);text-decoration:none;font-size:.6rem;letter-spacing:1px;font-weight:700;border:1px solid var(--blborder);padding:.25rem .55rem;border-radius:2px;cursor:pointer" title="Skip the pre-show and start drafting now">SKIP TO DRAFT →</a>
-        <div style="font-size:.65rem;color:var(--gold-dim, #a98a2e);letter-spacing:4px;font-weight:700">🏟  COMBINE WEEK · PRE-DRAFT REPORT  🏟</div>
+        <div style="font-size:.65rem;color:var(--gold-dim, var(--ds-gold-dim));letter-spacing:4px;font-weight:700">🏟  COMBINE WEEK · PRE-DRAFT REPORT  🏟</div>
         <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:2.4rem;font-weight:900;color:var(--gold-lt);letter-spacing:2px;margin:.3rem 0 .1rem;line-height:1">DRAFT CLASS · SEASON ${seasonNum}</div>
         <div style="display:inline-flex;align-items:center;gap:.7rem;color:var(--blgray);font-size:.7rem;margin-top:.45rem">
           ${teamMark}
@@ -24433,7 +24433,7 @@ function renderFrnDraft() {
   const needsHtml = NEED_POSITIONS.map(pos => {
     const top = (franchise.rosters[myId]||[]).filter(p=>p.position===pos).sort((a,b)=>b.overall-a.overall)[0];
     const lvl = needLevels[pos];
-    const badge = lvl===2 ? `<span style="color:#ff9090;font-size:.53rem;font-weight:700">CRITICAL</span>`
+    const badge = lvl===2 ? `<span style="color:var(--ds-grade-neg-mid);font-size:.53rem;font-weight:700">CRITICAL</span>`
       : lvl===1 ? `<span style="color:var(--gold);font-size:.53rem;font-weight:700">NEED</span>`
       : `<span style="color:var(--gray);font-size:.53rem">OK</span>`;
     return `<div class="frn-draft-need-row">
@@ -24506,7 +24506,7 @@ function renderFrnDraft() {
       return `<div class="frn-draft-trade-offer${expanded?" expanded":""}">
         <div class="frn-trade-offer-main">
           <div class="frn-trade-offer-info">
-            <div class="frn-trade-offer-team">${team?.city||""} ${team?.name||"?"} <span style="color:var(--gray);font-weight:400;letter-spacing:0">want up</span>${o.gmLabel?`<span style="color:#e8a000;font-weight:600;font-size:.55rem;margin-left:.3rem" title="This GM ${o.gmLabel==='Win-Now'?'pushes the chips in':o.gmLabel==='Star Hunter'?'chases the elite':'is making a move'}">${o.gmIcon} ${o.gmLabel}</span>`:""}</div>
+            <div class="frn-trade-offer-team">${team?.city||""} ${team?.name||"?"} <span style="color:var(--gray);font-weight:400;letter-spacing:0">want up</span>${o.gmLabel?`<span style="color:var(--ds-grade-caution);font-weight:600;font-size:.55rem;margin-left:.3rem" title="This GM ${o.gmLabel==='Win-Now'?'pushes the chips in':o.gmLabel==='Star Hunter'?'chases the elite':'is making a move'}">${o.gmIcon} ${o.gmLabel}</span>`:""}</div>
             <div class="frn-trade-offer-detail">eyeing <b style="color:var(--gold-lt)">${o.target}</b> · ${o.targetPos} — you get <b style="color:var(--green-lt)">${youGet}</b></div>
           </div>
           ${expanded ? "" : `<button class="frn-trade-review-btn" onclick="frnDraftReviewTrade('${o.id}')">REVIEW →</button>`}
@@ -25561,11 +25561,11 @@ function _renderPostDraftGrade(myPicks) {
         <span class="frn-draft-ticker-pick-no">${labelLeft}</span>
         <span style="font-weight:700">${pk.prospectName}</span>
         <span style="color:var(--gray);font-size:.6rem">${pk.pos}</span>
-        <span style="color:#ff9090;font-size:.55rem;font-weight:700" title="Roster entry not found — pick row may be stale">?? MISSING</span>
+        <span style="color:var(--ds-grade-neg-mid);font-size:.55rem;font-weight:700" title="Roster entry not found — pick row may be stale">?? MISSING</span>
       </div>`;
     }
     const tag = (!isUdfa && pk.delta >= 6) ? `<span style="color:var(--green-lt);font-size:.56rem;font-weight:700">★ VALUE</span>`
-              : (!isUdfa && pk.delta <= -6) ? `<span style="color:#ff9090;font-size:.56rem;font-weight:700">▼ REACH</span>`
+              : (!isUdfa && pk.delta <= -6) ? `<span style="color:var(--ds-grade-neg-mid);font-size:.56rem;font-weight:700">▼ REACH</span>`
               : "";
     const sg = pk.sg ?? 60;
     const badge = `<span class="tt-ovr tier-${gradeClass(sg)}" title="Scout grade at draft · ${sg}">${gradeLabel(sg)}</span>`;
@@ -25601,7 +25601,7 @@ function _renderPostDraftGrade(myPicks) {
         <div class="frn-draft-grade-letter" style="color:${col}">${letter}</div>
         <div style="color:var(--gray);font-size:.76rem;font-style:italic;max-width:360px;margin:0 auto .8rem">"${quote}"</div>
         ${bestVal?.delta>=4?`<div style="font-size:.63rem;color:var(--green-lt);margin-bottom:.15rem">★ Best value: ${bestVal.prospectName} (R${bestVal.round})</div>`:""}
-        ${bigReach?.delta<=-4?`<div style="font-size:.63rem;color:#ff9090;margin-bottom:.5rem">▼ Biggest reach: ${bigReach.prospectName} (R${bigReach.round})</div>`:""}
+        ${bigReach?.delta<=-4?`<div style="font-size:.63rem;color:var(--ds-grade-neg-mid);margin-bottom:.5rem">▼ Biggest reach: ${bigReach.prospectName} (R${bigReach.round})</div>`:""}
         ${watchedTotal>0?`<div style="font-size:.62rem;color:#cce7ff;margin-top:.2rem">👁 ${watchedHits} of ${watchedTotal} watched prospects drafted</div>`:""}
       </div>
       <div style="margin-top:.65rem;background:var(--bg2);border:1px solid var(--border);padding:.5rem .65rem">
@@ -26686,7 +26686,7 @@ function renderFrnUDFAScramble() {
 
     ${deficits.length ? `<div class="frn-udfa-deficit">
       <span style="color:var(--gold);font-weight:700;font-size:.7rem">Roster gaps after signing:</span>
-      ${deficits.map(n => `<span style="font-size:.65rem;color:#ff9090;margin-left:.5rem">${n.pos} (-${n.deficit})</span>`).join("")}
+      ${deficits.map(n => `<span style="font-size:.65rem;color:var(--ds-grade-neg-mid);margin-left:.5rem">${n.pos} (-${n.deficit})</span>`).join("")}
     </div>` : ""}
 
     <div style="margin-top:.5rem">

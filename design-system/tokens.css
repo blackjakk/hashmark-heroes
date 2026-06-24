@@ -74,6 +74,30 @@
   --ds-danger: var(--red);
   --ds-info: var(--blgold);
 
+  /* ── Sentiment / grade palette ──────────────────────────────────────────
+     The franchise UI scatters a recurring sentiment/grade color set as raw
+     literals (positive greens → caution ambers/tans → negative reds, + an
+     info blue / slate / neutral). These tokens are the single source of truth
+     for them. Values are BYTE-IDENTICAL to the literals they replace, so
+     adopting them is a zero-visual-change refactor. NOTE: the near-duplicate
+     reds (neg / neg-soft / neg-mid / neg-strong / neg-muted) are the existing
+     un-consolidated palette captured verbatim — a future pass could collapse
+     them to fewer steps (a deliberate visual change, gated by screenshots). */
+  --ds-grade-pos: #86e0a3;
+  --ds-grade-pos-soft: #cce8d6;
+  --ds-grade-caution: #e8a000;
+  --ds-grade-caution-soft: #e0b078;
+  --ds-grade-warn: #ffc850;
+  --ds-grade-neg: #ff8a8a;
+  --ds-grade-neg-soft: #ff9b9b;
+  --ds-grade-neg-mid: #ff9090;
+  --ds-grade-neg-strong: #ff6b6b;
+  --ds-grade-neg-muted: #c08080;
+  --ds-gold-dim: #a98a2e;
+  --ds-accent-blue: #86c8ff;
+  --ds-slate: #5d6b66;
+  --ds-neutral: #888;
+
   /* ── Type roles (ALREADY DEFINED in play.css :root — referenced directly,
         NOT redeclared) ──────────────────────────────────────────────────
      --font-display : condensed caps (team names, section titles, logo)

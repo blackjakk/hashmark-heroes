@@ -478,7 +478,7 @@ function renderFrnProjectedFAs(sort) {
       <td style="color:var(--gray);font-size:.62rem">${draftStr(p)}</td>
       <td style="color:var(--gold)">$${(p.contract?.aav||0).toFixed(1)}M</td>
       <td style="color:var(--gray);font-size:.62rem">${tm ? tm.name : "—"}</td>
-      ${p.injury ? `<td style="color:#ff9090;font-size:.62rem">🩹 ${_bspnEsc(p.injury.label)}</td>` : `<td></td>`}
+      ${p.injury ? `<td style="color:var(--ds-grade-neg-mid);font-size:.62rem">🩹 ${_bspnEsc(p.injury.label)}</td>` : `<td></td>`}
     </tr>`;
   };
   const tableHead = `<thead><tr>
@@ -558,7 +558,7 @@ function renderFrnPracticeSquad(tab) {
 function _renderPSMyTab(myId, ps, alerts) {
   const alertHtml = alerts.length ? `
     <div style="background:rgba(255,80,80,0.08);border:1px solid var(--red);padding:.6rem;margin-bottom:.7rem">
-      <div style="color:#ff9090;font-weight:700;margin-bottom:.3rem">⚠️ POACH ALERTS (${alerts.length})</div>
+      <div style="color:var(--ds-grade-neg-mid);font-weight:700;margin-bottom:.3rem">⚠️ POACH ALERTS (${alerts.length})</div>
       ${alerts.map(a => `
         <div style="font-size:.72rem;padding:.2rem 0">
           ${getTeam(a.suitorTeamId)?.name} wants ${a.position} ${a.playerName} —
@@ -590,7 +590,7 @@ function _renderPSMyTab(myId, ps, alerts) {
       <td style="color:var(--gray);font-size:.62rem">${draftStr(p)}</td>
       <td style="color:var(--gold);font-size:.65rem">${flashes.length} flash${flashes.length===1?"":"es"}</td>
       <td><button class="frn-pcard-yrbtn" onclick="frnPSPromote('${escName}')">Promote</button>
-          <button class="frn-pcard-yrbtn" style="border-color:var(--red);color:#ff9090" onclick="frnPSRelease('${escName}')">Release</button></td>
+          <button class="frn-pcard-yrbtn" style="border-color:var(--red);color:var(--ds-grade-neg-mid)" onclick="frnPSRelease('${escName}')">Release</button></td>
     </tr>`;
   }).join("");
   return alertHtml + `<table class="frn-pre-roster-table">
@@ -695,7 +695,7 @@ function _renderPSSignTab(myId, ps) {
   const back  = DS.button({label:"← Back to My PS",on:"renderFrnPracticeSquad('mine')",attrs:{style:"margin-bottom:.6rem"}});
   const head  = `<div style="color:var(--gray);font-size:.7rem;margin-bottom:.6rem">
     Stash young players (≤${PS_MAX_YEARS_EXP} yrs exp · ≤${PS_MAX_AGE} yo) to develop them off your 53.
-    ${openSlots > 0 ? `<b style="color:var(--gold-lt)">${openSlots} slot${openSlots===1?"":"s"} open.</b>` : `<b style="color:#ff9090">No slots open — release or promote first.</b>`}
+    ${openSlots > 0 ? `<b style="color:var(--gold-lt)">${openSlots} slot${openSlots===1?"":"s"} open.</b>` : `<b style="color:var(--ds-grade-neg-mid)">No slots open — release or promote first.</b>`}
   </div>`;
 
   const rosterElig = (franchise.rosters?.[myId] || []).filter(eligP)
@@ -843,8 +843,8 @@ function renderFrnInjuryReport() {
       <td style="font-weight:700">${playerLink(p)}</td>
       <td style="color:var(--gray)">${p.position}</td>
       <td style="color:var(--gray)">${p.age||"?"}</td>
-      <td style="color:#ff9090">🩹 ${_bspnEsc(p.injury.label||"Injury")}</td>
-      <td style="color:#ff9090;font-weight:700">${p.injury.weeksRemaining} wk${p.injury.weeksRemaining===1?"":"s"}</td>
+      <td style="color:var(--ds-grade-neg-mid)">🩹 ${_bspnEsc(p.injury.label||"Injury")}</td>
+      <td style="color:var(--ds-grade-neg-mid);font-weight:700">${p.injury.weeksRemaining} wk${p.injury.weeksRemaining===1?"":"s"}</td>
       ${opp ? `<td style="color:var(--gray);font-size:.62rem">${opp.city} ${opp.name}</td>` : irActionCell(p)}
     </tr>`;
   const mineHtml = mine.length ? `
@@ -888,7 +888,7 @@ function renderFrnInjuredReserve() {
       const tip = open <= 0 ? "No open roster spot — cut or IR a player first" : "Activate to the 53-man roster";
       return DS.button({label:"↩︎ Activate",variant:"gold",disabled:open<=0,title:tip,on:`frnActivateFromIr('${_bspnEsc(p.name).replace(/'/g,"\\'").replace(/"/g, "&quot;")}')`,attrs:{style:"font-size:.6rem;padding:.18rem .55rem"}});
     }
-    if (!healed) return `<span style="color:#ff9090">🩹 ${p.injury.weeksRemaining} wk left</span>`;
+    if (!healed) return `<span style="color:var(--ds-grade-neg-mid)">🩹 ${p.injury.weeksRemaining} wk left</span>`;
     const wait = Math.max(0, (m.minReturnWeek || 0) - (franchise.week || 1));
     return `<span style="color:var(--gray)">Eligible wk ${m.minReturnWeek||"?"} (${wait} to go)</span>`;
   };
@@ -897,7 +897,7 @@ function renderFrnInjuredReserve() {
       <td style="font-weight:700">${playerLink(p)}</td>
       <td style="color:var(--gray)">${p.position}</td>
       <td style="color:var(--gray)">${(p._ir&&p._ir.designation)==="season"?"Season":"Return"}</td>
-      <td style="color:#ff9090">${p.injury?_bspnEsc(p.injury.label||"Injury"):"—"}</td>
+      <td style="color:var(--ds-grade-neg-mid)">${p.injury?_bspnEsc(p.injury.label||"Injury"):"—"}</td>
       <td>${statusCell(p)}</td>
     </tr>`).join("");
   const listHtml = list.length ? `
@@ -1025,7 +1025,7 @@ function renderFrnMakeRoom() {
         <div style="color:var(--gray);font-size:.6rem">${p.position} · ${depth[p.position]} at ${p.position} · Age ${p.age || '?'}</div>
       </div>
       <div style="text-align:center"><div style="font-weight:800">${p.overall || '?'}</div><div style="color:var(--gray);font-size:.52rem">OVR</div></div>
-      <div style="text-align:center"><div style="font-weight:800">${pot}${ceil > 0 ? `<span style="color:#86e0a3" title="upside">↑</span>` : ''}</div><div style="color:var(--gray);font-size:.52rem">POT</div></div>
+      <div style="text-align:center"><div style="font-weight:800">${pot}${ceil > 0 ? `<span style="color:var(--ds-grade-pos)" title="upside">↑</span>` : ''}</div><div style="color:var(--gray);font-size:.52rem">POT</div></div>
       <div style="text-align:center"><div style="font-weight:700;font-size:.7rem">${money(c.aav)}</div><div style="color:var(--gray);font-size:.52rem">${c.remaining || 0}yr left</div></div>
       <div style="text-align:center"><div style="font-weight:800;color:var(--gold-lt)">${tv.toFixed(0)}</div><div style="color:var(--gray);font-size:.52rem">trade val</div></div>
       <div style="display:flex;gap:.3rem;flex-wrap:wrap;justify-content:flex-end">
@@ -1038,22 +1038,22 @@ function renderFrnMakeRoom() {
   }).join("");
   const legal = roster.length <= ACTIVE_ROSTER_LIMIT;
   $("frnHomeContent").innerHTML = `
-    <div class="frn-card-box" style="border-top:3px solid ${over > 0 ? '#ff6b6b' : 'var(--gold)'}">
+    <div class="frn-card-box" style="border-top:3px solid ${over > 0 ? 'var(--ds-grade-neg-strong)' : 'var(--gold)'}">
       <div class="frn-card-title">🚧 MAKE ROOM ${frnRosterCountBadge(myId)}</div>
       ${(() => {
         const _cap = (typeof effectiveSalaryCap === "function") ? effectiveSalaryCap(myId) : (franchise.salaryCap || 0);
         const _used = capUsedByTeam(myId);
         const _overCap = _used > _cap;
         return `<div style="font-size:.72rem;color:var(--gray);margin:.1rem 0 .55rem">
-          Cap: <b style="color:${_overCap ? '#ff6b6b' : 'var(--white)'}">$${_used.toFixed(1)}M</b> / $${_cap.toFixed(0)}M
+          Cap: <b style="color:${_overCap ? 'var(--ds-grade-neg-strong)' : 'var(--white)'}">$${_used.toFixed(1)}M</b> / $${_cap.toFixed(0)}M
           ${_overCap
-            ? `<span style="color:#ff6b6b;font-weight:700"> · $${(_used - _cap).toFixed(1)}M OVER</span> — <span style="color:var(--gold-lt)">🔀 Shop picks</span> sheds salary AND returns a pick (vs. a cut)`
-            : `<span style="color:#86e0a3"> · $${(_cap - _used).toFixed(1)}M room</span>`}
+            ? `<span style="color:var(--ds-grade-neg-strong);font-weight:700"> · $${(_used - _cap).toFixed(1)}M OVER</span> — <span style="color:var(--gold-lt)">🔀 Shop picks</span> sheds salary AND returns a pick (vs. a cut)`
+            : `<span style="color:var(--ds-grade-pos)"> · $${(_cap - _used).toFixed(1)}M room</span>`}
         </div>`;
       })()}
       <p class="frn-prose" style="color:var(--gray);font-size:.78rem;margin:.2rem 0 .65rem;line-height:1.45">
         ${over > 0
-          ? `Your active roster is <b style="color:#ff6b6b">${over} over</b> the ${ACTIVE_ROSTER_LIMIT}-man limit. Trade, release, or IR <b>${over}</b> player${over > 1 ? 's' : ''} to continue.`
+          ? `Your active roster is <b style="color:var(--ds-grade-neg-strong)">${over} over</b> the ${ACTIVE_ROSTER_LIMIT}-man limit. Trade, release, or IR <b>${over}</b> player${over > 1 ? 's' : ''} to continue.`
           : `Your roster is legal — you're good to go.`}
         ${canTrade
           ? `<br><span style="color:var(--gold-lt)">🔀 Trade window open through Week ${(typeof TRADE_DEADLINE_WEEK === "number" ? TRADE_DEADLINE_WEEK : 9)}</span> — shop a player for draft capital instead of cutting him for nothing.`
@@ -1166,7 +1166,7 @@ async function frnMakeRoomShopPicks(name) {
     _warnLine +
     `<b>You trade away:</b> ${p.position} ${name}<br>` +
     `<b>You receive:</b> ${t.city || ''} ${t.name} — ${pickLabel} pick<br><br>` +
-    `Frees <b style="color:#86e0a3">$${_relief.toFixed(1)}M</b> cap${_dead > 0 ? ` (after $${_dead.toFixed(1)}M dead money)` : ''}.<br>` +
+    `Frees <b style="color:var(--ds-grade-pos)">$${_relief.toFixed(1)}M</b> cap${_dead > 0 ? ` (after $${_dead.toFixed(1)}M dead money)` : ''}.<br>` +
     `Cap: $${_capNow.toFixed(1)}M → <b>$${_capAfter.toFixed(1)}M</b> / $${_cap.toFixed(0)}M`,
     { title: _warns.length ? "⚠ Confirm trade" : "Confirm trade", confirmLabel: "✓ Confirm trade", cancelLabel: "Cancel" }
   );
@@ -1518,8 +1518,8 @@ function frnPlayerTipShow(anchorEl, name, pid) {
       <div><span class="frn-meta-label">DRAFT</span> ${draftStr(p)}</div>
       <div><span class="frn-meta-label">$/YR</span> $${aav.toFixed(1)}M · ${yrs}yr</div>
       <div><span class="frn-meta-label">CAREER $</span> ${careerEarningsStr(p)}</div>
-      ${p.injury?.weeksRemaining ? `<div style="color:#ff9090">🩹 ${p.injury.label} · ${p.injury.weeksRemaining}wk</div>` : ""}
-      ${p.onTradeBlock ? `<div style="color:#e8a000">●BLOCK</div>` : ""}
+      ${p.injury?.weeksRemaining ? `<div style="color:var(--ds-grade-neg-mid)">🩹 ${p.injury.label} · ${p.injury.weeksRemaining}wk</div>` : ""}
+      ${p.onTradeBlock ? `<div style="color:var(--ds-grade-caution)">●BLOCK</div>` : ""}
       ${seasonLine ? `<div style="color:var(--gold-lt);font-size:.62rem">${seasonLine}</div>` : ""}
     </div>
     <div class="frn-tip-foot">Click for full career</div>
@@ -2480,10 +2480,10 @@ function renderFrnPracticeReport(idx) {
     : "";
 
   const injuriesBlock = injuries.length
-    ? `<div class="frn-card-title" style="margin-top:.8rem;color:#ff8a8a">🚑 INJURIES (LIVE PADS)</div>
+    ? `<div class="frn-card-title" style="margin-top:.8rem;color:var(--ds-grade-neg)">🚑 INJURIES (LIVE PADS)</div>
        <div style="font-size:.58rem;color:var(--gray);margin-bottom:.25rem">Reps in pads come with a cost — these guys missed snaps. Yours are flagged on your depth chart now.</div>
        <div style="display:flex;flex-direction:column;gap:.2rem">
-         ${injuries.map(i => `<div style="background:var(--bg2);border:1px solid #ff6b6b33;border-left:3px solid #ff8a8a;padding:.3rem .55rem;font-size:.66rem">
+         ${injuries.map(i => `<div style="background:var(--bg2);border:1px solid #ff6b6b33;border-left:3px solid var(--ds-grade-neg);padding:.3rem .55rem;font-size:.66rem">
            <b style="color:${i.teamId===myId?"var(--gold)":"var(--blwhite)"}">${i.teamId===myId ? "YOU" : oppTeam?.name}</b>
            · <b>${i.pos}</b> ${i.name} — ${i.label} (${i.weeks}w)
          </div>`).join("")}
@@ -2588,8 +2588,8 @@ function renderFrnScrimmages() {
     const { t, interest, rtg, upcomingWk, isDivision, isUpcoming, alreadyDone, alreadyPlayed } = c;
     const willTag = alreadyDone ? `<span style="color:var(--gray);font-size:.6rem">— scrimmaged W${doneByTeam.get(t.id)?.week} —</span>`
       : interest >= 0.55 ? `<span style="color:var(--green-lt);font-size:.6rem;font-weight:700">VERY WILLING</span>`
-      : interest >= 0.35 ? `<span style="color:#e8a000;font-size:.6rem;font-weight:700">OPEN</span>`
-      : interest > 0     ? `<span style="color:#c08080;font-size:.6rem;font-weight:700">UNLIKELY</span>`
+      : interest >= 0.35 ? `<span style="color:var(--ds-grade-caution);font-size:.6rem;font-weight:700">OPEN</span>`
+      : interest > 0     ? `<span style="color:var(--ds-grade-neg-muted);font-size:.6rem;font-weight:700">UNLIKELY</span>`
       :                    `<span style="color:var(--gray);font-size:.6rem">REFUSED</span>`;
     const chips = [];
     if (upcomingWk != null) {
@@ -2913,7 +2913,7 @@ function renderFrnStandings() {
         const s = franchise.standings?.[myId]?._sit;
         if (!s) return "";
         const parts = [];
-        if (s.cbW)            parts.push(`<b style="color:#86e0a3">${s.cbW}</b> comeback win${s.cbW > 1 ? "s" : ""}`);
+        if (s.cbW)            parts.push(`<b style="color:var(--ds-grade-pos)">${s.cbW}</b> comeback win${s.cbW > 1 ? "s" : ""}`);
         if (s.wireW)          parts.push(`<b style="color:#8ab4f8">${s.wireW}</b> wire-to-wire`);
         if (s.oscW || s.oscL) parts.push(`<b style="color:var(--gold-lt)">${s.oscW || 0}-${s.oscL || 0}</b> in one-score games`);
         if (!parts.length) return "";
@@ -4547,15 +4547,15 @@ async function renderFrnDepthChart() {
     const mt = ms.tier;
     const pct = Math.round(Math.max(0, Math.min(100, ms.avg)));
     const flags = [];
-    if (ms.wantsOut) flags.push(`<span style="color:#ff8a8a;font-weight:800">📢 ${ms.wantsOut} want${ms.wantsOut === 1 ? "s" : ""} out</span>`);
-    if (ms.attention) flags.push(`<span style="color:#e8a000">⚠ ${ms.attention} unhappy</span>`);
-    if (ms.cancers) flags.push(`<span style="color:#ff8a8a">☢ ${ms.cancers} cancer${ms.cancers === 1 ? "" : "s"}</span>`);
+    if (ms.wantsOut) flags.push(`<span style="color:var(--ds-grade-neg);font-weight:800">📢 ${ms.wantsOut} want${ms.wantsOut === 1 ? "s" : ""} out</span>`);
+    if (ms.attention) flags.push(`<span style="color:var(--ds-grade-caution)">⚠ ${ms.attention} unhappy</span>`);
+    if (ms.cancers) flags.push(`<span style="color:var(--ds-grade-neg)">☢ ${ms.cancers} cancer${ms.cancers === 1 ? "" : "s"}</span>`);
     if (ms.promised) flags.push(`<span style="color:var(--gold-lt)">🎯 ${ms.promised} promised</span>`);
     moodStrip = `<div class="frn-dc-mood-strip" onclick="frnSetRosterSubTab('locker')" title="Open the Locker Room">
       <span class="frn-dc-strip-label">MOOD</span>
       <span style="color:${mt.color};font-weight:800;white-space:nowrap">${mt.icon} ${mt.label} · ${ms.avg.toFixed(0)}</span>
       <div class="frn-dc-mood-meter"><div style="width:${pct}%;background:${mt.color};height:100%"></div></div>
-      ${flags.length ? `<span class="frn-dc-mood-flags">${flags.join("")}</span>` : `<span style="font-size:.56rem;color:#86e0a3">room's in a good place</span>`}
+      ${flags.length ? `<span class="frn-dc-mood-flags">${flags.join("")}</span>` : `<span style="font-size:.56rem;color:var(--ds-grade-pos)">room's in a good place</span>`}
       <span class="frn-dc-mood-open">🛋 Locker Room →</span>
     </div>`;
   }
@@ -6122,7 +6122,7 @@ function _buildOpponentIntelBlock(oppId, isHome, week, nextGame) {
       <div class="frn-matchup-starters-header">
         <span style="color:var(--gold-lt)">${myTeam ? myTeam.name.toUpperCase() : "YOU"}</span>
         <div class="frn-card-title" style="margin:0;border:none;padding:0">KEY STARTERS</div>
-        <span style="color:#c08080">${opp.name.toUpperCase()}</span>
+        <span style="color:var(--ds-grade-neg-muted)">${opp.name.toUpperCase()}</span>
       </div>
       <div class="frn-matchup-starters">${starterRows}</div>
     </div>
@@ -7396,7 +7396,7 @@ function renderFrnLockerRoom() {
   const row = (p) => {
     const t = tierOf(p.morale ?? 62);
     const tag = p.personality === "captain" ? `<span style="color:var(--gold);font-size:.52rem"> ⭐</span>`
-              : p.personality === "cancer"  ? `<span style="color:#ff8a8a;font-size:.52rem"> ☢</span>` : "";
+              : p.personality === "cancer"  ? `<span style="color:var(--ds-grade-neg);font-size:.52rem"> ☢</span>` : "";
     return `<div class="frn-lr-row">
       <span class="frn-lr-name" onclick="frnOpenPlayerCard('${esc(p.name)}')" title="Open ${_escHtml(p.name)}">${_escHtml(p.name)}${tag}</span>
       <span class="frn-lr-pos">${p.position}</span>
@@ -7408,8 +7408,8 @@ function renderFrnLockerRoom() {
 
   const leaders = [];
   if (lr.captains.length) leaders.push(`<span style="color:var(--gold)">⭐ ${lr.captains.length} captain${lr.captains.length === 1 ? "" : "s"}</span>`);
-  if (lr.cancers.length)  leaders.push(`<span style="color:#ff8a8a">☢ ${lr.cancers.length} cancer${lr.cancers.length === 1 ? "" : "s"}</span>`);
-  if (lr.pairs.length)    leaders.push(`<span style="color:#86e0a3">🤝 ${lr.pairs.length} mentorship${lr.pairs.length === 1 ? "" : "s"}</span>`);
+  if (lr.cancers.length)  leaders.push(`<span style="color:var(--ds-grade-neg)">☢ ${lr.cancers.length} cancer${lr.cancers.length === 1 ? "" : "s"}</span>`);
+  if (lr.pairs.length)    leaders.push(`<span style="color:var(--ds-grade-pos)">🤝 ${lr.pairs.length} mentorship${lr.pairs.length === 1 ? "" : "s"}</span>`);
 
   const capMeetUsed = franchise._captainsMeetingSeason === franchise.season;
   const capMeetBtn = `<button class="frn-lr-act" ${capMeetUsed ? "disabled" : `onclick="frnCaptainsMeeting()"`} title="${capMeetUsed ? "Already held this season" : "Team-wide morale bump — once per season, stronger with captains"}" style="${capMeetUsed ? "opacity:.4;cursor:not-allowed" : ""}">📣 Captains' Meeting</button>`;
@@ -7433,7 +7433,7 @@ function renderFrnLockerRoom() {
   // Per-player action buttons for the attention list.
   const actBtns = (p) => {
     const talked = p._talkedSeason === franchise.season;
-    const trust = (p._brokenPromises || 0) > 0 ? ` <span style="color:#ff8a8a;font-size:.52rem" title="${p._brokenPromises} broken promise(s) — talks land softer">trust ✗${p._brokenPromises}</span>` : "";
+    const trust = (p._brokenPromises || 0) > 0 ? ` <span style="color:var(--ds-grade-neg);font-size:.52rem" title="${p._brokenPromises} broken promise(s) — talks land softer">trust ✗${p._brokenPromises}</span>` : "";
     const talkBtn = `<button class="frn-lr-act" ${talked ? "disabled" : `onclick="frnLockerTalk('${esc(p.name)}')"`} title="${talked ? "Talked this season" : "One-on-one — once a season"}" style="${talked ? "opacity:.4;cursor:not-allowed" : ""}">🗣 Talk</button>`;
     const promiseBtn = p._promise
       ? `<span class="frn-lr-promise">🎯 promised · ${Math.max(0, (p._promise.deadline - (franchise.week || 1)))}wk</span>`
@@ -7466,10 +7466,10 @@ function renderFrnLockerRoom() {
       ${leadershipRow}
     </div>
     ${disgruntled.length ? `<div class="frn-lr-alert">
-      <div style="font-size:.6rem;letter-spacing:.8px;color:#ff8a8a;font-weight:700;margin-bottom:.3rem">⚠ NEEDS ATTENTION (${disgruntled.length})</div>
-      ${disgruntled.map(p => { const t = tierOf(p.morale); const wantsOut = p._wantsOut ? ` <span style="color:#ff8a8a;font-weight:800;font-size:.56rem;border:1px solid #ff8a8a;padding:.02rem .25rem">📢 WANTS OUT</span>` : ""; return `<div class="frn-lr-att-row"><div style="font-size:.64rem"><b style="cursor:pointer" onclick="frnOpenPlayerCard('${esc(p.name)}')">${_escHtml(p.name)}</b> <span style="color:var(--gold-lt)">${p.position} ${p.overall}</span> · <span style="color:${t.color}">${t.icon} ${t.label}</span> <span style="color:var(--gray)">· ${reasonOf(p)}</span>${wantsOut}</div>${actBtns(p)}</div>`; }).join("")}
+      <div style="font-size:.6rem;letter-spacing:.8px;color:var(--ds-grade-neg);font-weight:700;margin-bottom:.3rem">⚠ NEEDS ATTENTION (${disgruntled.length})</div>
+      ${disgruntled.map(p => { const t = tierOf(p.morale); const wantsOut = p._wantsOut ? ` <span style="color:var(--ds-grade-neg);font-weight:800;font-size:.56rem;border:1px solid var(--ds-grade-neg);padding:.02rem .25rem">📢 WANTS OUT</span>` : ""; return `<div class="frn-lr-att-row"><div style="font-size:.64rem"><b style="cursor:pointer" onclick="frnOpenPlayerCard('${esc(p.name)}')">${_escHtml(p.name)}</b> <span style="color:var(--gold-lt)">${p.position} ${p.overall}</span> · <span style="color:${t.color}">${t.icon} ${t.label}</span> <span style="color:var(--gray)">· ${reasonOf(p)}</span>${wantsOut}</div>${actBtns(p)}</div>`; }).join("")}
       <div style="font-size:.56rem;color:var(--gray);margin-top:.3rem;font-style:italic">Talk to them, promise a role, win games — or move them before it spreads.</div>
-    </div>` : `<div style="font-size:.6rem;color:#86e0a3;margin-bottom:.6rem">✓ No disgruntled stars — the room is in a good place.</div>`}
+    </div>` : `<div style="font-size:.6rem;color:var(--ds-grade-pos);margin-bottom:.6rem">✓ No disgruntled stars — the room is in a good place.</div>`}
     <div class="frn-lr-list-head">ROSTER MOOD · problems first</div>
     <div class="frn-lr-rows">${sorted.map(row).join("")}</div>
   </div>`;
@@ -7509,7 +7509,7 @@ function renderFrnDraftReportCard() {
       <div style="font-size:.95rem;font-weight:900;color:var(--gold);margin-bottom:.4rem">📋 DRAFT REPORT CARD</div>
       <div style="color:var(--gray);font-size:.74rem;line-height:1.5">No draft history yet. Your classes appear here after your first draft and
       <b style="color:var(--gold-lt)">age over the seasons</b> — so you can see whether a pick (and the scouting you spent on him) actually panned out:
-      the 3rd-round <b style="color:#86e0a3">steal</b> you found, or the reach that <b style="color:#ff8a8a">busted</b>.</div>
+      the 3rd-round <b style="color:var(--ds-grade-pos)">steal</b> you found, or the reach that <b style="color:var(--ds-grade-neg)">busted</b>.</div>
     </div>`;
     return;
   }
@@ -7562,7 +7562,7 @@ function renderFrnDraftReportCard() {
       ? `<div style="font-size:.62rem;color:var(--gray);margin-top:.3rem">🔍 Scouting payoff: <b style="color:${scoutedHit >= Math.ceil(scouted * 0.66) ? "#86e0a3" : "#e0b078"}">${scoutedHit}/${scouted}</b> scouted picks panned out</div>`
       : "";
     const summary = seasonsSince > 0
-      ? `<span style="color:#86e0a3">💎 ${steals}</span> · <span style="color:var(--green-lt)">✓ ${hits}</span> · <span style="color:var(--gold-lt)">⏳ ${devs}</span> · <span style="color:#ff8a8a">✗ ${busts}</span>`
+      ? `<span style="color:var(--ds-grade-pos)">💎 ${steals}</span> · <span style="color:var(--green-lt)">✓ ${hits}</span> · <span style="color:var(--gold-lt)">⏳ ${devs}</span> · <span style="color:var(--ds-grade-neg)">✗ ${busts}</span>`
       : `<span style="color:var(--gray)">just drafted — check back next season</span>`;
 
     return `<div class="frn-drc-class">
@@ -7716,7 +7716,7 @@ function renderFrnLeagueCapMap() {
       </div>
       <div style="margin-top:.9rem;color:var(--gray);font-size:.65rem;text-align:center">
         Tile area is each team's current cap spend. ${totalUsed.toFixed(0)}M total league-wide ·
-        cap: $${cap.toFixed(0)}M/team · ${overTeams ? `<span style="color:#ff8a8a;font-weight:700">${overTeams} team${overTeams===1?"":"s"} need to cut</span>` : "all teams cap-legal"}
+        cap: $${cap.toFixed(0)}M/team · ${overTeams ? `<span style="color:var(--ds-grade-neg);font-weight:700">${overTeams} team${overTeams===1?"":"s"} need to cut</span>` : "all teams cap-legal"}
       </div>
     </div>`;
 }
@@ -7827,7 +7827,7 @@ function renderFrnSeasonRecap() {
       <div class="frn-recap-team-grid">
         <div><span class="lbl">PF</span><span class="val">${pf}</span></div>
         <div><span class="lbl">PA</span><span class="val">${pa}</span></div>
-        <div><span class="lbl">DIFF</span><span class="val" style="color:${diff>=0?'var(--green-lt)':'#c08080'}">${diff>=0?"+":""}${diff}</span></div>
+        <div><span class="lbl">DIFF</span><span class="val" style="color:${diff>=0?'var(--green-lt)':'var(--ds-grade-neg-muted)'}">${diff>=0?"+":""}${diff}</span></div>
         <div><span class="lbl">OFF</span><span class="val">#${offRank}</span></div>
         <div><span class="lbl">DEF</span><span class="val">#${defRank}</span></div>
         <div><span class="lbl">OFF RTG</span><span class="val">${myRtg.off}</span></div>
@@ -7866,7 +7866,7 @@ function renderFrnSeasonRecap() {
       <td class="pct">${pct}</td>
       <td class="pf">${s.pf}</td>
       <td class="pa">${s.pa}</td>
-      <td class="diff" style="color:${pdiff>=0?'var(--green-lt)':'#c08080'}">${pdiff>=0?"+":""}${pdiff}</td>
+      <td class="diff" style="color:${pdiff>=0?'var(--green-lt)':'var(--ds-grade-neg-muted)'}">${pdiff>=0?"+":""}${pdiff}</td>
     </tr>`;
   }).join("");
   const standingsHtml = `
@@ -8245,7 +8245,7 @@ function renderFrnRegular() {
     ? `<div class="frn-inbox-info">
         <b style="color:var(--gold)">📰 FA Wire W${faNews.week}</b>
         ${faNews.signed.map(s=>`<span style="color:var(--green-lt)">✓ ${s.name} $${s.aav.toFixed(1)}M</span>`).join(" ")}
-        ${faNews.lost.map(l=>`<span style="color:#c08080">✗ Lost ${l.name}</span>`).join(" ")}
+        ${faNews.lost.map(l=>`<span style="color:var(--ds-grade-neg-muted)">✗ Lost ${l.name}</span>`).join(" ")}
       </div>` : "";
 
   // ─── Unit bars ────────────────────────────────────────────────────────
@@ -9004,7 +9004,7 @@ function renderFrnRegular() {
       <div class="frn-gauntlet-opp">😴 BYE WEEK</div>
       <div class="frn-gauntlet-rec">—</div>
       <div class="frn-gauntlet-rating">
-        <span class="frn-gauntlet-rval" style="color:#86e0a3">REST</span>
+        <span class="frn-gauntlet-rval" style="color:var(--ds-grade-pos)">REST</span>
         <span class="frn-gauntlet-rsub">wear + stress recover</span>
       </div>
       <div class="frn-gauntlet-tag" style="background:#9aa7b822;color:#9aa7b8;border-color:#9aa7b855">RECOVERY</div>
@@ -12326,7 +12326,7 @@ function renderFrnCoachingStaff() {
   const escTotal     = coachRefunds.filter(r => r.kind === "coach_escalator").reduce((s,r) => s + (r.amount||0), 0);
   const extraLine = (deadCapTotal > 0 || escTotal > 0)
     ? `<div style="font-size:.6rem;color:var(--gray);margin-top:.18rem">
-        ${deadCapTotal > 0 ? `<span style="color:#ff8a8a">Dead cap: $${deadCapTotal.toFixed(2)}M</span>` : ""}
+        ${deadCapTotal > 0 ? `<span style="color:var(--ds-grade-neg)">Dead cap: $${deadCapTotal.toFixed(2)}M</span>` : ""}
         ${deadCapTotal > 0 && escTotal > 0 ? " · " : ""}
         ${escTotal > 0 ? `<span style="color:var(--gold)">Escalators paid: $${escTotal.toFixed(2)}M</span>` : ""}
       </div>` : "";
@@ -12978,7 +12978,7 @@ function _renderCoordinatorMarket(myId) {
       : (c.rating || 0) >= 65 ? `<span style="font-weight:700;color:var(--gold)">${c.rating}</span>`
       : `<span style="font-weight:700;color:var(--red)">${c.rating || "?"}</span>`;
     const expiringFlag = (c.contractYears || 99) <= 1 ? `<span style="font-size:.52rem;color:var(--gold);background:rgba(212,175,55,.1);padding:.04rem .3rem;border:1px solid var(--gold-lt);border-radius:2px;margin-left:.3rem" title="Final contract year — easier to poach">⏳ EXPIRING</span>` : "";
-    const hotChip = _isCoachHotSeat(t.id) ? `<span style="font-size:.52rem;color:#ff8a8a;margin-left:.3rem" title="Their owner is mid-meltdown — coordinator more likely to leave">🔥 HOT-SEAT TEAM</span>` : "";
+    const hotChip = _isCoachHotSeat(t.id) ? `<span style="font-size:.52rem;color:var(--ds-grade-neg);margin-left:.3rem" title="Their owner is mid-meltdown — coordinator more likely to leave">🔥 HOT-SEAT TEAM</span>` : "";
     const isActive = isActiveTarget(t.id, role);
     return `<div class="frn-poach-row${isActive?" active":""}">
       <div class="frn-poach-meta">
@@ -13036,7 +13036,7 @@ function _renderPoachForm(targetTeam, role, coord) {
         <div class="frn-poach-summary">
           <div>Total: <b style="color:${deltaCol}">$${totalNew.toFixed(1)}M</b></div>
           <div style="font-size:.55rem;color:var(--gray)">vs current $${totalCurr.toFixed(1)}M</div>
-          <div style="font-size:.55rem;color:#ff8a8a;margin-top:.1rem">+ $${COACH_INTERVIEW_FEE}M interview fee (paid regardless)</div>
+          <div style="font-size:.55rem;color:var(--ds-grade-neg);margin-top:.1rem">+ $${COACH_INTERVIEW_FEE}M interview fee (paid regardless)</div>
         </div>
       </div>
       <div class="frn-poach-form-actions">
