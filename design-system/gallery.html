@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hashmark Design System — Component Gallery</title>
+<!-- Same include order as play.html so tokens + palette + fonts resolve. -->
+<link rel="stylesheet" href="../fonts/fonts.css">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="ds.css">
+<link rel="stylesheet" href="../play.css">
+<style>
+  body { background: var(--bg); color: var(--white); font-family: var(--font-mono); margin: 0; padding: 24px; }
+  h1 { font-family: var(--font-display); color: var(--gold); letter-spacing: 1px; margin: 0 0 4px; }
+  .sub { color: var(--gray); font-size: .8rem; margin-bottom: 20px; }
+  .sec { border: 1px solid var(--ds-border); border-radius: var(--ds-radius-lg); padding: 14px 16px; margin: 0 0 14px; background: var(--ds-surface); }
+  .sec > h2 { font-family: var(--font-display); color: var(--ds-primary); font-size: 1rem; letter-spacing: .5px; margin: 0 0 10px; text-transform: uppercase; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+</style>
+</head>
+<body>
+<!-- Wrapped in #franchiseHome so the franchise parity rules apply (this is how
+     the components look in the real dashboard). -->
+<div id="franchiseHome">
+  <h1>Hashmark Design System</h1>
+  <div class="sub">Component gallery — every <code>DS.*</code> factory / <code>.ds-*</code> class, built the same way the franchise UI now is.</div>
+  <div id="gallery"></div>
+</div>
+
+<script src="ds.js"></script>
+<script>
+  // Render every component via the real DS factories.
+  const S = (title, html) => `<div class="sec"><h2>${title}</h2>${html}</div>`;
+  const out = [];
+
+  out.push(S("Buttons", `<div class="row">
+    ${DS.button({ label: "Gold / Primary CTA", variant: "gold", on: "void 0" })}
+    ${DS.button({ label: "Primary", variant: "primary", on: "void 0" })}
+    ${DS.button({ label: "Outline", variant: "outline", on: "void 0" })}
+    ${DS.button({ label: "Danger", variant: "danger", on: "void 0" })}
+    ${DS.button({ label: "Small", variant: "outline", size: "sm", on: "void 0" })}
+    ${DS.button({ label: "Disabled", variant: "gold", disabled: true })}
+    ${DS.button({ label: "With icon", variant: "outline", icon: "⚡", on: "void 0" })}
+  </div>`));
+
+  out.push(S("Chips / Tags / Badges", `<div class="row">
+    ${DS.chip({ label: "Default" })}
+    ${DS.chip({ label: "Active", active: true })}
+    ${DS.chip({ label: "Gold", variant: "gold" })}
+    ${DS.chip({ label: "AFC", variant: "afc" })}
+    ${DS.chip({ label: "NFC", variant: "nfc" })}
+  </div>`));
+
+  out.push(S("Cards", `<div class="grid3">
+    ${DS.card({ eyebrow: "WEEK 7", title: "Matchup", body: "Kraken vs Titans — Sun 1:00", onClose: "void 0" })}
+    ${DS.card({ eyebrow: "ROSTER", title: "Cap Space", body: "$17.7M available" })}
+    ${DS.card({ hero: true, eyebrow: "NEXT GAME", title: "at Fury", body: "Win prob 62%" })}
+  </div>`));
+
+  out.push(S("Stat tiles", `<div class="grid4">
+    ${DS.statTile({ label: "PASS YDS", value: 412 })}
+    ${DS.statTile({ label: "RUSH YDS", value: 138 })}
+    ${DS.statTile({ label: "QBR", value: "98.4", elite: true })}
+    ${DS.statTile({ label: "TO", value: 0 })}
+  </div>`));
+
+  out.push(S("Banners", `
+    ${DS.banner({ icon: "🔥", title: "Active streaks", body: "3-game win streak · 2 players hot" })}
+    ${DS.banner({ variant: "success", icon: "✓", title: "Re-signed", body: "Extension finalized." })}
+    ${DS.banner({ variant: "danger", icon: "⚠", title: "Over the cap", body: "Trim $2.1M before the deadline." })}
+  `));
+
+  out.push(S("Tab bar", DS.tabBar({
+    tabs: [{ id: "off", label: "OFFENSE" }, { id: "def", label: "DEFENSE" }, { id: "st", label: "SPECIAL TEAMS" }],
+    activeId: "off", on: "void"
+  })));
+
+  out.push(S("Progress", `
+    <div style="display:flex;flex-direction:column;gap:8px;max-width:520px">
+      ${DS.progress({ pct: 72, label: "Scheme fit 72%" })}
+      ${DS.progress({ pct: 45, label: "Stamina 45%" })}
+      ${DS.progress({ pct: 90, label: "Win probability 90%" })}
+    </div>`));
+
+  out.push(S("Toggle", `<div class="row">
+    ${DS.toggle({ label: "Show pregame breakdown", expanded: false, on: "void 0" })}
+    ${DS.toggle({ label: "Hide details", expanded: true, on: "void 0" })}
+  </div>`));
+
+  out.push(S("Toolbar / nav", DS.toolbar({
+    links: [{ label: "LEAGUE", on: "void 0" }, { label: "STANDINGS", on: "void 0" }, { label: "STATS", on: "void 0" }, { label: "REPLAYS", on: "void 0" }]
+  })));
+
+  out.push(S("Select", `<div style="max-width:240px">${DS.select({
+    id: "g-sel", value: "100",
+    options: [{ value: "10", label: "10×" }, { value: "100", label: "100×" }, { value: "500", label: "500×" }]
+  })}</div>`));
+
+  out.push(S("Table", DS.table({
+    head: ["RK", "PLAYER", "YDS", "TD"],
+    rows: [
+      DS.row({ cells: ["1", "N. Keller", "412", "3"], mine: true }),
+      DS.row({ cells: ["2", "J. Kona", "388", "2"] }),
+      DS.row({ cells: ["3", "D. Love", "351", "2"] }),
+    ]
+  })));
+
+  out.push(S("Modal", `<div class="row">
+    ${DS.button({ label: "Open modal", variant: "gold", on: "DS.modal({title:'Delete franchise?',body:'This cannot be undone.',danger:true,okLabel:'Delete'})" })}
+    <span style="color:var(--gray);font-size:.75rem">Promise-based · backdrop/Esc = cancel · Enter = confirm</span>
+  </div>`));
+
+  document.getElementById("gallery").innerHTML = out.join("");
+</script>
+</body>
+</html>
