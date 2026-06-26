@@ -584,11 +584,58 @@ function _tintedSprite(srcImg, key, hexColor) {
     // whole-body skin bbox spanned the arms and made the face box blank the
     // SHOULDERS (user: "not coloring part of the shoulder"). Restrict to y above
     // the headline so only the actual face drives the box.
-    let _fMinX = W, _fMinY = H, _fMaxX = 0, _fMaxY = 0, _faceCount = 0;
+    // The bbox of ALL head-band skin breaks on throw/windup frames: the raised
+    // throwing HAND + the BALL (both warm-brown → isSkin) sit in the head band and
+    // stretched the box sideways OVER the helmet, leaving it untinted (user: "qb
+    // passing frame, helmet doesn't get colored"). Fix: connected-component the
+    // head-band skin, seed from the LARGEST blob (the face), and absorb only blobs
+    // within a small HORIZONTAL gap of it. A disjoint far blob (the raised hand/
+    // ball) is excluded, so the helmet around it tints. For normal poses there is
+    // a single face cluster, so this is identical to the old full-bbox behavior.
     const _headBot = Math.round(headLine);
+    const _faceLab = new Int32Array(W * H);
+    const _skinComps = [];
     for (let y = minY; y < _headBot; y++) {
       for (let x = minX; x <= maxX; x++) {
-        if (skinMask[y * W + x]) { _faceCount++; if (x < _fMinX) _fMinX = x; if (x > _fMaxX) _fMaxX = x; if (y < _fMinY) _fMinY = y; if (y > _fMaxY) _fMaxY = y; }
+        if (!skinMask[y * W + x] || _faceLab[y * W + x]) continue;
+        const id = _skinComps.length + 1;
+        let a = 0, bx0 = x, by0 = y, bx1 = x, by1 = y;
+        const st = [x, y];
+        while (st.length) {
+          const cy = st.pop(), cx = st.pop();
+          if (cx < minX || cx > maxX || cy < minY || cy >= _headBot) continue;
+          const idx = cy * W + cx;
+          if (!skinMask[idx] || _faceLab[idx]) continue;
+          _faceLab[idx] = id; a++;
+          if (cx < bx0) bx0 = cx; if (cx > bx1) bx1 = cx;
+          if (cy < by0) by0 = cy; if (cy > by1) by1 = cy;
+          st.push(cx + 1, cy, cx - 1, cy, cx, cy + 1, cx, cy - 1);
+        }
+        _skinComps.push({ a, bx0, by0, bx1, by1 });
+      }
+    }
+    let _fMinX = W, _fMinY = H, _fMaxX = 0, _fMaxY = 0, _faceCount = 0;
+    if (_skinComps.length) {
+      _skinComps.sort((p, q) => q.a - p.a);             // largest blob = the face
+      const _faceGap = (typeof window !== "undefined" && window.GC_TINT_FACE_GAP != null) ? window.GC_TINT_FACE_GAP : 4;
+      const _used = new Array(_skinComps.length).fill(false);
+      _used[0] = true;
+      _fMinX = _skinComps[0].bx0; _fMaxX = _skinComps[0].bx1;
+      _fMinY = _skinComps[0].by0; _fMaxY = _skinComps[0].by1; _faceCount = _skinComps[0].a;
+      let _grew = true;
+      while (_grew) {
+        _grew = false;
+        for (let k = 1; k < _skinComps.length; k++) {
+          if (_used[k]) continue;
+          const c = _skinComps[k];
+          const gap = Math.max(0, _fMinX - c.bx1, c.bx0 - _fMaxX);  // horizontal gap to the face cluster
+          if (gap <= _faceGap) {
+            _used[k] = true; _grew = true;
+            if (c.bx0 < _fMinX) _fMinX = c.bx0; if (c.bx1 > _fMaxX) _fMaxX = c.bx1;
+            if (c.by0 < _fMinY) _fMinY = c.by0; if (c.by1 > _fMaxY) _fMaxY = c.by1;
+            _faceCount += c.a;
+          }
+        }
       }
     }
     const _faceWf  = (typeof window !== "undefined" && window.GC_TINT_FACE_W   != null) ? window.GC_TINT_FACE_W   : 1.15;
