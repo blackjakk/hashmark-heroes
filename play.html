@@ -19,11 +19,20 @@
 </head>
 <body>
 
+<!-- Skip link — first focusable element so keyboard users can jump past the
+     chrome straight into the main content. .sr-only(-focusable) is provided by
+     design-system/ds.css; it stays visually hidden until focused. -->
+<a class="sr-only sr-only-focusable" href="#mainContent">Skip to main content</a>
+
+<!-- Single page-level heading (visually hidden — the design has no visible
+     title surface). Gives screen-reader users a document title/landmark. -->
+<h1 class="sr-only">Hashmark Heroes franchise</h1>
+
 <!-- Vignette overlay — fixed, full-screen, pointer-events:none.
      (CRT scan-lines removed by request.) -->
 <div class="crt-vignette"></div>
 
-<div class="container">
+<div class="container" id="mainContent" role="main">
 
   <!-- Franchise home (default visible) — rendered inline, no modal.
        Bloomberg-style multi-row shell: frnAppShell renders the ticker
@@ -32,14 +41,14 @@
        per-tab body. All shell pieces are populated by
        _frnRenderAppShell() in play-franchise-stats.js. -->
   <div id="franchiseHome">
-    <div id="frnAppShell" style="display:none"></div>
+    <div id="frnAppShell" role="banner" style="display:none"></div>
     <!-- In-loop nav rail. Single point of injection populated by
          _frnUpdateNavBar() from the dashboard router. Hidden on the start
          screen and during regular-season (the tab bar in frnAppShell is the
          nav there). Shown on every other full-screen phase with a Home button
          + title + step, so the user always has an escape hatch and clear
          orientation. -->
-    <div id="frnNavBar" style="display:none"></div>
+    <div id="frnNavBar" role="navigation" style="display:none"></div>
     <div id="frnHomeContent"></div>
     <div id="frnAppFooter" style="display:none"></div>
   </div>
@@ -49,34 +58,34 @@
     <!-- Top bar inside testing — gives dev-tools users a clear way home now
          that the mode tabs are gone from the front page. -->
     <div style="margin:0 0 .75rem 0;display:flex;align-items:center;gap:.5rem;font-size:.72rem;color:var(--gray)">
-      <button type="button" class="btn btn-outline" id="testingBackBtn" style="font-size:.66rem;padding:.25rem .55rem">← Back to Franchise</button>
+      <button type="button" class="btn btn-outline" id="testingBackBtn" aria-label="Back to franchise" style="font-size:.66rem;padding:.25rem .55rem">← Back to Franchise</button>
       <span style="opacity:.7">🛠 Dev Tools</span>
     </div>
     <!-- Team selector + depth chart -->
     <div class="selector">
       <div class="team-col">
-        <label>Home Team</label>
+        <label for="homeTeam">Home Team</label>
         <select id="homeTeam"></select>
         <div class="depth-chart" id="homeDepth"></div>
       </div>
       <div class="vs-label">VS</div>
       <div class="team-col">
-        <label>Away Team</label>
+        <label for="awayTeam">Away Team</label>
         <select id="awayTeam"></select>
         <div class="depth-chart" id="awayDepth"></div>
       </div>
     </div>
 
     <div class="controls" id="testingControls">
-      <button class="btn btn-gold" id="simBtn">⚡ Simulate Game</button>
-      <select id="simManyCount" class="sim-many-select" title="Number of games to simulate">
+      <button class="btn btn-gold" id="simBtn" aria-label="Simulate game">⚡ Simulate Game</button>
+      <select id="simManyCount" class="sim-many-select" aria-label="Games to simulate" title="Number of games to simulate">
         <option value="10">10×</option>
         <option value="100" selected>100×</option>
         <option value="500">500×</option>
         <option value="1000">1000×</option>
       </select>
-      <button class="btn btn-outline" id="simManyBtn">🎲 Sim Many</button>
-      <input id="qbOvrInput" class="qb-ovr-input" type="number" value="90" min="60" max="99" title="Target overall rating for the test QBs" />
+      <button class="btn btn-outline" id="simManyBtn" aria-label="Sim many">🎲 Sim Many</button>
+      <input id="qbOvrInput" class="qb-ovr-input" type="number" value="90" min="60" max="99" aria-label="Target QB overall" title="Target overall rating for the test QBs" />
       <button class="btn btn-outline" id="simByQBBtn" title="Run N games for each QB archetype on the home team at the chosen OVR">🧪 Sim by QB</button>
       <button class="btn btn-outline" id="simByPBBtn" title="Run N games for each playbook on the home team">📘 Sim by PB</button>
       <button class="btn btn-outline" id="powerRankBtn" title="Round-robin all 32 teams to compute a power ranking">📊 Power Rankings</button>
@@ -88,34 +97,34 @@
          joins through the share link; both call plays on the panels. -->
     <div class="controls" id="h2hControls">
       <button class="btn btn-outline" id="h2hCreateBtn" title="Host a live head-to-head match — your opponent joins via the share link">🌐 Host H2H</button>
-      <input id="h2hServer" type="text" value="http://localhost:8787" title="H2H match server URL" style="width:200px" />
-      <span id="h2hStatus" class="h2h-status"></span>
+      <input id="h2hServer" type="text" value="http://localhost:8787" aria-label="H2H server URL" title="H2H match server URL" style="width:200px" />
+      <span id="h2hStatus" class="h2h-status" role="status" aria-live="polite"></span>
     </div>
   </div>
 
   <!-- Playback controls — shown when any game is being played (franchise or testing) -->
   <div class="controls" id="playbackControls" style="display:none">
-    <button class="btn btn-primary" id="playBtn" disabled>▶ Play</button>
-    <button class="btn btn-outline" id="pauseBtn" disabled>⏸ Pause</button>
-    <button class="btn btn-outline" id="nextPlayBtn" disabled title="Skip to next play">⏭ Play</button>
-    <button class="btn btn-outline" id="endQtrBtn" disabled title="Sim to end of current quarter">⏭ Qtr</button>
-    <button class="btn btn-outline" id="endHalfBtn" disabled title="Sim to halftime">⏭ Half</button>
-    <button class="btn btn-outline" id="endBtn" disabled>⏭ End</button>
+    <button class="btn btn-primary" id="playBtn" aria-label="Play" disabled>▶ Play</button>
+    <button class="btn btn-outline" id="pauseBtn" aria-label="Pause" disabled>⏸ Pause</button>
+    <button class="btn btn-outline" id="nextPlayBtn" aria-label="Next play" disabled title="Skip to next play">⏭ Play</button>
+    <button class="btn btn-outline" id="endQtrBtn" aria-label="Sim to end of quarter" disabled title="Sim to end of current quarter">⏭ Qtr</button>
+    <button class="btn btn-outline" id="endHalfBtn" aria-label="Sim to halftime" disabled title="Sim to halftime">⏭ Half</button>
+    <button class="btn btn-outline" id="endBtn" aria-label="Sim to end of game" disabled>⏭ End</button>
     <div class="speed-control">
       <span>Speed</span>
-      <input type="range" id="speedSlider" min="1" max="10" step="1" value="5" style="width: 130px;" />
-      <span id="speedLabel">1.0×</span>
+      <input type="range" id="speedSlider" min="1" max="10" step="1" value="5" aria-label="Playback speed" style="width: 130px;" />
+      <span id="speedLabel" role="status" aria-live="polite">1.0×</span>
     </div>
     <div class="view-toggle" style="display:none">
-      <button id="viewTacticalBtn" class="active">📋 Tactical</button>
-      <button id="viewCinemaBtn">🎬 Cinema</button>
+      <button id="viewTacticalBtn" class="active" aria-label="Tactical view">📋 Tactical</button>
+      <button id="viewCinemaBtn" aria-label="Cinema view">🎬 Cinema</button>
     </div>
   </div>
 
   <!-- Sim-many results modal -->
   <div id="simManyModal" class="sim-many-modal" style="display:none">
     <div class="sim-many-card">
-      <button class="sim-many-close" id="simManyClose">×</button>
+      <button class="sim-many-close" id="simManyClose" aria-label="Close">×</button>
       <div id="simManyBody"></div>
     </div>
   </div>
@@ -134,47 +143,47 @@
        team selector / sim debug panel). Also reachable via ?dev=1 URL param.
        Intentionally unobtrusive — the front page is for players. -->
   <div id="devToolsFooter" style="margin-top:1.25rem;text-align:center;font-size:.62rem;color:var(--gray);opacity:.4">
-    <a href="#" id="devToolsLink" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--gray)">🛠 dev tools</a>
+    <a href="#" id="devToolsLink" aria-label="Dev tools" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--gray)">🛠 dev tools</a>
     <span style="margin:0 .5rem;opacity:.5">·</span>
-    <a href="#" id="h2hFooterLink" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--gray)">🌐 live h2h match</a>
+    <a href="#" id="h2hFooterLink" aria-label="Live H2H match" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--gray)">🌐 live h2h match</a>
   </div>
 
 </div>
 <script src="vendor/pixi.min.js"></script>
-<script>window.GC_BUILD="20260626132603";</script>
-<script src="play-data.js?v=20260626132603"></script>
-<script src="play-player.js?v=20260626132603"></script>
-<script src="play-audio.js?v=20260626132603"></script>
-<script src="play-fx.js?v=20260626132603"></script>
+<script>window.GC_BUILD="20260626190720";</script>
+<script src="play-data.js?v=20260626190720"></script>
+<script src="play-player.js?v=20260626190720"></script>
+<script src="play-audio.js?v=20260626190720"></script>
+<script src="play-fx.js?v=20260626190720"></script>
 <!-- Physics sim primitives: SimPlayer, simIntercept, etc.
      Used by play-animation.js to drive defender pursuit with real
      velocity/acceleration/intercept-angles instead of straight-line
      tween. Engine still owns outcomes; this is the visual layer. -->
-<script src="play-sim.js?v=20260626132603"></script>
+<script src="play-sim.js?v=20260626190720"></script>
 <!-- Path B Phase 2 — engine-owned motion schema + playback utility.
      Engine emits play.motion (per-player waypoint tracks, ball track,
      discrete events). Animation reads via MotionPlayback.sampleTrack
      and renders. Pure playback layer; no per-frame inference. -->
-<script src="play-motion.js?v=20260626132603"></script>
+<script src="play-motion.js?v=20260626190720"></script>
 <!-- PIXI.js WebGL renderer — backs play-field-pixi.js + play-player-pixi.js.
      Served from vendor/pixi.min.js (7.4.0), loaded once at the top of the
      script block. A second CDN copy (7.4.3) used to load here too — ~1MB of
      double parse, an effective version that silently differed online vs
      offline, and a hard failure in offline/sandboxed runs. Removed. -->
-<script src="play-field-pixi.js?v=20260626132603"></script>
-<script src="play-engine.js?v=20260626132603"></script>
-<script src="play-render.js?v=20260626132603"></script>
-<script src="play-sprites.js?v=20260626132603"></script>
-<script src="play-player-pixi.js?v=20260626132603"></script>
-<script src="play-simtools.js?v=20260626132603"></script>
-<script src="play-broadcast.js?v=20260626132603"></script>
-<script src="play-animation.js?v=20260626132603"></script>
+<script src="play-field-pixi.js?v=20260626190720"></script>
+<script src="play-engine.js?v=20260626190720"></script>
+<script src="play-render.js?v=20260626190720"></script>
+<script src="play-sprites.js?v=20260626190720"></script>
+<script src="play-player-pixi.js?v=20260626190720"></script>
+<script src="play-simtools.js?v=20260626190720"></script>
+<script src="play-broadcast.js?v=20260626190720"></script>
+<script src="play-animation.js?v=20260626190720"></script>
 <!-- Design System component factories (window.DS). Must load before the franchise UI. -->
-<script src="design-system/ds.js?v=20260626132603"></script>
-<script src="play-franchise-core.js?v=20260626132603"></script>
-<script src="play-franchise-season.js?v=20260626132603"></script>
-<script src="play-franchise-stats.js?v=20260626132603"></script>
-<script src="play-franchise-offseason.js?v=20260626132603"></script>
-<script src="play-h2h-client.js?v=20260626132603"></script>
+<script src="design-system/ds.js?v=20260626190720"></script>
+<script src="play-franchise-core.js?v=20260626190720"></script>
+<script src="play-franchise-season.js?v=20260626190720"></script>
+<script src="play-franchise-stats.js?v=20260626190720"></script>
+<script src="play-franchise-offseason.js?v=20260626190720"></script>
+<script src="play-h2h-client.js?v=20260626190720"></script>
 </body>
 </html>

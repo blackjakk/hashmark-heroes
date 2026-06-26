@@ -94,7 +94,10 @@
   function _on(expr) { return expr ? ` onclick="${expr}"` : ""; }
 
   // ── button ─────────────────────────────────────────────────────────────────
-  // { label, variant='outline', size, icon, on, disabled, title, type, attrs }
+  // { label, variant='outline', size, icon, on, disabled, title, type, attrs,
+  //   ariaLabel }
+  // ariaLabel → emits aria-label="…" (escaped). Essential for icon-only buttons
+  // (icon set, no label text) so screen readers announce a name.
   function button(opts) {
     const o = opts || {};
     const cls = cx(
@@ -106,8 +109,9 @@
     const icon = o.icon ? `<span class="ds-btn__icon">${esc(o.icon)}</span>` : "";
     const type = o.type ? ` type="${esc(o.type)}"` : "";
     const title = o.title ? ` title="${esc(o.title)}"` : "";
+    const aria = o.ariaLabel ? ` aria-label="${esc(o.ariaLabel)}"` : "";
     const dis = o.disabled ? " disabled" : "";
-    return `<button class="${cls}"${type}${title}${dis}${_on(o.on)}${attrs(o.attrs)}>${icon}${esc(o.label)}</button>`;
+    return `<button class="${cls}"${type}${title}${aria}${dis}${_on(o.on)}${attrs(o.attrs)}>${icon}${esc(o.label)}</button>`;
   }
 
   // ── card ─────────────────────────────────────────────────────────────────
@@ -196,38 +200,82 @@
     const o = opts || {};
     return new Promise((resolve) => {
       if (typeof document === "undefined") { resolve(false); return; }
+      // Save what had focus before the modal opened so we can restore it on
+      // every close path (a11y: focus must not be lost behind a closed dialog).
+      const prevFocus = (document.activeElement instanceof HTMLElement)
+        ? document.activeElement : null;
+
       const tmp = document.createElement("div");
       tmp.innerHTML = modalHtml(o);
       const wrap = tmp.firstElementChild; // the .ds-modal-backdrop root
       wrap.id = "dsModal_" + Date.now();
       document.body.appendChild(wrap);
+      const dialog = wrap.querySelector(".ds-modal") || wrap;
 
       const cancelBtn = wrap.querySelector(".ds-modal__cancel");
       const okBtn = wrap.querySelector(".ds-modal__confirm");
       const typeInp = wrap.querySelector(".ds-modal__type-input");
       const typeName = o.requireType || "";
 
+      // Tabbable elements currently inside the dialog (skip disabled/hidden).
+      const FOCUSABLE = 'a[href],area[href],button:not([disabled]),' +
+        'input:not([disabled]),select:not([disabled]),textarea:not([disabled]),' +
+        '[tabindex]:not([tabindex="-1"])';
+      const focusables = () => Array.prototype.filter.call(
+        dialog.querySelectorAll(FOCUSABLE),
+        (el) => el.offsetParent !== null || el === document.activeElement
+      );
+
       const close = (result) => {
         wrap.remove();
         document.removeEventListener("keydown", onKey);
+        // Restore focus to whatever was focused before the modal opened.
+        if (prevFocus && typeof prevFocus.focus === "function") {
+          try { prevFocus.focus(); } catch (e) { /* element gone — ignore */ }
+        }
         resolve(result);
       };
       const onKey = (e) => {
-        if (e.key === "Escape") close(false);
-        if (e.key === "Enter" && okBtn && !okBtn.disabled) close(true);
+        if (e.key === "Escape") { close(false); return; }
+        if (e.key === "Enter" && okBtn && !okBtn.disabled) { close(true); return; }
+        // Focus trap: cycle Tab/Shift+Tab within the dialog's focusables.
+        if (e.key === "Tab") {
+          const items = focusables();
+          if (!items.length) { e.preventDefault(); return; }
+          const first = items[0];
+          const last = items[items.length - 1];
+          const active = document.activeElement;
+          if (e.shiftKey) {
+            if (active === first || !dialog.contains(active)) {
+              e.preventDefault();
+              last.focus();
+            }
+          } else {
+            if (active === last || !dialog.contains(active)) {
+              e.preventDefault();
+              first.focus();
+            }
+          }
+        }
       };
 
       if (cancelBtn) cancelBtn.addEventListener("click", () => close(false));
       if (okBtn) okBtn.addEventListener("click", () => { if (!okBtn.disabled) close(true); });
       wrap.addEventListener("click", (e) => { if (e.target === wrap) close(false); }); // backdrop = cancel
 
+      // Move focus into the dialog after mount: type-gate input first, else the
+      // first focusable (falls back to Cancel — the historical default).
       if (typeInp) {
         typeInp.addEventListener("input", () => {
           if (okBtn) okBtn.disabled = typeInp.value.trim() !== typeName;
         });
         setTimeout(() => typeInp.focus(), 30);
-      } else if (cancelBtn) {
-        setTimeout(() => cancelBtn.focus(), 30); // default focus on Cancel (safer)
+      } else {
+        setTimeout(() => {
+          const items = focusables();
+          const target = cancelBtn || items[0];
+          if (target) target.focus();
+        }, 30);
       }
       document.addEventListener("keydown", onKey);
     });

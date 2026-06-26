@@ -419,3 +419,83 @@
   font-family: var(--font-prose);          /* Bricolage Grotesque */
   font-weight: 600;
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY FOUNDATION  (A11Y_FIX_SPEC §1-§3 — additive, token-only)
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* §1 Focus ring — keyboard focus only (:focus-visible). LONGHANDS, never the
+   `outline` shorthand: `outline: 2px solid var(--…)` computes outline-width:0
+   in the affected browsers, so the ring vanished. Box-shadow is the
+   belt-and-suspenders second ring (works even where outline is clipped). */
+.ds-btn:focus-visible,
+.ds-chip:focus-visible,
+.ds-tab:focus-visible,
+.ds-toggle:focus-visible {
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--ds-info);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--ds-bg), 0 0 0 4px var(--ds-info);
+}
+/* Mouse/touch activation (focus without :focus-visible) shows no ring. */
+.ds-btn:focus:not(:focus-visible),
+.ds-chip:focus:not(:focus-visible),
+.ds-tab:focus:not(:focus-visible),
+.ds-toggle:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* §2 Screen-reader-only utility — visually hidden, still announced. The
+   `-focusable` variant reveals on focus (used by the skip link). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+/* Avoid the UA default link-blue (#0000ee — fails contrast on the dark bg) even
+   while visually hidden (the contrast probe measures the node regardless). */
+.sr-only-focusable { color: var(--ds-primary); }
+.sr-only-focusable:focus,
+.sr-only-focusable:focus-within {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  clip-path: none;
+  white-space: normal;
+  /* Visible, high-contrast chip when focused (the skip link). */
+  background: var(--ds-primary);
+  color: var(--ds-on-primary);
+  padding: .55rem .9rem;
+  border-radius: var(--ds-radius-md);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-decoration: none;
+  z-index: var(--ds-z-top);
+  outline-width: 2px; outline-style: solid; outline-color: var(--ds-on-primary); outline-offset: 2px;
+}
+
+/* §3 Reduced motion — DOM-chrome animations/transitions only. Does NOT affect
+   the canvas/PIXI game render (JS-driven, not CSS). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

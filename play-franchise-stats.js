@@ -144,7 +144,7 @@ function _decorateWireLabel(rawLabel, teamSet, playerSet) {
     if (!reN.test(out)) continue;
     const escClick = name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
     out = out.replace(reN, (m, pre, hit) =>
-      `${pre}<span class="frn-wire-player" onclick="frnOpenPlayerCard('${escClick}')">${hit}</span>`);
+      `${pre}<span class="frn-wire-player" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnOpenPlayerCard('${escClick}')">${hit}</span>`);
   }
   return out;
 }
@@ -530,7 +530,7 @@ function renderFrnPracticeSquad(tab) {
     { id: "scouted",  label: `🔍 SCOUTED (${Object.keys(franchise.scoutedPS||{}).filter(n=>franchise.scoutedPS[n].byTeamId===myId).length})` },
   ];
   const tabBar = tabs.map(t =>
-    `<button class="frn-ana-tab ${t.id===tabId?"active":""}" onclick="renderFrnPracticeSquad('${t.id}')">${t.label}</button>`
+    `<button class="frn-ana-tab ${t.id===tabId?"active":""}"${_frnIconLabelAttr(t.label)} onclick="renderFrnPracticeSquad('${t.id}')">${t.label}</button>`
   ).join("");
 
   let body = "";
@@ -626,8 +626,8 @@ function _renderPSLeagueTab(myId, visitsLeft) {
         : `<td style="color:var(--gray)">—</td>`;
       const scoutBtn = scoutedByMe
         ? `<span style="color:var(--gold);font-size:.62rem">✓ scouted</span>`
-        : `<button class="frn-pcard-yrbtn" ${visitsLeft<=0?`style="opacity:.4"`:""} onclick="frnPSScout('${escName}')" title="${visitsLeft<=0?`Out of scout tokens — you bank +${SCOUT_VISITS_PER_WEEK}/week (cap ${SCOUT_TOKEN_CAP}); advance a week to earn more`:`Scout this player · ${visitsLeft} token${visitsLeft===1?"":"s"} banked`}">🔍 Scout</button>`;
-      const poachBtn = `<button class="frn-pcard-yrbtn" style="border-color:var(--gold);color:var(--gold)" onclick="frnPSPoach('${escName}')" title="Sign ${_escHtml(p.name)} off ${_escHtml(t.name)}'s practice squad onto YOUR active roster (2yr / $1.0M minimum)">📲 Sign</button>`;
+        : `<button class="frn-pcard-yrbtn" ${visitsLeft<=0?`style="opacity:.4"`:""} onclick="frnPSScout('${escName}')" title="${visitsLeft<=0?`Out of scout tokens — you bank +${SCOUT_VISITS_PER_WEEK}/week (cap ${SCOUT_TOKEN_CAP}); advance a week to earn more`:`Scout this player · ${visitsLeft} token${visitsLeft===1?"":"s"} banked`}" aria-label="Scout ${_escHtml(p.name)}">🔍 Scout</button>`;
+      const poachBtn = `<button class="frn-pcard-yrbtn" style="border-color:var(--gold);color:var(--gold)" onclick="frnPSPoach('${escName}')" title="Sign ${_escHtml(p.name)} off ${_escHtml(t.name)}'s practice squad onto YOUR active roster (2yr / $1.0M minimum)" aria-label="Sign ${_escHtml(p.name)}">📲 Sign</button>`;
       return `<tr>
         <td style="color:var(--gold);font-size:.62rem">${p.position}</td>
         <td style="font-weight:600">${_escHtml(p.name)}</td>
@@ -1029,10 +1029,10 @@ function renderFrnMakeRoom() {
       <div style="text-align:center"><div style="font-weight:700;font-size:.7rem">${money(c.aav)}</div><div style="color:var(--gray);font-size:.52rem">${c.remaining || 0}yr left</div></div>
       <div style="text-align:center"><div style="font-weight:800;color:var(--gold-lt)">${tv.toFixed(0)}</div><div style="color:var(--gray);font-size:.52rem">trade val</div></div>
       <div style="display:flex;gap:.3rem;flex-wrap:wrap;justify-content:flex-end">
-        ${canTrade ? `<button class="frn-pcard-yrbtn" onclick="frnMakeRoomShopPicks('${esc}')" title="Get the best draft-pick offer for ${_escHtml(p.name)}">🔀 Shop picks</button>
-        <button class="frn-pcard-yrbtn" onclick="frnShopMyPlayerFromCard('${esc}')" title="Open the trade center to negotiate">⇄ Negotiate</button>` : ''}
-        ${irE.ok ? `<button class="frn-pcard-yrbtn" onclick="frnMakeRoomIR('${esc}','${p.position}')" title="Injured Reserve — opens a roster spot, player still paid">🏥 IR</button>` : ''}
-        <button class="frn-pcard-yrbtn" onclick="frnMakeRoomRelease('${esc}','${p.position}')" title="Release${deadTot > 0 ? ` — $${deadTot.toFixed(1)}M dead cap` : ''}">✂️ Cut${deadTot > 0 ? ` <span style="opacity:.7">$${deadTot.toFixed(1)}M</span>` : ''}</button>
+        ${canTrade ? `<button class="frn-pcard-yrbtn" onclick="frnMakeRoomShopPicks('${esc}')" title="Get the best draft-pick offer for ${_escHtml(p.name)}" aria-label="Shop picks">🔀 Shop picks</button>
+        <button class="frn-pcard-yrbtn" onclick="frnShopMyPlayerFromCard('${esc}')" title="Open the trade center to negotiate" aria-label="Negotiate">⇄ Negotiate</button>` : ''}
+        ${irE.ok ? `<button class="frn-pcard-yrbtn" onclick="frnMakeRoomIR('${esc}','${p.position}')" title="Injured Reserve — opens a roster spot, player still paid" aria-label="Place on Injured Reserve">🏥 IR</button>` : ''}
+        <button class="frn-pcard-yrbtn" onclick="frnMakeRoomRelease('${esc}','${p.position}')" title="Release${deadTot > 0 ? ` — $${deadTot.toFixed(1)}M dead cap` : ''}" aria-label="Cut player">✂️ Cut${deadTot > 0 ? ` <span style="opacity:.7">$${deadTot.toFixed(1)}M</span>` : ''}</button>
       </div>
     </div>`;
   }).join("");
@@ -1640,7 +1640,7 @@ function _frnOpenRetiredPlayerModal(p) {
     : `<div style="font-size:1.15rem;font-weight:900">${_escHtml(p.name)}</div>`;
   overlay.innerHTML = `
     <div class="frn-pcard-overlay-inner">
-      <button class="frn-pcard-close" onclick="frnClosePlayerModal()" title="Close">×</button>
+      <button class="frn-pcard-close" onclick="frnClosePlayerModal()" title="Close" aria-label="Close">×</button>
       <div class="frn-player-card" style="padding:.8rem 1rem">
         <div class="frn-player-card-head" style="display:flex;gap:.9rem;align-items:flex-start;padding-right:2.5rem">
           <div style="flex:1;min-width:0">
@@ -1784,12 +1784,12 @@ function frnOpenPlayerCard(name, pid) {
   // in depth is cheap.
   const escAttr = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const nameAttr = escAttr(name);
-  const compareTag = `<button class="frn-pcard-yrbtn" onclick="frnSelectForCompare('${escName}','${escapedPid}')">⚖ Compare</button>`;
+  const compareTag = `<button class="frn-pcard-yrbtn" onclick="frnSelectForCompare('${escName}','${escapedPid}')" aria-label="Compare ${_escHtml(name)}">⚖ Compare</button>`;
 
   // Watch toggle — works for any non-retired player on any team or as
   // a free agent. Stored in franchise.watchedPlayers (a name list).
   const watched = typeof frnIsPlayerWatched === "function" && frnIsPlayerWatched(name);
-  const watchTag = `<button class="frn-pcard-yrbtn${watched?" active":""}" onclick="frnToggleWatchPlayer('${escName}')" title="${watched?"Remove from your watchlist":"Add to your watchlist — appears on SHOP MARKET filter + flagged with 👁"}">${watched?"👁 Watching":"👁 Watch"}</button>`;
+  const watchTag = `<button class="frn-pcard-yrbtn${watched?" active":""}" onclick="frnToggleWatchPlayer('${escName}')" title="${watched?"Remove from your watchlist":"Add to your watchlist — appears on SHOP MARKET filter + flagged with 👁"}" aria-label="${watched?"Stop watching":"Watch"} ${_escHtml(name)}">${watched?"👁 Watching":"👁 Watch"}</button>`;
 
   // Trade buttons — context-aware by team ownership:
   //   • OWN player → "Shop player" (open trade center to offer them)
@@ -1809,21 +1809,21 @@ function frnOpenPlayerCard(name, pid) {
     }
     const teamAttr = escAttr(`${team.city} ${team.name}`);
     tradeBtn = untouchable
-      ? `<button class="frn-pcard-yrbtn" disabled title="${teamAttr} won't move this player — franchise face / recent high pick" style="opacity:.5">⛔ Won't trade</button>`
-      : `<button class="frn-pcard-yrbtn" onclick="frnTradeForFromCard(${team.id},'${escName}')" title="Open SHOP MARKET → Propose with ${nameAttr} pre-selected as the player you want">🔀 Trade for</button>`;
+      ? `<button class="frn-pcard-yrbtn" disabled title="${teamAttr} won't move this player — franchise face / recent high pick" style="opacity:.5" aria-label="Won't trade">⛔ Won't trade</button>`
+      : `<button class="frn-pcard-yrbtn" onclick="frnTradeForFromCard(${team.id},'${escName}')" title="Open SHOP MARKET → Propose with ${nameAttr} pre-selected as the player you want" aria-label="Trade for ${_escHtml(name)}">🔀 Trade for</button>`;
   } else if (isMyPlayer && !isProspect) {
     // Own player — Shop opens trade center with this player pre-selected
     // as the piece you're offering; Trade Block toggles the listing flag.
-    tradeBtn = `<button class="frn-pcard-yrbtn" onclick="frnShopMyPlayerFromCard('${escName}')" title="Open trade center → propose this player as part of your offer">🔀 Shop player</button>`;
+    tradeBtn = `<button class="frn-pcard-yrbtn" onclick="frnShopMyPlayerFromCard('${escName}')" title="Open trade center → propose this player as part of your offer" aria-label="Shop ${_escHtml(name)}">🔀 Shop player</button>`;
     const blocked = !!p.onTradeBlock;
-    blockBtn = `<button class="frn-pcard-yrbtn${blocked?" active":""}" onclick="frnToggleBlockFromCard('${escName}')" title="${blocked?"Listed on trade block — AI teams may make weekly inquiry offers. Click to remove.":"Mark this player as available — AI teams will roll inquiry offers each week."}">${blocked?"●ON BLOCK":"📋 Trade block"}</button>`;
+    blockBtn = `<button class="frn-pcard-yrbtn${blocked?" active":""}" onclick="frnToggleBlockFromCard('${escName}')" title="${blocked?"Listed on trade block — AI teams may make weekly inquiry offers. Click to remove.":"Mark this player as available — AI teams will roll inquiry offers each week."}" aria-label="${blocked?"Remove from trade block":"Add to trade block"}">${blocked?"●ON BLOCK":"📋 Trade block"}</button>`;
   }
   const actionRow = `<div class="frn-pcard-actions">${compareTag}${watchTag}${tradeBtn}${blockBtn}</div>`;
 
   overlay.innerHTML = `
     <div class="frn-pcard-overlay-inner">
       <div class="frn-pcard-action-bar">${actionRow}</div>
-      <button class="frn-pcard-close" onclick="frnClosePlayerModal()" title="Close">×</button>
+      <button class="frn-pcard-close" onclick="frnClosePlayerModal()" title="Close" aria-label="Close">×</button>
       ${_buildPlayerDetailPanel(p)}
       ${teamLine}
     </div>`;
@@ -1908,9 +1908,9 @@ function _bspnCompareInner(pA, pB) {
          <div style="color:var(--gray);font-size:.66rem">Filtered by ${defaultFilter} by default — switch position to widen the list.</div>
          <div style="display:flex;gap:.4rem;align-items:center">
            <span style="color:var(--gray);font-size:.65rem">Position:</span>
-           <select id="bspn-compare-pos" onchange="_bspnCompareRefilter()" style="background:var(--bg3);color:var(--white);border:1px solid var(--border);padding:.25rem .35rem;font-family:inherit;font-size:.72rem">${posSelect}</select>
+           <select id="bspn-compare-pos" aria-label="Filter compare by position" onchange="_bspnCompareRefilter()" style="background:var(--bg3);color:var(--white);border:1px solid var(--border);padding:.25rem .35rem;font-family:inherit;font-size:.72rem">${posSelect}</select>
          </div>
-         <select id="bspn-compare-player" size="14" onchange="_bspnCompareSelectB()" style="background:var(--bg3);color:var(--white);border:1px solid var(--border);padding:.35rem;font-family:inherit;font-size:.72rem">
+         <select id="bspn-compare-player" aria-label="Select player to compare" size="14" onchange="_bspnCompareSelectB()" style="background:var(--bg3);color:var(--white);border:1px solid var(--border);padding:.35rem;font-family:inherit;font-size:.72rem">
            ${playerOptions || `<option disabled>No players at this position</option>`}
          </select>
          <div style="color:var(--gray);font-size:.6rem;font-style:italic">Tip: click a player's name anywhere in the app first to pre-select A, then choose B here.</div>
@@ -1918,7 +1918,7 @@ function _bspnCompareInner(pA, pB) {
   // Compact A panel: use the existing detail panel but keep some breathing room.
   return `
     <div class="frn-pcard-overlay-inner" style="max-width:1180px;width:96vw">
-      <button class="frn-pcard-close" onclick="frnCloseCompareModal()">×</button>
+      <button class="frn-pcard-close" onclick="frnCloseCompareModal()" title="Close" aria-label="Close">×</button>
       <div style="padding:.55rem 1rem;border-bottom:1px solid var(--border);font-weight:700;color:var(--gold)">
         ⚖ Player Comparison · <span style="color:var(--gray);font-weight:400;font-size:.7rem">${pA.position} ${pA.name} vs ${pB ? pB.name : "?"}</span>
       </div>
@@ -2030,6 +2030,32 @@ function _escHtml(s) {
   return String(s || "")
     .replace(/&/g, "&amp;").replace(/</g, "&lt;")
     .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// a11y: keyboard activation for non-native clickable elements (rows/spans/divs
+// given role="button" tabindex="0"). Enter or Space fires the element's own
+// click handler — same action as a mouse click, no per-site duplication of the
+// onclick expression. Space's default page-scroll is suppressed. Used inline as
+// onkeydown="_frnRowKey(event)".
+function _frnRowKey(e) {
+  if (e.key === "Enter" || e.key === " " || e.key === "Spacebar" || e.key === "Space") {
+    e.preventDefault();
+    const el = e.currentTarget || e.target;
+    if (el && typeof el.click === "function") el.click();
+  }
+}
+
+// a11y: derive a clean accessible name from an emoji-led visible label —
+// strips leading emoji/pictographs/symbols + trailing decorative caret so a
+// screen reader announces "Locker Room" not "couch Locker Room". Returns an
+// escaped aria-label attribute fragment (empty if nothing meaningful remains).
+function _frnIconLabelAttr(label) {
+  const clean = String(label == null ? "" : label)
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2190}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu, "")
+    .replace(/\s+▾|\s+▸|\s+▼|\s+›|\s+→/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean ? ` aria-label="${_escHtml(clean)}"` : "";
 }
 
 // ── Joint Practices ───────────────────────────────────────────────────────────
@@ -2689,7 +2715,7 @@ function renderFrnScrimmages() {
              hls  ? `${hls} highlights` : "",
              inj  ? `🚑 ${inj} injuries` : "",
            ].filter(Boolean).join(" · ");
-           return `<div class="frn-jp-log-row" onclick="renderFrnPracticeReport(${i})">
+           return `<div class="frn-jp-log-row" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="renderFrnPracticeReport(${i})">
              <span class="frn-jp-log-wk">W${s.week}</span>
              <span class="frn-jp-log-opp" style="color:${opp?.primary?_teamInk(opp.primary):"var(--gold)"}">vs ${opp?.name||"?"}</span>
              <span class="frn-jp-log-score">${s.homeScore != null ? `${s.homeScore}-${s.awayScore}` : (s.score || "")}</span>
@@ -4119,7 +4145,7 @@ async function renderFrnDepthChart() {
     // If cascade, suppress the promote button (they're already a starter elsewhere)
     const isCascade   = !isStarter && !!starterElsewhere;
     const promoteBtn  = (!isStarter && !isCascade)
-      ? `<button class="frn-dc-promote" onclick="event.stopPropagation();frnDepthSwapInSlot('${slotKey}')" title="Make starter">▲</button>` : "";
+      ? `<button class="frn-dc-promote" onclick="event.stopPropagation();frnDepthSwapInSlot('${slotKey}')" title="Make starter" aria-label="Make starter">▲</button>` : "";
 
     const rankLabel = isStarter ? "★1" : (isCascade ? "⤴" : "▸2");
     const rankClass = isStarter ? "r1"  : (isCascade ? "rc" : "r2");
@@ -4137,7 +4163,7 @@ async function renderFrnDepthChart() {
       ondragstart="frnDcDragStart(event,'${escPid}','${slotKey}','${role}')" ondragend="frnDcDragEnd(event)"${dropAttrs(slotKey, role)}${titleAttr}>
       <span class="frn-dc-rank ${rankClass}">${rankLabel}</span>
       ${gradeBadge(p)}
-      <span class="frn-dc-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name)}</span>
+      <span class="frn-dc-name" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name)}</span>
       <span class="frn-dc-meta">${p.age} · $${aav}M · ${yrs}yr</span>
       ${oopBadge}${archBadge}${cascadeBadge}${injBadge}${expBadge}${blkBadge}${moodBadge}${potBadge}${misBadge}
       ${promoteBtn}
@@ -4157,7 +4183,7 @@ async function renderFrnDepthChart() {
       ? Math.max(0, 100 - pct)
       : Math.max(5, Math.round((100 - pct) * 0.55));
     const lockIcon = isManual
-      ? `<span class="frn-dc-snap-lock" title="Manual override (locked) — click 🔒 to reset to auto" onclick="event.stopPropagation();frnDepthResetSnapShare('${slotKey}')">🔒</span>`
+      ? `<span class="frn-dc-snap-lock" role="button" tabindex="0" aria-label="Reset workload to auto" title="Manual override (locked) — click 🔒 to reset to auto" onkeydown="_frnRowKey(event)" onclick="event.stopPropagation();frnDepthResetSnapShare('${slotKey}')">🔒</span>`
       : "";
     // Workload plan badge — show mode for non-share plans
     let planBadge = "";
@@ -4176,7 +4202,7 @@ async function renderFrnDepthChart() {
     const titleParts = [`${pct}% starter`];
     if (plan) titleParts.push(`${plan.mode}: ${plan.target}`);
     if (autoReason) titleParts.push(`auto: ${autoReason}`);
-    return `<div class="frn-dc-snap-col${isManual?" manual":""}" style="position:relative" onclick="frnDepthSetSnapShare('${slotKey}')" title="Click to set workload plan — ${titleParts.join(' · ')}">
+    return `<div class="frn-dc-snap-col${isManual?" manual":""}" style="position:relative" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnDepthSetSnapShare('${slotKey}')" title="Click to set workload plan — ${titleParts.join(' · ')}">
       ${lockIcon}
       ${planBadge}
       ${autoBadge}
@@ -4268,7 +4294,7 @@ async function renderFrnDepthChart() {
     ${Object.entries(DEPTH_UNIT_LABELS).map(([key, u]) => {
       const m = unitMetrics[key];
       const active = key === _dcActiveUnit;
-      return `<button class="frn-dc-tab${active?" active":""}" onclick="frnDepthSetTab('${key}')" style="--unit-color:${u.color}">
+      return `<button class="frn-dc-tab${active?" active":""}" aria-label="${_escHtml(u.name)}" onclick="frnDepthSetTab('${key}')" style="--unit-color:${u.color}">
         <span class="frn-dc-tab-icon">${u.icon}</span>
         <span class="frn-dc-tab-title">${u.name}</span>
         <span class="frn-dc-tab-ovr">${m.ovr || "—"}</span>
@@ -4337,7 +4363,7 @@ async function renderFrnDepthChart() {
         ondragstart="frnDcDragStart(event,'${escPid}','${slotKey}','${role}')" ondragend="frnDcDragEnd(event)"${dropAttrs(slotKey, role)}
         title="${_escHtml(p.name)} — ${slotKey} ${isStarter ? "starter" : "backup"}${oop ? ` · OUT OF POSITION (${p.position}→${slotPos}, plays at ${effOvr})` : ""}${hurt ? ` · 🚫 OUT ${p.injury.weeksRemaining}w` : ""} · drag to move">
         <span class="frn-dc-spot-rank">${isStarter ? "★" : "▸"}</span>
-        <span class="frn-dc-spot-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name.split(" ").slice(-1)[0])}</span>
+        <span class="frn-dc-spot-name" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name.split(" ").slice(-1)[0])}</span>
         <span class="frn-dc-spot-ovr${oop ? " oop" : ""}">${effOvr}${hurt ? "🚫" : ""}</span>
       </div>`;
     };
@@ -4448,7 +4474,7 @@ async function renderFrnDepthChart() {
           : "";
         return `<div class="frn-dc-pkg-cell${isPkgOnly?" pkg-only":""}${archFits?" arch-fit":""}">
           <div class="frn-dc-pkg-cell-slot">${slotKey}${pkgIcon}</div>
-          <div class="frn-dc-pkg-cell-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(starter.name)}</div>
+          <div class="frn-dc-pkg-cell-name" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(starter.name)}</div>
           <div class="frn-dc-pkg-cell-ovr">OVR ${starter.overall}</div>
           ${archHtml}
         </div>`;
@@ -4493,7 +4519,7 @@ async function renderFrnDepthChart() {
         </div>
         <div class="frn-dc-player s1" style="grid-column:2/5">
           ${gradeBadge(p)}
-          <span class="frn-dc-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name)}</span>
+          <span class="frn-dc-name" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name)}</span>
           <span class="frn-dc-meta">${p.age} · $${(p.contract?.aav||0).toFixed(1)}M · ${p.contract?.remaining||0}yr</span>
           ${isExpiring ? `<span class="frn-dc-badge exp">EXP</span>` : ""}
         </div>
@@ -4551,7 +4577,7 @@ async function renderFrnDepthChart() {
     if (ms.attention) flags.push(`<span style="color:var(--ds-grade-caution)">⚠ ${ms.attention} unhappy</span>`);
     if (ms.cancers) flags.push(`<span style="color:var(--ds-grade-neg)">☢ ${ms.cancers} cancer${ms.cancers === 1 ? "" : "s"}</span>`);
     if (ms.promised) flags.push(`<span style="color:var(--gold-lt)">🎯 ${ms.promised} promised</span>`);
-    moodStrip = `<div class="frn-dc-mood-strip" onclick="frnSetRosterSubTab('locker')" title="Open the Locker Room">
+    moodStrip = `<div class="frn-dc-mood-strip" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnSetRosterSubTab('locker')" title="Open the Locker Room">
       <span class="frn-dc-strip-label">MOOD</span>
       <span style="color:${mt.color};font-weight:800;white-space:nowrap">${mt.icon} ${mt.label} · ${ms.avg.toFixed(0)}</span>
       <div class="frn-dc-mood-meter"><div style="width:${pct}%;background:${mt.color};height:100%"></div></div>
@@ -4604,7 +4630,7 @@ async function renderFrnDepthChart() {
       const sel = (unit, val) => {
         const cur = val == null ? "" : String(val);
         const opts = [["", "Never"], ["14", "by 14+"], ["21", "by 21+"], ["28", "by 28+"], ["35", "by 35+"]];
-        return `<select onchange="frnSetRestPolicy('${unit}',this.value)" style="background:var(--bg3);color:var(--white);border:1px solid rgba(255,255,255,.18);border-radius:3px;font-size:.6rem;padding:.16rem .3rem;font-family:inherit;cursor:pointer">${opts.map(([v, l]) => `<option value="${v}"${v === cur ? " selected" : ""}>${l}</option>`).join("")}</select>`;
+        return `<select aria-label="Rest policy" onchange="frnSetRestPolicy('${unit}',this.value)" style="background:var(--bg3);color:var(--white);border:1px solid rgba(255,255,255,.18);border-radius:3px;font-size:.6rem;padding:.16rem .3rem;font-family:inherit;cursor:pointer">${opts.map(([v, l]) => `<option value="${v}"${v === cur ? " selected" : ""}>${l}</option>`).join("")}</select>`;
       };
       const armed = !!(franchise.restStartersWeek && franchise.restStartersWeek[myId] === (franchise.week || 1));
       const restBtn = armed
@@ -5638,7 +5664,7 @@ function renderFrnSnapShares() {
       }
       if (key === _snapActiveUnit) totalConflicts = conflicts;
       const active = key === _snapActiveUnit;
-      return `<button class="frn-dc-tab${active?" active":""}" onclick="frnSnapSetTab('${key}')" style="--unit-color:${u.color}">
+      return `<button class="frn-dc-tab${active?" active":""}" aria-label="${_escHtml(u.name)}" onclick="frnSnapSetTab('${key}')" style="--unit-color:${u.color}">
         <span class="frn-dc-tab-icon">${u.icon}</span>
         <span class="frn-dc-tab-title">${u.name}</span>
         ${conflicts ? `<span class="frn-dc-tab-mis" title="${conflicts} stamina conflict${conflicts>1?"s":""}">⚠ ${conflicts}</span>` : ""}
@@ -5676,7 +5702,7 @@ function renderFrnSnapShares() {
       const escPid  = (p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
       const pStam = p._stamina ?? 75;
       return `<div class="frn-snap-player${faded?" faded":""}" data-pid="${p.pid||""}" data-kind="${kind}">
-        <span class="frn-snap-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name)}</span>
+        <span class="frn-snap-name" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name)}</span>
         <span class="frn-snap-meta">${p.position} · ${p.overall||"—"} OVR · age ${p.age||"?"}</span>
         <div class="frn-snap-stam-row">
           <span class="frn-snap-stam" title="Stamina ${pStam}" style="color:${staminaCol(pStam)};border-color:${staminaCol(pStam)}55">STAM ${pStam}</span>
@@ -5704,7 +5730,7 @@ function renderFrnSnapShares() {
       </div>
       ${playerCell(backup, bSnaps, true, "backup")}
       <div class="frn-snap-actions">
-        <button class="frn-dc-ctrl-btn" onclick="frnSnapResetSlot('${slotKey}')" title="Reset to auto-recommended value">↺</button>
+        <button class="frn-dc-ctrl-btn" onclick="frnSnapResetSlot('${slotKey}')" title="Reset to auto-recommended value" aria-label="Reset to auto-recommended value">↺</button>
       </div>
     </div>`;
   };
@@ -6288,7 +6314,7 @@ function renderHighlightReplay(idx) {
           <span style="color:var(--blgray);font-size:.68rem;letter-spacing:.8px">${week}${isPlayoff ? " · PLAYOFF" : ""}</span>
           <span class="frn-hl-badge" style="color:${typeColor};border-color:${typeColor}55">${typeBadge}</span>
         </div>
-        <button class="frn-replay-close" onclick="_closeHighlightReplay()">✕</button>
+        <button class="frn-replay-close" onclick="_closeHighlightReplay()" title="Close" aria-label="Close">✕</button>
       </div>
       <div class="frn-replay-scoreboard">
         <span class="frn-replay-team">${homeName}</span>
@@ -6391,7 +6417,7 @@ function _buildHighlightsSidebar(teamId, seasonHighlights) {
   const compactHtml = priorBests.map(({ h, i }) => {
     const { badge, color } = typeCfg(h);
     return `
-      <div class="frn-hl-row2" style="cursor:pointer" onclick="frnReplayHighlight(${i})">
+      <div class="frn-hl-row2" style="cursor:pointer" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnReplayHighlight(${i})">
         <span class="frn-hl2-badge" style="color:${color}">${badge}</span>
         <span class="frn-hl2-label">${h.label}</span>
         <span class="frn-hl2-week">${h.week}</span>
@@ -6580,7 +6606,7 @@ function renderFrnHighlightsAll() {
     const rows = sorted.map(({ h, i }) => {
       const { badge, color } = typeCfg(h);
       return `
-        <div class="frn-hl-row2" style="padding:.35rem 0;cursor:pointer" onclick="frnReplayHighlight(${i})">
+        <div class="frn-hl-row2" style="padding:.35rem 0;cursor:pointer" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnReplayHighlight(${i})">
           <span class="frn-hl2-badge" style="color:${color}">${badge}</span>
           <span class="frn-hl2-label" style="white-space:normal">${h.label}</span>
           ${h.isClutch ? `<span style="font-size:.57rem;color:#f87171">⚡</span>` : ""}
@@ -6849,7 +6875,7 @@ function _renderSimForwardPanel() {
   const w = franchise.week;
   if (w > FRANCHISE_WEEKS) return "";
   if (!_frnSimPanelOpen) {
-    return `<button class="frn-sim-btn frn-sim-forward-trigger" onclick="_frnToggleSimPanel()">⏭ Sim Forward ▾</button>`;
+    return `<button class="frn-sim-btn frn-sim-forward-trigger" onclick="_frnToggleSimPanel()" aria-label="Sim Forward">⏭ Sim Forward ▾</button>`;
   }
   const target = _frnSimTargetWeek ?? Math.min(w + 2, FRANCHISE_WEEKS);
   const remaining = FRANCHISE_WEEKS - w;
@@ -6857,7 +6883,7 @@ function _renderSimForwardPanel() {
     <div class="frn-sim-panel-head">
       <span>⏭ SIM FORWARD</span>
       <span class="frn-sim-panel-sub">${remaining} regular-season week${remaining===1?"":"s"} left · ${remaining===0?"playoffs next":"playoffs at W"+FRANCHISE_WEEKS}</span>
-      <button class="frn-sim-panel-cancel" onclick="_frnToggleSimPanel()">× Cancel</button>
+      <button class="frn-sim-panel-cancel" onclick="_frnToggleSimPanel()" aria-label="Cancel">× Cancel</button>
     </div>
     <div class="frn-sim-options">
       <button class="frn-sim-opt" onclick="frnConfirmSimWeek()">
@@ -7000,7 +7026,7 @@ function _frnRenderAppShell() {
   if (pendingDemands.length) {
     const urgent = pendingDemands.filter(d => (d.deadlineWeek - franchise.week) <= 1).length;
     const cls = urgent ? "frn-shell-ribbon urgent" : "frn-shell-ribbon";
-    ribbonHtml = `<div class="${cls}" onclick="frnOpenHoldoutCenter()" title="Click to resolve">
+    ribbonHtml = `<div class="${cls}" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnOpenHoldoutCenter()" title="Click to resolve">
       <span class="ribbon-icon">🗣</span>
       <span class="ribbon-text"><b>${pendingDemands.length}</b> walk-year star${pendingDemands.length===1?"":"s"} demanding extension${pendingDemands.length===1?"":"s"}${urgent?` · <span style="color:var(--red);font-weight:700">${urgent} URGENT</span>`:""}</span>
       <span class="ribbon-cta">Resolve →</span>
@@ -7058,7 +7084,7 @@ function _frnRenderAppShell() {
   // Decisions count — pendingTrades + pendingJP + holdouts.
   const decisionCount = pendingTrades + pendingJP + pendingDemands.length;
   const alertHtml = decisionCount
-    ? `<div class="frn-bb-id-alert" onclick="frnSetTab('overview')" title="Decisions waiting">
+    ? `<div class="frn-bb-id-alert" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnSetTab('overview')" title="Decisions waiting">
         <span>⚠</span><span class="frn-bb-alert-badge">${decisionCount}</span><span>PENDING</span>
        </div>` : "";
 
@@ -7098,17 +7124,21 @@ function _frnRenderAppShell() {
       : `✓ Saved`;
     const saveCls = (typeof _saveLastError !== "undefined" && _saveLastError)
       ? (_saveLastError.startsWith("idb-only") ? "warn" : "err") : "";
+    // a11y live region: errors are assertive (role=alert), normal saves polite.
+    const saveLive = saveCls === "err"
+      ? ` role="alert" aria-live="assertive"`
+      : ` role="status" aria-live="polite"`;
     const unread  = (franchise.news || []).filter(n => n.season === franchise.season && n.week >= (franchise.week || 0) - 1).length;
     footEl.innerHTML = `
       <div class="frn-bb-footer">
         <div class="frn-bb-footer-item"><span class="frn-bb-footer-dot ${saveCls}"></span><span>${saveCls === "err" ? "ERROR" : "LIVE"}</span></div>
         <div class="frn-bb-footer-item">⏰ S${franchise.season || 1} · W${Math.min(franchise.week || 1, FRANCHISE_WEEKS)}/${FRANCHISE_WEEKS}</div>
-        <div class="frn-bb-footer-item">${saveMsg}</div>
+        <div class="frn-bb-footer-item"${saveLive}>${saveMsg}</div>
         ${unread ? `<div class="frn-bb-footer-item" style="color:var(--gold)">🔔 ${unread} recent</div>` : ""}
         <div class="frn-bb-footer-spacer"></div>
         <div class="frn-bb-footer-cmd">
-          <button onclick="frnExportSave()" style="background:transparent;border:1px solid var(--border);color:var(--gray);padding:1px 6px;font-family:inherit;font-size:8.5px;cursor:pointer;margin-right:.3rem">⬇ EXPORT</button>
-          <button onclick="frnImportSave()" style="background:transparent;border:1px solid var(--border);color:var(--gray);padding:1px 6px;font-family:inherit;font-size:8.5px;cursor:pointer;margin-right:.5rem">⬆ IMPORT</button>
+          <button onclick="frnExportSave()" style="background:transparent;border:1px solid var(--border);color:var(--gray);padding:1px 6px;font-family:inherit;font-size:8.5px;cursor:pointer;margin-right:.3rem" aria-label="Export franchise">⬇ EXPORT</button>
+          <button onclick="frnImportSave()" style="background:transparent;border:1px solid var(--border);color:var(--gray);padding:1px 6px;font-family:inherit;font-size:8.5px;cursor:pointer;margin-right:.5rem" aria-label="Import franchise">⬆ IMPORT</button>
           <kbd>F1</kbd>-<kbd>F5</kbd> NAV · <kbd>?</kbd> HELP
         </div>
       </div>`;
@@ -7251,7 +7281,7 @@ function renderFrnRosterHome() {
   const sub = document.createElement("div");
   sub.className = "frn-subnav";
   sub.innerHTML = _FRN_ROSTER_TABS.map(t =>
-    `<button class="frn-subnav-btn${t.id===active.id?" active":""}" onclick="frnSetRosterSubTab('${t.id}')">${t.label}</button>`
+    `<button class="frn-subnav-btn${t.id===active.id?" active":""}"${_frnIconLabelAttr(t.label)} onclick="frnSetRosterSubTab('${t.id}')">${t.label}</button>`
   ).join("")
   + `<span style="margin-left:auto;align-self:center">${frnRosterCountBadge(franchise.chosenTeamId)}</span>`;
   newEl.insertBefore(sub, newEl.firstChild);
@@ -7294,7 +7324,7 @@ function renderFrnFrontOfficeHome() {
   const sub = document.createElement("div");
   sub.className = "frn-subnav";
   sub.innerHTML = _FRN_FO_TABS.map(t =>
-    `<button class="frn-subnav-btn${t.id===active.id?" active":""}" onclick="frnSetFOSubTab('${t.id}')">${t.label}</button>`
+    `<button class="frn-subnav-btn${t.id===active.id?" active":""}"${_frnIconLabelAttr(t.label)} onclick="frnSetFOSubTab('${t.id}')">${t.label}</button>`
   ).join("")
   + `<span style="margin-left:auto;align-self:center">${frnRosterCountBadge(franchise.chosenTeamId)}</span>`;
   newEl.insertBefore(sub, newEl.firstChild);
@@ -7398,7 +7428,7 @@ function renderFrnLockerRoom() {
     const tag = p.personality === "captain" ? `<span style="color:var(--gold);font-size:.52rem"> ⭐</span>`
               : p.personality === "cancer"  ? `<span style="color:var(--ds-grade-neg);font-size:.52rem"> ☢</span>` : "";
     return `<div class="frn-lr-row">
-      <span class="frn-lr-name" onclick="frnOpenPlayerCard('${esc(p.name)}')" title="Open ${_escHtml(p.name)}">${_escHtml(p.name)}${tag}</span>
+      <span class="frn-lr-name" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnOpenPlayerCard('${esc(p.name)}')" title="Open ${_escHtml(p.name)}">${_escHtml(p.name)}${tag}</span>
       <span class="frn-lr-pos">${p.position}</span>
       <span class="frn-lr-ovr">${p.overall || 0}</span>
       <span class="frn-lr-mood" style="color:${t.color}">${t.icon} ${t.label}</span>
@@ -7412,7 +7442,7 @@ function renderFrnLockerRoom() {
   if (lr.pairs.length)    leaders.push(`<span style="color:var(--ds-grade-pos)">🤝 ${lr.pairs.length} mentorship${lr.pairs.length === 1 ? "" : "s"}</span>`);
 
   const capMeetUsed = franchise._captainsMeetingSeason === franchise.season;
-  const capMeetBtn = `<button class="frn-lr-act" ${capMeetUsed ? "disabled" : `onclick="frnCaptainsMeeting()"`} title="${capMeetUsed ? "Already held this season" : "Team-wide morale bump — once per season, stronger with captains"}" style="${capMeetUsed ? "opacity:.4;cursor:not-allowed" : ""}">📣 Captains' Meeting</button>`;
+  const capMeetBtn = `<button class="frn-lr-act" ${capMeetUsed ? "disabled" : `onclick="frnCaptainsMeeting()"`} title="${capMeetUsed ? "Already held this season" : "Team-wide morale bump — once per season, stronger with captains"}" style="${capMeetUsed ? "opacity:.4;cursor:not-allowed" : ""}" aria-label="Captains' Meeting">📣 Captains' Meeting</button>`;
   // Active role promises (and their countdown).
   const promised = roster.filter(p => p._promise);
   const promiseLine = promised.length
@@ -7426,24 +7456,24 @@ function renderFrnLockerRoom() {
     : (cands.length
         ? `<div style="display:flex;gap:.4rem;align-items:center;margin-top:.45rem;flex-wrap:wrap">
              <span style="font-size:.56rem;color:var(--gold);letter-spacing:.6px;font-weight:700">NAME A CAPTAIN</span>
-             <select id="frn-lr-captain-pick" class="frn-lr-select">${cands.slice(0, 12).map(c => `<option value="${esc(c.name)}">${esc(c.name)} · ${c.position} ${c.overall}</option>`).join("")}</select>
-             <button class="frn-lr-act" onclick="frnNameCaptain(document.getElementById('frn-lr-captain-pick').value)" title="Promote a respected veteran (28+, 80+ OVR, content) to team captain — steadier morale, mentors the young guys, lifts the room. Once per season.">⭐ Name Captain</button>
+             <select id="frn-lr-captain-pick" aria-label="Captain candidate" class="frn-lr-select">${cands.slice(0, 12).map(c => `<option value="${esc(c.name)}">${esc(c.name)} · ${c.position} ${c.overall}</option>`).join("")}</select>
+             <button class="frn-lr-act" onclick="frnNameCaptain(document.getElementById('frn-lr-captain-pick').value)" title="Promote a respected veteran (28+, 80+ OVR, content) to team captain — steadier morale, mentors the young guys, lifts the room. Once per season." aria-label="Name Captain">⭐ Name Captain</button>
            </div>`
         : "");
   // Per-player action buttons for the attention list.
   const actBtns = (p) => {
     const talked = p._talkedSeason === franchise.season;
     const trust = (p._brokenPromises || 0) > 0 ? ` <span style="color:var(--ds-grade-neg);font-size:.52rem" title="${p._brokenPromises} broken promise(s) — talks land softer">trust ✗${p._brokenPromises}</span>` : "";
-    const talkBtn = `<button class="frn-lr-act" ${talked ? "disabled" : `onclick="frnLockerTalk('${esc(p.name)}')"`} title="${talked ? "Talked this season" : "One-on-one — once a season"}" style="${talked ? "opacity:.4;cursor:not-allowed" : ""}">🗣 Talk</button>`;
+    const talkBtn = `<button class="frn-lr-act" ${talked ? "disabled" : `onclick="frnLockerTalk('${esc(p.name)}')"`} title="${talked ? "Talked this season" : "One-on-one — once a season"}" style="${talked ? "opacity:.4;cursor:not-allowed" : ""}" aria-label="Talk to ${_escHtml(p.name)}">🗣 Talk</button>`;
     const promiseBtn = p._promise
       ? `<span class="frn-lr-promise">🎯 promised · ${Math.max(0, (p._promise.deadline - (franchise.week || 1)))}wk</span>`
-      : `<button class="frn-lr-act" onclick="frnLockerPromise('${esc(p.name)}')" title="Promise a starting role — +morale now, but a 4-week commitment: deliver or it backfires">🎯 Promise role</button>`;
+      : `<button class="frn-lr-act" onclick="frnLockerPromise('${esc(p.name)}')" title="Promise a starting role — +morale now, but a 4-week commitment: deliver or it backfires" aria-label="Promise role to ${_escHtml(p.name)}">🎯 Promise role</button>`;
     // Cancer-only lever: confront him (culture-dependent gamble).
     const w = franchise.week || 1;
     const cancerBtn = p.personality !== "cancer" ? ""
       : (p._clearedAirSeason === franchise.season ? `<span class="frn-lr-promise" title="You've already had this talk this season">🕊 cleared</span>`
       : (p._cancerCalmUntil > w ? `<span class="frn-lr-promise">🕊 calm · ${p._cancerCalmUntil - w}wk</span>`
-      : `<button class="frn-lr-act" onclick="frnClearTheAir('${esc(p.name)}')" title="Confront the cancer — culture-dependent: calms him + halts contagion if it lands, backfires if it doesn't">💥 Clear the air</button>`));
+      : `<button class="frn-lr-act" onclick="frnClearTheAir('${esc(p.name)}')" title="Confront the cancer — culture-dependent: calms him + halts contagion if it lands, backfires if it doesn't" aria-label="Clear the air with ${_escHtml(p.name)}">💥 Clear the air</button>`));
     return `<span class="frn-lr-acts">${talkBtn}${promiseBtn}${cancerBtn}${trust}</span>`;
   };
 
@@ -7467,7 +7497,7 @@ function renderFrnLockerRoom() {
     </div>
     ${disgruntled.length ? `<div class="frn-lr-alert">
       <div style="font-size:.6rem;letter-spacing:.8px;color:var(--ds-grade-neg);font-weight:700;margin-bottom:.3rem">⚠ NEEDS ATTENTION (${disgruntled.length})</div>
-      ${disgruntled.map(p => { const t = tierOf(p.morale); const wantsOut = p._wantsOut ? ` <span style="color:var(--ds-grade-neg);font-weight:800;font-size:.56rem;border:1px solid var(--ds-grade-neg);padding:.02rem .25rem">📢 WANTS OUT</span>` : ""; return `<div class="frn-lr-att-row"><div style="font-size:.64rem"><b style="cursor:pointer" onclick="frnOpenPlayerCard('${esc(p.name)}')">${_escHtml(p.name)}</b> <span style="color:var(--gold-lt)">${p.position} ${p.overall}</span> · <span style="color:${t.color}">${t.icon} ${t.label}</span> <span style="color:var(--gray)">· ${reasonOf(p)}</span>${wantsOut}</div>${actBtns(p)}</div>`; }).join("")}
+      ${disgruntled.map(p => { const t = tierOf(p.morale); const wantsOut = p._wantsOut ? ` <span style="color:var(--ds-grade-neg);font-weight:800;font-size:.56rem;border:1px solid var(--ds-grade-neg);padding:.02rem .25rem">📢 WANTS OUT</span>` : ""; return `<div class="frn-lr-att-row"><div style="font-size:.64rem"><b style="cursor:pointer" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnOpenPlayerCard('${esc(p.name)}')" title="Open ${_escHtml(p.name)}">${_escHtml(p.name)}</b> <span style="color:var(--gold-lt)">${p.position} ${p.overall}</span> · <span style="color:${t.color}">${t.icon} ${t.label}</span> <span style="color:var(--gray)">· ${reasonOf(p)}</span>${wantsOut}</div>${actBtns(p)}</div>`; }).join("")}
       <div style="font-size:.56rem;color:var(--gray);margin-top:.3rem;font-style:italic">Talk to them, promise a role, win games — or move them before it spreads.</div>
     </div>` : `<div style="font-size:.6rem;color:var(--ds-grade-pos);margin-bottom:.6rem">✓ No disgruntled stars — the room is in a good place.</div>`}
     <div class="frn-lr-list-head">ROSTER MOOD · problems first</div>
@@ -7542,7 +7572,7 @@ function renderFrnDraftReportCard() {
         : `<span style="color:var(--gray)">${getTeam(cur.teamId)?.name || "?"}</span>`;
       return `<div class="frn-drc-row">
         <span class="frn-drc-slot">R${pick.round}.${pick.pick}${pick.isComp ? "c" : ""}</span>
-        <span class="frn-drc-name" onclick="frnOpenPlayerCard('${esc(pick.name)}')" title="Open ${_escHtml(pick.name)}">${_escHtml(pick.name)}</span>
+        <span class="frn-drc-name" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnOpenPlayerCard('${esc(pick.name)}')" title="Open ${_escHtml(pick.name)}">${_escHtml(pick.name)}</span>
         <span class="frn-drc-pos">${pick.pos}</span>
         <span class="frn-drc-grade" title="Draft-day scout grade">${gradeStr}</span>
         <span class="frn-drc-scout" title="${wasScouted ? pick.scoutedCats + ' scouting report(s) spent' : 'not scouted'}">${wasScouted ? `🔍${pick.scoutedCats}` : ""}</span>
@@ -7676,6 +7706,7 @@ function renderFrnLeagueCapMap() {
     const showSub  = tileArea > 2400;
     return `<div class="frn-lcm-tile${isMe?' me':''}"
       style="left:${xPct.toFixed(2)}%;top:${yPct.toFixed(2)}%;width:${wPct.toFixed(2)}%;height:${hPct.toFixed(2)}%;background:${fill}"
+      role="button" tabindex="0" onkeydown="_frnRowKey(event)"
       onclick="frnLCMClick(${x.t.id})"
       title="${x.t.city} ${x.t.name} · $${x.used.toFixed(1)}M / $${cap.toFixed(0)}M (${pct}%${overlabel}) · ${x.avgOvr} avg OVR · ${x.roster.length} rostered">
       ${showName ? `<div class="frn-lcm-name">${x.t.name.toUpperCase()}</div>` : ""}
@@ -7739,7 +7770,7 @@ function renderFrnLeagueHome() {
   const sub = document.createElement("div");
   sub.className = "frn-subnav";
   sub.innerHTML = _FRN_LEAGUE_TABS.map(t =>
-    `<button class="frn-subnav-btn${t.id===active.id?" active":""}" onclick="frnSetLeagueSubTab('${t.id}')">${t.label}</button>`
+    `<button class="frn-subnav-btn${t.id===active.id?" active":""}"${_frnIconLabelAttr(t.label)} onclick="frnSetLeagueSubTab('${t.id}')">${t.label}</button>`
   ).join("");
   newEl.insertBefore(sub, newEl.firstChild);
 }
@@ -8115,20 +8146,20 @@ function renderFrnRegular() {
   const psBadge    = psAlerts ? `<span class="frn-nav-badge alert">${psAlerts}</span>` : "";
   const quickNavHtml = `
     <div class="frn-quick-nav">
-      <button class="frn-cap-btn primary" onclick="renderFrnAnalytics('mysheet')">📊 Analytics</button>
-      ${week <= TRADE_DEADLINE_WEEK ? `<button class="frn-cap-btn primary" onclick="frnOpenTrade()">🔀 Trade${tradeBadge}</button>` : ""}
-      <button class="frn-cap-btn primary" onclick="renderFrnChat()">💬 Chat${chatBadge}</button>
+      <button class="frn-cap-btn primary" onclick="renderFrnAnalytics('mysheet')" aria-label="Analytics">📊 Analytics</button>
+      ${week <= TRADE_DEADLINE_WEEK ? `<button class="frn-cap-btn primary" onclick="frnOpenTrade()" aria-label="Trade">🔀 Trade${tradeBadge}</button>` : ""}
+      <button class="frn-cap-btn primary" onclick="renderFrnChat()" aria-label="Chat">💬 Chat${chatBadge}</button>
       <div class="frn-more-nav-wrap">
-        <button class="frn-cap-btn primary" onclick="_frnToggleMoreNav()">🛠 More ▾</button>
+        <button class="frn-cap-btn primary" onclick="_frnToggleMoreNav()" aria-label="More">🛠 More ▾</button>
         <div class="frn-more-nav" id="frn-more-nav">
-          <button class="frn-cap-btn" onclick="renderFrnNewsArchive()">📰 Wire</button>
-          <button class="frn-cap-btn" onclick="renderFrnStandings()">📊 Standings</button>
-          <button class="frn-cap-btn" onclick="renderFrnLeaders()">📈 Leaders</button>
-          <button class="frn-cap-btn ${psAlerts?"frn-cap-btn-alert":""}" onclick="renderFrnPracticeSquad()">🏈 Practice Squad${psBadge}</button>
-          <button class="frn-cap-btn" onclick="renderFrnCoachingStaff()">🎩 Coaches</button>
-          <button class="frn-cap-btn" onclick="frnOpenFO('futurefas')">📅 Future FAs</button>
-          <button class="frn-cap-btn" onclick="renderFrnLegacy()">🏆 Legacy</button>
-          <button class="frn-cap-btn" onclick="renderFrnAlumni()">🎓 Alumni</button>
+          <button class="frn-cap-btn" onclick="renderFrnNewsArchive()" aria-label="Wire">📰 Wire</button>
+          <button class="frn-cap-btn" onclick="renderFrnStandings()" aria-label="Standings">📊 Standings</button>
+          <button class="frn-cap-btn" onclick="renderFrnLeaders()" aria-label="Leaders">📈 Leaders</button>
+          <button class="frn-cap-btn ${psAlerts?"frn-cap-btn-alert":""}" onclick="renderFrnPracticeSquad()" aria-label="Practice Squad">🏈 Practice Squad${psBadge}</button>
+          <button class="frn-cap-btn" onclick="renderFrnCoachingStaff()" aria-label="Coaches">🎩 Coaches</button>
+          <button class="frn-cap-btn" onclick="frnOpenFO('futurefas')" aria-label="Future FAs">📅 Future FAs</button>
+          <button class="frn-cap-btn" onclick="renderFrnLegacy()" aria-label="Legacy">🏆 Legacy</button>
+          <button class="frn-cap-btn" onclick="renderFrnAlumni()" aria-label="Alumni">🎓 Alumni</button>
         </div>
       </div>
     </div>`;
@@ -8220,7 +8251,7 @@ function renderFrnRegular() {
   const totalTasks = tasks.length;
 
   // ---- Render inbox ----
-  const decisionRow = (d) => `<div class="frn-inbox-decision urg-${d.urgency}" onclick="${d.action}">
+  const decisionRow = (d) => `<div class="frn-inbox-decision urg-${d.urgency}" role="button" tabindex="0" aria-label="${_escHtml([d.label, d.sub].filter(Boolean).join(" — "))}" onkeydown="_frnRowKey(event)" onclick="${d.action}">
     <span class="frn-inbox-icon">${d.icon}</span>
     <div class="frn-inbox-body">
       <div class="frn-inbox-label">${d.label}</div>
@@ -8229,6 +8260,7 @@ function renderFrnRegular() {
     <span class="frn-inbox-cta">${d.cta} ›</span>
   </div>`;
   const taskRow = (t) => `<div class="frn-checklist-item${t.done?" done":""}${t.alert&&!t.done?" urgent":""}"
+    role="button" tabindex="0" aria-label="${_escHtml([t.label, t.sub].filter(Boolean).join(" — "))}${t.done?" (done)":""}" onkeydown="_frnRowKey(event)"
     onclick="_frnCheckItem('${t.key}');${t.action}">
     <span class="frn-check-icon">${t.done?"✓":"○"}</span>
     <div class="frn-check-body">
@@ -8270,7 +8302,7 @@ function renderFrnRegular() {
   const wireRow = wireItems.length ? `<div class="frn-inbox-wire">
     <span class="frn-inbox-wire-tag">📰 WIRE</span>
     ${wireItems.map(n => `<span class="frn-inbox-wire-item">W${n.week}: ${n.label}</span>`).join("")}
-    <a class="frn-inbox-wire-more" onclick="renderFrnNewsArchive()">Archive →</a>
+    <a class="frn-inbox-wire-more" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="renderFrnNewsArchive()">Archive →</a>
   </div>` : "";
 
   // ─── GM Pulse — glanceable indicators a GM scans every week ──────────
@@ -8334,13 +8366,20 @@ function renderFrnRegular() {
   const scoutPct = SCOUT_CAP > 0 ? Math.round((scoutBank / SCOUT_CAP) * 100) : 0;
   const scoutChipCol = scoutBank >= 6 ? "#5ed4d4" : scoutBank >= 3 ? "#ffc850" : "#ff8a8a";
   const revealCount = Object.keys(franchise.seasonScoutReveals || {}).length;
-  const pulseChipHtml = (label, value, sub, col, extra = "") => `
-    <div class="frn-pulse-chip">
+  const pulseChipHtml = (label, value, sub, col, extra = "") => {
+    // a11y: ellipsized chip text — carry the full label/value/sub in a title so
+    // a clipped value (e.g. "$18.0M") is still readable on hover + by AT. Strip
+    // any nested markup to plain text, then escape for the attribute.
+    const _plain = (s) => String(s == null ? "" : s).replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+    const chipTitle = _escHtml([_plain(label), _plain(value), _plain(sub)].filter(Boolean).join(" · "));
+    return `
+    <div class="frn-pulse-chip"${chipTitle ? ` title="${chipTitle}"` : ""}>
       <div class="frn-pulse-chip-label">${label}</div>
       <div class="frn-pulse-chip-value" style="color:${col}">${value}</div>
       <div class="frn-pulse-chip-sub">${sub}</div>
       ${extra}
     </div>`;
+  };
   // Scouting chip — value+gauge composite. The gauge shows the bank/cap
   // ratio so the user can see "how full" their scouting budget is. Tick
   // dots represent each credit. Clickable → opens preseason scout.
@@ -8355,7 +8394,7 @@ function renderFrnRegular() {
   // wired to renderFrnPreseason('scout') by mistake which is the
   // OFFSEASON-only draft prep page; mid-season this lands you on the
   // college scouting board where credits are actually spent.
-  const scoutChipClick = `onclick="if (typeof renderFrnScoutingBoard === 'function') renderFrnScoutingBoard(); else if (typeof renderFrnPreseason === 'function') renderFrnPreseason('scout')"`;
+  const scoutChipClick = `role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="if (typeof renderFrnScoutingBoard === 'function') renderFrnScoutingBoard(); else if (typeof renderFrnPreseason === 'function') renderFrnPreseason('scout')"`;
   const pulseHtml = `
     <div class="frn-card-box frn-pulse-card">
       <div class="frn-card-title">GM PULSE <span class="frn-card-title-sub">at-a-glance</span></div>
@@ -8494,7 +8533,7 @@ function renderFrnRegular() {
     // without scrolling. If no decisions, show a "clean slate" line.
     const topDec = decisions[0];
     const decisionStripHtml = topDec
-      ? `<div class="frn-hero-decision urg-${topDec.urgency}" onclick="${topDec.action}">
+      ? `<div class="frn-hero-decision urg-${topDec.urgency}" role="button" tabindex="0" aria-label="${_escHtml([topDec.label, topDec.sub].filter(Boolean).join(" — "))}" onkeydown="_frnRowKey(event)" onclick="${topDec.action}">
           <span class="frn-hero-dec-icon">${topDec.icon}</span>
           <div class="frn-hero-dec-body">
             <div class="frn-hero-dec-label">${topDec.label}</div>
@@ -8559,8 +8598,8 @@ function renderFrnRegular() {
             <span class="frn-hero-play-sub">you coach both sides of the ball · live broadcast</span>
           </button>
           <div class="frn-hero-sims">
-            <button class="frn-sim-btn frn-callplays-btn" onclick="frnPlayGame(${nextGame.homeId},${nextGame.awayId},false)" title="Sit back and watch the broadcast — the AI coaches both teams">📺 Watch Game</button>
-            <button class="frn-sim-btn" onclick="frnSimGame(${nextGame.homeId},${nextGame.awayId})">⏩ Sim Game</button>
+            <button class="frn-sim-btn frn-callplays-btn" onclick="frnPlayGame(${nextGame.homeId},${nextGame.awayId},false)" title="Sit back and watch the broadcast — the AI coaches both teams" aria-label="Watch Game">📺 Watch Game</button>
+            <button class="frn-sim-btn" onclick="frnSimGame(${nextGame.homeId},${nextGame.awayId})" aria-label="Sim Game">⏩ Sim Game</button>
             ${_renderSimForwardPanel()}
           </div>
         </div>
@@ -8675,6 +8714,7 @@ function renderFrnRegular() {
       const their = isHome ? g.awayScore : g.homeScore;
       const w = my > their, t = my === their;
       return `<div class="frn-game-row clickable"
+        role="button" tabindex="0" onkeydown="_frnRowKey(event)"
         onclick="renderFrnPastGame(${g.week},${g.homeId},${g.awayId})"
         onmouseenter="frnPastGameTipShow(event,${g.week},${g.homeId},${g.awayId})"
         onmouseleave="frnPastGameTipHide()">
@@ -8893,7 +8933,7 @@ function renderFrnRegular() {
           // mugshot if no portrait file exists). 36px keeps the card
           // compact while making the player feel real.
           const portrait = _hasPortrait ? _playerPortrait(h.p, 36) : "";
-          return `<div class="frn-myguy-card" onclick="frnOpenPlayerCard('${esc}','${pid}')">
+          return `<div class="frn-myguy-card" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnOpenPlayerCard('${esc}','${pid}')">
             <div class="frn-myguy-rank">#${i+1}</div>
             <div class="frn-myguy-portrait" style="border-color:${posCol}">${portrait}</div>
             <div class="frn-myguy-body">
@@ -8929,7 +8969,7 @@ function renderFrnRegular() {
     const FF_HOT = { QB: 22, RB: 14, WR: 11, TE: 8, DL: 8, LB: 9, CB: 6, S: 6, K: 7 }[h.p.position] || 6;
     const isHot = (h.ff / h.gp) >= FF_HOT;
     const portrait = _hasPortrait ? _playerPortrait(h.p, 64) : "";
-    return `<div class="frn-rail-card" onclick="frnOpenPlayerCard('${esc}','${pid}')">
+    return `<div class="frn-rail-card" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnOpenPlayerCard('${esc}','${pid}')">
       <div class="frn-rail-card-top">
         <div class="frn-rail-portrait" style="border-color:${posCol}">${portrait}</div>
         <div class="frn-rail-card-id">
@@ -9111,10 +9151,10 @@ function renderFrnRegular() {
   const potwHtml = latestPotw ? `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem">
       <span style="color:var(--gray);font-size:.6rem">${potwRoundLabel(latestPotwWk)}</span>
-      ${unvotedWeek!=null?`<button class="frn-cap-btn" onclick="renderPotwVoting(${unvotedWeek})" style="background:var(--gold);color:#000;font-weight:900;border:0;font-size:.6rem">🗳 VOTE W${unvotedWeek}</button>`:""}
+      ${unvotedWeek!=null?`<button class="frn-cap-btn" onclick="renderPotwVoting(${unvotedWeek})" style="background:var(--gold);color:#000;font-weight:900;border:0;font-size:.6rem" aria-label="Vote, week ${unvotedWeek}">🗳 VOTE W${unvotedWeek}</button>`:""}
     </div>
     ${potwRowFn("OFF",latestPotw.offense)}${potwRowFn("DEF",latestPotw.defense)}${potwRowFn("OL",latestPotw.ol)}${potwRowFn("ST",latestPotw.specialTeams)}
-  ` : unvotedWeek!=null ? `<button class="frn-cap-btn" onclick="renderPotwVoting(${unvotedWeek})" style="padding:.35rem .9rem;font-size:.7rem;background:var(--gold);color:#000;font-weight:900;border:0">🗳 VOTE — WEEK ${unvotedWeek} READY</button>`
+  ` : unvotedWeek!=null ? `<button class="frn-cap-btn" onclick="renderPotwVoting(${unvotedWeek})" style="padding:.35rem .9rem;font-size:.7rem;background:var(--gold);color:#000;font-weight:900;border:0" aria-label="Vote, week ${unvotedWeek} ready">🗳 VOTE — WEEK ${unvotedWeek} READY</button>`
     : `<div style="color:var(--gray);font-size:.72rem;padding:.3rem 0">Awarded each week.</div>`;
 
   // Sidebar slimmed: dropped FULL SCHEDULE (center has schedule strip
@@ -9219,7 +9259,7 @@ function renderFrnRegular() {
           ${sidebarHtml}
         </div>
         <div class="frn-footer-row">
-        <div class="frn-footer-info">${(() => {
+        <div class="frn-footer-info"${_saveLastError && !_saveLastError.startsWith("idb-only") ? ` role="alert" aria-live="assertive"` : ` role="status" aria-live="polite"`}>${(() => {
           // Player-facing — no storage-engine jargon (tooltip carries the detail).
           if (_saveLastError?.startsWith("idb-only")) return `<span title="Save is large — kept in the browser's database. Nothing lost.">✓ Auto-saved</span>`;
           if (_saveLastError) return `<span style="color:#ff7070">⚠ Save issue — export a backup to be safe</span>`;
@@ -10494,7 +10534,7 @@ function mffSeasonTopSwingsHtml(limit = 10) {
       <span style="color:var(--gray);width:1.5rem;text-align:right">${i+1}.</span>
       <span style="color:var(--gray);width:3.5rem;font-variant-numeric:tabular-nums">${clock}</span>
       <div style="flex:1;min-width:0">
-        <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="font-weight:600">${name}</span> <span style="opacity:.6">· ${kindBlurb} ${p.yd>=0?"+":""}${p.yd}yd</span></div>
+        <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_escHtml(name)} · ${kindBlurb} ${p.yd>=0?"+":""}${p.yd}yd"><span style="font-weight:600">${name}</span> <span style="opacity:.6">· ${kindBlurb} ${p.yd>=0?"+":""}${p.yd}yd</span></div>
         ${ctx ? `<div style="font-size:.58rem;color:var(--gray)">${ctx}</div>` : ""}
       </div>
       <span style="font-weight:700;color:${wpaColor};width:4rem;text-align:right;font-variant-numeric:tabular-nums">WPA ${sign}${wpaPct}%</span>
@@ -12595,7 +12635,7 @@ function renderFrnCoachingStaff() {
     <div class="frn-coach-market-controls">
       <label class="frn-cm-ctrl">
         <span class="frn-cm-ctrl-lbl">SORT</span>
-        <select onchange="_frnCoachesMarketSort=this.value;renderFrnCoachingStaff()">
+        <select aria-label="Sort coaching market" onchange="_frnCoachesMarketSort=this.value;renderFrnCoachingStaff()">
           <option value="rating" ${_frnCoachesMarketSort==="rating"?"selected":""}>Rating ↓</option>
           <option value="salary" ${_frnCoachesMarketSort==="salary"?"selected":""}>Salary ↑</option>
           <option value="age"    ${_frnCoachesMarketSort==="age"?"selected":""}>Age ↑</option>
@@ -12603,7 +12643,7 @@ function renderFrnCoachingStaff() {
       </label>
       <label class="frn-cm-ctrl">
         <span class="frn-cm-ctrl-lbl">TRAIT</span>
-        <select onchange="_frnCoachesMarketTraitFilter=this.value;renderFrnCoachingStaff()">
+        <select aria-label="Filter coaches by trait" onchange="_frnCoachesMarketTraitFilter=this.value;renderFrnCoachingStaff()">
           <option value="">— any —</option>
           ${traitOpts}
         </select>
@@ -12677,7 +12717,7 @@ function renderFrnCoachingStaff() {
     { id: "league", label: "League" },
   ];
   const subNavHtml = `<div class="frn-subnav" style="margin:.4rem 0 .8rem">
-    ${subTabs.map(t => `<button class="frn-subnav-btn${t.id===_frnCoachesSubTab?" active":""}" onclick="frnSetCoachesSubTab('${t.id}')">${t.label}</button>`).join("")}
+    ${subTabs.map(t => `<button class="frn-subnav-btn${t.id===_frnCoachesSubTab?" active":""}"${_frnIconLabelAttr(t.label)} onclick="frnSetCoachesSubTab('${t.id}')">${t.label}</button>`).join("")}
   </div>`;
   const activeBody = _frnCoachesSubTab === "market" ? marketTabHtml
                    : _frnCoachesSubTab === "league" ? leagueTabHtml
@@ -13084,7 +13124,7 @@ function _renderPlayerDevelopmentPanel(myId, staff) {
     const pct = ceil > 0 ? Math.min(100, Math.max(0, (awr / ceil) * 100)) : 100;
     return `<div style="display:flex;align-items:center;gap:.5rem;padding:.32rem .55rem;background:var(--bg2);border:1px solid var(--border);font-size:.66rem">
       <span style="color:var(--gold);font-weight:700;width:1.8rem">${p.position}</span>
-      <span style="flex:1;min-width:0;font-weight:700;color:var(--blwhite);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}</span>
+      <span style="flex:1;min-width:0;font-weight:700;color:var(--blwhite);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_escHtml(p.name)}">${_escHtml(p.name)}</span>
       <span style="color:var(--gray);font-size:.58rem;width:5rem;text-align:right">age ${p.age||"?"} · OVR ${p.overall||"?"}</span>
       <div style="width:120px;display:flex;align-items:center;gap:.35rem">
         <span style="font-family:'IBM Plex Mono','JetBrains Mono',monospace;font-size:.62rem;color:var(--blgray)">${awr}</span>
@@ -13308,7 +13348,7 @@ function _renderContractEditor() {
     <div class="frn-coach-contract-editor">
       <div class="frn-coach-contract-editor-head">
         <span class="frn-coach-contract-editor-title">${kindLabel} ${roleLabel}: ${d.coachName}${d.isLoyal?` <span style="font-size:.6rem;color:var(--gold)">🏠 Loyal</span>`:""}</span>
-        <button class="frn-coach-contract-editor-close" onclick="frnCloseContractEditor()">×</button>
+        <button class="frn-coach-contract-editor-close" onclick="frnCloseContractEditor()" title="Close" aria-label="Close">×</button>
       </div>
       <div class="frn-coach-contract-editor-grid">
         <label>AAV ($M)<input type="number" min="0.5" step="0.1" value="${d.aav}" onchange="frnContractDraftSet('aav', this.value)"></label>

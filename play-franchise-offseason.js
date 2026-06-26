@@ -2307,10 +2307,10 @@ function renderFrnReplayLib() {
       </div>
       <div class="frn-rpl-controls">
         <div class="frn-rpl-scope-tabs">
-          <button class="frn-rpl-scope${scope==='top10'?" active":""}" onclick="frnSetReplayFilter('top10')">🏆 Top 10 (week)</button>
-          <button class="frn-rpl-scope${scope==='week'?" active":""}" onclick="frnSetReplayFilter('week', ${curWeek})">📅 All (this week)</button>
-          <button class="frn-rpl-scope${scope==='myteam'?" active":""}" onclick="frnSetReplayFilter('myteam')">⭐ My Team</button>
-          <button class="frn-rpl-scope${scope==='season'?" active":""}" onclick="frnSetReplayFilter('season')">📺 Season Top 25</button>
+          <button class="frn-rpl-scope${scope==='top10'?" active":""}" onclick="frnSetReplayFilter('top10')" aria-label="Top 10 this week">🏆 Top 10 (week)</button>
+          <button class="frn-rpl-scope${scope==='week'?" active":""}" onclick="frnSetReplayFilter('week', ${curWeek})" aria-label="All this week">📅 All (this week)</button>
+          <button class="frn-rpl-scope${scope==='myteam'?" active":""}" onclick="frnSetReplayFilter('myteam')" aria-label="My team">⭐ My Team</button>
+          <button class="frn-rpl-scope${scope==='season'?" active":""}" onclick="frnSetReplayFilter('season')" aria-label="Season Top 25">📺 Season Top 25</button>
         </div>
         ${weeksAvail.length > 1 ? `<div class="frn-rpl-weeks">
           <span style="font-size:.6rem;color:var(--blgray);margin-right:.4rem">JUMP TO:</span>
@@ -5839,7 +5839,7 @@ function _renderBracketTree() {
     const onPath    = m.homeId === myId || m.awayId === myId || m.winnerId === myId;
     const isChamp   = champion && played && m.winnerId === champion && ri === rounds.length - 1;
     const cls = ["frn-bt-card", played?"played":"", isCurrent?"current":"", onPath?"user-path":"", isChamp?"champion":""].filter(Boolean).join(" ");
-    const click = played ? `onclick="frnOpenPlayoffBox(${ri},${mi})" role="button" tabindex="0"` : "";
+    const click = played ? `onclick="frnOpenPlayoffBox(${ri},${mi})" onkeydown="_frnRowKey(event)" role="button" tabindex="0"` : "";
     return `<div class="${cls}" ${click}>
       ${teamRow(m.homeId, m.homeScore, played && m.winnerId === m.homeId, played && m.winnerId !== m.homeId)}
       ${teamRow(m.awayId, m.awayScore, played && m.winnerId === m.awayId, played && m.winnerId !== m.awayId)}
@@ -6450,8 +6450,8 @@ function _renderPlayoffHero() {
     <div class="frn-hero-cta-row">
       <button class="frn-hero-play-btn" onclick="frnPlayGame(${m.homeId},${m.awayId},true)">▶ PLAY GAME<span class="frn-hero-play-sub">interactive · live simulation</span></button>
       <div class="frn-hero-sims">
-        <button class="frn-sim-btn frn-callplays-btn" onclick="frnPlayGameInteractive(${m.homeId},${m.awayId},true)" title="You're the OC — the game pauses at every one of your offensive snaps">🎙 Call the Plays</button>
-        <button class="frn-sim-btn" onclick="frnSimPlayoffGame(${m.homeId},${m.awayId})">⏩ Sim Game</button>
+        <button class="frn-sim-btn frn-callplays-btn" onclick="frnPlayGameInteractive(${m.homeId},${m.awayId},true)" aria-label="Call the plays" title="You're the OC — the game pauses at every one of your offensive snaps">🎙 Call the Plays</button>
+        <button class="frn-sim-btn" onclick="frnSimPlayoffGame(${m.homeId},${m.awayId})" aria-label="Sim game">⏩ Sim Game</button>
       </div>
     </div>
     ${pregameHtml}
@@ -6469,7 +6469,7 @@ function _renderPlayoffPrepTasks() {
     { icon: "⚡", label: "Snap Percentages", sub: "Optimize rotations & stamina", action: "renderFrnSnapShares()", badge: 0, alert: false },
   ];
   if (injured.length) tasks.push({ icon: "🩹", label: "Injury Report", sub: `${injured.length} player${injured.length > 1 ? "s" : ""} banged up`, action: "renderFrnInjuryReport()", badge: injured.length, alert: true });
-  const rows = tasks.map(t => `<div class="frn-checklist-item${t.alert ? " urgent" : ""}" onclick="${t.action}">
+  const rows = tasks.map(t => `<div class="frn-checklist-item${t.alert ? " urgent" : ""}" role="button" tabindex="0" aria-label="${_escHtml(t.label)}${t.sub ? " — " + _escHtml(t.sub) : ""}" onclick="${t.action}" onkeydown="_frnRowKey(event)">
     <span class="frn-check-icon">○</span>
     <div class="frn-check-body">
       <div class="frn-check-label">${t.icon} ${t.label}${t.badge ? `<span class="frn-task-badge">${t.badge}</span>` : ""}</div>
@@ -7866,10 +7866,13 @@ function renderFrnAnalytics(defaultTab) {
   ];
   const tabs = tabGroups.flatMap(g => g.tabs);
 
+  // Strip a leading icon/emoji glyph from a tab label so the accessible name a
+  // screen reader announces is clean text (the emoji stays visual).
+  const _ariaFromLabel = (s) => String(s).replace(/^[^\p{L}\p{N}]+/u, "").trim();
   const tabBarHtml = tabGroups.map(g => `
     <div class="frn-ana-tabgroup">
       <span class="frn-ana-tabgroup-lbl">${g.group}</span>
-      ${g.tabs.map(t => `<button class="frn-ana-tab ${t.id===tab?"active":""}" onclick="renderFrnAnalytics('${t.id}')">${t.label}</button>`).join("")}
+      ${g.tabs.map(t => `<button class="frn-ana-tab ${t.id===tab?"active":""}" aria-label="${_escHtml(_ariaFromLabel(t.label))}" onclick="renderFrnAnalytics('${t.id}')">${t.label}</button>`).join("")}
     </div>
   `).join("");
 
@@ -9141,6 +9144,10 @@ function _frnFlashToast(message, kind) {
     el.style.cssText = `position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-10px);z-index:10000;padding:.7rem 1.2rem;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:.85rem;font-weight:700;letter-spacing:.5px;box-shadow:0 8px 24px rgba(0,0,0,0.4);opacity:0;transition:opacity 0.2s ease-out, transform 0.2s ease-out;pointer-events:none;max-width:520px;text-align:center`;
     document.body.appendChild(el);
   }
+  // a11y: announce the toast to assistive tech. Errors are assertive (role=alert),
+  // success/warn are polite (role=status) so they don't interrupt.
+  el.setAttribute("role", kind === "error" ? "alert" : "status");
+  el.setAttribute("aria-live", kind === "error" ? "assertive" : "polite");
   el.style.background = p.bg;
   el.style.border = `1px solid ${p.border}`;
   el.style.color = p.color;
@@ -14069,7 +14076,7 @@ function _devChartPosShow(evt, pos) {
     const dColor = p.delta > 0 ? "#86e0a3" : p.delta < 0 ? "#ff9b9b" : "#7a8b85";
     const dStr   = p.delta > 0 ? `+${p.delta}` : p.delta < 0 ? `${p.delta}` : "—";
     return `<div style="display:grid;grid-template-columns:1fr 2rem 3rem;gap:.4rem;align-items:baseline;padding:.1rem 0;font-size:10.5px">
-      <span style="color:var(--ds-grade-pos-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}<span style="color:var(--ds-slate);font-size:9px;margin-left:.3rem">${p.age || ""}</span></span>
+      <span title="${_escHtml(p.name)}" style="color:var(--ds-grade-pos-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}<span style="color:var(--ds-slate);font-size:9px;margin-left:.3rem">${p.age || ""}</span></span>
       <span style="color:${dColor};font-weight:700;text-align:right">${dStr}</span>
       <span style="color:#7a8b85;font-size:9.5px;text-align:right;font-family:'Bebas Neue',sans-serif;letter-spacing:.5px">${p.preOvr}→${p.postOvr}</span>
     </div>`;
@@ -14119,7 +14126,7 @@ function _devChartTierShow(evt, tier) {
     const dColor = p.delta > 0 ? "#86e0a3" : p.delta < 0 ? "#ff9b9b" : "#7a8b85";
     const dArr = p.delta > 0 ? `▲ +${p.delta}` : p.delta < 0 ? `▼ ${p.delta}` : "━";
     return `<div style="display:grid;grid-template-columns:1fr 2.4rem 2.8rem;gap:.4rem;align-items:baseline;padding:.1rem 0;font-size:10.5px">
-      <span style="color:var(--ds-grade-pos-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}<span style="color:var(--ds-slate);font-size:9px;margin-left:.3rem">${p.pos} · ${p.age || ""}</span></span>
+      <span title="${_escHtml(p.name)}" style="color:var(--ds-grade-pos-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}<span style="color:var(--ds-slate);font-size:9px;margin-left:.3rem">${p.pos} · ${p.age || ""}</span></span>
       <span style="color:var(--ds-grade-pos-soft);font-family:'Bebas Neue',sans-serif;font-size:13px;text-align:right;letter-spacing:.5px">${p.postOvr}</span>
       <span style="color:${dColor};font-weight:700;text-align:right;font-size:10px">${dArr}</span>
     </div>`;
@@ -15498,7 +15505,7 @@ function _buildOffseasonGainsSheet() {
     <div style="margin-bottom:.6rem;padding:.5rem .65rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem">
         <span style="font-size:.55rem;color:var(--ds-gold-dim);letter-spacing:1.5px;font-weight:700">💰 VALUE SPOTLIGHT</span>
-        <span style="color:var(--gray);font-size:.55rem;margin-left:auto;cursor:pointer" onclick="renderFrnAnalytics('value')">full ledger →</span>
+        <span role="button" tabindex="0" style="color:var(--gray);font-size:.55rem;margin-left:auto;cursor:pointer" onclick="renderFrnAnalytics('value')" onkeydown="_frnRowKey(event)">full ledger →</span>
       </div>
       ${bargains.length ? `
         <div style="font-size:.5rem;color:var(--ds-grade-pos);letter-spacing:1px;margin-bottom:.15rem;font-weight:700">🟢 BIGGEST BARGAINS</div>
@@ -15596,7 +15603,7 @@ function _buildOffseasonGainsSheet() {
     <div style="margin-bottom:.6rem;padding:.5rem .65rem;background:rgba(255,155,155,.05);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem">
         <span style="font-size:.55rem;color:var(--ds-grade-neg-soft);letter-spacing:1.5px;font-weight:700">🎯 POSITION NEEDS</span>
-        <span style="color:var(--gray);font-size:.55rem;margin-left:auto;cursor:pointer" onclick="renderFrnAnalytics('needs')">full breakdown →</span>
+        <span role="button" tabindex="0" style="color:var(--gray);font-size:.55rem;margin-left:auto;cursor:pointer" onclick="renderFrnAnalytics('needs')" onkeydown="_frnRowKey(event)">full breakdown →</span>
       </div>
       ${weakest.map(_row).join("")}
     </div>`;
@@ -16156,9 +16163,9 @@ function _buildOffseasonGainsSheet() {
   return `<div style="margin-top:.8rem;padding:.7rem .8rem;background:rgba(255,255,255,.02);border:1px solid var(--blborder);border-radius:4px">
     <div class="frn-sec-title" style="margin-bottom:.5rem">📊 PLAYER DEVELOPMENT REPORT</div>
     <div class="frn-subnav">
-      <button class="frn-subnav-btn${_t==="overview"?" active":""}" data-devtabbtn="overview" onclick="frnDevReportTab('overview')">📊 Overview</button>
-      <button class="frn-subnav-btn${_t==="players"?" active":""}" data-devtabbtn="players" onclick="frnDevReportTab('players')">👥 Players</button>
-      <button class="frn-subnav-btn${_t==="strategy"?" active":""}" data-devtabbtn="strategy" onclick="frnDevReportTab('strategy')">🧭 Roster Strategy</button>
+      <button class="frn-subnav-btn${_t==="overview"?" active":""}" data-devtabbtn="overview" onclick="frnDevReportTab('overview')" aria-label="Overview">📊 Overview</button>
+      <button class="frn-subnav-btn${_t==="players"?" active":""}" data-devtabbtn="players" onclick="frnDevReportTab('players')" aria-label="Players">👥 Players</button>
+      <button class="frn-subnav-btn${_t==="strategy"?" active":""}" data-devtabbtn="strategy" onclick="frnDevReportTab('strategy')" aria-label="Roster strategy">🧭 Roster Strategy</button>
     </div>
 
     <div data-devtab="overview"${_hide("overview")}>
@@ -18612,11 +18619,11 @@ function renderFrnTrade() {
   // market). The old "LEAGUE BLOCK" tab was removed — AI teams never
   // populated the blockAsk store so it was always empty.
   const tabHtml = [
-    { id:"market",  label:"🛒 SHOP MARKET" },
-    { id:"propose", label:"📝 PROPOSE TRADE" },
-    { id:"block",   label:`🏷️ YOUR BLOCK${blockedCount?` · ${blockedCount}`:""}` },
-    { id:"offers",  label:`📬 OFFERS${pendingOffers.length?` · ${pendingOffers.length}`:""}` },
-  ].map(t => `<button class="frn-ana-tab ${t.id===tab?"active":""}"
+    { id:"market",  label:"🛒 SHOP MARKET",                                            aria:"Shop market" },
+    { id:"propose", label:"📝 PROPOSE TRADE",                                           aria:"Propose trade" },
+    { id:"block",   label:`🏷️ YOUR BLOCK${blockedCount?` · ${blockedCount}`:""}`,        aria:`Your block${blockedCount?`, ${blockedCount}`:""}` },
+    { id:"offers",  label:`📬 OFFERS${pendingOffers.length?` · ${pendingOffers.length}`:""}`, aria:`Offers${pendingOffers.length?`, ${pendingOffers.length}`:""}` },
+  ].map(t => `<button class="frn-ana-tab ${t.id===tab?"active":""}" aria-label="${_escHtml(t.aria)}"
     onclick="frnSetTradeTab('${t.id}')">${t.label}</button>`).join("");
 
   // Sort controls — MARKET tab gets an extra "Trade Value" sort.
@@ -18720,7 +18727,7 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
         onchange="frnAddReceiveFromBrowse(${teamId},'${escName}')">
       <span class="frn-trade-pos">${p.position}</span>
       <span class="frn-trade-name-row">
-        <span class="frn-trade-name" style="font-weight:${sel?700:400}">${_escHtml(p.name)}</span>
+        <span class="frn-trade-name" title="${_escHtml(p.name)}" style="font-weight:${sel?700:400}">${_escHtml(p.name)}</span>
         ${!partnerId ? `<span class="frn-trade-team">${team.name}</span>` : ""}
         ${stanceTag}
         ${kickerTag}
@@ -18748,7 +18755,7 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
         onchange="frnToggleTradePlayer('send','${escName}')">
       <span class="frn-trade-pos">${p.position}</span>
       <span class="frn-trade-name-row">
-        <span class="frn-trade-name" style="font-weight:${sel?700:400}">${_escHtml(p.name)}</span>
+        <span class="frn-trade-name" title="${_escHtml(p.name)}" style="font-weight:${sel?700:400}">${_escHtml(p.name)}</span>
         ${blockTag}
         ${deadTag}
       </span>
@@ -19648,7 +19655,7 @@ function _renderTradeShopMarketTab(myId, sortBy, tp, cap) {
       : DS.button({ label: "→ Propose", class: "btn-gold frn-trade-propose-btn", on: `frnShopProposeForPlayer(${teamId},'${escName}')`, title: "Open the Propose Trade tab with this player pre-selected" });
     return `<div class="frn-trade-market-row${isUntouchable?" untouchable":""}">
       <span class="frn-trade-pos">${p.position}</span>
-      <span class="frn-trade-name" onclick="frnOpenPlayerCard('${escName}')" title="View ${_escHtml(p.name)}'s player card">${watchIcon}${p.name}</span>
+      <span class="frn-trade-name" role="button" tabindex="0" onclick="frnOpenPlayerCard('${escName}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s player card" title="View ${_escHtml(p.name)}'s player card">${watchIcon}${p.name}</span>
       <span class="frn-trade-team">${modeBadge} ${team.name}</span>
       <span class="frn-trade-stance-col">${stancePill(stance, team.name)}</span>
       <span>${gradeBadge(p)}</span>
@@ -19742,7 +19749,7 @@ function _tradeOfferChip(p, teamId, mine) {
     <div class="frn-offer-chip-top">
       <span class="frn-offer-chip-pos">${p.position}</span>
       <span class="frn-offer-chip-ovr" style="color:${ovrCol}">${ovr}</span>
-      <span class="frn-offer-chip-name" onclick="frnOpenPlayerCard('${escName}','${escPid}')" title="Open ${_escHtml(p.name)}'s card">${_escHtml(p.name)}</span>
+      <span class="frn-offer-chip-name" role="button" tabindex="0" onclick="frnOpenPlayerCard('${escName}','${escPid}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s player card" title="Open ${_escHtml(p.name)}'s card">${_escHtml(p.name)}</span>
       ${_tradeTraj(p)}
       ${injW > 0 ? `<span class="frn-offer-chip-inj" title="Injured — ${injW}w out">🩹</span>` : ""}
     </div>
@@ -20546,7 +20553,7 @@ function _renderDraftNotes(p, opts = {}) {
     const concernChip = dots
       ? `<span title="${concernCounts["red-flag"]||0} red flag · ${concernCounts.major||0} major · ${concernCounts.minor||0} minor">${dots}</span>`
       : `<span style="color:var(--gray);font-size:.55rem">no concerns flagged</span>`;
-    return `<div class="frn-dp-notes-summary" onclick="frnDraftToggleNotes('${esc}')" title="Click to expand draft notes">
+    return `<div class="frn-dp-notes-summary" role="button" tabindex="0" aria-label="Expand draft notes" onclick="frnDraftToggleNotes('${esc}')" onkeydown="_frnRowKey(event)" title="Click to expand draft notes">
       <span style="color:var(--gold);letter-spacing:.5px;font-weight:700;font-size:.54rem">📝 NOTES</span>
       ${strengthChip}
       ${concernChip}
@@ -20598,7 +20605,7 @@ function _renderDraftNotes(p, opts = {}) {
     </div>` : "";
 
   return `<div class="frn-dp-notes-expanded">
-    <div class="frn-dp-notes-summary expanded" onclick="frnDraftToggleNotes('${esc}')" title="Click to collapse">
+    <div class="frn-dp-notes-summary expanded" role="button" tabindex="0" aria-label="Collapse draft notes" onclick="frnDraftToggleNotes('${esc}')" onkeydown="_frnRowKey(event)" title="Click to collapse">
       <span style="color:var(--gold);letter-spacing:.5px;font-weight:700;font-size:.54rem">📝 NOTES</span>
       <span style="color:var(--gray);font-size:.55rem;margin-left:auto">▴ collapse</span>
     </div>
@@ -21157,7 +21164,7 @@ function _renderDraftFloor() {
     return `<div class="frn-floor-pick ${isMostRecent ? "frn-floor-pick--new" : ""}" style="display:grid;grid-template-columns:2.8rem 9rem 1fr 2.4rem;gap:.55rem;padding:.4rem .65rem;font-size:.7rem;align-items:baseline;background:${isMostRecent ? "rgba(200,169,0,.10)" : "transparent"};border-left:3px solid ${borderColor};margin-bottom:.18rem">
       <span style="color:var(--gray);font-weight:700">R${pk.round}.${pk.pickInRound}${pk.isComp?"c":""}</span>
       <span style="color:var(--blwhite);font-weight:700;font-size:.65rem">${teamLabel}</span>
-      <span style="color:var(--white);cursor:pointer" onclick="frnOpenPlayerCard('${esc}')" title="Open ${pk.prospectName}'s card">${pk.prospectName}${tag}</span>
+      <span role="button" tabindex="0" style="color:var(--white);cursor:pointer" onclick="frnOpenPlayerCard('${esc}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(pk.prospectName)}'s card" title="Open ${pk.prospectName}'s card">${pk.prospectName}${tag}</span>
       <span style="color:var(--gold-lt);font-weight:700;font-size:.62rem">${pk.pos}</span>
     </div>`;
   }).join("");
@@ -21362,7 +21369,7 @@ function renderFrnDraftPreshow() {
   const safeName = n => (n || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
   const _nameWithStar = (p) => {
     const watched = watchSet.has(p.name);
-    return `<span style="color:var(--white);cursor:pointer;display:inline-flex;align-items:baseline;gap:.25rem" onclick="frnCombineWatchToggle('${safeName(p.name)}')" title="${watched ? "Remove from watchlist" : "Add to watchlist"}">
+    return `<span role="button" tabindex="0" style="color:var(--white);cursor:pointer;display:inline-flex;align-items:baseline;gap:.25rem" onclick="frnCombineWatchToggle('${safeName(p.name)}')" onkeydown="_frnRowKey(event)" aria-label="${watched ? "Remove" : "Add"} ${_escHtml(p.name)} ${watched ? "from" : "to"} watchlist" title="${watched ? "Remove from watchlist" : "Add to watchlist"}">
       <span style="color:${watched ? "var(--gold)" : "var(--gray)"};font-size:.6rem">${watched ? "★" : "☆"}</span>${p.name}
     </span>`;
   };
@@ -22835,7 +22842,7 @@ function _renderCompareCard(prospects, reveals) {
     const grade = (typeof gradeLabel === "function") ? gradeLabel(sg) : "—";
     const projRound = _projectedRoundFromGrade(sg);
     return `<div class="frn-cmp-col-hdr">
-      <div class="frn-cmp-name" onclick="frnOpenPlayerCard('${_jsStr(p.name)}')">${_esc(p.name)}</div>
+      <div class="frn-cmp-name" role="button" tabindex="0" onclick="frnOpenPlayerCard('${_jsStr(p.name)}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s player card">${_esc(p.name)}</div>
       <div class="frn-cmp-sub">${_esc(p.position)} · ${p.collegeYear}${p.declaredEarly?" · DECLARED":""} · Grade ${grade}</div>
       <div class="frn-cmp-sub">${arch ? _esc(arch)+" · " : ""}Proj R${projRound} · ${cats}/4 scouted</div>
       <button class="frn-cmp-remove" onclick="frnScoutBoardToggleCompare('${_jsStr(p.name)}')" title="Remove from compare">✕</button>
@@ -23211,7 +23218,7 @@ function _renderMockDraft(eligible, pinSet, reveals, eligibleByPos) {
     return `<div class="frn-mock-row${pinned?" pinned":""}">
       <span class="frn-mock-pick">${pick}</span>
       <span class="frn-mock-pos">${_esc(p.position)}</span>
-      <span class="frn-mock-name" onclick="frnOpenPlayerCard('${_jsStr(p.name)}')">${pinned?"★ ":""}${_esc(p.name)}</span>
+      <span class="frn-mock-name" role="button" tabindex="0" onclick="frnOpenPlayerCard('${_jsStr(p.name)}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s player card">${pinned?"★ ":""}${_esc(p.name)}</span>
       <span class="frn-mock-year">${p.collegeYear}${p.declaredEarly?"·D":""}</span>
       <span class="frn-mock-ovr" title="Scouted grade — sharpens with scouting">${mockGrade}</span>
       <span class="frn-mock-arch">${archLabel ? _esc(archLabel) : ""}</span>
@@ -23482,7 +23489,7 @@ function renderFrnScoutingBoard() {
       <div class="frn-scout-row-main">
         <div class="frn-scout-row-name">
           <span class="frn-scout-row-pos">${_esc(p.position)}</span>
-          <span class="frn-scout-row-pname" onclick="frnOpenPlayerCard('${_jsStr(p.name)}')">${_esc(p.name)}</span>
+          <span class="frn-scout-row-pname" role="button" tabindex="0" onclick="frnOpenPlayerCard('${_jsStr(p.name)}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s player card">${_esc(p.name)}</span>
           ${yearBadge}
           <span class="frn-scout-ovr" title="Scouted grade — sharpens as you spend credits. ±N is the current estimate noise.">${gradeShown}</span>
           ${projBadge}
@@ -23570,7 +23577,7 @@ function renderFrnScoutingBoard() {
           const overall = (r1Slot != null) ? (r1Slot + (r - 1) * N) : null;
           const chips = (byRound[r] || []).slice(0, 4).map(p => {
             const need = needPos.has(p.position);
-            return `<span onclick="frnOpenPlayerCard('${_jsStr(p.name)}')" title="${_esc(p.name)} · proj R${r}${need ? " · fills a need" : ""}"
+            return `<span role="button" tabindex="0" onclick="frnOpenPlayerCard('${_jsStr(p.name)}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s player card" title="${_esc(p.name)} · proj R${r}${need ? " · fills a need" : ""}"
               style="cursor:pointer;font-size:.62rem;padding:.1rem .4rem;border-radius:3px;border:1px solid ${need ? "var(--gold)" : "var(--blborder)"};background:${need ? "rgba(245,197,66,.08)" : "rgba(255,255,255,.03)"};white-space:nowrap">${need ? "🎯 " : ""}<b style="color:var(--gold-lt)">${_esc(p.position)}</b> ${_esc(p.name)}</span>`;
           }).join("");
           return `<div style="display:flex;align-items:flex-start;gap:.55rem;padding:.3rem 0;border-top:1px solid rgba(255,255,255,.05)">
@@ -24357,7 +24364,7 @@ function renderFrnDraft() {
       <div class="frn-dp-rank">${displayRank}</div>
       <div class="frn-dp-body">
         <div class="frn-dp-top">
-          <span class="frn-dp-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s scouting card">${_escHtml(p.name)}</span>
+          <span class="frn-dp-name" role="button" tabindex="0" onclick="frnOpenPlayerCard('${esc}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s scouting card" title="Open ${_escHtml(p.name)}'s scouting card">${_escHtml(p.name)}</span>
           ${_posPillHtml(p.position)}
           ${_posRankChip}
           ${needBadge}
@@ -24468,9 +24475,9 @@ function renderFrnDraft() {
     const posTotal = posCountMap.get(pos) || 0;
     const lvl = needLevels[pos];
     const lvlColor = lvl === 2 ? "#ff9090" : "var(--gold)";
-    return `<div class="frn-draft-best-row" onclick="frnDraftSetFilter('${pos}')" title="Filter to ${pos} · ${posTotal} ${pos}s left">
+    return `<div class="frn-draft-best-row" role="button" tabindex="0" aria-label="Filter to ${pos}, ${posTotal} ${pos}s left" onclick="frnDraftSetFilter('${pos}')" onkeydown="_frnRowKey(event)" title="Filter to ${pos} · ${posTotal} ${pos}s left">
       <span style="font-weight:700;font-size:.64rem;min-width:2rem;color:${lvlColor}">${pos}</span>
-      <span style="font-size:.62rem;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${best.name}</span>
+      <span title="${_escHtml(best.name)}" style="font-size:.62rem;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${best.name}</span>
       <span style="color:${sgColor};font-size:.58rem;font-weight:700" title="Scout grade · ${posTotal} ${pos}s remaining">${gradeLabel(sg)}<span style="color:var(--gray);font-weight:400;margin-left:.18rem">·${posTotal}</span></span>
     </div>`;
   }).join("");
@@ -24533,7 +24540,7 @@ function renderFrnDraft() {
         <span class="frn-draft-rec-rank">${i+1}</span>
         <div class="frn-draft-rec-body">
           <div class="frn-draft-rec-top">
-            <span class="frn-draft-rec-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(r.p.name)}'s scouting card">${_escHtml(r.p.name)}</span>
+            <span class="frn-draft-rec-name" role="button" tabindex="0" onclick="frnOpenPlayerCard('${esc}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(r.p.name)}'s scouting card" title="Open ${_escHtml(r.p.name)}'s scouting card">${_escHtml(r.p.name)}</span>
             ${_posPillHtml(r.p.position)}
             <span style="color:${sgColor};font-weight:700;font-size:.6rem" title="Your scout grade">${gradeLabel(sg)}</span>
           </div>
@@ -24980,7 +24987,7 @@ function renderFrnPreDraftScout() {
     }).join("");
     return `<div class="frn-prescout-row">
       <span class="frn-prescout-rank">${i+1}</span>
-      <span class="frn-prescout-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s scouting card">${_escHtml(p.name)}</span>
+      <span class="frn-prescout-name" role="button" tabindex="0" onclick="frnOpenPlayerCard('${esc}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s scouting card" title="Open ${_escHtml(p.name)}'s scouting card">${_escHtml(p.name)}</span>
       ${_posPillHtml(p.position)}
       <span class="frn-prescout-proj">${projLabel}</span>
       ${needBadge}
@@ -25464,7 +25471,7 @@ function _renderPostDraftGrade(myPicks) {
              const e = (p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
              return `<div class="frn-draft-pick-review">
                <span class="frn-draft-ticker-pick-no">UDFA</span>
-               <span style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${e}')">${_escHtml(p.name)}</span>
+               <span role="button" tabindex="0" style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${e}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s player card">${_escHtml(p.name)}</span>
                <span style="color:var(--gold);font-size:.6rem">${p.position}</span>
                <span class="tt-ovr tier-${gradeClass(scoutGrade(p))}">${gradeLabel(scoutGrade(p))}</span>
              </div>`;
@@ -25578,7 +25585,7 @@ function _renderPostDraftGrade(myPicks) {
       <div style="display:flex;flex-direction:column;flex:1;min-width:0">
         <div style="display:flex;gap:.4rem;align-items:baseline">
           ${watchTag}
-          <span style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${esc}')" title="Open ${pk.prospectName}'s card">${pk.prospectName}</span>
+          <span role="button" tabindex="0" style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${esc}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(pk.prospectName)}'s card" title="Open ${pk.prospectName}'s card">${pk.prospectName}</span>
           <span style="color:var(--gold);font-size:.6rem">${pk.pos}</span>
         </div>
         ${noteLine(pk.prospect)}
@@ -26537,7 +26544,7 @@ function renderFrnUDFAScramble() {
     if (!p) return "";
     const esc = (p.name||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
     return `<div class="frn-udfa-claim-row">
-      <span style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s card">${_escHtml(p.name)}</span>
+      <span role="button" tabindex="0" style="font-weight:700;cursor:pointer" onclick="frnOpenPlayerCard('${esc}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s player card" title="Open ${_escHtml(p.name)}'s card">${_escHtml(p.name)}</span>
       ${_posPillHtml(p.position)}
       ${gradeBadge(p)}
       ${DS.button({ label: "× Remove", variant: "outline", on: `frnDraftUnclaimUDFA('${esc}')` })}
@@ -26608,7 +26615,7 @@ function renderFrnUDFAScramble() {
       <div class="frn-dp-rank">${displayRank}</div>
       <div class="frn-dp-body">
         <div class="frn-dp-top">
-          <span class="frn-dp-name" onclick="frnOpenPlayerCard('${esc}')" title="Open ${_escHtml(p.name)}'s card">${_escHtml(p.name)}</span>
+          <span class="frn-dp-name" role="button" tabindex="0" onclick="frnOpenPlayerCard('${esc}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s player card" title="Open ${_escHtml(p.name)}'s card">${_escHtml(p.name)}</span>
           ${_posPillHtml(p.position)}
           ${needBadge}
           ${gradeBadge(p)}

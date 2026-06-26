@@ -4272,14 +4272,54 @@ function _frnConfirmModal(opts) {
         </div>
       </div>`;
     document.body.appendChild(wrap);
+    // a11y: remember what had focus before the modal opened so we can restore it
+    // on every close path (Esc / confirm / cancel / backdrop). Mirrors DS.modal.
+    const prevFocus = (document.activeElement instanceof HTMLElement)
+      ? document.activeElement : null;
+    const dialog    = wrap.querySelector(".frn-modal") || wrap;
     const cancelBtn = wrap.querySelector(".frn-modal-cancel");
     const okBtn     = wrap.querySelector(".frn-modal-confirm");
     const typeInp   = wrap.querySelector(".frn-modal-type-input");
-    const close = (result) => { wrap.remove(); document.removeEventListener("keydown", onKey); resolve(result); };
+    // Tabbable elements currently inside the dialog (skip disabled/hidden).
+    const FOCUSABLE = 'a[href],area[href],button:not([disabled]),' +
+      'input:not([disabled]),select:not([disabled]),textarea:not([disabled]),' +
+      '[tabindex]:not([tabindex="-1"])';
+    const focusables = () => Array.prototype.filter.call(
+      dialog.querySelectorAll(FOCUSABLE),
+      (el) => el.offsetParent !== null || el === document.activeElement
+    );
+    const close = (result) => {
+      wrap.remove();
+      document.removeEventListener("keydown", onKey);
+      // Restore focus to whatever was focused before the modal opened.
+      if (prevFocus && typeof prevFocus.focus === "function") {
+        try { prevFocus.focus(); } catch (_e) { /* element gone — ignore */ }
+      }
+      resolve(result);
+    };
     const onKey = (e) => {
-      if (e.key === "Escape") close(false);
+      if (e.key === "Escape") { close(false); return; }
       // Enter to confirm only when the typing gate isn't blocking
-      if (e.key === "Enter" && !okBtn.disabled) close(true);
+      if (e.key === "Enter" && !okBtn.disabled) { close(true); return; }
+      // Focus trap: cycle Tab/Shift+Tab within the dialog's focusables.
+      if (e.key === "Tab") {
+        const items = focusables();
+        if (!items.length) { e.preventDefault(); return; }
+        const first = items[0];
+        const last  = items[items.length - 1];
+        const active = document.activeElement;
+        if (e.shiftKey) {
+          if (active === first || !dialog.contains(active)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (active === last || !dialog.contains(active)) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
     };
     cancelBtn.addEventListener("click", () => close(false));
     okBtn.addEventListener("click", () => { if (!okBtn.disabled) close(true); });
@@ -4290,7 +4330,11 @@ function _frnConfirmModal(opts) {
       });
       setTimeout(() => typeInp.focus(), 30);
     } else {
-      setTimeout(() => cancelBtn.focus(), 30);   // default focus on Cancel (safer)
+      setTimeout(() => {
+        const items = focusables();
+        const target = cancelBtn || items[0];
+        if (target) target.focus();   // default focus on Cancel (safer)
+      }, 30);
     }
     document.addEventListener("keydown", onKey);
   });

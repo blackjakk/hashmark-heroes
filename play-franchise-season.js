@@ -179,7 +179,7 @@ function _frnRenderError(err, phase) {
 ${safeMsg}</div>
       </details>
       <div style="margin-top:1rem;font-size:.6rem;color:var(--gray)">
-        Still stuck? You can <a style="color:var(--gold);cursor:pointer" onclick="frnStartNew()">start a new franchise</a> —
+        Still stuck? You can <a role="button" tabindex="0" onkeydown="_frnRowKey(event)" style="color:var(--gold);cursor:pointer" onclick="frnStartNew()">start a new franchise</a> —
         your current one stays saved in its slot.
       </div>
     </div>`;
@@ -549,6 +549,8 @@ function _showInjuryRepairBanner() {
   const more = rep.fixes.length > 50 ? `<div style="font-size:.6rem;color:var(--gray);text-align:center;padding:.3rem">…and ${rep.fixes.length - 50} more</div>` : "";
   const el = document.createElement("div");
   el.id = "frn-injury-repair-toast";
+  el.setAttribute("role", "status");
+  el.setAttribute("aria-live", "polite");
   el.style.cssText = "position:fixed;right:1rem;bottom:1rem;width:min(420px,90vw);max-height:60vh;background:var(--bg2);border:2px solid var(--gold);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.5);z-index:9000;font-family:inherit;overflow:hidden;display:flex;flex-direction:column";
   el.innerHTML = `
     <div style="background:rgba(200,169,0,.16);padding:.55rem .7rem;border-bottom:1px solid var(--gold);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
@@ -955,25 +957,25 @@ function renderFrnPreseason(tab, scoutId, scoutView, selName) {
         <div class="frn-banner-cap" style="color:${overCap?"var(--red)":capUsed/cap>=0.95?"#e8a000":"var(--green-lt)"}">
           CAP $${capUsed.toFixed(1)}M / $${cap.toFixed(0)}M
           <span style="color:var(--gray);font-weight:400"> · Room $${capLeft.toFixed(1)}M</span>
-          <button class="frn-cap-btn" onclick="renderFrnAnalytics('mysheet')">📊 Analytics</button>
+          <button class="frn-cap-btn" onclick="renderFrnAnalytics('mysheet')" aria-label="Analytics">📊 Analytics</button>
         </div>
       </div>
       <div style="text-align:right">
         ${franchise.phase === "preseason"
-          ? DS.button({ label: `▶ START SEASON ${season}`, class: "btn btn-gold-big", on: "frnStartSeason()" })
-          : frnBtn({ label: `◀ Back to Week ${franchise.week || ""}`, variant: "outline", on: "showFranchiseDashboard()" })
+          ? DS.button({ label: `▶ START SEASON ${season}`, class: "btn btn-gold-big", on: "frnStartSeason()", ariaLabel: `Start season ${season}` })
+          : frnBtn({ label: `◀ Back to Week ${franchise.week || ""}`, variant: "outline", on: "showFranchiseDashboard()", ariaLabel: `Back to week ${franchise.week || ""}` })
         }
       </div>
     </div>`;
 
   const tabs = [
-    { id:"roster",   label:"📋 MY ROSTER" },
-    { id:"ps",       label:"🏋 PRACTICE SQUAD" },
-    { id:"schedule", label:"📅 SCHEDULE" },
-    { id:"scout",    label:"🔍 SCOUT" },
+    { id:"roster",   label:"📋 MY ROSTER",      aria:"My roster" },
+    { id:"ps",       label:"🏋 PRACTICE SQUAD", aria:"Practice squad" },
+    { id:"schedule", label:"📅 SCHEDULE",       aria:"Schedule" },
+    { id:"scout",    label:"🔍 SCOUT",          aria:"Scout" },
   ];
   const tabBar = tabs.map(t =>
-    `<button class="frn-ana-tab ${t.id===tab?"active":""}" onclick="renderFrnPreseason('${t.id}')">${t.label}</button>`
+    `<button class="frn-ana-tab ${t.id===tab?"active":""}" onclick="renderFrnPreseason('${t.id}')" aria-label="${_escHtml(t.aria)}">${t.label}</button>`
   ).join("");
 
   let body;
@@ -1282,9 +1284,9 @@ function _preseasonRosterTab(roster, selName) {
             const cutBtn = isPendingRelease
               ? `<button class="frn-pre-cut" onclick="event.stopPropagation();frnReleasePlayerCancel()" title="Cancel release" style="background:var(--red);color:#fff">✗</button>`
               : `<button class="frn-pre-cut" onclick="event.stopPropagation();frnReleasePlayer('${escNm}','${p.position}')" title="Release — opens decision panel">✗</button>`;
-            return `<tr class="frn-scout-row ${isSel?"selected":""}" style="background:${rowBg}" onclick="renderFrnPreseason('roster',null,null,'${escName}')">
+            return `<tr class="frn-scout-row ${isSel?"selected":""}" style="background:${rowBg}" role="button" tabindex="0" aria-label="Select ${_escHtml(p.name)}" onclick="renderFrnPreseason('roster',null,null,'${escName}')" onkeydown="_frnRowKey(event)">
               <td class="frn-scout-slot">${isStarter?"★":"#"+(i+1)}</td>
-              <td style="font-weight:${isStarter?700:400}"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${escName}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">${_escHtml(p.name)}</span></td>
+              <td style="font-weight:${isStarter?700:400}"><span role="button" tabindex="0" aria-label="Open ${_escHtml(p.name)}'s player card" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${escName}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')" onkeydown="event.stopPropagation();_frnRowKey(event)">${_escHtml(p.name)}</span></td>
               <td>${gradeBadge(p)}</td>
               <td>${potChip}</td>
               <td style="color:${ageColor}">${p.age || "?"}</td>
@@ -1693,7 +1695,7 @@ function _preseasonScoutTab(myId, scoutId, view, selName) {
     return `<button class="frn-scout-team ${active?"active":""}" onclick="renderFrnPreseason('scout',${t.id})" style="border-left:3px solid ${t.primary}">
       <span class="frn-scout-team-week">${wkLabel}</span>
       <span style="color:var(--gold);flex-shrink:0;font-size:.75rem">${teamAscii(t)}</span>
-      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${t.city} ${t.name}</span>
+      <span title="${_escHtml(t.city + " " + t.name)}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${t.city} ${t.name}</span>
       ${isNext ? `<span class="frn-scout-next-chip">NEXT</span>` : ""}
       <span class="frn-scout-team-rec">${rec}</span>
       ${tOff ? `<span style="width:100%;margin-top:.1rem;display:flex;gap:.25rem">${_schemeBadge(tOff,true)} ${_schemeBadge(tDef,true)}</span>` : ""}
@@ -1759,10 +1761,10 @@ function _preseasonScoutTab(myId, scoutId, view, selName) {
     if (!p) return "";
     const pKey = (p.pid || p.name).replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const statLine = _threatStatLine(p);
-    return `<div class="frn-scout-threat-card"
-      onclick="renderFrnPreseason('scout',${scoutId},'${view}','${pKey}')">
+    return `<div class="frn-scout-threat-card" role="button" tabindex="0" aria-label="View ${_escHtml(p.name)}"
+      onclick="renderFrnPreseason('scout',${scoutId},'${view}','${pKey}')" onkeydown="_frnRowKey(event)">
       <div class="frn-scout-threat-lbl">${labelText}</div>
-      <div class="frn-scout-threat-name"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${(p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">${_escHtml(p.name)}</span></div>
+      <div class="frn-scout-threat-name"><span role="button" tabindex="0" aria-label="Open ${_escHtml(p.name)}'s player card" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${(p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')" onkeydown="event.stopPropagation();_frnRowKey(event)">${_escHtml(p.name)}</span></div>
       <div style="margin-top:.15rem">${_scoutGradeBadge(p, scoutedThisSeason)}</div>
       ${statLine ? `<div class="frn-scout-threat-stat">${statLine}</div>` : ""}
     </div>`;
@@ -1783,7 +1785,7 @@ function _preseasonScoutTab(myId, scoutId, view, selName) {
        </div>`
     : `<div class="frn-scout-noise-banner unscouted">
         &#x26A0; Grade noise &plusmn;8 &mdash; grades are estimates.
-        <a onclick="renderFrnScrimmages()">Run a joint practice to sharpen to &plusmn;2.</a>
+        <a role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="renderFrnScrimmages()">Run a joint practice to sharpen to &plusmn;2.</a>
        </div>`;
 
   // ── Roster table rows ─────────────────────────────────────────────────────
@@ -1796,10 +1798,10 @@ function _preseasonScoutTab(myId, scoutId, view, selName) {
     const escName = pKey.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const isStarter = slotLabel.includes("1") || slotLabel === "QB" || slotLabel === "RB"
       || slotLabel === "TE" || slotLabel === "K" || slotLabel === "P";
-    return `<tr class="frn-scout-row ${isSel?"selected":""}"
-      onclick="renderFrnPreseason('scout',${scoutId},'${view}','${escName}')">
+    return `<tr class="frn-scout-row ${isSel?"selected":""}" role="button" tabindex="0" aria-label="Select ${_escHtml(p.name)}"
+      onclick="renderFrnPreseason('scout',${scoutId},'${view}','${escName}')" onkeydown="_frnRowKey(event)">
       <td class="frn-scout-slot">${slotLabel}</td>
-      <td style="font-weight:${isStarter?700:400}"><span style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${escName}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')">${_escHtml(p.name)}</span></td>
+      <td style="font-weight:${isStarter?700:400}"><span role="button" tabindex="0" aria-label="Open ${_escHtml(p.name)}'s player card" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px" onclick="event.stopPropagation();frnOpenPlayerCard('${escName}','${(p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;")}')" onkeydown="event.stopPropagation();_frnRowKey(event)">${_escHtml(p.name)}</span></td>
       <td>${_scoutGradeBadge(p, scoutedThisSeason)}</td>
       <td style="color:var(--gray)">${p.age || "?"}</td>
       <td style="color:var(--gray);font-size:.66rem">${draftStr(p)}</td>
@@ -5464,7 +5466,7 @@ function _faCompareCardHtml(fa, chosenTeamId, currentSelKey) {
       <span style="font-size:.55rem;letter-spacing:1.5px;color:var(--gold);font-weight:700">📌 PINNED FOR COMPARE</span>
       ${frnBtn({ label: "✕ Unpin", variant: "outline", on: "frnFAUnpinCompare()", attrs: { style: "font-size:.55rem;padding:.1rem .35rem;margin-left:auto" } })}
     </div>
-    <div style="display:flex;align-items:baseline;gap:.4rem;flex-wrap:wrap;cursor:pointer" onclick="frnFASwapCompare('${escKey}','${escSel}')" title="Swap — this FA becomes selected, current selection moves to pin">
+    <div style="display:flex;align-items:baseline;gap:.4rem;flex-wrap:wrap;cursor:pointer" role="button" tabindex="0" onclick="frnFASwapCompare('${escKey}','${escSel}')" onkeydown="_frnRowKey(event)" title="Swap — this FA becomes selected, current selection moves to pin">
       <span style="font-size:.58rem;color:var(--gold);font-weight:700">${fa.position}</span>
       <span style="font-weight:700;color:var(--blwhite);font-size:.78rem">${fa.name}</span>
       ${gradeBadge(fa)}
@@ -5940,7 +5942,7 @@ function renderFrnFA(selectedKey) {
         ${heatBadge ? heatBadge : `<span style="display:inline-block;width:.7rem"></span>`}
         <span style="font-size:.58rem;color:var(--gold);font-weight:700;flex-shrink:0">${p.position}</span>
         ${gradeBadge(p)}
-        <span class="frn-fa-name" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.68rem">${p.name}${young?" 🌱":""}${woIcon?` ${woIcon}`:""}</span>
+        <span class="frn-fa-name" title="${_escHtml(p.name)}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.68rem">${p.name}${young?" 🌱":""}${woIcon?` ${woIcon}`:""}</span>
         ${needBadge}
       </div>
       <div style="display:flex;align-items:center;gap:.3rem;margin-top:.06rem;padding-left:1rem">
@@ -6476,7 +6478,7 @@ function renderFrnFA(selectedKey) {
               : `<span style="color:var(--green-lt);font-size:.5rem">clean</span>`;
             return `<div style="display:grid;grid-template-columns:1.5rem 1fr 2.3rem 1.3rem;gap:.3rem;padding:.22rem .3rem;background:rgba(255,255,255,.02);font-size:.6rem;align-items:baseline;margin-bottom:.12rem;border-radius:3px">
               <span style="color:var(--blgray);font-weight:700;font-size:.55rem">${s.player.position}</span>
-              <span onclick="frnOpenPlayerCard('${escName}')" title="View player card" style="font-size:.66rem;color:var(--blwhite);cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.player.name}</span>
+              <span role="button" tabindex="0" onclick="frnOpenPlayerCard('${escName}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(s.player.name)}'s player card" title="${_escHtml(s.player.name)} — view player card" style="font-size:.66rem;color:var(--blwhite);cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.player.name}</span>
               <span style="color:var(--green-lt);font-weight:700;text-align:right;font-size:.6rem">+$${s.netSavings.toFixed(1)}M</span>
               <button onclick="frnFAToggleCut('${sel.replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${escName}',true)" style="background:rgba(255,70,70,.18);border:1px solid var(--ds-grade-neg-strong);color:#ffaaaa;font-size:.52rem;padding:.1rem .25rem;border-radius:3px;cursor:pointer;font-family:inherit;font-weight:700">CUT</button>
               <span style="grid-column:2/4;color:var(--gray);font-size:.5rem;padding-left:0">${dead} · ${s.player.age}yr · OVR ${s.player.overall} · <i style="color:var(--ds-grade-caution)">${s.reason}</i></span>
@@ -7242,7 +7244,7 @@ function renderFrnFANegotiations(selectedName) {
         <div style="display:flex;align-items:center;gap:.3rem">
           <span style="font-size:.58rem;color:var(--gold);font-weight:700;flex-shrink:0">${n.fa.position}</span>
           ${gradeBadge(n.fa)}
-          <span style="font-size:.68rem;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.fa.name}</span>
+          <span title="${_escHtml(n.fa.name)}" style="font-size:.68rem;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.fa.name}</span>
           <span style="font-size:.58rem;font-weight:700;color:${statusColor};flex-shrink:0">${statusLabel}</span>
         </div>
         <div style="font-size:.58rem;color:var(--gray);margin-top:.1rem;padding-left:1.8rem;white-space:normal;line-height:1.3">${destStr}</div>
@@ -7336,7 +7338,7 @@ function renderFrnFANegotiations(selectedName) {
         ${heatBadge}
         <span style="font-size:.58rem;color:var(--gold);font-weight:700;flex-shrink:0">${n.fa.position}</span>
         ${gradeBadge(n.fa)}
-        <span class="frn-fa-name" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.68rem">${n.fa.name}</span>
+        <span class="frn-fa-name" title="${_escHtml(n.fa.name)}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.68rem">${n.fa.name}</span>
         ${statusBadge}
       </div>
       <div style="display:flex;align-items:center;gap:.3rem;margin-top:.06rem;padding-left:1rem">
@@ -8893,7 +8895,7 @@ function renderFrnFACuts() {
         title="Cut would LOSE money on the cap — restructure first">⚠ Costly <span class="cnt">${filterCounts.costly}</span></button>
       <button class="frn-cuts-filter-chip restruct${filterMode==="restructure"?" active":""}" onclick="frnFACutsSetFilter('restructure')"
         title="Restructure-eligible — sorted by biggest cap freed when active">♻ Restructures <span class="cnt">${filterCounts.restructure}</span></button>
-      ${posFilter ? `<span class="frn-cuts-active-filter">${posFilter} only · <a onclick="frnFACutsSetPosFilter(null)">clear</a></span>` : ""}
+      ${posFilter ? `<span class="frn-cuts-active-filter">${posFilter} only · <a role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnFACutsSetPosFilter(null)">clear</a></span>` : ""}
       ${(filterMode || posFilter) ? `<button class="frn-cuts-clear-all" onclick="frnFACutsClearFilters()">✕ Reset filters</button>` : ""}
       ${(() => {
         // Bulk-action button — only shown when a filter is active AND the
@@ -8950,7 +8952,7 @@ function renderFrnFACuts() {
     return `<tr class="${isPending?"pending":""} verdict-${verdict.verdict}">
       <td class="frn-cuts-td-pos">${p.position}</td>
       <td class="frn-cuts-td-name">
-        <span class="frn-cuts-name-link" onclick="frnOpenPlayerCard('${cleanName(p.name)}')" title="${_escHtml(p.name)} — click for full card · ceiling, contract, career history">${_escHtml(p.name)}</span>
+        <span class="frn-cuts-name-link" role="button" tabindex="0" onclick="frnOpenPlayerCard('${cleanName(p.name)}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s player card" title="${_escHtml(p.name)} — click for full card · ceiling, contract, career history">${_escHtml(p.name)}</span>
         ${badges.length ? `<span class="frn-cuts-badges">${badges.map(b => `<span class="frn-cuts-badge" style="color:${b.col};border-color:${b.col}55">${b.tag}</span>`).join("")}</span>` : ""}
       </td>
       <td class="frn-cuts-td-ovr" style="color:${ovrCol}">${ovrStr}</td>
@@ -8976,7 +8978,7 @@ function renderFrnFACuts() {
         </div>
       </td>
     </tr>`;
-  }).join("") : `<tr><td colspan="12" style="text-align:center;padding:1.2rem;color:var(--gray);font-style:italic">No players match the current filters. ${(filterMode || posFilter) ? `<a onclick="frnFACutsClearFilters()" style="color:var(--gold-lt);cursor:pointer;text-decoration:underline">Clear filters →</a>` : ""}</td></tr>`;
+  }).join("") : `<tr><td colspan="12" style="text-align:center;padding:1.2rem;color:var(--gray);font-style:italic">No players match the current filters. ${(filterMode || posFilter) ? `<a role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnFACutsClearFilters()" style="color:var(--gold-lt);cursor:pointer;text-decoration:underline">Clear filters →</a>` : ""}</td></tr>`;
 
   const tableHtml = `
     <div class="frn-cuts-table-wrap">

@@ -13286,7 +13286,213 @@
 .frn-bb-fnkey:focus-visible,
 .ipc-btn:focus-visible,
 #playbackControls .btn:focus-visible {
-  outline: 2px solid var(--blgold, #f5c542);
+  /* LONGHANDS: the old `outline: 2px solid var(--blgold)` shorthand computes
+     outline-width:0 (a var() inside the outline shorthand fails to parse the
+     width), so keyboard focus showed no ring. Longhands evaluate the var. */
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--blgold, #f5c542);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   A11Y HARDENING (additive, CSS-only, behavior-neutral) — appended block.
+   Covers: legacy focus longhands (A2 P1), tiny-text floors (A3), 200%
+   font-scaling wrap relaxations (A3), and the phone responsive breakpoint
+   fixes (A1 D1-D9). All rules are NEW and scoped to avoid regressing the
+   existing layout; no #field / #field-pixi / broadcast-grid / IPC-clock edits.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* ── A2 §1 (legacy focus): same outline-LONGHAND ring on the controls that
+   self-style and slipped the #franchiseHome fallback, plus a global belt-and-
+   suspenders fallback for links/inputs/[tabindex]/[role=button] outside the
+   franchise scope. Longhands (never the var()-in-shorthand) so width computes. */
+.btn-gold-big:focus-visible,
+.frn-cap-btn:focus-visible,
+.frn-ana-tab:focus-visible,
+.frn-pre-cut:focus-visible {
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--blgold, #f5c542);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible {
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--blgold, #f5c542);
+  outline-offset: 2px;
+}
+/* Self-styling franchise controls whose BASE `#franchiseHome .x` rule (id+class)
+   out-specifies a plain `.x:focus-visible` (class+pseudo) — so the outline computed
+   to 0 and the ring never showed. Re-assert the ring scoped under #franchiseHome
+   (id+class+pseudo wins) AND add a box-shadow ring that an `outline:0` can't defeat. */
+#franchiseHome .frn-ana-tab:focus-visible,
+#franchiseHome .frn-pre-cut:focus-visible,
+#franchiseHome .frn-cap-btn:focus-visible,
+#franchiseHome .btn-gold-big:focus-visible,
+#franchiseHome .ds-btn:focus-visible,
+#franchiseHome .frn-subnav-btn:focus-visible,
+#franchiseHome .frn-bb-fnkey:focus-visible {
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--blgold, #f5c542);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--bg2, #111811), 0 0 0 4px var(--blgold, #f5c542);
+}
+/* Depth-chart page-header: the outer header wraps, but its action-GROUP div is a
+   non-wrapping flex row, so the 4th button ran 12px off phone_small. Let the group
+   wrap + slightly shrink its buttons on small phones. */
+@media (max-width: 480px) {
+  .frn-dc-page-header > div { flex-wrap: wrap; min-width: 0; }
+  .frn-dc-page-header .ds-btn { font-size: .72rem; padding: .3rem .55rem; }
+}
+/* Tiny-text floor side effect: a few bumped/ellipsized labels lost text when the
+   larger font no longer fit their box. Let them WRAP instead of clipping (the
+   depth-chart tab + the xray sub-line grow a line rather than truncate). */
+.frn-xray-sub { white-space: normal; overflow: visible; }
+@media (max-width: 640px) {
+  /* Beat the phone ellipsize rule (#franchiseHome specificity) so depth-chart
+     sub-tab labels like "SPECIAL TEAMS" wrap to a second line instead of truncating. */
+  #franchiseHome .frn-dc-tab-title { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.05; }
+}
+/* Mouse/touch activation must not paint the ring (keyboard-only affordance). */
+:focus:not(:focus-visible) { outline: none; }
+
+/* ── A3 TINY-TEXT FLOOR: lift content labels that rendered below ~11px up to
+   ≥.7rem so low-vision users can read them. Decorative kbd hints left as-is. */
+.frn-pulse-chip-label { font-size: .7rem; }
+.frn-pulse-chip-sub   { font-size: .7rem; }
+.frn-dc-rank,
+.frn-dc-meta,
+.frn-dc-badge,
+.frn-dc-badge.pot,
+.frn-dc-slot-name,
+.frn-dc-strip-label,
+.frn-dc-strip-tier,
+.frn-dc-snap-pct { font-size: .7rem; }
+.frn-trade-stance        { font-size: .7rem; }
+.frn-inbox-section-title { font-size: .7rem; }
+.frn-gauntlet-rsub       { font-size: .7rem; }
+.frn-xray-sub            { font-size: .7rem; }
+
+/* ── A3 200% FONT-SCALING: value chips used white-space:nowrap + overflow:hidden
+   which CLIPPED scaled text ("$18.0M" -> "$18…"). Let them wrap instead of clip
+   so the value stays fully legible when the browser font size is bumped. */
+.frn-pulse-chip-value,
+.frn-pulse-chip-sub,
+.frn-pulse-chip-label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+/* Schedule strip group + ticker items: allow wrapping so a scaled
+   "W1 Hawks @ Titans" doesn't push past the viewport edge. (The marquee
+   inner keeps its own nowrap; only the item padding-block flows.) */
+.frn-sched-strip-group { flex-wrap: wrap; }
+.bspnlive-ticker-item  { white-space: normal; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   A1 RESPONSIVE — phone breakpoint (≤640px), with a ≤480px tier where noted.
+   New @media blocks (never rewriting existing rules) to keep regression
+   surface minimal. Targets the documented phone/phone_small defects D1-D9.
+   ════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  /* D3 — .frn-team-banner: collapse the 3-col grid (auto 1fr auto) to one
+     column so the START SEASON CTA stacks full-width below the hero instead
+     of overlapping it. */
+  .frn-team-banner {
+    grid-template-columns: 1fr;
+  }
+
+  /* D1 — .frn-bb-fnstrip: the function-key strip overran the right edge.
+     Scroll it inside itself (nowrap + horizontal scroll) so no key is
+     clipped off-screen, and collapse the keyboard-hint cmd block (decorative,
+     duplicates the visible tab nav). */
+  .frn-bb-fnstrip {
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  .frn-bb-fnkey { flex: 0 0 auto; }
+  .frn-bb-fnkey-cmd { display: none; }
+
+  /* D2 — .bspnlive-mini-table inside .bspn-panel: wrap the wide stat table in
+     horizontal scroll so the page doesn't grow past the viewport. Scoping the
+     scroll to the panel keeps the table's own column widths intact. */
+  .bspn-panel { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .bspnlive-mini-table { min-width: max-content; }
+
+  /* D5 — .frn-pre-roster-table: same horizontal-scroll treatment. The table
+     has many economic columns; let it scroll within its block. */
+  .frn-pre-roster-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* D4 — .frn-dc-tabs: 3-up grid items overran. Give items room to shrink
+     (min-width:0), tighten padding/letter-spacing, and ellipsize the title
+     so each tab fits its column. */
+  .frn-dc-tabs > * { min-width: 0; }
+  .frn-dc-tab {
+    min-width: 0;
+    padding: .42rem .35rem;
+    gap: .25rem;
+  }
+  .frn-dc-tab-title {
+    min-width: 0;
+    letter-spacing: .6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* D6 — .ds-page-header actions: let the action cluster wrap onto a new line
+     on phones instead of forcing the header wider than the viewport. */
+  .ds-page-header { flex-wrap: wrap; }
+  .ds-page-header__actions,
+  .ds-page-header-actions { flex-wrap: wrap; min-width: 0; }
+
+  /* D9 — .frn-dc-name vs the snap column: let the name shrink + ellipsize so
+     it stops overlapping the fixed center snap track. */
+  .frn-dc-player { min-width: 0; }
+  .frn-dc-name {
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .frn-dc-snap-col { flex: 0 0 auto; }
+
+  /* D7 — scout rows: the name cell overlapped the action buttons. Keep the
+     row's [icon | name | actions] grid but let the flexible name column shrink
+     and ellipsize, and pin the action cluster to its content width. */
+  .frn-scout-row { min-width: 0; }
+  .frn-scout-row > * { min-width: 0; }
+  .frn-scout-actions { flex: 0 0 auto; min-width: 0; flex-wrap: wrap; }
+
+  /* Analytics tab strip overlap on narrow phones — allow the pills to wrap
+     rather than overlap each other (observed overlap D-class). */
+  .frn-ana-tabs { flex-wrap: wrap; }
+}
+
+@media (max-width: 480px) {
+  /* Tighter tier for the smallest phones (phone_small 360): the gold CTA and
+     a wide ds-btn nudged ~12-31px past the edge. Cap their width so nothing
+     clips off-screen; full-width reads fine when stacked. */
+  .frn-team-banner .btn-gold-big,
+  .frn-team-banner > * { max-width: 100%; }
+  .btn-gold-big { max-width: 100%; }
 }
