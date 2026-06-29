@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hashmark Heroes — DESIGN.md preview</title>
+<!-- Same include order as play.html so tokens + palette + fonts resolve. -->
+<link rel="stylesheet" href="../fonts/fonts.css">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="ds.css">
+<link rel="stylesheet" href="../play.css">
+<style>
+  body { background: var(--bg); color: var(--white); font-family: var(--font-mono); margin: 0; padding: 28px 32px 60px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  .tag { font-family: var(--font-display); color: var(--gold); font-size: 2.6rem; letter-spacing: 1px; margin: 0;
+         text-shadow: 0 0 4px currentColor, 0 0 16px rgba(240,204,48,.25); }
+  .sub { color: var(--gray); font-size: .82rem; margin: 4px 0 26px; max-width: 720px; line-height: 1.5; }
+  h2 { font-family: var(--font-display); color: var(--ds-primary); font-size: 1.15rem; letter-spacing: .6px;
+       text-transform: uppercase; margin: 30px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--ds-border); }
+  .grid { display: grid; gap: 10px; }
+  .sw { display: grid; grid-template-columns: 46px 1fr; gap: 10px; align-items: center; background: var(--ds-surface);
+        border: 1px solid var(--ds-border); border-radius: var(--ds-radius-md); padding: 8px; }
+  .sw .chip { width: 46px; height: 46px; border-radius: var(--ds-radius-sm); border: 1px solid rgba(255,255,255,.18); }
+  .sw .tok { font-size: .72rem; color: var(--white); } .sw .val { font-size: .66rem; color: var(--gray); }
+  .cols-3 { grid-template-columns: repeat(3, 1fr); } .cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .cols-5 { grid-template-columns: repeat(5, 1fr); } .cols-6 { grid-template-columns: repeat(6, 1fr); }
+  .specimen { background: var(--ds-surface); border: 1px solid var(--ds-border); border-radius: var(--ds-radius-md); padding: 14px 16px; margin-bottom: 8px; }
+  .specimen .lbl { color: var(--gray); font-size: .62rem; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .sec { border: 1px solid var(--ds-border); border-radius: var(--ds-radius-lg); padding: 14px 16px; margin: 0 0 12px; background: var(--ds-surface); }
+  .sec > h3 { font-family: var(--font-display); color: var(--ds-primary); font-size: .9rem; letter-spacing: .5px; margin: 0 0 10px; text-transform: uppercase; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .scale-bar { background: var(--gold); height: 18px; border-radius: 2px; }
+  .radius-box { width: 64px; height: 64px; background: var(--bg3); border: 1px solid var(--border); display:flex; align-items:flex-end; justify-content:center; font-size:.6rem; color:var(--gray); padding-bottom:3px; }
+  .shadow-card { width: 150px; height: 64px; background: var(--bg2); border-radius: var(--ds-radius-lg); display:flex; align-items:center; justify-content:center; font-size:.62rem; color:var(--gray); }
+  .glow { color: var(--blgold); text-shadow: 0 0 4px currentColor, 0 0 12px rgba(245,197,66,.4); font-family: var(--font-num); font-size: 1.6rem; }
+</style>
+</head>
+<body>
+<!-- NOT wrapped in #franchiseHome: that shell intentionally remaps --gold to the live
+     team color (play.css). This catalog shows the canonical BASE tokens (--gold = #c8a900);
+     team-theming is documented in DESIGN.md prose. -->
+<div class="wrap">
+  <h1 class="tag">HASHMARK HEROES</h1>
+  <div class="sub">DESIGN.md preview — broadcast-terminal aesthetic. Near-black canvas, gold + field-green,
+    heavy condensed numerals over IBM Plex Mono data, CRT phosphor glow. Swatches/specimens read the live
+    token values, so this catalog can't drift from <code>tokens.css</code>.</div>
+  <div id="catalog"></div>
+</div>
+
+<script src="ds.js"></script>
+<script>
+  const root = getComputedStyle(document.documentElement);
+  const val = (t) => root.getPropertyValue(t).trim();
+  const out = [];
+
+  // ── Color swatches ─────────────────────────────────────────────────────
+  const swatch = (tok) => `<div class="sw"><div class="chip" style="background:var(${tok})"></div>
+    <div><div class="tok">${tok}</div><div class="val">${val(tok) || "—"}</div></div></div>`;
+  const swGrid = (toks, cols) => `<div class="grid cols-${cols}">${toks.map(swatch).join("")}</div>`;
+
+  out.push(`<h2>Color · core</h2>` + swGrid(
+    ["--bg","--bg2","--bg3","--card","--border","--white","--gray","--gold","--gold-lt","--green","--green-lt","--green-dk","--red"], 4));
+  out.push(`<h2>Color · broadcast</h2>` + swGrid(
+    ["--blgold","--blwhite","--blgray","--blgreen","--blred","--field"], 6));
+  out.push(`<h2>Color · sentiment / grade scale</h2>` + swGrid(
+    ["--ds-grade-pos","--ds-grade-pos-soft","--ds-grade-caution","--ds-grade-caution-soft","--ds-grade-warn",
+     "--ds-grade-neg","--ds-grade-neg-soft","--ds-grade-neg-mid","--ds-grade-neg-strong","--ds-grade-neg-muted",
+     "--ds-accent-blue","--ds-slate","--ds-neutral"], 5));
+
+  // ── Typography ─────────────────────────────────────────────────────────
+  out.push(`<h2>Typography</h2>
+    <div class="specimen"><div class="lbl">--font-display · condensed caps (team names, titles, logo)</div>
+      <div style="font-family:var(--font-display);font-size:2.2rem;letter-spacing:.5px">NEW ALBION KRAKEN · WEEK 7</div></div>
+    <div class="specimen"><div class="lbl">--font-num · heavy condensed numerals (scores, clock, big stats)</div>
+      <div style="font-family:var(--font-num);font-size:2.4rem;font-variant-numeric:tabular-nums">42 – 9 &nbsp; 12:00 &nbsp; 98.4</div></div>
+    <div class="specimen"><div class="lbl">--font-mono · data, labels, rows, chips</div>
+      <div style="font-family:var(--font-mono);font-size:.9rem">PASS YDS 412 · CMP 28/35 · QBR 98.4 · CAP $17.7M</div></div>
+    <div class="specimen"><div class="lbl">--font-prose · narrative / body copy</div>
+      <div style="font-family:var(--font-prose);font-size:.95rem;max-width:640px">Underdog spin — they're better, but anyone can win one game. The Kraken roll into Week 7 riding a three-game streak.</div></div>
+    <div class="specimen"><div class="lbl">caption scale — --bspn-cap / --bspn-lbl / --bspn-txt</div>
+      <div style="font-family:var(--font-mono);font-size:var(--bspn-cap)">.56rem · chips / dense bio</div>
+      <div style="font-family:var(--font-mono);font-size:var(--bspn-lbl)">.64rem · field labels / records / nav</div>
+      <div style="font-family:var(--font-mono);font-size:var(--bspn-txt)">.74rem · list rows / table cells</div></div>`);
+
+  // ── Scales ─────────────────────────────────────────────────────────────
+  const sp = [1,2,3,4,5,6,8];
+  out.push(`<h2>Spacing scale</h2><div class="sec">` +
+    sp.map(n=>`<div class="row" style="margin-bottom:6px"><span class="tok" style="width:140px">--ds-space-${n} (${val("--ds-space-"+n)})</span><div class="scale-bar" style="width:var(--ds-space-${n})"></div></div>`).join("") + `</div>`);
+  const rad = ["xs","sm","md","lg","xl","full"];
+  out.push(`<h2>Radius scale</h2><div class="sec"><div class="row">` +
+    rad.map(r=>`<div class="radius-box" style="border-radius:var(--ds-radius-${r})">${r}</div>`).join("") + `</div></div>`);
+  out.push(`<h2>Elevation / shadow</h2><div class="sec"><div class="row">` +
+    ["sm","md","lg"].map(s=>`<div class="shadow-card" style="box-shadow:var(--ds-shadow-${s})">shadow-${s}</div>`).join("") +
+    `<div class="shadow-card" style="box-shadow:var(--ds-shadow-inset)">inset</div></div>
+     <div class="row" style="margin-top:14px"><span class="glow">PHOSPHOR GLOW 42</span>
+     <span class="tok" style="color:var(--gray)">— bright gold/green accent text bloom (the broadcast signature)</span></div></div>`);
+
+  // ── Components (live DS.* factories) ────────────────────────────────────
+  const S = (t,h)=>`<div class="sec"><h3>${t}</h3>${h}</div>`;
+  out.push(`<h2>Components</h2>`);
+  out.push(S("Buttons", `<div class="row">
+    ${DS.button({label:"Gold CTA",variant:"gold",on:"void 0"})}
+    ${DS.button({label:"Primary",variant:"primary",on:"void 0"})}
+    ${DS.button({label:"Outline",variant:"outline",on:"void 0"})}
+    ${DS.button({label:"Danger",variant:"danger",on:"void 0"})}
+    ${DS.button({label:"Small",variant:"outline",size:"sm",on:"void 0"})}
+    ${DS.button({label:"Disabled",variant:"gold",disabled:true})}
+    ${DS.button({label:"Icon",variant:"outline",icon:"⚡",on:"void 0"})}</div>`));
+  out.push(S("Chips", `<div class="row">${DS.chip({label:"Default"})} ${DS.chip({label:"Active",active:true})}
+    ${DS.chip({label:"Gold",variant:"gold"})} ${DS.chip({label:"AFC",variant:"afc"})} ${DS.chip({label:"NFC",variant:"nfc"})}</div>`));
+  out.push(S("Cards", `<div class="grid cols-3">
+    ${DS.card({eyebrow:"WEEK 7",title:"Matchup",body:"Kraken vs Titans — Sun 1:00",onClose:"void 0"})}
+    ${DS.card({eyebrow:"ROSTER",title:"Cap Space",body:"$17.7M available"})}
+    ${DS.card({hero:true,eyebrow:"NEXT GAME",title:"at Fury",body:"Win prob 62%"})}</div>`));
+  out.push(S("Stat tiles", `<div class="grid cols-4">
+    ${DS.statTile({label:"PASS YDS",value:412})} ${DS.statTile({label:"RUSH YDS",value:138})}
+    ${DS.statTile({label:"QBR",value:"98.4",elite:true})} ${DS.statTile({label:"TO",value:0})}</div>`));
+  out.push(S("Banners", `${DS.banner({icon:"🔥",title:"Active streaks",body:"3-game win streak · 2 players hot"})}
+    ${DS.banner({variant:"success",icon:"✓",title:"Re-signed",body:"Extension finalized."})}
+    ${DS.banner({variant:"danger",icon:"⚠",title:"Over the cap",body:"Trim $2.1M before the deadline."})}`));
+  out.push(S("Tab bar", DS.tabBar({tabs:[{id:"off",label:"OFFENSE"},{id:"def",label:"DEFENSE"},{id:"st",label:"SPECIAL TEAMS"}],activeId:"off",on:"void"})));
+  out.push(S("Progress", `<div style="display:flex;flex-direction:column;gap:8px;max-width:520px">
+    ${DS.progress({pct:72,label:"Scheme fit 72%"})} ${DS.progress({pct:45,label:"Stamina 45%"})} ${DS.progress({pct:90,label:"Win probability 90%"})}</div>`));
+  out.push(S("Toggle / Toolbar / Select", `<div class="row">${DS.toggle({label:"Show pregame breakdown",expanded:false,on:"void 0"})}
+    ${DS.toggle({label:"Hide details",expanded:true,on:"void 0"})}</div>
+    <div style="margin-top:10px">${DS.toolbar({links:[{label:"LEAGUE",on:"void 0"},{label:"STANDINGS",on:"void 0"},{label:"STATS",on:"void 0"},{label:"REPLAYS",on:"void 0"}]})}</div>
+    <div style="margin-top:10px;max-width:240px">${DS.select({id:"g-sel",value:"100",options:[{value:"10",label:"10×"},{value:"100",label:"100×"},{value:"500",label:"500×"}]})}</div>`));
+  out.push(S("Table", DS.table({head:["RK","PLAYER","YDS","TD"],rows:[
+    DS.row({cells:["1","N. Keller","412","3"],mine:true}), DS.row({cells:["2","J. Kona","388","2"]}), DS.row({cells:["3","D. Love","351","2"]})]})));
+  out.push(S("Modal", `<div class="row">${DS.button({label:"Open modal",variant:"gold",on:"DS.modal({title:'Delete franchise?',body:'This cannot be undone.',danger:true,okLabel:'Delete'})"})}
+    <span style="color:var(--gray);font-size:.72rem">Promise · backdrop/Esc = cancel · Enter = confirm · focus-trapped</span></div>`));
+
+  document.getElementById("catalog").innerHTML = out.join("");
+</script>
+</body>
+</html>
