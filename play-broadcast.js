@@ -635,6 +635,51 @@ function toBSPNLiveGameState(gr, head) {
   };
 }
 
+// ─── Screen-reader live region (a11y) ───────────────────────────────────────
+// The scoreboard/clock are painted to the canvas + DOM and re-rendered every
+// refresh, so assistive tech gets nothing (or, if made live, would chatter the
+// clock every tick). Mirror only the MEANINGFUL changes — a score increase, a
+// quarter advance, and the final — into a polite, deduped sr-only live region.
+// Additive + DOM-guarded (no-ops under Node / during the audit gate) and never
+// touches sim/canvas/positions → determinism-neutral.
+let _bspnA11yLast = null;
+function _bspnA11yAnnounce(state) {
+  if (typeof document === "undefined" || !state) return;
+  let region = document.getElementById("a11yGameStatus");
+  if (!region) {
+    region = document.createElement("div");
+    region.id = "a11yGameStatus";
+    region.className = "sr-only";
+    region.setAttribute("role", "status");
+    region.setAttribute("aria-live", "polite");
+    region.setAttribute("aria-atomic", "true");
+    document.body.appendChild(region);
+  }
+  const homeName = (state.homeTeam && (state.homeTeam.name || state.homeTeam.abbr)) || "Home";
+  const awayName = (state.awayTeam && (state.awayTeam.name || state.awayTeam.abbr)) || "Away";
+  const h = (state.score && state.score.home) || 0;
+  const a = (state.score && state.score.away) || 0;
+  const q = state.quarter || "";
+  const clock = state.clock || "";
+  const ended = !!state.ended;
+  const gameId = state.gameId || "";
+  const prev = _bspnA11yLast;
+  // New game (or first sight): set a silent baseline — don't announce the opening 0–0.
+  if (!prev || prev.gameId !== gameId) { _bspnA11yLast = { gameId, h, a, q, ended }; return; }
+  let msg = "";
+  if (ended && !prev.ended) {
+    const w = state.winner === "home" ? homeName : state.winner === "away" ? awayName : null;
+    msg = w ? `Final. ${w} win, ${h} to ${a}.` : `Final. ${homeName} ${h}, ${awayName} ${a}.`;
+  } else if (h > prev.h || a > prev.a) {           // score INCREASE only (silent on scrub-back)
+    const scorer = h > prev.h ? homeName : awayName;
+    msg = `${scorer} score. ${homeName} ${h}, ${awayName} ${a}${q ? `, ${q}` : ""}${clock ? ` ${clock}` : ""}.`;
+  } else if (q && q !== prev.q) {                  // quarter / period change
+    msg = `${q}.`;
+  }
+  _bspnA11yLast = { gameId, h, a, q, ended };
+  if (msg && msg !== region.textContent) region.textContent = msg;
+}
+
 // ─── Components ─────────────────────────────────────────────────────────────
 // Each component:
 //   • render(props)  → HTML string. Pure, no DOM access.
@@ -1636,6 +1681,7 @@ const BSPNGameScreen = {
   },
   update(state) {
     if (!document.querySelector(".bspnlive-root")) return;
+    _bspnA11yAnnounce(state);   // mirror score/quarter changes to the sr-only live region
     BSPNScoreboard.update(state);
     MomentumBar.update(state);
     FieldHUD.update(state);

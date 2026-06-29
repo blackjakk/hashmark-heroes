@@ -66,4 +66,9 @@ node tools/_ds_e2e.js             # dashboard click-through, 0 page errors
 ## 5. Verdict
 Emit a checklist: for each of (responsive, keyboard+focus, contrast+scaling, semantics, DS discipline,
 determinism) → PASS or FAIL with the specific failing selector/path/viewport and the fix. List any
-out-of-scope RISKS left (e.g. live-game scoreboard/clock live regions in play-broadcast.js).
+out-of-scope RISKS left.
+
+NOTE: the live game's score/quarter ARE now announced to screen readers via a deduped sr-only
+live region (`#a11yGameStatus`, `_bspnA11yAnnounce` in play-broadcast.js — score increases +
+quarter advances + final only; the per-second clock is intentionally NOT auto-announced to avoid
+chatter). When touching the broadcast scoreboard, keep that hook intact and determinism-neutral.
