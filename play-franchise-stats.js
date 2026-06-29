@@ -2483,7 +2483,7 @@ function renderFrnPracticeReport(idx) {
        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.3rem">
          ${tendencies.map(t => `<div style="background:var(--bg2);border:1px solid var(--border);padding:.32rem .5rem">
            <div style="font-size:.52rem;letter-spacing:.6px;color:var(--blgray);font-weight:700">${t.label.toUpperCase()}</div>
-           <div style="font-size:.86rem;font-weight:900;color:var(--gold-lt);font-family:'IBM Plex Mono','JetBrains Mono',monospace">${t.value}</div>
+           <div style="font-size:.86rem;font-weight:900;color:var(--gold-lt);font-family:var(--font-data)">${t.value}</div>
            ${t.note ? `<div style="font-size:.55rem;color:var(--gray);font-style:italic">${t.note}</div>` : ""}
          </div>`).join("")}
        </div>` : "";
@@ -2542,7 +2542,7 @@ function renderFrnPracticeReport(idx) {
     <div style="display:grid;grid-template-columns:auto 1fr;gap:.6rem;align-items:start;margin-bottom:.6rem">
       <div style="background:var(--bg2);border:1px solid var(--border);padding:.55rem .8rem;text-align:center">
         <div style="font-size:.5rem;letter-spacing:.7px;color:var(--gray)">FINAL</div>
-        <div style="font-size:1.6rem;font-weight:900;font-family:'IBM Plex Mono','JetBrains Mono',monospace">
+        <div style="font-size:1.6rem;font-weight:900;font-family:var(--font-data)">
           <span style="color:${myTeam?.primary||"var(--gold)"}">${report.homeScore}</span>
           <span style="color:var(--gray);margin:0 .35rem">—</span>
           <span style="color:${oppTeam?.primary||"var(--blwhite)"}">${report.awayScore}</span>
@@ -12936,7 +12936,7 @@ function _renderLeagueCoachesTab(myId) {
       <td style="padding:.25rem .45rem;font-size:.7rem;color:var(--blwhite)">${hc?.name || "<i style='color:var(--gray)'>vacant</i>"}</td>
       <td style="padding:.25rem .45rem;text-align:center">${ratingChip(hc?.rating)}</td>
       <td style="padding:.25rem .45rem;text-align:center;font-size:.62rem;color:var(--gray)">${hc?.yearsWithTeam||0}yr</td>
-      <td style="padding:.25rem .45rem;text-align:right;font-family:'IBM Plex Mono','JetBrains Mono',monospace;font-size:.66rem">${rec}</td>
+      <td style="padding:.25rem .45rem;text-align:right;font-family:var(--font-data);font-size:.66rem">${rec}</td>
       <td style="padding:.25rem .45rem;text-align:right;font-size:.6rem;color:var(--gray)">${pctStr}</td>
       <td style="padding:.25rem .45rem">${hc ? `<span style="font-size:.58rem;color:var(--gray)">${hc.cultureTrait||"—"} / ${hc.specialtyTrait||"—"}</span>` : ""}</td>
       <td style="padding:.25rem .45rem;text-align:right">${hotChip(hotSeat)}</td>
@@ -13127,11 +13127,11 @@ function _renderPlayerDevelopmentPanel(myId, staff) {
       <span style="flex:1;min-width:0;font-weight:700;color:var(--blwhite);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_escHtml(p.name)}">${_escHtml(p.name)}</span>
       <span style="color:var(--gray);font-size:.58rem;width:5rem;text-align:right">age ${p.age||"?"} · OVR ${p.overall||"?"}</span>
       <div style="width:120px;display:flex;align-items:center;gap:.35rem">
-        <span style="font-family:'IBM Plex Mono','JetBrains Mono',monospace;font-size:.62rem;color:var(--blgray)">${awr}</span>
+        <span style="font-family:var(--font-data);font-size:.62rem;color:var(--blgray)">${awr}</span>
         <div style="flex:1;height:5px;background:rgba(255,255,255,.08);border:1px solid var(--border)">
           <div style="height:100%;width:${pct}%;background:var(--gold-lt)"></div>
         </div>
-        <span style="font-family:'IBM Plex Mono','JetBrains Mono',monospace;font-size:.62rem;color:var(--gold)">${ceil}</span>
+        <span style="font-family:var(--font-data);font-size:.62rem;color:var(--gold)">${ceil}</span>
       </div>
       <span style="color:var(--blgray);font-size:.56rem;width:10rem;text-align:right">${coachNote}</span>
     </div>`;

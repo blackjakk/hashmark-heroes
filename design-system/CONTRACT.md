@@ -38,7 +38,7 @@ Semantic colors (alias existing — do NOT redefine the raw palette):
           --ds-border:var(--border); --ds-text:var(--white); --ds-text-muted:var(--gray);
           --ds-primary:var(--gold); --ds-primary-strong:var(--gold-lt); --ds-on-primary:var(--bg1);
           --ds-success:var(--green-lt); --ds-danger:var(--red); --ds-info:var(--blgold);
-Type (already exist — DS references directly): --font-display, --font-num, --font-mono,
+Type (already exist — DS references directly): --font-display, --font-num, --font-data,
           --font-prose; caption scale --bspn-cap (.56rem), --bspn-lbl (.64rem), --bspn-txt (.74rem).
 
 Also (C1): a SAFE, computed-identical tokenization pass in play.css — replace hardcoded

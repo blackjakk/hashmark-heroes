@@ -193,7 +193,7 @@ enforces it (a build gate). This is a DOM-only layer; it must stay determinism-n
   font stacks: `--font-display` (Bebas Neue/Anton condensed caps — team names,
   section titles, logo), `--font-num` (Anton/Teko heavy condensed — scores,
   clock, big numerals; ONE stack — the clock used to fall back to Impact and
-  read different from the scores), `--font-mono` (IBM Plex Mono — all data,
+  read different from the scores), `--font-data` (Bricolage Grotesque proportional — all data,
   labels, chips, list rows). Body copy/prose stays `--font-prose` (Bricolage).
 - bspnlive caption scale (also `:root`): `--bspn-cap` .56rem (chips, dense bio
   text), `--bspn-lbl` .64rem (field labels, records, meta, nav), `--bspn-txt`

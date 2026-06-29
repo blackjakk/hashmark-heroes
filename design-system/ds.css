@@ -29,7 +29,7 @@
   font-size: .9rem;
   /* Buttons don't inherit font-family — without this they render the UA
      default. Data/label face matches the page chrome. */
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   transition: all .15s var(--ds-ease);
   display: inline-flex;
   align-items: center;
@@ -176,7 +176,7 @@
   background: var(--ds-surface-2);
   border: 1px solid var(--ds-border);
   color: var(--ds-text-muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: .72rem;
   font-weight: 700;
   text-align: center;
@@ -351,7 +351,7 @@
   border: 1px solid var(--ds-border);
   border-radius: var(--ds-radius-md);
   padding: var(--ds-space-2) .55rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: .65rem;
   cursor: pointer;
   transition: background var(--ds-dur-normal), border-color var(--ds-dur-normal);
@@ -377,7 +377,7 @@
   background: transparent;
   border: none;
   color: var(--ds-text-muted);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-size: var(--bspn-lbl);
   letter-spacing: .3px;
   cursor: pointer;
@@ -403,7 +403,7 @@
   border-radius: var(--ds-radius-md);
   width: 100%;
   font-size: .95rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
 }
 .ds-select select:focus,
 .ds-select > select:focus { outline: none; border-color: var(--ds-success); }
@@ -480,7 +480,7 @@
   color: var(--ds-on-primary);
   padding: .55rem .9rem;
   border-radius: var(--ds-radius-md);
-  font-family: var(--font-mono);
+  font-family: var(--font-data);
   font-weight: 700;
   text-decoration: none;
   z-index: var(--ds-z-top);

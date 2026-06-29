@@ -1,7 +1,7 @@
 # Hashmark Heroes — DESIGN.md
 
 > **Football-franchise sim. A broadcast-terminal aesthetic:** near-black canvas, gold + field-green,
-> heavy condensed numerals over IBM Plex Mono data, ESPN-broadcast chrome, and a faint CRT phosphor
+> heavy condensed numerals over a clean proportional data face, ESPN-broadcast chrome, and a faint CRT phosphor
 > glow. Think *Bloomberg terminal × ESPN broadcast × retro CRT*. Drop this into a project and a coding
 > agent can generate a matching UI.
 
@@ -73,7 +73,7 @@ Four roles. Never inline a font stack — use the role token.
 | --- | --- | --- |
 | `--font-display` | `"Bebas Neue","Anton","Arial Black",sans-serif` | Condensed caps — team names, section titles, logo |
 | `--font-num` | `"Anton","Teko","Oswald","Arial Black",sans-serif` | Heavy condensed numerals — **scores, clock, big stats** |
-| `--font-mono` | `"IBM Plex Mono", ui-monospace, monospace` | All data — labels, chips, table rows, meta |
+| `--font-data` | `'Bricolage Grotesque', system-ui, sans-serif` | All data — labels, chips, table rows, meta |
 | `--font-prose` | `"Bricolage Grotesque","Inter",system-ui,sans-serif` | Narrative / body copy |
 
 **Broadcast caption scale (pick one of three, don't invent sizes):**
@@ -133,7 +133,7 @@ ring (outline longhands + box-shadow).
   Enter = confirm; **focus-trapped + restores focus**; backdrop `--ds-z-modal`.
 - **`DS.banner({title, body, icon, variant})`** — left accent border; `--danger/--success/--gold`.
 - **`DS.statTile({label, value, elite})`** — small KPI; numerals in `--font-num`; `--elite` highlights.
-- **`DS.table({head, rows})` / `DS.row({cells, mine})`** — dense mono table; `--mine` = your-team row.
+- **`DS.table({head, rows})` / `DS.row({cells, mine})`** — dense data table; `--mine` = your-team row.
 - **`DS.progress({pct, color, label})`** · **`DS.toggle({expanded, label, on})`** ·
   **`DS.toolbar({links})`** (dot-separated nav) · **`DS.select({options, value, on})`**.
 
@@ -174,7 +174,7 @@ When generating UI for this product:
 
 - **Default to dark.** Page `--bg #0a0f0a`; surfaces `--bg2`/`--bg3`; text `--white`/`--gray`.
 - **One gold CTA per view** (`DS.button --gold`); everything else is `--outline`. Green = positive/"play".
-- **Numerals in `--font-num`, data/labels in `--font-mono`, titles/team names in `--font-display`,
+- **Numerals in `--font-num`, data/labels in `--font-data`, titles/team names in `--font-display`,
   prose in `--font-prose`.** Never inline a font stack or a raw hex — use a token.
 - **Color = meaning:** green good / amber caution / red bad (`--ds-grade-*`); team identity via `--team*`.
 - **Compose from `DS.*`**, not hand-rolled markup. Keep it dense: small radii, `--bspn-*` caption sizes,

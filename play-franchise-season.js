@@ -175,7 +175,7 @@ function _frnRenderError(err, phase) {
       </div>
       <details style="margin-top:1.1rem;text-align:left;font-size:.65rem;color:var(--gray)">
         <summary style="cursor:pointer;color:var(--gold)">Technical details</summary>
-        <div style="margin-top:.4rem;font-family:'IBM Plex Mono',ui-monospace,monospace;white-space:pre-wrap;word-break:break-word">phase: ${phase || "?"}
+        <div style="margin-top:.4rem;font-family:var(--font-data);white-space:pre-wrap;word-break:break-word">phase: ${phase || "?"}
 ${safeMsg}</div>
       </details>
       <div style="margin-top:1rem;font-size:.6rem;color:var(--gray)">
@@ -2095,7 +2095,7 @@ function _buildCareerCard(p) {
           <div style="font-size:.57rem;color:var(--gray);letter-spacing:.4px">COLLEGE${school ? ` · ${school.toUpperCase()}` : ""}</div>
           ${level ? `<div style="font-size:.54rem;color:var(--ds-grade-caution);letter-spacing:.4px;font-weight:700">${level}</div>` : ""}
         </div>
-        ${(career.length || collLine) ? `<table style="width:100%;border-collapse:collapse;font-family:'IBM Plex Mono','JetBrains Mono',monospace">${careerRows}${seniorRow}</table>` : ""}
+        ${(career.length || collLine) ? `<table style="width:100%;border-collapse:collapse;font-family:var(--font-data)">${careerRows}${seniorRow}</table>` : ""}
         ${collKnock ? `<div style="font-size:.6rem;color:var(--ds-grade-caution);margin-top:.3rem">⚠ ${collKnock}</div>` : ""}
       </div>` : "";
     return `<div class="frn-career-card">
@@ -3679,9 +3679,9 @@ function _buildVitalsBodyDiagram(p) {
   // ── Chrome: chips, defs, grid ─────────────────────────────────────
   const positionChip = `<g>
     <rect x="8" y="8" rx="3" ry="3" width="40" height="16" fill="rgba(140,200,160,.10)" stroke="rgba(140,200,160,.22)" stroke-width=".5"/>
-    <text x="28" y="20" fill="rgba(220,240,225,.85)" font-size="9.5" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle" letter-spacing="1" font-weight="700">${p.position || "?"}</text>
+    <text x="28" y="20" fill="rgba(220,240,225,.85)" font-size="9.5" font-family="'Bricolage Grotesque',system-ui,sans-serif" text-anchor="middle" letter-spacing="1" font-weight="700">${p.position || "?"}</text>
   </g>`;
-  const hwChip = `<text x="232" y="20" fill="rgba(220,240,225,.5)" font-size="8.5" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="end" letter-spacing="1">${Math.floor(cmbHW.h/12)}'${cmbHW.h%12}" · ${cmbHW.w} lb</text>`;
+  const hwChip = `<text x="232" y="20" fill="rgba(220,240,225,.5)" font-size="8.5" font-family="'Bricolage Grotesque',system-ui,sans-serif" text-anchor="end" letter-spacing="1">${Math.floor(cmbHW.h/12)}'${cmbHW.h%12}" · ${cmbHW.w} lb</text>`;
   const bgDefs = `
     <defs>
       <linearGradient id="vit-bg-${uid}" x1="0" y1="0" x2="0" y2="1">
@@ -3744,7 +3744,7 @@ function _buildVitalsBodyDiagram(p) {
       const fill = n >= 4 ? "#e6373a" : n >= 3 ? "#ed6a3a" : "#f0a93a";
       return `<g>
         <circle cx="${x}" cy="${y}" r="6" fill="${fill}" stroke="rgba(0,0,0,.6)" stroke-width="0.8"/>
-        <text x="${x}" y="${y + 2.5}" fill="#fff" font-size="8" font-weight="800" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle">${n}</text>
+        <text x="${x}" y="${y + 2.5}" fill="#fff" font-size="8" font-weight="800" font-family="'Bricolage Grotesque',system-ui,sans-serif" text-anchor="middle">${n}</text>
       </g>`;
     }).join("");
 
@@ -3778,8 +3778,8 @@ function _buildVitalsBodyDiagram(p) {
         <polyline points="${edgeX},${c.ay} ${elbowX},${ly}" fill="none" stroke="${color}" stroke-width=".8" opacity=".55"/>
         <circle cx="${edgeX}" cy="${c.ay}" r="1.7" fill="${color}"/>
         <rect x="${chipX}" y="${ly - 9}" width="${chipW}" height="21" rx="3" fill="rgba(8,12,9,.78)" stroke="${color}" stroke-opacity=".35" stroke-width=".6"/>
-        <text x="${textX}" y="${ly - 1}" fill="${color}" font-size="8" font-weight="700" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="${side === "left" ? "start" : "end"}" letter-spacing=".4">${name}</text>
-        <text x="${textX}" y="${ly + 8.5}" fill="rgba(235,245,238,.62)" font-size="8" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="${side === "left" ? "start" : "end"}">${sub}</text>
+        <text x="${textX}" y="${ly - 1}" fill="${color}" font-size="8" font-weight="700" font-family="'Bricolage Grotesque',system-ui,sans-serif" text-anchor="${side === "left" ? "start" : "end"}" letter-spacing=".4">${name}</text>
+        <text x="${textX}" y="${ly + 8.5}" fill="rgba(235,245,238,.62)" font-size="8" font-family="'Bricolage Grotesque',system-ui,sans-serif" text-anchor="${side === "left" ? "start" : "end"}">${sub}</text>
       </g>`);
     }
   }
@@ -3800,7 +3800,7 @@ function _buildVitalsBodyDiagram(p) {
       <line x1="${ax + 6}" y1="${ay}" x2="${ax + 15}" y2="${ay}" stroke="#ff5b5b" stroke-width="1"/>
       <line x1="${ax}" y1="${ay - 15}" x2="${ax}" y2="${ay - 6}" stroke="#ff5b5b" stroke-width="1"/>
       <line x1="${ax}" y1="${ay + 6}" x2="${ax}" y2="${ay + 15}" stroke="#ff5b5b" stroke-width="1"/>
-      <text x="120" y="36" fill="#ff8585" font-size="9" font-weight="800" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle" letter-spacing="1">⚠ ${lbl} · ${wk}</text>
+      <text x="120" y="36" fill="#ff8585" font-size="9" font-weight="800" font-family="'Bricolage Grotesque',system-ui,sans-serif" text-anchor="middle" letter-spacing="1">⚠ ${lbl} · ${wk}</text>
     </g>`;
   }
 
@@ -3808,12 +3808,12 @@ function _buildVitalsBodyDiagram(p) {
   const totalCareerInjuries = Object.values(careerCounts).reduce((sum, n) => sum + n, 0);
   const mostInjured = Object.entries(careerCounts).sort((a, b) => b[1] - a[1])[0];
   const careerSummary = totalCareerInjuries > 0
-    ? `<text x="120" y="490" fill="rgba(220,240,225,.5)" font-size="8" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="middle" letter-spacing=".6">${totalCareerInjuries} career injur${totalCareerInjuries===1?"y":"ies"}${mostInjured ? ` · most-hit: ${_VITALS_PART_NAMES?.[mostInjured[0]] || mostInjured[0]} (${mostInjured[1]})` : ""}</text>`
+    ? `<text x="120" y="490" fill="rgba(220,240,225,.5)" font-size="8" font-family="'Bricolage Grotesque',system-ui,sans-serif" text-anchor="middle" letter-spacing=".6">${totalCareerInjuries} career injur${totalCareerInjuries===1?"y":"ies"}${mostInjured ? ` · most-hit: ${_VITALS_PART_NAMES?.[mostInjured[0]] || mostInjured[0]} (${mostInjured[1]})` : ""}</text>`
     : "";
   const footer = `
-    <text x="14" y="505" fill="rgba(220,240,225,.45)" font-size="8" font-family="'IBM Plex Mono',ui-monospace,monospace" letter-spacing="1">LOAD</text>
+    <text x="14" y="505" fill="rgba(220,240,225,.45)" font-size="8" font-family="'Bricolage Grotesque',system-ui,sans-serif" letter-spacing="1">LOAD</text>
     <rect x="44" y="499" width="58" height="5" rx="2.5" fill="url(#vit-legend-${uid})"/>
-    <text x="226" y="505" fill="rgba(220,240,225,.7)" font-size="8.5" font-weight="700" font-family="'IBM Plex Mono',ui-monospace,monospace" text-anchor="end" letter-spacing=".8">WEAR ${wear.toFixed(0)} · STRESS ${stress.toFixed(0)}</text>`;
+    <text x="226" y="505" fill="rgba(220,240,225,.7)" font-size="8.5" font-weight="700" font-family="'Bricolage Grotesque',system-ui,sans-serif" text-anchor="end" letter-spacing=".8">WEAR ${wear.toFixed(0)} · STRESS ${stress.toFixed(0)}</text>`;
   return `<svg viewBox="0 0 240 520" width="240" height="520" xmlns="http://www.w3.org/2000/svg"
     style="border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.45), inset 0 0 0 1px rgba(150,195,170,.12)">
     ${bgDefs}

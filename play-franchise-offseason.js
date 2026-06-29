@@ -6229,10 +6229,10 @@ function _renderPlayoffGameRecap() {
           const lScore = mm.winnerId === mm.homeId ? mm.awayScore : mm.homeScore;
           return `<div class="frn-prg-around-row">
             <span style="color:${_teamInk(winT?.primary||"#888")};font-weight:800">${winT?.abbr || winT?.name?.slice(0,3).toUpperCase()}</span>
-            <span style="font-family:'IBM Plex Mono','JetBrains Mono',monospace;color:var(--blwhite);font-weight:700">${wScore}</span>
+            <span style="font-family:var(--font-data);color:var(--blwhite);font-weight:700">${wScore}</span>
             <span style="color:var(--blgray)">def.</span>
             <span style="color:${_teamInk(losT?.primary||"#888")};font-weight:600;opacity:.75">${losT?.abbr || losT?.name?.slice(0,3).toUpperCase()}</span>
-            <span style="font-family:'IBM Plex Mono','JetBrains Mono',monospace;color:var(--blgray);text-decoration:line-through">${lScore}</span>
+            <span style="font-family:var(--font-data);color:var(--blgray);text-decoration:line-through">${lScore}</span>
           </div>`;
         }).join("")}
       </div>
@@ -9141,7 +9141,7 @@ function _frnFlashToast(message, kind) {
   if (!el) {
     el = document.createElement("div");
     el.id = "frn-flash-toast";
-    el.style.cssText = `position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-10px);z-index:10000;padding:.7rem 1.2rem;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:.85rem;font-weight:700;letter-spacing:.5px;box-shadow:0 8px 24px rgba(0,0,0,0.4);opacity:0;transition:opacity 0.2s ease-out, transform 0.2s ease-out;pointer-events:none;max-width:520px;text-align:center`;
+    el.style.cssText = `position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-10px);z-index:10000;padding:.7rem 1.2rem;border-radius:4px;font-family:var(--font-data);font-size:.85rem;font-weight:700;letter-spacing:.5px;box-shadow:0 8px 24px rgba(0,0,0,0.4);opacity:0;transition:opacity 0.2s ease-out, transform 0.2s ease-out;pointer-events:none;max-width:520px;text-align:center`;
     document.body.appendChild(el);
   }
   // a11y: announce the toast to assistive tech. Errors are assertive (role=alert),
@@ -14014,7 +14014,7 @@ function frnDevReportTab(id) {
 const _CHART_W = 360;
 const _CHART_H = 240;
 const _CHART_TITLE = "#a98a2e";  // gold-dim chrome
-const _CHART_STYLE = `width:100%;height:auto;max-width:560px;background:rgba(255,255,255,.02);border-radius:4px;font-family:'IBM Plex Mono',monospace`;
+const _CHART_STYLE = `width:100%;height:auto;max-width:560px;background:rgba(255,255,255,.02);border-radius:4px;font-family:var(--font-data)`;
 
 // Ensure a roster avg-OVR snapshot exists for the season just
 // completed. Idempotent: only pushes if no entry yet for the current
@@ -14062,7 +14062,7 @@ function _devChartPosTipEl() {
   if (el) return el;
   el = document.createElement("div");
   el.id = "frn-dev-pos-tooltip";
-  el.style.cssText = `position:fixed;z-index:9999;background:#0a1410;border:1px solid #a98a2e;border-radius:3px;padding:.5rem .65rem;box-shadow:0 4px 18px rgba(0,0,0,0.55);font-family:'IBM Plex Mono',monospace;font-size:11px;opacity:0;transition:opacity 0.14s ease-out;pointer-events:none;min-width:220px;max-width:320px;color:#cce8d6;left:0;top:0;transform:translate(-50%,-100%) translateY(-8px)`;
+  el.style.cssText = `position:fixed;z-index:9999;background:#0a1410;border:1px solid #a98a2e;border-radius:3px;padding:.5rem .65rem;box-shadow:0 4px 18px rgba(0,0,0,0.55);font-family:var(--font-data);font-size:11px;opacity:0;transition:opacity 0.14s ease-out;pointer-events:none;min-width:220px;max-width:320px;color:#cce8d6;left:0;top:0;transform:translate(-50%,-100%) translateY(-8px)`;
   document.body.appendChild(el);
   return el;
 }

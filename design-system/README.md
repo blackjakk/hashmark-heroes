@@ -155,7 +155,7 @@ need a literal hex (CSS `var()` doesn't resolve there).
 | --- | --- |
 | `--font-display` | Bebas Neue / Anton condensed caps — team names, section titles, logo |
 | `--font-num` | Anton / Teko heavy condensed numerals — scores, clock, big stats (one stack) |
-| `--font-mono` | IBM Plex Mono — all data, labels, chips, list rows |
+| `--font-data` | Bricolage Grotesque (proportional) — all data, labels, chips, list rows |
 | `--font-prose` | Bricolage — body copy / prose |
 
 ### Caption scale (bspnlive)
