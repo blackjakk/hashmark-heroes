@@ -978,6 +978,10 @@ function frnReleasePlayerConfirm() {
     }
   }
   _releasePending = null;
+  // Success feedback — the cut was silent before (just a re-render); confirm it landed.
+  if (typeof _frnFlashToast === "function") {
+    _frnFlashToast(`✓ Released ${name}${deadTotal > 0 ? ` · $${deadTotal.toFixed(1)}M dead cap` : ""}`, "success");
+  }
   saveFranchise();
   renderFrnPreseason("roster");
 }

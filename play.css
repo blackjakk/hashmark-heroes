@@ -6287,7 +6287,10 @@
   }
 
   .frn-scout-list { display: flex; flex-direction: column; gap: .3rem; }
-  .frn-scout-row {
+  /* SCOPED to the scout CARD list. `.frn-scout-row` is ALSO used on real table
+     <tr>s (preseason roster, scout table) where `display:grid` destroyed the
+     table layout — keep the grid-card styling only inside `.frn-scout-list`. */
+  .frn-scout-list .frn-scout-row {
     display: grid; grid-template-columns: 44px 1fr auto; gap: .45rem;
     padding: .45rem .55rem; background: var(--bg3); border-radius: 3px;
     border: 1px solid var(--border); align-items: center;

@@ -4213,6 +4213,10 @@ function frnSignStreetFA(name) {
       label: `✍ Signed ${p.position} ${p.name} off the street — 1yr / $${price.toFixed(1)}M (Week ${franchise.week})` });
   }
   saveFranchise();
+  // Success feedback — signing was acknowledged only by a news-ticker line before.
+  if (typeof _frnFlashToast === "function") {
+    _frnFlashToast(`✓ Signed ${p.position} ${p.name} · 1yr / $${price.toFixed(1)}M`, "success");
+  }
   const modal = document.getElementById("frn-streetfa-modal");
   frnOpenStreetFA(modal?._posFilter || undefined);
 }
