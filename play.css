@@ -13367,6 +13367,20 @@ textarea:focus-visible,
 /* Mouse/touch activation must not paint the ring (keyboard-only affordance). */
 :focus:not(:focus-visible) { outline: none; }
 
+/* Tabular figures for the proportional --font-data face: keep numeric COLUMNS
+   aligned in the dense data/stat/box-score tables (digits get uniform width;
+   letters stay proportional). Scoped to <table> in the franchise + broadcast
+   shells, plus the common non-table numeric value classes. */
+#franchiseHome table,
+.bspnlive-root table,
+.bspn-root table,
+.frn-pulse-chip-value,
+.frn-dc-snap-pct,
+.ovr-pill {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
 /* ── A3 TINY-TEXT FLOOR: lift content labels that rendered below ~11px up to
    ≥.7rem so low-vision users can read them. Decorative kbd hints left as-is. */
 .frn-pulse-chip-label { font-size: .7rem; }

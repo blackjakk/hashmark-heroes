@@ -499,3 +499,14 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* §4 Tabular figures — --font-data is proportional, so enable uniform-width
+   (tabular) digits on data tables + stat values; numeric COLUMNS line up while
+   letters stay proportional. No-op if the loaded face lacks tnum. */
+.ds-table,
+.ds-stat__value,
+.ds-row,
+.ds-progress__label {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
