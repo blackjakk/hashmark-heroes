@@ -1818,7 +1818,25 @@ function frnOpenPlayerCard(name, pid) {
     const blocked = !!p.onTradeBlock;
     blockBtn = `<button class="frn-pcard-yrbtn${blocked?" active":""}" onclick="frnToggleBlockFromCard('${escName}')" title="${blocked?"Listed on trade block — AI teams may make weekly inquiry offers. Click to remove.":"Mark this player as available — AI teams will roll inquiry offers each week."}" aria-label="${blocked?"Remove from trade block":"Add to trade block"}">${blocked?"●ON BLOCK":"📋 Trade block"}</button>`;
   }
-  const actionRow = `<div class="frn-pcard-actions">${compareTag}${watchTag}${tradeBtn}${blockBtn}</div>`;
+  // H3 — for YOUR OWN players, split the bar into evaluate (Compare/Watch) vs a
+  // labeled Manage group (Shop/Block/Restructure/Release) so the two cap moves
+  // that used to dead-end here (cut / restructure) live on the card, with the
+  // destructive Release fenced at the far edge. Other players keep the flat bar.
+  let actionRow;
+  if (isMyPlayer && !isProspect) {
+    const c = p.contract;
+    const canRestr = c && (c.remaining || 0) >= 2 && c.restructuredSeason !== franchise.season;
+    const restrBtn = canRestr
+      ? `<button class="frn-pcard-yrbtn" onclick="frnRestructureFromManage('${escName}','${p.position}')" title="Convert base salary to signing bonus — frees cap now, adds dead money later (opens the cap sheet to confirm)" aria-label="Restructure ${_escHtml(name)}">📝 Restructure</button>`
+      : "";
+    const releaseBtn = `<button class="frn-pcard-yrbtn danger" onclick="frnReleaseFromManage('${escName}','${p.position}')" title="Release ${nameAttr} — frees this year's cap, may leave dead money" aria-label="Release ${_escHtml(name)}">✂ Release</button>`;
+    actionRow = `<div class="frn-pcard-actions frn-pcard-actions--split">
+      <div class="frn-pcard-actions-grp">${compareTag}${watchTag}</div>
+      <div class="frn-pcard-actions-grp frn-pcard-actions-manage"><span class="frn-pcard-manage-lbl">Manage</span>${tradeBtn}${blockBtn}${restrBtn}${releaseBtn}</div>
+    </div>`;
+  } else {
+    actionRow = `<div class="frn-pcard-actions">${compareTag}${watchTag}${tradeBtn}${blockBtn}</div>`;
+  }
 
   overlay.innerHTML = `
     <div class="frn-pcard-overlay-inner">
@@ -7265,6 +7283,73 @@ function _frnRenderActiveTab() {
   }
 }
 
+// H4 — "Cap / Cuts" roster sub-tab: the plain 53-man cap ledger with inline
+// Restructure + Cut, so roster management has an obvious home in the Roster tab
+// (it used to live only in Front Office → Analytics). Cut confirms in place via
+// frnReleaseFromManage (self-contained modal → re-renders this tab); Restructure
+// routes to the cap sheet's full void-year confirm. Reuses the tested cap
+// helpers (currentYearCapHit / deadCapOnRelease / capUsedByTeam) — read-only,
+// determinism-neutral.
+function renderFrnCapCuts() {
+  const el = $("frnHomeContent");
+  if (!el) return;
+  const teamId = franchise.chosenTeamId;
+  const cap = franchise.salaryCap || (typeof SALARY_CAP_BASE !== "undefined" ? SALARY_CAP_BASE : 200);
+  const roster = (franchise.rosters[teamId] || [])
+    .filter(p => p.contract)
+    .sort((a, b) => currentYearCapHit(b) - currentYearCapHit(a));
+  const used = (typeof capUsedByTeam === "function")
+    ? capUsedByTeam(teamId)
+    : roster.reduce((s, p) => s + currentYearCapHit(p), 0);
+  const room = Math.round((cap - used) * 10) / 10;
+  const count = (typeof activeRosterCount === "function") ? activeRosterCount(teamId) : roster.length;
+  const limit = (typeof ACTIVE_ROSTER_LIMIT !== "undefined") ? ACTIVE_ROSTER_LIMIT : 53;
+
+  const rows = roster.map(p => {
+    const c = p.contract;
+    const hit = currentYearCapHit(p);
+    const { perYear, years } = deadCapOnRelease(p);
+    const dead = Math.round(perYear * years * 10) / 10;
+    // This year's cap relief on a cut = hit minus this year's dead-cap tick —
+    // but only when dead cap is actually owed (perYear can be >0 with years=0,
+    // e.g. an expiring deal, which owes nothing → full relief).
+    const frees = Math.round((hit - (dead > 0 ? perYear : 0)) * 10) / 10;
+    const escName = p.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+    const canRestr = (c.remaining || 0) >= 2 && c.restructuredSeason !== franchise.season;
+    const nameCell = (typeof _playerLinkSmart === "function") ? _playerLinkSmart(p.name) : _escHtml(p.name);
+    const grade = (typeof gradeBadge === "function") ? gradeBadge(p) : (p.overall ?? "");
+    return `<tr>
+      <td style="font-weight:700">${nameCell}</td>
+      <td style="color:var(--gray)">${p.position}</td>
+      <td>${grade}</td>
+      <td style="font-weight:700">$${hit.toFixed(1)}M</td>
+      <td style="font-size:.62rem;color:${dead > 0 ? "var(--ds-grade-neg-mid)" : "var(--gray)"}">${dead > 0 ? `☠ $${perYear.toFixed(1)}M×${years}yr` : "—"}</td>
+      <td style="color:${frees >= 0 ? "var(--green-lt)" : "var(--red)"};font-weight:700">${frees >= 0 ? "+" : "−"}$${Math.abs(frees).toFixed(1)}M</td>
+      <td style="white-space:nowrap">
+        ${canRestr ? `<button class="frn-capcut-btn" onclick="frnRestructureFromManage('${escName}','${p.position}')" title="Convert base salary to signing bonus — opens the cap sheet to confirm">📝 Restructure</button>` : ""}
+        <button class="frn-capcut-btn cut" onclick="frnReleaseFromManage('${escName}','${p.position}')" title="Release ${_escHtml(p.name)} — frees this year's cap, may leave dead money" aria-label="Cut ${_escHtml(p.name)}">✂ Cut</button>
+      </td>
+    </tr>`;
+  }).join("");
+
+  const overCap = room < 0;
+  el.innerHTML = `
+    <div class="frn-capcut-head">
+      <div>
+        <span class="frn-capcut-used">$${used.toFixed(1)}M</span>
+        <span class="frn-capcut-sub">used / $${cap.toFixed(0)}M · <b style="color:${overCap ? "var(--red)" : "var(--green-lt)"}">${overCap ? "OVER by $" + Math.abs(room).toFixed(1) + "M" : "$" + room.toFixed(1) + "M room"}</b></span>
+      </div>
+      <div class="frn-capcut-sub">${count} / ${limit} · sorted by cap hit</div>
+    </div>
+    <p style="font-size:.62rem;color:var(--gray);margin:.1rem 0 .6rem">
+      Cap Hit = this year's base + bonus proration. Dead = prorated bonus that stays on your cap if you cut him.
+      Frees = this year's cap relief on a cut. ✂ Cut confirms here; 📝 Restructure opens the cap sheet for void-year options.
+    </p>
+    <table class="frn-ana-table"><thead>
+      <tr><th>Player</th><th>Pos</th><th>Grade</th><th>Cap Hit</th><th>Dead Cap</th><th>Frees</th><th></th></tr>
+    </thead><tbody>${rows || `<tr><td colspan="7" style="color:var(--gray);text-align:center;padding:1.2rem">No players under contract.</td></tr>`}</tbody></table>`;
+}
+
 // What the Overview tab renders, by phase. The in-season GM dashboard
 // (renderFrnRegular) is only correct DURING the season; clicking Overview
 // after the season — in the playoffs or, the reported bug, the OFFSEASON
@@ -7298,6 +7383,7 @@ const _FRN_ROSTER_TABS = [
   { id: "snaps",     label: "Snap Shares",    fn: () => typeof renderFrnSnapShares    === "function" && renderFrnSnapShares() },
   { id: "injuries",  label: "Injury Report",  fn: () => typeof renderFrnInjuryReport  === "function" && renderFrnInjuryReport() },
   { id: "ir",        label: "Injured Reserve",fn: () => typeof renderFrnInjuredReserve === "function" && renderFrnInjuredReserve() },
+  { id: "capcuts",   label: "💰 Cap / Cuts",  fn: () => typeof renderFrnCapCuts       === "function" && renderFrnCapCuts() },
   { id: "ps",        label: "Practice Squad", fn: () => typeof renderFrnPracticeSquad === "function" && renderFrnPracticeSquad() },
 ];
 function frnSetRosterSubTab(id) {

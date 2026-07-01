@@ -991,6 +991,90 @@ function frnReleasePlayerCancel() {
   renderFrnPreseason("roster");
 }
 
+// ── Roster management from any surface (H3 player card + H4 Cap/Cuts tab) ────
+// The legacy release/restructure confirm flows are welded to specific screens
+// (frnReleasePlayer → preseason roster, frnRestructure → cap sheet) with their
+// inline-confirm markup living only there. These entry points let the player
+// card and the Cap/Cuts sub-tab release/restructure a player without a jarring
+// surface jump, reusing tested primitives:
+//   • _frnCommitRelease  — the pure mutation (no June-1 split, no re-render).
+//   • _frnRerenderRosterSurface — re-render wherever the user currently is.
+// The legacy preseason/cap-sheet flows are left 100% untouched (zero blast
+// radius); this is additive.
+
+// Standard (non-June-1) release commit: splice + spread the dead-cap refund +
+// toast + save. Does NOT re-render — the caller refreshes its own surface.
+function _frnCommitRelease(name, pos) {
+  const teamId = franchise.chosenTeamId;
+  const roster = franchise.rosters[teamId];
+  const idx = roster ? roster.findIndex(p => p.name === name && p.position === pos) : -1;
+  if (idx === -1) return false;
+  const { perYear: deadPerYr, years: deadYrs } = deadCapOnRelease(roster[idx]);
+  const deadTotal = Math.round(deadPerYr * deadYrs * 10) / 10;
+  roster.splice(idx, 1);
+  if (deadTotal > 0) {
+    franchise.refunds = franchise.refunds || [];
+    // Same spread-refund shape frnReleasePlayerConfirm's non-June-1 branch uses.
+    franchise.refunds.push({
+      kind: "dead_cap", fromTeamId: teamId, toTeamId: null,
+      amount: deadPerYr, yearsRemaining: deadYrs, label: `Dead cap: ${name}`,
+    });
+  }
+  if (typeof _frnFlashToast === "function") {
+    _frnFlashToast(`✓ Released ${name}${deadTotal > 0 ? ` · $${deadTotal.toFixed(1)}M dead cap` : ""}`, "success");
+  }
+  if (typeof saveFranchise === "function") saveFranchise();
+  return true;
+}
+
+// Re-render whatever roster-bearing surface the user is currently on, so a
+// release from the card / Cap-Cuts tab refreshes in place instead of jumping.
+// Detect the mounted shell rather than enumerate phases (there are many —
+// free_agency, fa_cuts, regular, playoffs, offseason, awards, draft…): the
+// tabbed dashboard paints the function-key tab strip (.frn-bb-fnkey); the
+// preseason camp does not. When the dashboard is up, re-render its active tab
+// (Roster → its active sub-tab, e.g. Cap/Cuts); otherwise the camp roster.
+function _frnRerenderRosterSurface() {
+  const dashboardUp = typeof document !== "undefined" && document.querySelector(".frn-bb-fnkey");
+  if (dashboardUp && typeof _frnRenderActiveTab === "function") {
+    return _frnRenderActiveTab();
+  }
+  if (typeof renderFrnPreseason === "function") return renderFrnPreseason("roster");
+}
+
+// Release with a self-contained confirm (works over the player card, which is a
+// modal — the confirm layers on top). Shared by H3 and H4.
+async function frnReleaseFromManage(name, pos) {
+  const teamId = franchise.chosenTeamId;
+  const p = (franchise.rosters[teamId] || []).find(q => q.name === name && q.position === pos);
+  if (!p) return;
+  const hit = (typeof currentYearCapHit === "function") ? currentYearCapHit(p) : (p.contract?.aav || 0);
+  const { perYear, years } = deadCapOnRelease(p);
+  const dead = Math.round(perYear * years * 10) / 10;
+  const msg = dead > 0
+    ? `Frees $${hit.toFixed(1)}M this year but leaves $${dead.toFixed(1)}M in dead cap ($${perYear.toFixed(1)}M × ${years}yr).`
+    : `Clean release — no dead cap.`;
+  const ok = (typeof _frnConfirm === "function")
+    ? await _frnConfirm(msg, { title: `Release ${pos} ${name}?`, danger: true, confirmLabel: "✂ Release" })
+    : true;
+  if (!ok) return;
+  if (typeof frnClosePlayerModal === "function") frnClosePlayerModal(); // no-op if no card open
+  if (_frnCommitRelease(name, pos)) _frnRerenderRosterSurface();
+}
+
+// Restructure from the card / Cap-Cuts tab: route to the cap sheet, which owns
+// the full (void-year-aware) restructure confirm UI. Mirrors the existing
+// dev-report shortcut (renderFrnAnalytics + deferred frnRestructure).
+function frnRestructureFromManage(name, pos) {
+  if (typeof frnClosePlayerModal === "function") frnClosePlayerModal();
+  if (typeof renderFrnAnalytics === "function") {
+    renderFrnAnalytics("mysheet");
+    setTimeout(() => {
+      if (typeof frnRestructure === "function") frnRestructure(franchise.chosenTeamId, name, pos);
+    }, 40);
+  }
+}
+
 // ── Pay-cut negotiation ─────────────────────────────────────────────────────
 // Vet on a bloated deal: ask him to take a cut or risk release.
 // Accept chance is driven by how overpaid he is, age (older vets have

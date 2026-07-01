@@ -3251,6 +3251,35 @@
   .frn-pcard-yrbtn.active:hover {
     background: var(--gold-lt); border-color: var(--gold-lt); color: var(--bg);
   }
+  /* H3 — danger variant (Release) + Info-vs-Manage split on the card action bar */
+  .frn-pcard-yrbtn.danger { border-color: rgba(192,57,43,.55); color: #ff8a8a; }
+  .frn-pcard-yrbtn.danger:hover { background: rgba(192,57,43,.16); border-color: #ff8a8a; color: #ffb0b0; }
+  .frn-pcard-actions--split {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .5rem; flex-wrap: wrap; width: 100%;
+  }
+  .frn-pcard-actions-grp { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+  .frn-pcard-actions-manage { justify-content: flex-end; }
+  .frn-pcard-manage-lbl {
+    font-size: .52rem; letter-spacing: 1px; text-transform: uppercase; color: var(--gray);
+    border-left: 1px solid var(--border); padding-left: .5rem; margin-left: .1rem;
+  }
+  /* H4 — Cap / Cuts sub-tab */
+  .frn-capcut-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: .35rem; flex-wrap: wrap; gap: .3rem;
+  }
+  .frn-capcut-used { font-family: var(--font-num); font-size: 1.35rem; color: var(--gold-lt); letter-spacing: .5px; }
+  .frn-capcut-sub { font-size: .62rem; color: var(--gray); letter-spacing: .3px; }
+  .frn-capcut-btn {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--white);
+    font-family: inherit; font-size: .58rem; font-weight: 700; padding: .2rem .5rem;
+    border-radius: 6px; cursor: pointer; margin-left: .2rem; letter-spacing: .3px;
+    transition: border-color .12s, color .12s, background .12s;
+  }
+  .frn-capcut-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .frn-capcut-btn.cut { border-color: rgba(192,57,43,.5); color: #ff8a8a; }
+  .frn-capcut-btn.cut:hover { background: rgba(192,57,43,.16); border-color: #ff8a8a; color: #ffb0b0; }
 
   /* 👁 watch icon prefix in SHOP MARKET rows */
   .frn-trade-watch-icon {
