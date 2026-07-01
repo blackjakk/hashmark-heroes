@@ -6914,6 +6914,40 @@ function _renderSimForwardPanel() {
   </div>`;
 }
 
+// H5 — next-game CTA hierarchy. The old card fired four near-equal actions
+// (Call the Plays · Watch · Sim · Sim Forward). Now: one bold primary
+// (CALL THE PLAYS) + a single "Skip ahead ▾" menu that collapses the three
+// skip-flavored actions (watch / sim / sim-forward). Reuses the existing
+// frnPlayGame / frnSimGame / sim-forward-panel handlers — pure DOM, no engine.
+let _frnSkipMenuOpen = false;
+function _frnToggleSkipMenu() {
+  _frnSkipMenuOpen = !_frnSkipMenuOpen;
+  if (_frnSkipMenuOpen) _frnSimPanelOpen = false; // don't stack the two panels
+  renderFrnRegular();
+}
+function _renderHeroSkipCluster(nextGame) {
+  const g = `${nextGame.homeId},${nextGame.awayId}`;
+  // The detailed sim-forward panel takes over the cluster when it's open.
+  if (_frnSimPanelOpen) return `<div class="frn-hero-skip">${_renderSimForwardPanel()}</div>`;
+  if (!_frnSkipMenuOpen) {
+    return `<div class="frn-hero-skip">
+      <button class="frn-sim-btn frn-hero-skip-trigger" onclick="_frnToggleSkipMenu()"
+        aria-haspopup="true" aria-expanded="false"
+        aria-label="Skip ahead — watch, sim this game, or sim forward">⏩ Skip ahead ▾</button>
+    </div>`;
+  }
+  return `<div class="frn-hero-skip">
+    <button class="frn-sim-btn frn-hero-skip-trigger open" onclick="_frnToggleSkipMenu()"
+      aria-haspopup="true" aria-expanded="true" aria-label="Close skip menu">⏩ Skip ahead ▴</button>
+    <div class="frn-skip-menu" role="menu">
+      <div class="frn-skip-menu-cap">Don't want to call it?</div>
+      <button role="menuitem" onclick="frnPlayGame(${g},false)" title="Sit back and watch the broadcast — the AI coaches both teams">📺 Watch the broadcast <small>no calls</small></button>
+      <button role="menuitem" onclick="frnSimGame(${g})" title="Instant result — no animation">⏩ Sim this game <small>instant</small></button>
+      <button role="menuitem" onclick="_frnToggleSimPanel()" title="Sim multiple weeks ahead">⏭ Sim forward… <small>to a week</small></button>
+    </div>
+  </div>`;
+}
+
 // ─── App shell + tab routing ────────────────────────────────────────────
 // The dashboard is a tabbed app shell during the regular season. Tabs
 // route to focused sub-views; the shell itself is just identity +
@@ -8597,11 +8631,7 @@ function renderFrnRegular() {
             🎙 CALL THE PLAYS
             <span class="frn-hero-play-sub">you coach both sides of the ball · live broadcast</span>
           </button>
-          <div class="frn-hero-sims">
-            <button class="frn-sim-btn frn-callplays-btn" onclick="frnPlayGame(${nextGame.homeId},${nextGame.awayId},false)" title="Sit back and watch the broadcast — the AI coaches both teams" aria-label="Watch Game">📺 Watch Game</button>
-            <button class="frn-sim-btn" onclick="frnSimGame(${nextGame.homeId},${nextGame.awayId})" aria-label="Sim Game">⏩ Sim Game</button>
-            ${_renderSimForwardPanel()}
-          </div>
+          ${_renderHeroSkipCluster(nextGame)}
         </div>
         ${decisionStripHtml}
         <button class="frn-pregame-toggle" onclick="_frnTogglePregame()">

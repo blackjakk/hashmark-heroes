@@ -12525,6 +12525,31 @@
     display: flex; flex-direction: column; gap: .25rem;
     min-width: 12rem;
   }
+  /* H5 — collapsed "Skip ahead ▾" cluster: one secondary control that opens a
+     menu folding Watch / Sim / Sim-forward. Flows in the CTA row like the sim
+     panel (no absolute overlay → never clipped by the card). */
+  .frn-hero-skip {
+    display: flex; flex-direction: column; gap: .3rem;
+    min-width: 12rem;
+  }
+  .frn-hero-skip-trigger { font-weight: 800; align-self: stretch; }
+  .frn-hero-skip-trigger.open { border-color: var(--gold); color: var(--gold-lt); }
+  .frn-skip-menu {
+    border: 1px solid var(--border); background: var(--bg2); border-radius: 8px;
+    overflow: hidden; box-shadow: var(--ds-shadow-md, 0 8px 24px -12px rgba(0,0,0,.7));
+  }
+  .frn-skip-menu-cap {
+    font-size: .52rem; letter-spacing: 1px; text-transform: uppercase; color: var(--gray);
+    padding: .35rem .65rem; background: var(--bg3); border-bottom: 1px solid var(--border);
+  }
+  .frn-skip-menu button {
+    display: flex; align-items: center; gap: .5rem; width: 100%; text-align: left;
+    background: transparent; border: none; border-bottom: 1px solid var(--border);
+    color: var(--white); font-family: inherit; font-size: .72rem; padding: .5rem .65rem; cursor: pointer;
+  }
+  .frn-skip-menu button:last-child { border-bottom: none; }
+  .frn-skip-menu button:hover { background: var(--bg3); color: var(--gold-lt); }
+  .frn-skip-menu button small { color: var(--gray); font-size: .58rem; margin-left: auto; }
   .frn-hero-decision {
     display: flex; align-items: center; gap: .55rem;
     padding: .55rem .65rem;
