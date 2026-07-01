@@ -4450,14 +4450,32 @@ function _frnStartLivePlayback() {
   renderGameLayout();
   updateButtons();
 
-  // Floating return button
+  // Floating return button — reset to its mid-game "Return" state (a prior
+  // game's end may have left the promoted "Continue → Franchise" CTA on it).
   const retBtn = $("frnReturnBtn");
   retBtn.style.display = "block";
+  retBtn.classList.remove("frn-return-btn--final");
+  retBtn.textContent = "◀ Return to Franchise";
+  retBtn.setAttribute("aria-label", "Return to franchise");
 
   // Auto-start playback
   playing = true;
   startNextPlay();
   updateButtons();
+}
+
+// Called by the animation loop when a franchise game reaches FINAL. Promotes
+// the small corner Return button into a prominent gold "Continue → Franchise"
+// CTA so the post-game next step is obvious (the old end screen left only a
+// tucked-away button while stale live chrome lingered). DOM-only,
+// determinism-neutral; guarded on the button being live so testing / h2h
+// games (which never show it) are unaffected. Reset in _frnStartLivePlayback.
+function _frnGameEndCTA() {
+  const retBtn = typeof $ === "function" ? $("frnReturnBtn") : null;
+  if (!retBtn || retBtn.style.display === "none") return; // not a franchise game
+  retBtn.classList.add("frn-return-btn--final");
+  retBtn.textContent = "Continue → Franchise ▶";
+  retBtn.setAttribute("aria-label", "Continue to franchise — game is final");
 }
 
 function frnPlayGame(homeId, awayId, isPlayoff) {

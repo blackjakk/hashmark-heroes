@@ -11558,6 +11558,10 @@ function startNextPlay() {
     playing = false;
     renderStaticEnd();
     updateButtons();
+    // Promote the corner Return button into a prominent "Continue" CTA — at
+    // FINAL the next step should be unmistakable, not a small tucked-away
+    // button. Optional franchise hook (no-op for testing / h2h games).
+    if (typeof _frnGameEndCTA === "function") _frnGameEndCTA();
     const pb = document.getElementById("hudScrubPlay");
     if (pb) pb.textContent = "▶";
     if (typeof GCAudio !== "undefined") {
@@ -12074,6 +12078,22 @@ function renderStaticEnd() {
   renderPlayLog();
   renderProgress();
   renderBoxScore();
+  // The game is over — clear the stale LIVE situation strip. #fieldStatus is
+  // only refreshed by setFieldStatus(play) on each snap, so at FINAL it still
+  // reads the last pre-snap ("Q1 15:00 · … 1st & 10"), a green live-looking
+  // overlay that contradicts the FINAL scoreboard/banner. Replace it with a
+  // FINAL summary and drop the live-green styling. Generic (also helps
+  // testing / h2h end screens); DOM-only, determinism-neutral.
+  const _fs = $("fieldStatus");
+  if (_fs) {
+    const hs = gameResult.homeScore, as = gameResult.awayScore;
+    _fs.textContent = hs === as
+      ? "FINAL · Tie game"
+      : `FINAL · ${(hs > as ? gameResult.homeTeam : gameResult.awayTeam).name} win`;
+    _fs.classList.add("field-status--final");
+  }
+  const _qc = $("quarterClock");
+  if (_qc) _qc.textContent = "";
 }
 
 // Compute the top 3 individual performances of the game (offense + defense).
@@ -12164,6 +12184,9 @@ function setFieldStatus(play) {
   if (!play) return;
   const fs = $("fieldStatus");
   const qc = $("quarterClock");
+  // A live snap is being shown — shed any leftover FINAL styling from a
+  // prior game so the strip reads as live again (renderStaticEnd adds it).
+  if (fs) fs.classList.remove("field-status--final");
   let possLabel = "";
   if (play.poss) {
     const team = play.poss === "home" ? gameResult.homeTeam : gameResult.awayTeam;

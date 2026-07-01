@@ -962,6 +962,40 @@
                 inset 0 1px 0 rgba(255,255,255,.04);
   }
   .frn-return-btn:active { transform: translateY(1px); }
+  /* Post-game promotion: at FINAL the Return button becomes the primary
+     "Continue" CTA — larger, solid gold, centered along the bottom, with a
+     gentle attention pulse so the next step reads instantly. */
+  .frn-return-btn--final {
+    left: 50%; right: auto; bottom: 1.4rem;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, var(--gold-lt, #f0cc30), var(--gold, #c8a900));
+    color: #0a0f0a;
+    border-color: var(--gold-lt, #f0cc30);
+    padding: .7rem 1.6rem;
+    font-size: 1.15rem; letter-spacing: 1.6px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 26px rgba(245,197,66,.45),
+                inset 0 1px 0 rgba(255,255,255,.25);
+    animation: frn-return-final-pulse 1.6s ease-in-out infinite;
+  }
+  .frn-return-btn--final:hover {
+    background: linear-gradient(180deg, #ffe066, var(--gold-lt, #f0cc30));
+    color: #0a0f0a; border-color: #fff;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 34px rgba(245,197,66,.6),
+                inset 0 1px 0 rgba(255,255,255,.3);
+  }
+  .frn-return-btn--final:active { transform: translateX(-50%) translateY(1px); }
+  @keyframes frn-return-final-pulse {
+    0%, 100% { box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 22px rgba(245,197,66,.4),
+                           inset 0 1px 0 rgba(255,255,255,.25); }
+    50%      { box-shadow: 0 8px 24px rgba(0,0,0,.5), 0 0 38px rgba(245,197,66,.7),
+                           inset 0 1px 0 rgba(255,255,255,.25); }
+  }
+  /* FINAL state for the field situation strip — drop the live-green glow so a
+     finished game never reads as an in-progress snap. */
+  .field-status.field-status--final {
+    color: var(--blgold, #f5c542);
+    text-shadow: 0 0 4px rgba(245,197,66,.5);
+  }
 
   /* ── Mode tabs (Franchise / Testing) ──────────────────────────────── */
   .mode-tabs {
