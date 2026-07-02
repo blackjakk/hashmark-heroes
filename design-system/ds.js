@@ -501,7 +501,11 @@
       (el) => el.type !== "hidden" && el.type !== "submit" && el.type !== "button"
     );
     const keyOf = (el) => el.name || el.id || "";
-    const visible = (el) => !el.disabled && !el.closest("[hidden]");
+    // "Visible" for validation purposes: skip disabled fields, [hidden]
+    // subtrees (stepper panels), and anything not rendered — e.g. inside a
+    // closed <details> ("Advanced" folds). Their VALUES still submit; they
+    // just can't hold focus or show an error the user can't see.
+    const visible = (el) => !el.disabled && !el.closest("[hidden]") && el.getClientRects().length > 0;
 
     // Human messages for the native validity states we actually use.
     function nativeMsg(el) {

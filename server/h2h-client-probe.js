@@ -98,8 +98,8 @@ const AUTOPILOT = `(side) => {
   const link = await A.$eval("#ipcPanel input.h2h-link", el => el.value);
   check("host created match + share link", /#h2h=[a-f0-9]+\./.test(link));
   const waitingShown = await A.evaluate(() =>
-    document.getElementById("ipcPanel")?.textContent.includes("MATCH HOSTED"));
-  check("host parks on the hosted banner pre-join", waitingShown);
+    document.getElementById("ipcPanel")?.textContent.includes("INVITE YOUR FRIEND"));
+  check("host parks on the invite banner pre-join", waitingShown);
 
   // ── Opponent (page B) joins via the share link.
   // NOTE: "networkidle" never fires once the SSE stream opens — use
@@ -156,12 +156,15 @@ const AUTOPILOT = `(side) => {
   check("FINAL screen rendered on host", finalText);
   await (await A.$(".bspnlive-field-wrap"))?.screenshot({ path: "/tmp/h2h_final.png" });
 
-  // The player-facing host modal (footer entry) renders with its controls.
+  // The player-facing host modal (footer entry) renders with its controls:
+  // team picker + one submit CTA, server address folded under Advanced.
   const modalOk = await A.evaluate(() => {
     h2hShowModal();
     const m = document.getElementById("h2hModal");
-    return !!m && m.style.display !== "none"
-      && !!m.querySelector("#h2hModalTeam") && !!m.querySelector("#h2hModalCreate");
+    return !!m && !!m.querySelector("#h2hModalTeam")
+      && !!m.querySelector('button[type="submit"]')
+      && !!m.querySelector("#h2hAdvanced #h2hModalServer")
+      && !!m.querySelector("#h2hSrvStatus");
   });
   check("host modal renders from the footer entry", modalOk);
 

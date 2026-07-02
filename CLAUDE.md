@@ -104,6 +104,22 @@ enforces it (a build gate). This is a DOM-only layer; it must stay determinism-n
   the modal kept OPEN (old one hid the modal pre-await and alert()ed), Esc/backdrop/focus-
   restore; `h2hCreateMatch({quiet:true})` returns `{ok,error}` instead of alerting. Demos in
   gallery.html (single form + 3-step wizard).
+- H2H NORMIE FLOW (2026-07): "🎮 Play a friend" — the modal FINDS the server itself
+  (`_h2hFindServer`: same-origin → `h2h_last_server` → localhost, 1.3s-timeout /api/health
+  pings); the address field lives folded in an Advanced <details> and only unfolds when
+  discovery fails or create errors. DS.form skips fields inside closed <details>
+  (`visible()` uses getClientRects), so the folded URL never blocks submit; onSubmit
+  re-checks it and unfolds with the error instead of firing a doomed request. Invite panel
+  (_h2hShowWaiting preJoin) = plain-English lean + `.h2h-link` input (PROBE CONTRACT — the
+  two-browser probe reads it) + 📋 Copy (clipboard → execCommand fallback → DS.toast) +
+  📤 Share… (navigator.share, phones). Join confirm is a DS.modal ("You're invited! 🏈");
+  it only shows when a franchise is ALREADY loaded — h2hJoinFromHash fires at boot before
+  loadFranchise, so link-arrivals default to a fresh squad (pre-existing timing, safe
+  default). /api/health now reports {static, port, lanHosts} (h2h-server) and
+  h2hCreateMatch rewrites a localhost share link onto http://LAN-IP:port when the server
+  is STATIC (serves the game files) — couch multiplayer: a phone on the same Wi-Fi can tap
+  the link. Regression: `node server/h2h-client-probe.js` (two browsers play to FINAL,
+  now also asserts the invite banner + Advanced-folded modal).
 - Migration status: ~200 buttons routed through `DS.button` (guard component bypasses
   235→20) and the scattered sentiment/grade color palette tokenized (color literals
   1664→1396 via byte-identical `--ds-grade-*`/`--ds-accent-blue`/`--ds-slate`/`--ds-neutral`

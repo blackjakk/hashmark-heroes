@@ -34,6 +34,7 @@
 //        challenger re-sims the inputs and disputes on a resultHash mismatch.)
 "use strict";
 const http = require("http");
+const os = require("os");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
@@ -43,6 +44,22 @@ const { artifactInputs, artifactInputsHash } = require("./artifact.js");
 
 const PORT = Number(process.argv[2] || process.env.H2H_PORT || 8787);
 const DATA_DIR = process.env.H2H_DATA || path.join(__dirname, "data");
+
+// Non-internal IPv4 addresses of this machine — reported by /api/health so
+// the client can turn a localhost share link into one that works across the
+// host's Wi-Fi (couch multiplayer: friend's phone, same network).
+function _lanHosts() {
+  const out = [];
+  try {
+    const ifs = os.networkInterfaces();
+    for (const name of Object.keys(ifs)) {
+      for (const a of ifs[name] || []) {
+        if (!a.internal && (a.family === "IPv4" || a.family === 4)) out.push(a.address);
+      }
+    }
+  } catch (e) { /* health stays useful without it */ }
+  return out;
+}
 const DEFAULT_CLOCK_MS = 20000;
 
 const eng = loadEngine();
@@ -522,7 +539,14 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && url.pathname === "/api/health") {
-      return json(res, 200, { ok: true, h2h: 1 });
+      // static/port/lanHosts let the client build a share link that a phone
+      // on the same Wi-Fi can actually open when the host is browsing via
+      // localhost (localhost in a shared link is dead on arrival). LAN IPs
+      // are only useful when this process also serves the game files.
+      return json(res, 200, {
+        ok: true, h2h: 1,
+        static: !!STATIC_ROOT, port: PORT, lanHosts: _lanHosts(),
+      });
     }
 
     // Static game files (deployment mode: H2H_STATIC=1 → one process serves
