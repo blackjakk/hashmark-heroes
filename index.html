@@ -3,22 +3,413 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hashmark Heroes — American Football Manager</title>
+  <title>Hashmark Heroes — free football GM sim in your browser. Run the franchise, call every snap.</title>
+  <meta name="description" content="A complete American-football franchise manager that runs in your browser. Cap sheets, trades, drafts — then a live broadcast where you call the plays. Free. No install, no account.">
+  <meta property="og:title" content="Hashmark Heroes — run the franchise, call every snap">
+  <meta property="og:description" content="Free in-browser football GM sim: manage the cap, win the draft, then call the plays on a live broadcast. No install, no account.">
+  <meta property="og:type" content="website">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏈</text></svg>">
-  <link rel="canonical" href="./play.html">
-  <!-- The game is the no-build vanilla entry at play.html. This root index
-       redirects there so the bare site URL works. (The legacy Vite/React app
-       under src/ is not wired for static hosting.) -->
-  <meta http-equiv="refresh" content="0; url=./play.html">
-  <script>location.replace("./play.html" + location.search + location.hash);</script>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <script>
+    // Deep links must still land in the game, not on marketing:
+    // H2H join links (#h2h=…) and dev-tools bookmarks (?dev=1). The
+    // hashchange listener covers same-document fragment navigation (a link
+    // followed while already on this page — head scripts don't re-run then).
+    (function () {
+      function fwd() {
+        if (/^#h2h=/.test(location.hash) || /[?&]dev=1/.test(location.search)) {
+          location.replace("./play.html" + location.search + location.hash);
+        }
+      }
+      fwd();
+      addEventListener("hashchange", fwd);
+    })();
+  </script>
   <style>
-    html, body { height: 100%; margin: 0; background: #0d0f12; color: #d9d9d9;
-      font-family: "IBM Plex Mono", ui-monospace, monospace; }
-    .wrap { height: 100%; display: flex; align-items: center; justify-content: center; }
-    a { color: #f5c542; }
+    /* Palette + type mirror the game (DESIGN.md): near-black, gold accent,
+       field green, Bebas/Anton display over Bricolage. Landing-scoped. */
+    :root {
+      --bg: #0a0f0a; --bg2: #111811; --bg3: #1a221a; --card: #182018;
+      --border: #2e3d2e; --white: #f0f0f0; --gray: #9aa7b8;
+      --gold: #c8a900; --gold-lt: #f0cc30; --blgold: #f5c542;
+      --green: #1a5c2e; --green-lt: #2e8b57; --field: #1f6b34;
+      --display: "Bebas Neue", "Anton", "Arial Black", sans-serif;
+      --data: "Bricolage Grotesque", system-ui, sans-serif;
+      --glow: 0 0 4px currentColor, 0 0 14px rgba(240, 204, 48, .25);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--bg); color: var(--white);
+      font-family: var(--data); font-size: 16px; line-height: 1.55;
+      -webkit-font-smoothing: antialiased; overflow-x: hidden;
+    }
+    img { max-width: 100%; height: auto; display: block; }
+    a { color: var(--gold-lt); }
+
+    /* CRT vignette — the game's signature wash. Decorative only. */
+    .vignette {
+      position: fixed; inset: 0; pointer-events: none; z-index: 50;
+      background: radial-gradient(ellipse at center, transparent 58%, rgba(0,0,0,.42) 100%);
+    }
+
+    .wrap { width: min(1080px, 100% - 2.4rem); margin-inline: auto; }
+
+    /* ── The one action ─────────────────────────────────────────────── */
+    .cta {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+      background: linear-gradient(180deg, var(--gold-lt), var(--gold));
+      color: #0a0f0a; text-decoration: none; cursor: pointer;
+      font-family: var(--display); font-size: 1.35rem; letter-spacing: 1.5px;
+      padding: .8rem 1.7rem .7rem; border: none; border-radius: 8px;
+      min-height: 52px;
+      box-shadow: 0 2px 0 rgba(0,0,0,.45), 0 10px 30px -10px rgba(200,169,0,.55);
+      transition: transform .1s ease, box-shadow .12s ease;
+    }
+    .cta:hover { transform: translateY(-1px); box-shadow: 0 3px 0 rgba(0,0,0,.45), 0 14px 34px -10px rgba(200,169,0,.75); }
+    .cta:active { transform: translateY(1px); }
+    .cta:focus-visible, summary:focus-visible, a:focus-visible {
+      outline: 2px solid var(--blgold); outline-offset: 3px;
+    }
+    .cta--sm { font-size: 1.05rem; padding: .5rem 1.1rem .42rem; min-height: 42px; border-radius: 6px; }
+    .cta-note { margin: .7rem 0 0; font-size: .8rem; color: var(--gray); }
+    .cta-note b { color: var(--white); }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    header.site {
+      position: sticky; top: 0; z-index: 40;
+      background: rgba(10,15,10,.88); backdrop-filter: blur(6px);
+      border-bottom: 1px solid var(--border);
+    }
+    .site-row { display: flex; align-items: center; justify-content: space-between; padding: .6rem 0; }
+    .logo { font-family: var(--display); font-size: 1.35rem; letter-spacing: 1.5px; color: var(--gold-lt); text-shadow: var(--glow); text-decoration: none; }
+    .logo small { color: var(--gray); font-family: var(--data); font-size: .6rem; letter-spacing: 2px; display: block; margin-top: -2px; text-shadow: none; }
+
+    /* ── Hero ───────────────────────────────────────────────────────── */
+    .hero { padding: 3rem 0 2.4rem; text-align: center; position: relative; }
+    .hero::before { /* faint field-green glow behind the hero */
+      content: ""; position: absolute; inset: -40% 0 auto; height: 130%;
+      background: radial-gradient(ellipse 60% 45% at 50% 20%, rgba(31,107,52,.22), transparent 70%);
+      pointer-events: none;
+    }
+    .eyebrow {
+      display: inline-block; font-size: .68rem; letter-spacing: 2.5px; font-weight: 700;
+      color: var(--green-lt); text-transform: uppercase;
+      border: 1px solid var(--border); border-radius: 999px; padding: .3rem .8rem;
+      background: var(--bg2); margin-bottom: 1.1rem;
+    }
+    h1 {
+      font-family: var(--display); font-weight: 400; margin: 0 0 .6rem;
+      font-size: clamp(2.7rem, 9vw, 5rem); line-height: .95; letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    h1 .gold { color: var(--gold-lt); text-shadow: var(--glow); }
+    .sub {
+      max-width: 40rem; margin: 0 auto 1.6rem; color: var(--gray);
+      font-size: clamp(.95rem, 2.6vw, 1.1rem);
+    }
+    .sub b { color: var(--white); font-weight: 600; }
+    .hero-shot {
+      margin: 2.2rem auto 0; max-width: 940px;
+      border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+      box-shadow: 0 30px 80px -30px rgba(0,0,0,.9), 0 0 40px rgba(200,169,0,.08);
+    }
+
+    /* ── Proof strip ────────────────────────────────────────────────── */
+    .proof { border-block: 1px solid var(--border); background: var(--bg2); padding: .9rem 0; }
+    .proof ul {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem 1.6rem;
+      margin: 0; padding: 0; list-style: none;
+      font-size: .78rem; letter-spacing: .6px; color: var(--gray); text-transform: uppercase;
+    }
+    .proof b { color: var(--gold-lt); font-family: var(--display); font-size: 1rem; letter-spacing: 1px; margin-right: .3rem; }
+
+    /* ── Booth quotes (in-game flavor, clearly badged) ──────────────── */
+    .booth { padding: 3rem 0 1rem; }
+    .booth-tag { text-align: center; margin-bottom: 1.4rem; }
+    .booth-tag .bspn { font-family: var(--display); font-style: italic; color: #ff5b5b; font-size: 1.5rem; letter-spacing: 1px; }
+    .booth-tag .line { display: block; color: var(--gray); font-size: .62rem; letter-spacing: 3px; text-transform: uppercase; }
+    .quotes { display: grid; gap: .8rem; }
+    blockquote {
+      margin: 0; background: var(--card); border: 1px solid var(--border);
+      border-left: 3px solid var(--gold); border-radius: 8px;
+      padding: 1rem 1.1rem; font-size: .92rem; color: var(--white); font-style: italic;
+    }
+    blockquote footer { margin-top: .5rem; font-style: normal; font-size: .68rem; letter-spacing: 1.5px; color: var(--gray); text-transform: uppercase; }
+    .booth-disclaimer { text-align: center; color: var(--gray); font-size: .68rem; margin-top: .8rem; }
+
+    /* ── Features ───────────────────────────────────────────────────── */
+    .features { padding: 2.5rem 0 1rem; display: grid; gap: 2.6rem; }
+    .feat { display: grid; gap: 1.1rem; align-items: center; }
+    .feat h2 {
+      font-family: var(--display); font-weight: 400; text-transform: uppercase;
+      font-size: clamp(1.6rem, 5vw, 2.2rem); letter-spacing: 1px; line-height: 1; margin: 0 0 .5rem;
+    }
+    .feat h2 .k { color: var(--gold-lt); }
+    .feat p { margin: 0 0 .6rem; color: var(--gray); font-size: .95rem; }
+    .feat p b { color: var(--white); font-weight: 600; }
+    .feat ul { margin: .4rem 0 0; padding: 0; list-style: none; color: var(--gray); font-size: .88rem; }
+    .feat li { padding: .22rem 0 .22rem 1.3rem; position: relative; }
+    .feat li::before { content: "▸"; position: absolute; left: .2rem; color: var(--green-lt); }
+    .shot { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: 0 20px 60px -25px rgba(0,0,0,.85); }
+
+    /* Fair-play banner card */
+    .fair {
+      background: linear-gradient(180deg, var(--bg2), var(--bg));
+      border: 1px solid var(--border); border-top: 3px solid var(--green-lt);
+      border-radius: 12px; padding: 1.5rem 1.3rem;
+    }
+    .fair h2 { margin-top: 0; }
+
+    /* ── FAQ ────────────────────────────────────────────────────────── */
+    .faq { padding: 3rem 0 1rem; max-width: 46rem; margin-inline: auto; }
+    .faq h2 { font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: 2rem; letter-spacing: 1px; text-align: center; margin: 0 0 1.2rem; }
+    details {
+      border: 1px solid var(--border); border-radius: 8px; background: var(--bg2);
+      margin-bottom: .55rem; overflow: hidden;
+    }
+    summary {
+      cursor: pointer; padding: .85rem 1rem; font-weight: 600; font-size: .95rem;
+      list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+      min-height: 44px;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "＋"; color: var(--gold-lt); flex: none; font-weight: 400; }
+    details[open] summary::after { content: "－"; }
+    details[open] summary { color: var(--gold-lt); }
+    details .a { padding: 0 1rem .95rem; color: var(--gray); font-size: .9rem; }
+    details .a b { color: var(--white); font-weight: 600; }
+
+    /* ── Final CTA band ─────────────────────────────────────────────── */
+    .final {
+      margin: 3rem 0 0; padding: 3.2rem 0 3.6rem; text-align: center;
+      background:
+        radial-gradient(ellipse 70% 90% at 50% 110%, rgba(31,107,52,.35), transparent 70%),
+        var(--bg2);
+      border-top: 1px solid var(--border);
+    }
+    .final h2 { font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: clamp(2rem, 7vw, 3.2rem); letter-spacing: 1px; line-height: .95; margin: 0 0 1.2rem; }
+    .final h2 .gold { color: var(--gold-lt); text-shadow: var(--glow); }
+
+    footer.site {
+      border-top: 1px solid var(--border); padding: 1.2rem 0 1.6rem;
+      color: var(--gray); font-size: .72rem; text-align: center;
+    }
+    footer.site .bspn { font-style: italic; color: #ff5b5b; font-family: var(--display); letter-spacing: 1px; }
+
+    /* ── ≥860px: two-column features, roomier hero ──────────────────── */
+    @media (min-width: 860px) {
+      .feat { grid-template-columns: 5fr 6fr; gap: 2.4rem; }
+      .feat:nth-child(even) .feat-copy { order: 2; }
+      .feat:nth-child(even) .shot { order: 1; }
+      .quotes { grid-template-columns: repeat(3, 1fr); }
+      .hero { padding-top: 4.2rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .cta, .cta:hover { transition: none; transform: none; }
+    }
   </style>
 </head>
 <body>
-  <div class="wrap"><p>🏈 Loading <a href="./play.html">Hashmark Heroes</a>…</p></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<header class="site">
+  <div class="wrap site-row">
+    <a class="logo" href="./">HASHMARK HEROES<small>AMERICAN FOOTBALL MANAGER</small></a>
+    <a class="cta cta--sm" href="./play.html">▶ Play free</a>
+  </div>
+</header>
+
+<main>
+  <!-- ═══ HERO — one value prop, one action ═══ -->
+  <section class="hero">
+    <div class="wrap">
+      <span class="eyebrow">Free · In your browser · No install · No account</span>
+      <h1>Run the franchise.<br><span class="gold">Call every snap.</span></h1>
+      <p class="sub">A complete football GM sim that runs right here in your browser —
+        <b>cap sheets, trades, draft classes</b> all week, then a <b>live broadcast where you
+        call the plays</b> on Sunday. Yours from the first click: no download, no sign-up.</p>
+      <a class="cta" id="heroCta" href="./play.html">▶ Start your franchise</a>
+      <p class="cta-note"><b>Quick Start</b> puts you on the field in about 30 seconds · saves live in your browser</p>
+      <div class="hero-shot">
+        <img src="landing/broadcast.jpg" width="1920" height="1200" fetchpriority="high"
+             alt="Live BSPN broadcast view: a rain game on the field with the full scoreboard, momentum bar, and player bio panel">
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PROOF STRIP ═══ -->
+  <section class="proof" aria-label="What's in the game">
+    <div class="wrap">
+      <ul>
+        <li><b>32</b> teams</li>
+        <li><b>17</b>-game seasons</li>
+        <li><b>14</b>-team playoffs</li>
+        <li><b>FA</b> bidding wars &amp; drafts</li>
+        <li><b>HOF</b> careers &amp; awards</li>
+        <li><b>H2H</b> live multiplayer</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ═══ SOCIAL PROOF — the in-game broadcast booth (clearly badged flavor) ═══ -->
+  <section class="booth">
+    <div class="wrap">
+      <div class="booth-tag">
+        <span class="bspn">BSPN</span>
+        <span class="line">Ball · Strategy · Passion · Now — from the in-game booth</span>
+      </div>
+      <div class="quotes">
+        <blockquote>
+          “He cut his franchise quarterback in October and the cap sheet <em>still</em> balanced.
+          Cold. Brilliant. Cold.”
+          <footer>— BSPN Booth, on a GM like you</footer>
+        </blockquote>
+        <blockquote>
+          “Fourth-and-three, down five, and he dials up the <em>Statue of Liberty</em>.
+          This league, folks.”
+          <footer>— BSPN Saturday Night Football</footer>
+        </blockquote>
+        <blockquote>
+          “Sixteen seasons in, a Hall-of-Fame wall, and a locker room that still believes.”
+          <footer>— BSPN Legacy Desk</footer>
+        </blockquote>
+      </div>
+      <p class="booth-disclaimer">Quotes from the game's own broadcast crew — they'll be talking about you soon enough.</p>
+    </div>
+  </section>
+
+  <!-- ═══ FEATURES ═══ -->
+  <div class="wrap features">
+    <section class="feat">
+      <div class="feat-copy">
+        <h2>Call <span class="k">every snap</span> — or none</h2>
+        <p>The game pauses on <b>your</b> play calls, both sides of the ball: a full sheet of runs,
+          passes, and shots — plus six gadget plays from the flea flicker to the hook &amp; ladder.</p>
+        <ul>
+          <li>Route diagrams on every card, keyboard shortcuts for speed</li>
+          <li>4th-down, PAT, and defensive-shell decisions are yours too</li>
+          <li>Rather manage? Defer any call — or hand the whole game to Coach Mode</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="landing/playcall.jpg" width="1377" height="899" loading="lazy"
+        alt="The interactive playcall sheet: run, pass, and shot plays with route diagrams, including gadget plays like Hook & Ladder and Statue of Liberty"></div>
+    </section>
+
+    <section class="feat">
+      <div class="feat-copy">
+        <h2>A <span class="k">broadcast</span>, not a spreadsheet</h2>
+        <p>Every game renders as a living BSPN telecast — <b>all 22 players on the field</b>,
+          weather, momentum swings, drive charts, replays, and a highlight reel that follows
+          your season.</p>
+        <ul>
+          <li>Broadcast or top-down camera, scrub any play in slow motion</li>
+          <li>Live player bios: wear, stress, and injuries as they happen</li>
+          <li>Watch it, call it, or sim it instantly — your choice, per game</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="landing/broadcast.jpg" width="1920" height="1200" loading="lazy"
+        alt="The BSPN broadcast: field view with scoreboard, live bio panel, momentum bar and drive tracker"></div>
+    </section>
+
+    <section class="feat">
+      <div class="feat-copy">
+        <h2>Real <span class="k">front-office</span> problems</h2>
+        <p>Cap hits, dead money, restructures, June-1 cuts. Trade windows, free-agency
+          bidding wars, scouting fog, draft classes with busts and gems — and a locker room
+          with <b>opinions about your decisions</b>.</p>
+        <ul>
+          <li>A weekly GM inbox that surfaces what actually needs you</li>
+          <li>Careers, awards races, and a Hall of Fame that remembers</li>
+          <li>Depth charts, snap counts, and load management that matter</li>
+        </ul>
+      </div>
+      <div class="shot"><img src="landing/dashboard.jpg" width="1920" height="1200" loading="lazy"
+        alt="The franchise dashboard: weekly inbox, next-game hero card with win probability, unit ratings and league snapshot"></div>
+    </section>
+
+    <section class="fair">
+      <h2 style="font-family:var(--display);font-weight:400;text-transform:uppercase;letter-spacing:1px;font-size:clamp(1.6rem,5vw,2.2rem);margin:0 0 .5rem">
+        Play a friend — <span class="k" style="color:var(--gold-lt)">provably fair</span></h2>
+      <p style="color:var(--gray);margin:0;max-width:52rem;font-size:.95rem">
+        Host a live head-to-head match and send one link. The engine is <b style="color:var(--white)">deterministic</b> —
+        the same seed and the same calls always produce the same game — so every result can be
+        re-simulated and verified. Nobody fudges a final score. Not your friend, not the server, not you.
+      </p>
+    </section>
+  </div>
+
+  <!-- ═══ FAQ ═══ -->
+  <section class="faq" id="faq">
+    <div class="wrap">
+      <h2>Questions, answered</h2>
+      <details>
+        <summary>Is it really free?</summary>
+        <div class="a">Yes — the whole game. No account, no ads, no purchases. Open the page and play.</div>
+      </details>
+      <details>
+        <summary>Do I need to install anything?</summary>
+        <div class="a">No. It's plain HTML/CSS/JavaScript running in your browser — nothing to download,
+          nothing to update. If you can read this page, you can run the game.</div>
+      </details>
+      <details>
+        <summary>Where do my saves live?</summary>
+        <div class="a">In your browser's local storage, with <b>multiple franchise slots</b>. Your league
+          stays on your machine — just note that clearing site data clears saves, and saves don't follow
+          you across devices.</div>
+      </details>
+      <details>
+        <summary>Does it work on my phone?</summary>
+        <div class="a">Yes — the interface is responsive down to small phones. The broadcast is at its
+          best on a bigger screen, but the full franchise runs anywhere your browser goes.</div>
+      </details>
+      <details>
+        <summary>Do I have to call plays?</summary>
+        <div class="a">Only if you want to. Every game offers <b>Call the Plays</b>, <b>Watch</b> the
+          broadcast with AI coaches, or <b>Sim</b> instantly — and you can hand a live game to Coach Mode
+          mid-drive. Pure-GM careers are absolutely a thing.</div>
+      </details>
+      <details>
+        <summary>How does multiplayer stay fair?</summary>
+        <div class="a">Every game is <b>deterministic</b>: one seed plus the two coaches' calls always
+          re-simulates to the identical result, byte for byte. H2H matches produce a verifiable artifact —
+          if a score were ever tampered with, a re-sim would prove it.</div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ═══ FINAL CTA ═══ -->
+  <section class="final">
+    <div class="wrap">
+      <h2>Your franchise is <span class="gold">one click away</span></h2>
+      <a class="cta" id="finalCta" href="./play.html">▶ Start your franchise</a>
+      <p class="cta-note">Free · no install · no account · playing in ~30 seconds</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <span class="bspn">BSPN</span> — Ball. Strategy. Passion. Now. ·
+    Hashmark Heroes is hand-built vanilla HTML/CSS/JS — no framework, no build step ·
+    <a href="./play.html">Play the game</a>
+  </div>
+</footer>
+
+<script>
+  // Returning players get their fast path back: if a franchise save exists,
+  // both CTAs become "Continue" (the game's start screen lands on their slots).
+  try {
+    var meta = JSON.parse(localStorage.getItem("gc_franchise_slots_v1") || "null");
+    if (meta && meta.slots && meta.slots.length) {
+      var label = "▶ Continue your franchise";
+      var hero = document.getElementById("heroCta");
+      var fin = document.getElementById("finalCta");
+      if (hero) hero.textContent = label;
+      if (fin) fin.textContent = label;
+    }
+  } catch (e) { /* fresh visitor */ }
+</script>
 </body>
 </html>
