@@ -408,6 +408,333 @@
     return `<div class="ds-select"><select${id}${onCh}${attrs(o.attrs)}>${options}</select></div>`;
   }
 
+  // ── input ────────────────────────────────────────────────────────────────
+  // { id, name=id, type='text', value, placeholder, autocomplete, inputmode,
+  //   enterkeyhint, required, min, max, step, minlength, maxlength, pattern,
+  //   disabled, spellcheck, ariaLabel, on, attrs }
+  // Keyboard/autofill-friendly by construction: pass the real `name`,
+  // `autocomplete`, `inputmode`, and `type` — browsers key autofill and the
+  // right mobile keyboard off exactly these. `on` = inline oninput expression.
+  function input(opts) {
+    const o = opts || {};
+    const cls = cx("ds-input", o.class || o.cls);
+    const passthrough = attrs({
+      id: o.id, name: o.name != null ? o.name : o.id,
+      type: o.type || "text",
+      value: o.value, placeholder: o.placeholder,
+      autocomplete: o.autocomplete, inputmode: o.inputmode,
+      enterkeyhint: o.enterkeyhint,
+      required: !!o.required, disabled: !!o.disabled,
+      min: o.min, max: o.max, step: o.step,
+      minlength: o.minlength, maxlength: o.maxlength, pattern: o.pattern,
+      spellcheck: o.spellcheck, "aria-label": o.ariaLabel,
+    });
+    const onInput = o.on ? ` oninput="${o.on}"` : "";
+    return `<input class="${cls}"${passthrough}${onInput}${attrs(o.attrs)}>`;
+  }
+
+  // ── checkbox ─────────────────────────────────────────────────────────────
+  // { id, name=id, label, checked, disabled, attrs } — label wraps the input,
+  // so the whole row is the click/tap target and no for/id wiring is needed.
+  function checkbox(opts) {
+    const o = opts || {};
+    const cls = cx("ds-checkbox", o.class || o.cls);
+    const passthrough = attrs({
+      id: o.id, name: o.name != null ? o.name : o.id,
+      checked: !!o.checked, disabled: !!o.disabled,
+    });
+    return `<label class="${cls}"><input type="checkbox"${passthrough}${attrs(o.attrs)}>` +
+      `<span>${esc(o.label)}</span></label>`;
+  }
+
+  // ── field ────────────────────────────────────────────────────────────────
+  // { id, label, control, hint, error, required, class, attrs }
+  // Label + control + hint + an ALWAYS-PRESENT error slot, so validation can
+  // write into it without re-rendering. `control` is TRUSTED HTML (compose
+  // from DS.input/DS.select/DS.checkbox). `id` should match the control's id
+  // so the label binds (for/id); DS.form wires aria-describedby → hint/error
+  // at bind time.
+  function field(opts) {
+    const o = opts || {};
+    const cls = cx("ds-field", o.class || o.cls);
+    const req = o.required ? `<span class="ds-field__req" aria-hidden="true">*</span>` : "";
+    const label = o.label != null
+      ? `<label class="ds-field__label"${o.id ? ` for="${esc(o.id)}"` : ""}>${esc(o.label)}${req}</label>`
+      : "";
+    const hint = o.hint != null
+      ? `<div class="ds-field__hint"${o.id ? ` id="${esc(o.id)}-hint"` : ""}>${esc(o.hint)}</div>`
+      : "";
+    const error = `<div class="ds-field__error"${o.id ? ` id="${esc(o.id)}-error"` : ""}>${o.error != null ? esc(o.error) : ""}</div>`;
+    return `<div class="${cls}"${attrs(o.attrs)}>${label}${o.control != null ? o.control : ""}${hint}${error}</div>`;
+  }
+
+  // ── form (DOM controller) ────────────────────────────────────────────────
+  // DS.form(rootOrSelector, { validate, onSubmit }) → controller
+  //   validate : { fieldNameOrId: (value, el, values) => "" | "error msg" }
+  //              (runs AFTER native constraint validation passes)
+  //   onSubmit : async (values, ctl) — throw an Error or return { error }
+  //              to fail (message lands in the form-level .ds-form-error,
+  //              role="alert"); anything else = success (caller handles it).
+  //
+  // The validation UX contract ("reward early, punish late"):
+  //   • a field is first validated on BLUR — no yelling mid-typing;
+  //   • once a field has shown an error, it re-validates on every INPUT so
+  //     the error clears the moment it's fixed;
+  //   • submit validates everything VISIBLE, focuses the first invalid
+  //     field, and busies the submit button around the async work.
+  // Native constraint validation (required/type/min/max/pattern) is the
+  // first pass — mapped to human messages — then the custom rule runs.
+  // Errors render into the field's .ds-field__error slot with aria-invalid
+  // + aria-describedby wired here, textContent only (no HTML injection).
+  function form(rootOrSelector, opts) {
+    if (typeof document === "undefined") return null;
+    const o = opts || {};
+    const root = typeof rootOrSelector === "string"
+      ? document.querySelector(rootOrSelector) : rootOrSelector;
+    if (!root) return null;
+    const formEl = root.tagName === "FORM" ? root : root.querySelector("form");
+    if (!formEl) return null;
+    formEl.setAttribute("novalidate", "");
+
+    const controls = () => Array.prototype.filter.call(
+      formEl.querySelectorAll("input, select, textarea"),
+      (el) => el.type !== "hidden" && el.type !== "submit" && el.type !== "button"
+    );
+    const keyOf = (el) => el.name || el.id || "";
+    const visible = (el) => !el.disabled && !el.closest("[hidden]");
+
+    // Human messages for the native validity states we actually use.
+    function nativeMsg(el) {
+      const v = el.validity;
+      if (v.valid) return "";
+      if (v.valueMissing) return "Required.";
+      if (v.typeMismatch) {
+        if (el.type === "url") return "Enter a full URL, like http://localhost:8787";
+        if (el.type === "email") return "Enter a valid email address.";
+        return "Doesn't look right for this field.";
+      }
+      if (v.rangeUnderflow) return `Must be at least ${el.min}.`;
+      if (v.rangeOverflow) return `Must be at most ${el.max}.`;
+      if (v.tooShort) return `Needs at least ${el.minLength} characters.`;
+      if (v.tooLong) return `Keep it under ${el.maxLength} characters.`;
+      if (v.patternMismatch) return el.getAttribute("data-pattern-msg") || "Doesn't match the expected format.";
+      if (v.badInput) return "Enter a number.";
+      return el.validationMessage || "Invalid value.";
+    }
+
+    function errorSlot(el) {
+      const fieldEl = el.closest(".ds-field");
+      return fieldEl ? fieldEl.querySelector(".ds-field__error") : null;
+    }
+    function wireAria(el) {
+      const fieldEl = el.closest(".ds-field");
+      if (!fieldEl) return;
+      const ids = [];
+      const hint = fieldEl.querySelector(".ds-field__hint");
+      const err = fieldEl.querySelector(".ds-field__error");
+      const base = el.id || keyOf(el) || ("f" + Math.abs([...(keyOf(el) || "x")].reduce((a, c) => a * 31 + c.charCodeAt(0) | 0, 7)));
+      if (hint) { if (!hint.id) hint.id = base + "-hint"; ids.push(hint.id); }
+      if (err) { if (!err.id) err.id = base + "-error"; ids.push(err.id); }
+      if (ids.length) el.setAttribute("aria-describedby", ids.join(" "));
+    }
+
+    function values() {
+      const out = {};
+      controls().forEach((el) => {
+        const k = keyOf(el);
+        if (!k) return;
+        out[k] = el.type === "checkbox" ? el.checked : el.value;
+      });
+      return out;
+    }
+
+    function showError(el, msg) {
+      const slot = errorSlot(el);
+      if (slot) slot.textContent = msg;
+      el.setAttribute("aria-invalid", "true");
+      el._dsErred = true; // live re-validation from here on
+    }
+    function clearError(el) {
+      const slot = errorSlot(el);
+      if (slot) slot.textContent = "";
+      el.removeAttribute("aria-invalid");
+    }
+
+    function validateField(el) {
+      if (!visible(el)) { clearError(el); return true; }
+      let msg = nativeMsg(el);
+      if (!msg && o.validate) {
+        const rule = o.validate[keyOf(el)] || (el.id && o.validate[el.id]);
+        if (typeof rule === "function") msg = rule(el.type === "checkbox" ? el.checked : el.value, el, values()) || "";
+      }
+      if (msg) { showError(el, msg); return false; }
+      clearError(el);
+      return true;
+    }
+
+    // scope: optional container — validate only the fields inside it
+    // (the stepper validates one panel at a time).
+    function validate(scope) {
+      let firstBad = null;
+      controls().forEach((el) => {
+        if (scope && !scope.contains(el)) return;
+        if (!validateField(el) && !firstBad) firstBad = el;
+      });
+      if (firstBad) firstBad.focus();
+      return !firstBad;
+    }
+
+    const formErrEl = () => formEl.querySelector(".ds-form-error");
+    function setFormError(msg) {
+      const el = formErrEl();
+      if (!el) return;
+      el.textContent = msg || "";
+      if (msg) el.setAttribute("role", "alert");
+      else el.removeAttribute("role");
+    }
+
+    const onBlur = (e) => {
+      const el = e.target;
+      if (el && el.matches && el.matches("input, select, textarea") && visible(el)) validateField(el);
+    };
+    const onInput = (e) => {
+      const el = e.target;
+      if (el && el._dsErred) validateField(el);
+    };
+    const onSubmit = async (e) => {
+      e.preventDefault();
+      setFormError("");
+      if (!validate()) return;
+      const btn = e.submitter || formEl.querySelector('button[type="submit"], input[type="submit"]');
+      if (btn) busy(btn, true);
+      try {
+        const res = o.onSubmit ? await o.onSubmit(values(), ctl) : null;
+        if (res && res.error) setFormError(String(res.error));
+      } catch (err) {
+        setFormError(err && err.message ? err.message : "Something went wrong — try again.");
+      } finally {
+        if (btn) busy(btn, false);
+      }
+    };
+
+    controls().forEach(wireAria);
+    formEl.addEventListener("blur", onBlur, true);
+    formEl.addEventListener("input", onInput);
+    formEl.addEventListener("change", onInput);
+    formEl.addEventListener("submit", onSubmit);
+
+    const ctl = {
+      form: formEl, values, validate, validateField,
+      setError: (nameOrEl, msg) => {
+        const el = typeof nameOrEl === "string"
+          ? controls().find((c) => keyOf(c) === nameOrEl || c.id === nameOrEl) : nameOrEl;
+        if (el) { if (msg) showError(el, msg); else clearError(el); }
+      },
+      setFormError,
+      destroy: () => {
+        formEl.removeEventListener("blur", onBlur, true);
+        formEl.removeEventListener("input", onInput);
+        formEl.removeEventListener("change", onInput);
+        formEl.removeEventListener("submit", onSubmit);
+      },
+    };
+    return ctl;
+  }
+
+  // ── steps / stepper (multi-step forms) ──────────────────────────────────
+  // DS.steps({ steps:[{id,label}], activeIdx=0, doneIdx=-1 }) → header string.
+  // DS.stepper(root, { steps, form, onFinish }) → controller. Panels are
+  // [data-step-panel] elements inside `root`, in step order; the header
+  // renders into [data-steps-header]. "Next" ([data-step-next]) validates
+  // ONLY the active panel's fields via the DS.form controller before
+  // advancing; "Back" ([data-step-back]) never blocks. Focus moves to the
+  // new panel (tabindex=-1) so keyboard/SR users land where the action is.
+  function steps(opts) {
+    const o = opts || {};
+    const list = o.steps || [];
+    const active = o.activeIdx | 0;
+    const done = o.doneIdx != null ? o.doneIdx : active - 1;
+    const items = list.map((s, i) => {
+      const state = i <= done ? "done" : i === active ? "active" : "todo";
+      const cls = cx("ds-step", state === "done" && "ds-step--done", state === "active" && "ds-step--active");
+      const dot = state === "done" ? "✓" : String(i + 1);
+      const cur = state === "active" ? ` aria-current="step"` : "";
+      return `<span class="${cls}"${cur}><span class="ds-step__dot" aria-hidden="true">${dot}</span>` +
+        `<span class="ds-step__label">${esc(s.label)}</span></span>`;
+    });
+    return `<div class="ds-steps" role="list" aria-label="Steps">${items.join(`<span class="ds-step__bar" aria-hidden="true"></span>`)}</div>`;
+  }
+  function stepper(rootOrSelector, opts) {
+    if (typeof document === "undefined") return null;
+    const o = opts || {};
+    const root = typeof rootOrSelector === "string"
+      ? document.querySelector(rootOrSelector) : rootOrSelector;
+    if (!root) return null;
+    const panels = Array.prototype.slice.call(root.querySelectorAll("[data-step-panel]"));
+    const header = root.querySelector("[data-steps-header]");
+    let idx = 0;
+
+    function render() {
+      panels.forEach((p, i) => { p.hidden = i !== idx; });
+      if (header && o.steps) header.innerHTML = steps({ steps: o.steps, activeIdx: idx });
+      const panel = panels[idx];
+      if (panel) {
+        if (!panel.hasAttribute("tabindex")) panel.setAttribute("tabindex", "-1");
+        panel.focus({ preventScroll: false });
+      }
+    }
+    function next() {
+      // Gate on the ACTIVE panel's fields only.
+      if (o.form && panels[idx] && !o.form.validate(panels[idx])) return false;
+      if (idx < panels.length - 1) { idx++; render(); return true; }
+      if (typeof o.onFinish === "function") o.onFinish();
+      return true;
+    }
+    function back() { if (idx > 0) { idx--; render(); } }
+
+    const onClick = (e) => {
+      const nextBtn = e.target.closest("[data-step-next]");
+      const backBtn = e.target.closest("[data-step-back]");
+      if (nextBtn && root.contains(nextBtn)) { e.preventDefault(); next(); }
+      else if (backBtn && root.contains(backBtn)) { e.preventDefault(); back(); }
+    };
+    root.addEventListener("click", onClick);
+    render();
+    return {
+      next, back, render,
+      get index() { return idx; },
+      goTo: (i) => { idx = Math.max(0, Math.min(panels.length - 1, i | 0)); render(); },
+      destroy: () => root.removeEventListener("click", onClick),
+    };
+  }
+
+  // ── trapFocus (DOM helper) ───────────────────────────────────────────────
+  // DS.trapFocus(dialogEl) → dispose(). Tab/Shift+Tab cycle inside dialogEl
+  // (same contract as DS.modal's built-in trap) for custom dialogs like form
+  // modals. Focus restore is the caller's job (they know the trigger).
+  function trapFocus(dialogEl) {
+    if (typeof document === "undefined" || !dialogEl) return () => {};
+    const FOCUSABLE = 'a[href],area[href],button:not([disabled]),' +
+      'input:not([disabled]),select:not([disabled]),textarea:not([disabled]),' +
+      '[tabindex]:not([tabindex="-1"])';
+    const onKey = (e) => {
+      if (e.key !== "Tab") return;
+      const items = Array.prototype.filter.call(
+        dialogEl.querySelectorAll(FOCUSABLE),
+        (el) => el.offsetParent !== null || el === document.activeElement);
+      if (!items.length) { e.preventDefault(); return; }
+      const first = items[0], last = items[items.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || !dialogEl.contains(active)) { e.preventDefault(); last.focus(); }
+      } else {
+        if (active === last || !dialogEl.contains(active)) { e.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }
+
   // ── spinner ─────────────────────────────────────────────────────────────
   // { size:'sm'|'lg', label, class }
   // With `label` → standalone status indicator (role="status" + sr-only text,
@@ -584,6 +911,7 @@
     button, card, chip, tab, tabBar,
     modal, modalHtml, banner, statTile,
     row, table, progress, toggle, toolbar, select,
+    input, checkbox, field, form, steps, stepper, trapFocus,
     spinner, skeleton, emptyState, errorState,
     toast, busy,
     mount

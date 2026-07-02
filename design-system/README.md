@@ -344,6 +344,50 @@ DS.select({ id: "teamPick", value: sel, on: "frnPickTeam(this.value)",
   options: teams.map(t => ({ value: t.id, label: t.name })) });
 ```
 
+### Form layer — `DS.field` / `DS.input` / `DS.checkbox` / `DS.form` / `DS.steps` + `DS.stepper` / `DS.trapFocus`
+
+Build the markup from factories, then bind `DS.form` for the validation/submit UX. The
+contract: **native constraint validation first** (required/type/min/max/pattern, humanized
+messages), then your custom rule; fields stay **silent until first blur**, then re-validate
+**live** so errors clear the moment they're fixed; submit validates visible fields, focuses
+the first invalid one, **busies the submit button** around your async `onSubmit`, and a thrown
+Error / returned `{error}` renders into the form's `.ds-form-error` (`role="alert"`). Enter
+submits. Autofill/keyboard friendliness comes from passing real `name` / `autocomplete` /
+`inputmode` / `type` to `DS.input`.
+
+```js
+host.innerHTML = `<form>
+  <div class="ds-form-error"></div>
+  ${DS.field({ id: "srv", label: "Match server", required: true,
+    hint: "Remembered for next time.",
+    control: DS.input({ id: "srv", name: "server", type: "url", required: true,
+      autocomplete: "url", inputmode: "url", enterkeyhint: "go" }) })}
+  <button type="submit" class="ds-btn ds-btn--gold">Create</button>
+</form>`;
+DS.form(host, {
+  validate: { server: v => /^https?:/.test(v) ? "" : "Must start with http:// or https://" },
+  onSubmit: async (v) => {
+    const r = await createMatch(v.server);
+    if (!r.ok) return { error: r.error };   // → inline role="alert" banner
+    DS.toast("✓ Match created");
+  },
+});
+```
+
+Long forms split into steps: panels are `[data-step-panel]` elements (in order), the header
+renders into `[data-steps-header]`, and `[data-step-next]` is **gated on the active panel's
+fields only** via the same form controller. `[data-step-back]` never blocks.
+
+```js
+const ctl = DS.form("#wizard", { onSubmit: async v => {…} });
+DS.stepper("#wizard", { steps: [{id:"a",label:"Identity"},{id:"b",label:"Review"}], form: ctl });
+```
+
+`DS.trapFocus(dialogEl)` gives custom dialogs (like form modals) the same Tab-cycle DS.modal
+has; it returns a dispose function. Real consumer: the H2H **Host a match** modal
+(`h2hShowModal`) — sensible defaults (franchise team, last-used server), URL validation,
+inline failure with the modal still open, Esc/backdrop cancel, focus trap + restore.
+
 ### `DS.spinner({ size, label })`
 
 `size`: `sm`/`lg`. With `label` → standalone `role="status"` + sr-only text (announced once).

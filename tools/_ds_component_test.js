@@ -87,6 +87,10 @@ const ok = (cond, label) => {
     out.skeleton   = safe(() => D.skeleton({ variant: "text", lines: 2, label: xss }));
     out.emptyState = safe(() => D.emptyState({ icon: "🏈", title: xss, body: "b" }));
     out.errorState = safe(() => D.errorState({ title: xss, detail: xss, retry: "void 0" }));
+    out.input      = safe(() => D.input({ id: "i1", placeholder: xss, value: xss }));
+    out.checkbox   = safe(() => D.checkbox({ id: "c1", label: xss }));
+    out.field      = safe(() => D.field({ id: "i1", label: xss, hint: xss, control: "<input id=\"i1\">" }));
+    out.steps      = safe(() => D.steps({ steps: [{ id: "a", label: xss }, { id: "b", label: "B" }], activeIdx: 0 }));
     return out;
   }, XSS);
 
@@ -112,6 +116,10 @@ const ok = (cond, label) => {
     skeleton: "ds-skeleton",
     emptyState: "ds-state--empty",
     errorState: "ds-state--error",
+    input: "ds-input",
+    checkbox: "ds-checkbox",
+    field: "ds-field",
+    steps: "ds-steps",
   };
   // The injected label `"><img ...>` carries a raw `<img`. ds.js escapes `<`→`&lt;`,
   // so a CORRECT factory output must NOT contain the injected opening tag. We test
@@ -358,6 +366,121 @@ const ok = (cond, label) => {
   ok(busyRes.on.spinnerCount === 1, "DS.busy is idempotent (no stacked spinners)");
   ok(!busyRes.off.disabled && !busyRes.off.ariaBusy && !busyRes.off.spinner && !busyRes.off.cls,
     "DS.busy(el, false) fully restores the control");
+
+  // ── 5. Form layer: validation contract, submit states, stepper ────────────
+  console.log("— 5. form layer (validation UX, submit states, stepper) —");
+  const formRes = await page.evaluate(() => new Promise(async (resolve) => {
+    const D = window.DS;
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    host.innerHTML = `<form>
+      <div class="ds-form-error"></div>
+      ${D.field({ id: "t-url", label: "Server", required: true, hint: "http(s) only",
+                  control: D.input({ id: "t-url", name: "url", type: "url", required: true }) })}
+      ${D.field({ id: "t-name", label: "Name",
+                  control: D.input({ id: "t-name", name: "name" }) })}
+      <button type="submit" class="ds-btn ds-btn--gold">Go</button>
+    </form>`;
+    const submits = [];
+    let failNext = true;
+    const ctl = D.form(host, {
+      validate: { url: (v) => v && !/^https?:/.test(v) ? "http(s) only" : "" },
+      onSubmit: async (vals) => {
+        submits.push(vals);
+        await new Promise(r => setTimeout(r, 60));
+        if (failNext) { failNext = false; return { error: "server unreachable" }; }
+      },
+    });
+    const url = host.querySelector("#t-url");
+    const err = () => host.querySelector("#t-url").closest(".ds-field").querySelector(".ds-field__error").textContent;
+    const r = {};
+    // aria wiring at bind time
+    r.describedby = url.getAttribute("aria-describedby") || "";
+    // no error while typing pre-blur. "ftp://x" passes NATIVE type=url
+    // (any scheme is a valid URL) — so the message we see on blur proves
+    // the CUSTOM rule ran after native validation passed.
+    url.focus(); url.value = "ftp://x"; url.dispatchEvent(new Event("input", { bubbles: true }));
+    r.silentWhileTyping = err() === "";
+    // blur → custom rule error + aria-invalid
+    url.dispatchEvent(new FocusEvent("blur", { bubbles: true }));
+    r.blurError = err();
+    r.ariaInvalid = url.getAttribute("aria-invalid") === "true";
+    // live re-validation clears as soon as it's fixed
+    url.value = "http://ok:1234"; url.dispatchEvent(new Event("input", { bubbles: true }));
+    r.liveCleared = err() === "" && !url.hasAttribute("aria-invalid");
+    // required: empty + submit → focuses the field, no onSubmit call
+    url.value = ""; url.dispatchEvent(new Event("input", { bubbles: true }));
+    host.querySelector("form").requestSubmit();
+    await new Promise(res2 => setTimeout(res2, 30));
+    r.submitBlocked = submits.length === 0;
+    r.focusedFirstInvalid = document.activeElement === url;
+    r.requiredMsg = err();
+    // valid submit → busy during the await, failure lands in .ds-form-error
+    url.value = "http://ok:1234"; url.dispatchEvent(new Event("input", { bubbles: true }));
+    host.querySelector("form").requestSubmit();
+    await new Promise(res2 => setTimeout(res2, 20));
+    const btn = host.querySelector('button[type="submit"]');
+    r.busyDuring = btn.getAttribute("aria-busy") === "true" && btn.disabled;
+    await new Promise(res2 => setTimeout(res2, 120));
+    r.failureShown = host.querySelector(".ds-form-error").textContent;
+    r.failureRole = host.querySelector(".ds-form-error").getAttribute("role");
+    r.busyRestored = !btn.disabled && !btn.getAttribute("aria-busy");
+    // second submit succeeds → error region cleared
+    host.querySelector("form").requestSubmit();
+    await new Promise(res2 => setTimeout(res2, 120));
+    r.successClears = host.querySelector(".ds-form-error").textContent === "";
+    r.values = submits[submits.length - 1];
+    ctl.destroy(); host.remove();
+    resolve(r);
+  }));
+  ok(/-hint/.test(formRes.describedby) && /-error/.test(formRes.describedby),
+    "DS.form wires aria-describedby → hint + error slots at bind");
+  ok(formRes.silentWhileTyping, "no error while typing before first blur (punish late)");
+  ok(formRes.blurError === "http(s) only" && formRes.ariaInvalid,
+    "blur runs the custom rule → inline error + aria-invalid");
+  ok(formRes.liveCleared, "once erred, input re-validates live and clears on fix (reward early)");
+  ok(formRes.submitBlocked && formRes.focusedFirstInvalid && formRes.requiredMsg === "Required.",
+    "invalid submit: blocked, first invalid field focused, native message humanized");
+  ok(formRes.busyDuring && formRes.busyRestored, "submit button goes busy during async onSubmit and restores");
+  ok(formRes.failureShown === "server unreachable" && formRes.failureRole === "alert",
+    "onSubmit failure renders in .ds-form-error with role=alert");
+  ok(formRes.successClears, "a later successful submit clears the form error");
+  ok(formRes.values && formRes.values.url === "http://ok:1234" && "name" in formRes.values,
+    "values() collects named controls");
+
+  const stepRes = await page.evaluate(() => {
+    const D = window.DS;
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    host.innerHTML = `<form>
+      <div data-steps-header></div>
+      <section data-step-panel>${D.field({ id: "s-a", label: "A", control: D.input({ id: "s-a", name: "a", required: true }) })}
+        <button type="button" data-step-next>Next</button></section>
+      <section data-step-panel hidden>${D.field({ id: "s-b", label: "B", control: D.input({ id: "s-b", name: "b" }) })}
+        <button type="button" data-step-back>Back</button></section>
+    </form>`;
+    const ctl = D.form(host, { onSubmit: () => {} });
+    const steps = [{ id: "one", label: "One" }, { id: "two", label: "Two" }];
+    const st = D.stepper(host, { steps, form: ctl });
+    const r = {};
+    r.headerRendered = !!host.querySelector(".ds-steps .ds-step--active");
+    host.querySelector("[data-step-next]").click();
+    r.gatedOnInvalid = st.index === 0 &&
+      host.querySelector("#s-a").closest(".ds-field").querySelector(".ds-field__error").textContent === "Required.";
+    host.querySelector("#s-a").value = "x";
+    host.querySelector("[data-step-next]").click();
+    r.advanced = st.index === 1 && !host.querySelectorAll("[data-step-panel]")[1].hidden;
+    r.doneMark = host.querySelector(".ds-step--done") !== null;
+    host.querySelector("[data-step-back]").click();
+    r.backWorks = st.index === 0;
+    st.destroy(); ctl.destroy(); host.remove();
+    return r;
+  });
+  ok(stepRes.headerRendered, "DS.stepper renders the step header with an active step");
+  ok(stepRes.gatedOnInvalid, "Next is gated: invalid field in the active panel blocks + errors inline");
+  ok(stepRes.advanced, "Next advances once the panel is valid; new panel unhidden");
+  ok(stepRes.doneMark, "completed step shows the ✓ done state");
+  ok(stepRes.backWorks, "Back returns without validation");
 
   ok(errors.length === 0, errors.length ? "page errors: " + errors.slice(0, 3).join(" | ") : "zero page errors");
 

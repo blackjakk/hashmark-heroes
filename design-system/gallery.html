@@ -151,7 +151,70 @@
     <span style="color:var(--gray);font-size:.75rem">Tab through — every interactive control shows the gold-on-blue focus ring</span>
   </div>`));
 
+  // ── Form layer ─────────────────────────────────────────────────────────
+  out.push(S("Form — live validation, submit states", `<form id="g-form" style="max-width:26rem">
+    <div class="ds-form-error"></div>
+    ${DS.field({ id: "g-coach", label: "Coach name", required: true,
+      hint: "Blur to validate; errors clear as you fix them.",
+      control: DS.input({ id: "g-coach", name: "coach", required: true, minlength: 2, autocomplete: "name", placeholder: "Marv Stonehaven" }) })}
+    ${DS.field({ id: "g-srv", label: "Server URL", required: true,
+      control: DS.input({ id: "g-srv", name: "server", type: "url", required: true, value: "http://localhost:8787", autocomplete: "url", inputmode: "url", spellcheck: "false" }) })}
+    <div class="ds-field">${DS.checkbox({ id: "g-agree", name: "agree", label: "Bring my franchise roster", checked: true })}</div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end">
+      <button type="submit" class="ds-btn ds-btn--gold">Create match</button>
+    </div>
+    <p style="color:var(--gray);font-size:.68rem;margin:.6rem 0 0">First submit fails (demo) → inline role="alert" error; second succeeds → toast.</p>
+  </form>`));
+
+  out.push(S("Multi-step form", `<form id="g-steps" style="max-width:28rem">
+    <div data-steps-header></div>
+    <section data-step-panel>
+      ${DS.field({ id: "g-team", label: "Franchise name", required: true,
+        control: DS.input({ id: "g-team", name: "team", required: true, minlength: 3, placeholder: "New Albion Kraken" }) })}
+      <div style="display:flex;justify-content:flex-end">
+        <button type="button" class="ds-btn ds-btn--gold" data-step-next>Next →</button>
+      </div>
+    </section>
+    <section data-step-panel hidden>
+      ${DS.field({ id: "g-style", label: "Coaching style",
+        control: DS.select({ id: "g-style", attrs: { name: "style" }, value: "balanced",
+          options: [{ value: "air", label: "Air raid" }, { value: "balanced", label: "Balanced" }, { value: "ground", label: "Ground & pound" }] }) })}
+      <div style="display:flex;gap:.5rem;justify-content:space-between">
+        <button type="button" class="ds-btn ds-btn--outline" data-step-back>← Back</button>
+        <button type="button" class="ds-btn ds-btn--gold" data-step-next>Next →</button>
+      </div>
+    </section>
+    <section data-step-panel hidden>
+      <p style="color:var(--gray);font-size:.8rem;margin:0 0 .8rem">Step 3 — review &amp; submit. Enter works anywhere in the form.</p>
+      <div style="display:flex;gap:.5rem;justify-content:space-between">
+        <button type="button" class="ds-btn ds-btn--outline" data-step-back>← Back</button>
+        <button type="submit" class="ds-btn ds-btn--gold">🏈 Found the franchise</button>
+      </div>
+    </section>
+  </form>`));
+
   document.getElementById("gallery").innerHTML = out.join("");
+
+  // Wire the live form demos (controllers bind to mounted DOM).
+  let gFormFailOnce = true;
+  DS.form("#g-form", {
+    validate: { server: v => /^https?:\/\//.test(v) ? "" : "Must start with http:// or https://" },
+    onSubmit: async () => {
+      await new Promise(r => setTimeout(r, 700));
+      if (gFormFailOnce) { gFormFailOnce = false; return { error: "Couldn't reach the server (demo failure) — try again." }; }
+      DS.toast({ message: "✓ Match created", kind: "success" });
+    },
+  });
+  const gStepsCtl = DS.form("#g-steps", {
+    onSubmit: async (v) => {
+      await new Promise(r => setTimeout(r, 500));
+      DS.toast({ message: `✓ ${v.team || "Franchise"} founded — ${v.style} offense`, kind: "success" });
+    },
+  });
+  DS.stepper("#g-steps", {
+    steps: [{ id: "id", label: "Identity" }, { id: "style", label: "Style" }, { id: "go", label: "Review" }],
+    form: gStepsCtl,
+  });
 </script>
 </body>
 </html>

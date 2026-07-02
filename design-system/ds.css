@@ -585,6 +585,163 @@
 }
 
 /* ════════════════════════════════════════════════════════════════════════
+   FORM LAYER  — field wrapper + text input + checkbox + step header.
+   The UX contract lives in DS.form (ds.js): validate on blur first, then
+   live once a field has erred; errors render into the field's own
+   .ds-field__error slot with aria-invalid + aria-describedby wiring.
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-field { display: block; margin-bottom: var(--ds-space-5); }
+.ds-field__label {
+  display: block;
+  font-size: var(--bspn-lbl);
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+  margin-bottom: var(--ds-space-2);
+}
+.ds-field__label .ds-field__req { color: var(--ds-danger); margin-left: .15rem; }
+.ds-field__hint {
+  font-size: .68rem;
+  color: var(--ds-text-muted);
+  margin-top: var(--ds-space-1);
+  line-height: 1.4;
+}
+.ds-field__error {
+  font-size: .7rem;
+  font-weight: 600;
+  color: var(--ds-danger);
+  margin-top: var(--ds-space-1);
+  line-height: 1.4;
+  min-height: 0;
+}
+.ds-field__error:empty { display: none; }
+.ds-field__error::before { content: "⚠ "; }
+
+.ds-input {
+  display: block;
+  width: 100%;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  color: var(--ds-text);
+  padding: .55rem .85rem;
+  border-radius: var(--ds-radius-md);
+  font-size: .95rem;
+  font-family: var(--font-data);
+  transition: border-color var(--ds-dur-normal) var(--ds-ease);
+}
+.ds-input::placeholder { color: var(--ds-text-muted); opacity: .7; }
+.ds-input:hover:not(:disabled) { border-color: var(--ds-text-muted); }
+.ds-input:focus { border-color: var(--ds-success); }
+.ds-input:disabled { opacity: .4; cursor: not-allowed; }
+.ds-input[aria-invalid="true"] {
+  border-color: var(--ds-danger);
+  background: color-mix(in srgb, var(--ds-danger) 5%, var(--ds-surface));
+}
+.ds-input:focus-visible {
+  outline-width: 2px; outline-style: solid; outline-color: var(--ds-info);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--ds-bg), 0 0 0 4px var(--ds-info);
+}
+.ds-input:focus:not(:focus-visible) { outline: none; }
+
+.ds-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  cursor: pointer;
+  font-size: .82rem;
+  color: var(--ds-text);
+  padding: var(--ds-space-1) 0;
+}
+.ds-checkbox input {
+  width: 1.05rem; height: 1.05rem;
+  accent-color: var(--ds-primary);
+  cursor: pointer;
+  flex: none;
+}
+.ds-checkbox input:focus-visible {
+  outline-width: 2px; outline-style: solid; outline-color: var(--ds-info);
+  outline-offset: 2px;
+}
+.ds-checkbox input:disabled { cursor: not-allowed; }
+.ds-checkbox:has(input:disabled) { opacity: .45; cursor: not-allowed; }
+
+/* Inline failure banner for a form's submit (network/server errors live at
+   form level, not on a field). role="alert" is set by DS.form when shown. */
+.ds-form-error {
+  border: 1px solid var(--ds-danger);
+  border-left-width: 3px;
+  border-radius: var(--ds-radius-md);
+  background: color-mix(in srgb, var(--ds-danger) 8%, transparent);
+  color: var(--ds-text);
+  font-size: .78rem;
+  padding: var(--ds-space-3) var(--ds-space-4);
+  margin-bottom: var(--ds-space-4);
+}
+.ds-form-error:empty { display: none; }
+
+/* ── Step header (multi-step forms) ────────────────────────────────────── */
+.ds-steps {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  margin-bottom: var(--ds-space-6);
+}
+.ds-step {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--ds-text-muted);
+  white-space: nowrap;
+  min-width: 0;
+}
+.ds-step__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem; height: 1.5rem;
+  border-radius: var(--ds-radius-full);
+  border: 1px solid var(--ds-border);
+  background: var(--ds-surface-2);
+  font-family: var(--font-num);
+  font-size: .78rem;
+  color: var(--ds-text-muted);
+  flex: none;
+  transition: background var(--ds-dur-normal) var(--ds-ease),
+              border-color var(--ds-dur-normal) var(--ds-ease);
+}
+.ds-step--active { color: var(--ds-text); }
+.ds-step--active .ds-step__dot {
+  background: var(--ds-primary);
+  border-color: var(--ds-primary);
+  color: var(--ds-on-primary);
+}
+.ds-step--done { color: var(--ds-success); }
+.ds-step--done .ds-step__dot {
+  background: transparent;
+  border-color: var(--ds-success);
+  color: var(--ds-success);
+}
+.ds-step__bar {
+  flex: 1;
+  height: 1px;
+  min-width: .8rem;
+  background: var(--ds-border);
+}
+.ds-step__label { overflow: hidden; text-overflow: ellipsis; }
+/* Step panels: the controller toggles [hidden]; no CSS display games. */
+.ds-step-panel[hidden] { display: none; }
+@media (max-width: 560px) {
+  /* Phones: labels only on the active step — dots carry the rest. */
+  .ds-step:not(.ds-step--active) .ds-step__label { display: none; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
    INTERACTION-STATE HARDENING  — hover / active / disabled coverage for the
    existing components (additive; factory adds role/tabindex when interactive)
    ════════════════════════════════════════════════════════════════════════ */

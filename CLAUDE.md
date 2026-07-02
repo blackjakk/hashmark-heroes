@@ -52,7 +52,7 @@ must name its cheat surface + how it's closed, same discipline as gate-safety.
      ball-handler normal-play pilot (`_bhSpecForPass`/`_bhNormalPassAnim`).
    - `node tools/_ds_guard.js` — Design System no-bypass ratchet (0 NEW font/color/
      hand-rolled-component bypasses vs `tools/_ds_guard_baseline.json`) when touching
-     franchise UI. Plus `node tools/_ds_component_test.js` (89) + `node tools/_ds_e2e.js`
+     franchise UI. Plus `node tools/_ds_component_test.js` (115) + `node tools/_ds_e2e.js`
      when touching `design-system/`. See "Design System" below.
 3. **`./tools/_stamp_build.sh`** before any push that changes JS or art — rewrites
    `?v=` stamps in play.html and `window.GC_BUILD` (play-sprites appends it to all
@@ -94,6 +94,16 @@ enforces it (a build gate). This is a DOM-only layer; it must stay determinism-n
   card-close/nav-link/select/modal-type-input. 89-check component test; states demoed in
   `design-system/gallery.html`. Consumers wired: boot IDB-fallback skeleton
   (`_frnIdbBootPending` → start-screen slot shimmer), Cap/Cuts empty state, H2H Host busy.
+- FORM LAYER (2026-07): `DS.field/input/checkbox` factories + `DS.form(root,{validate,
+  onSubmit})` controller (native constraint validation humanized → custom rule; silent until
+  first BLUR, then live re-validation; submit focuses first invalid, busies the submitter,
+  failure → `.ds-form-error` role=alert), `DS.steps`+`DS.stepper` (multi-step: `[data-step-
+  panel]`/`[data-step-next]` gated on the ACTIVE panel's fields), `DS.trapFocus(dialog)`.
+  Real consumer: the H2H Host-a-match modal (`h2hShowModal`, play-h2h-client.js) — franchise-
+  team + last-used-server defaults (`h2h_last_server`), URL validation, inline failure with
+  the modal kept OPEN (old one hid the modal pre-await and alert()ed), Esc/backdrop/focus-
+  restore; `h2hCreateMatch({quiet:true})` returns `{ok,error}` instead of alerting. Demos in
+  gallery.html (single form + 3-step wizard).
 - Migration status: ~200 buttons routed through `DS.button` (guard component bypasses
   235→20) and the scattered sentiment/grade color palette tokenized (color literals
   1664→1396 via byte-identical `--ds-grade-*`/`--ds-accent-blue`/`--ds-slate`/`--ds-neutral`

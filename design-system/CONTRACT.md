@@ -93,6 +93,31 @@ canvas/broadcast-layout/keyframe rules listed in "Hard rules".
 - `DS.toolbar({links:[{label, on, active, disabled}]})` (dot-separated nav; interactive links
   are keyboard-reachable, active carries `aria-current`).
 - `DS.select({id, options:[{value,label,selected}], value, on, attrs})`.
+- FORM LAYER:
+  - `DS.input({id, name=id, type, value, placeholder, autocomplete, inputmode, enterkeyhint,
+    required, min, max, step, minlength, maxlength, pattern, disabled, spellcheck, ariaLabel,
+    on, attrs})` — pass real `name`/`autocomplete`/`inputmode` (autofill + mobile keyboards
+    key off exactly these).
+  - `DS.checkbox({id, name=id, label, checked, disabled})` — label WRAPS the input (whole row
+    is the target, no for/id wiring needed).
+  - `DS.field({id, label, control, hint, error, required})` — label(for=id) + TRUSTED control +
+    hint + an ALWAYS-PRESENT `.ds-field__error` slot; DS.form wires `aria-describedby` →
+    hint/error at bind time.
+  - `DS.form(root, {validate:{name:(v,el,values)=>""|msg}, onSubmit:async(values,ctl)})` →
+    controller `{values, validate(scope?), validateField, setError, setFormError, destroy}`.
+    THE VALIDATION UX CONTRACT: native constraint validation first (humanized messages), then
+    the custom rule; a field is silent until first BLUR, then re-validates on every INPUT so
+    the error clears as soon as it's fixed; submit validates visible fields, focuses the first
+    invalid one, busies the submitter around the async work, and renders a thrown Error /
+    `{error}` return into the form's `.ds-form-error` (role="alert"). Enter submits (real
+    `<form>`, novalidate).
+  - `DS.steps({steps:[{id,label}], activeIdx, doneIdx})` (header string; active =
+    `aria-current="step"`, done = ✓) + `DS.stepper(root, {steps, form, onFinish})` — panels are
+    `[data-step-panel]` in order, header renders into `[data-steps-header]`,
+    `[data-step-next]` validates ONLY the active panel via the DS.form controller before
+    advancing, `[data-step-back]` never blocks; focus moves to the new panel.
+  - `DS.trapFocus(dialogEl)` → dispose fn — the DS.modal Tab-cycle for custom dialogs (form
+    modals). Focus RESTORE stays the caller's job.
 - `DS.spinner({size:'sm'|'lg', label})` — with `label` → standalone `role="status"` + sr-only
   text; without → `aria-hidden` decoration for use inside an `aria-busy` control.
 - `DS.skeleton({variant:'text'|'block'|'tile'|'table', lines, rows, cols, width, height, label})`

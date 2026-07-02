@@ -49,9 +49,14 @@ async function h2hCreateMatch(opts) {
     // waiting banner until the opponent joins.
     _h2h.shareLink = link;
     _h2hShowWaiting();
+    return { ok: true };
   } catch (e) {
     _h2hStatus("");
-    alert("Couldn't create the match — is the H2H server running at " + base + "? (" + e.message + ")");
+    const error = "Couldn't create the match — is the H2H server running at " + base + "? (" + e.message + ")";
+    // quiet: the caller renders the failure inline (the host-modal form);
+    // default: the legacy dev-panel path keeps its alert.
+    if (!o.quiet) alert(error);
+    return { ok: false, error };
   } finally {
     if (_busyBtn) DS.busy(_busyBtn, false);
   }
@@ -316,51 +321,105 @@ function _h2hStopClock() {
 }
 
 // ── Host modal — the player-facing entry (the dev panel keeps its own) ─────
+// Host-a-match form modal, built on the DS form layer. The UX contract:
+// sensible defaults (franchise team pre-picked; server = last-used →
+// same-origin probe → localhost), URL validated on blur then live once it
+// has erred, Enter submits, Esc/backdrop cancel, focus trapped + restored,
+// submit button goes busy around the network call, and a failure renders
+// INLINE (role="alert") with the modal still open — the old version hid the
+// modal before the await and alert()ed into the void.
+const _H2H_LAST_SERVER_KEY = "h2h_last_server";
 function h2hShowModal() {
-  let el = document.getElementById("h2hModal");
-  if (el) { el.style.display = "flex"; return; }
+  const prev = document.getElementById("h2hModal");
+  if (prev) prev.remove(); // rebuild fresh — defaults may have changed
   const fr = _h2hFranchiseRoster();
-  const teamOpts = TEAMS.map(t =>
-    `<option value="${t.id}"${fr && t.id === fr.teamId ? " selected" : ""}>${t.city} ${t.name}</option>`).join("");
-  el = document.createElement("div");
+  const trigger = (document.activeElement instanceof HTMLElement) ? document.activeElement : null;
+
+  let lastServer = "";
+  try { lastServer = localStorage.getItem(_H2H_LAST_SERVER_KEY) || ""; } catch (e) {}
+  const serverDefault = lastServer || _h2hDefaultBase || "http://localhost:8787";
+
+  const el = document.createElement("div");
   el.id = "h2hModal";
-  el.style.cssText = "position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.72)";
+  el.className = "ds-modal-backdrop";
   el.innerHTML = `
-    <div style="background:var(--panel,#10131c);border:1px solid rgba(245,197,66,.35);border-radius:10px;padding:1.4rem 1.6rem;max-width:430px;width:92%">
-      <div style="font-size:.95rem;font-weight:800;letter-spacing:1px;color:var(--gold,#f5c542);margin-bottom:.3rem">🌐 LIVE HEAD-TO-HEAD</div>
-      <div style="font-size:.68rem;color:var(--gray,#8a8fa3);line-height:1.5;margin-bottom:.9rem">
-        Host a match against another human. You call plays on both sides of the ball;
-        they join through a share link. Requires a running match server
-        (<code>node server/h2h-server.js</code>).
+    <div class="ds-modal" role="dialog" aria-modal="true" aria-labelledby="h2hModalTitle">
+      <div class="ds-modal__title" id="h2hModalTitle">🌐 Live head-to-head</div>
+      <div class="ds-modal__body">
+        <p style="margin:0 0 .8rem;font-size:.72rem;color:var(--ds-text-muted);line-height:1.5">
+          Host a match against another human — they join through a share link.
+          Requires a running match server (<code>node server/h2h-server.js</code>).
+        </p>
+        <form>
+          <div class="ds-form-error"></div>
+          ${DS.field({
+            id: "h2hModalTeam", label: "Your team",
+            control: DS.select({
+              id: "h2hModalTeam",
+              attrs: { name: "team", autocomplete: "off" },
+              value: fr ? String(fr.teamId) : undefined,
+              options: TEAMS.map(t => ({ value: t.id, label: `${t.city} ${t.name}` })),
+            }),
+          })}
+          ${fr ? `<div class="ds-field">${DS.checkbox({
+            id: "h2hModalFranchise", name: "useFranchiseRoster",
+            label: `Bring my franchise roster (${fr.name})`, checked: true,
+          })}</div>` : ""}
+          ${DS.field({
+            id: "h2hModalServer", label: "Match server", required: true,
+            hint: "Where the H2H server is running. Remembered for next time.",
+            control: DS.input({
+              id: "h2hModalServer", name: "server", type: "url", required: true,
+              value: serverDefault, placeholder: "http://localhost:8787",
+              autocomplete: "url", inputmode: "url", enterkeyhint: "go",
+              spellcheck: "false",
+            }),
+          })}
+          <div class="ds-modal__footer">
+            <button type="button" class="ds-btn ds-btn--outline" id="h2hModalCancel">Cancel</button>
+            <button type="submit" class="ds-btn ds-btn--gold">Create match</button>
+          </div>
+        </form>
       </div>
-      <label style="display:block;font-size:.62rem;color:var(--gray,#8a8fa3);margin:.45rem 0 .15rem">YOUR TEAM</label>
-      <select id="h2hModalTeam" style="width:100%">${teamOpts}</select>
-      ${fr ? `<label style="display:flex;gap:.4rem;align-items:center;font-size:.66rem;margin:.55rem 0 0;cursor:pointer">
-        <input type="checkbox" id="h2hModalFranchise" checked>
-        use my franchise roster (${fr.name})</label>` : ""}
-      <label style="display:block;font-size:.62rem;color:var(--gray,#8a8fa3);margin:.7rem 0 .15rem">MATCH SERVER</label>
-      <input id="h2hModalServer" type="text" style="width:100%" placeholder="http://localhost:8787">
-      <div style="display:flex;gap:.5rem;margin-top:1rem;justify-content:flex-end">
-        <button class="btn btn-outline" onclick="document.getElementById('h2hModal').style.display='none'">Cancel</button>
-        <button class="btn btn-gold" id="h2hModalCreate">Create match</button>
-      </div>
-      <div id="h2hModalStatus" style="font-size:.64rem;margin-top:.6rem;color:var(--gray,#8a8fa3)"></div>
     </div>`;
   document.body.appendChild(el);
-  const srv = el.querySelector("#h2hModalServer");
-  srv.value = _h2hDefaultBase || "";
-  el.querySelector("#h2hModalCreate").addEventListener("click", async () => {
-    const useFr = !!el.querySelector("#h2hModalFranchise")?.checked;
-    const st = el.querySelector("#h2hModalStatus");
-    st.textContent = "Creating…";
-    el.style.display = "none";
-    await h2hCreateMatch({
-      base: (srv.value.trim() || _h2hDefaultBase || "http://localhost:8787").replace(/\/+$/, ""),
-      homeTeamId: +el.querySelector("#h2hModalTeam").value,
-      useFranchiseRoster: useFr,
-    });
-    st.textContent = "";
+
+  const untrap = (typeof DS !== "undefined" && DS.trapFocus)
+    ? DS.trapFocus(el.querySelector(".ds-modal")) : () => {};
+  const close = () => {
+    untrap();
+    document.removeEventListener("keydown", onKey);
+    el.remove();
+    if (trigger && typeof trigger.focus === "function") { try { trigger.focus(); } catch (e) {} }
+  };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", onKey);
+  el.addEventListener("click", (e) => { if (e.target === el) close(); });
+  el.querySelector("#h2hModalCancel").addEventListener("click", close);
+
+  DS.form(el, {
+    validate: {
+      server: (v) => {
+        if (!/^https?:\/\//i.test(String(v).trim())) return "Must start with http:// or https://";
+        return "";
+      },
+    },
+    onSubmit: async (v) => {
+      const base = String(v.server).trim().replace(/\/+$/, "");
+      const r = await h2hCreateMatch({
+        base,
+        homeTeamId: +v.team,
+        useFranchiseRoster: !!v.useFranchiseRoster,
+        quiet: true,
+      });
+      if (!r || !r.ok) return { error: (r && r.error) || "Couldn't create the match." };
+      try { localStorage.setItem(_H2H_LAST_SERVER_KEY, base); } catch (e) {}
+      close(); // success — the waiting panel (share link) takes over
+    },
   });
+
+  // Initial focus: the first field, not the cancel button — this is a form.
+  setTimeout(() => { el.querySelector("#h2hModalTeam")?.focus(); }, 30);
 }
 
 // ── plumbing ────────────────────────────────────────────────────────────────
