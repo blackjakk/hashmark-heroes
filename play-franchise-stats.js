@@ -1824,10 +1824,12 @@ function frnOpenPlayerCard(name, pid) {
   // destructive Release fenced at the far edge. Other players keep the flat bar.
   let actionRow;
   if (isMyPlayer && !isProspect) {
-    const c = p.contract;
-    const canRestr = c && (c.remaining || 0) >= 2 && c.restructuredSeason !== franchise.season;
+    // Full eligibility (2+ yrs, base ≥ $2.0M, once/season) via the same check
+    // the handler enforces — a looser gate here rendered a button that
+    // silently no-opped on sub-$2M bases (e.g. 2yr/$1.0M PS-poach deals).
+    const canRestr = typeof _frnRestructureEconomics === "function" && !!_frnRestructureEconomics(p);
     const restrBtn = canRestr
-      ? `<button class="frn-pcard-yrbtn" onclick="frnRestructureFromManage('${escName}','${p.position}')" title="Convert base salary to signing bonus — frees cap now, adds dead money later (opens the cap sheet to confirm)" aria-label="Restructure ${_escHtml(name)}">📝 Restructure</button>`
+      ? `<button class="frn-pcard-yrbtn" onclick="frnRestructureFromManage('${escName}','${p.position}')" title="Convert base salary to signing bonus — frees cap now, adds dead money later. Confirms here; void-year options on the cap sheet." aria-label="Restructure ${_escHtml(name)}">📝 Restructure</button>`
       : "";
     const releaseBtn = `<button class="frn-pcard-yrbtn danger" onclick="frnReleaseFromManage('${escName}','${p.position}')" title="Release ${nameAttr} — frees this year's cap, may leave dead money" aria-label="Release ${_escHtml(name)}">✂ Release</button>`;
     actionRow = `<div class="frn-pcard-actions frn-pcard-actions--split">
@@ -1849,11 +1851,14 @@ function frnOpenPlayerCard(name, pid) {
     if (e.target === overlay) frnClosePlayerModal();
   });
   document.body.appendChild(overlay);
-  // ESC closes
+  // ESC closes — but when a confirm modal (release/restructure) is stacked on
+  // top of the card, Esc belongs to the modal: both listeners are document-
+  // level and neither stops propagation, so without this guard declining the
+  // confirm with Esc also destroyed the card underneath.
   if (!window.__frnPCardEscBound) {
     window.__frnPCardEscBound = true;
     document.addEventListener("keydown", e => {
-      if (e.key === "Escape") frnClosePlayerModal();
+      if (e.key === "Escape" && !document.querySelector(".frn-modal-backdrop")) frnClosePlayerModal();
     });
   }
 }
@@ -7285,9 +7290,10 @@ function _frnRenderActiveTab() {
 
 // H4 — "Cap / Cuts" roster sub-tab: the plain 53-man cap ledger with inline
 // Restructure + Cut, so roster management has an obvious home in the Roster tab
-// (it used to live only in Front Office → Analytics). Cut confirms in place via
-// frnReleaseFromManage (self-contained modal → re-renders this tab); Restructure
-// routes to the cap sheet's full void-year confirm. Reuses the tested cap
+// (it used to live only in Front Office → Analytics). Cut and Restructure both
+// confirm in place (frnReleaseFromManage / frnRestructureFromManage — self-
+// contained modals → re-render this tab); void-year restructure variants stay
+// on the cap sheet, which owns the chip UI. Reuses the tested cap
 // helpers (currentYearCapHit / deadCapOnRelease / capUsedByTeam) — read-only,
 // determinism-neutral.
 function renderFrnCapCuts() {
@@ -7315,7 +7321,9 @@ function renderFrnCapCuts() {
     // e.g. an expiring deal, which owes nothing → full relief).
     const frees = Math.round((hit - (dead > 0 ? perYear : 0)) * 10) / 10;
     const escName = p.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-    const canRestr = (c.remaining || 0) >= 2 && c.restructuredSeason !== franchise.season;
+    // Full eligibility (incl. base ≥ $2.0M) — same check the handler enforces,
+    // so the button never renders as a silent no-op.
+    const canRestr = typeof _frnRestructureEconomics === "function" && !!_frnRestructureEconomics(p);
     const nameCell = (typeof _playerLinkSmart === "function") ? _playerLinkSmart(p.name) : _escHtml(p.name);
     const grade = (typeof gradeBadge === "function") ? gradeBadge(p) : (p.overall ?? "");
     return `<tr>
@@ -7326,7 +7334,7 @@ function renderFrnCapCuts() {
       <td style="font-size:.62rem;color:${dead > 0 ? "var(--ds-grade-neg-mid)" : "var(--gray)"}">${dead > 0 ? `☠ $${perYear.toFixed(1)}M×${years}yr` : "—"}</td>
       <td style="color:${frees >= 0 ? "var(--green-lt)" : "var(--red)"};font-weight:700">${frees >= 0 ? "+" : "−"}$${Math.abs(frees).toFixed(1)}M</td>
       <td style="white-space:nowrap">
-        ${canRestr ? `<button class="frn-capcut-btn" onclick="frnRestructureFromManage('${escName}','${p.position}')" title="Convert base salary to signing bonus — opens the cap sheet to confirm">📝 Restructure</button>` : ""}
+        ${canRestr ? `<button class="frn-capcut-btn" onclick="frnRestructureFromManage('${escName}','${p.position}')" title="Convert base salary to signing bonus — frees cap now, adds dead money later. Confirms here; void-year options on the cap sheet.">📝 Restructure</button>` : ""}
         <button class="frn-capcut-btn cut" onclick="frnReleaseFromManage('${escName}','${p.position}')" title="Release ${_escHtml(p.name)} — frees this year's cap, may leave dead money" aria-label="Cut ${_escHtml(p.name)}">✂ Cut</button>
       </td>
     </tr>`;
@@ -7343,7 +7351,7 @@ function renderFrnCapCuts() {
     </div>
     <p style="font-size:.62rem;color:var(--gray);margin:.1rem 0 .6rem">
       Cap Hit = this year's base + bonus proration. Dead = prorated bonus that stays on your cap if you cut him.
-      Frees = this year's cap relief on a cut. ✂ Cut confirms here; 📝 Restructure opens the cap sheet for void-year options.
+      Frees = this year's cap relief on a cut. ✂ Cut and 📝 Restructure both confirm here; void-year restructures live on the cap sheet (Front Office → Analytics).
     </p>
     <table class="frn-ana-table"><thead>
       <tr><th>Player</th><th>Pos</th><th>Grade</th><th>Cap Hit</th><th>Dead Cap</th><th>Frees</th><th></th></tr>

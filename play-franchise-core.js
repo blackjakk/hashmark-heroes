@@ -1062,17 +1062,72 @@ async function frnReleaseFromManage(name, pos) {
   if (_frnCommitRelease(name, pos)) _frnRerenderRosterSurface();
 }
 
-// Restructure from the card / Cap-Cuts tab: route to the cap sheet, which owns
-// the full (void-year-aware) restructure confirm UI. Mirrors the existing
-// dev-report shortcut (renderFrnAnalytics + deferred frnRestructure).
-function frnRestructureFromManage(name, pos) {
-  if (typeof frnClosePlayerModal === "function") frnClosePlayerModal();
-  if (typeof renderFrnAnalytics === "function") {
-    renderFrnAnalytics("mysheet");
-    setTimeout(() => {
-      if (typeof frnRestructure === "function") frnRestructure(franchise.chosenTeamId, name, pos);
-    }, 40);
+// Restructure from the card / Cap-Cuts tab — confirms IN PLACE (the standard
+// 0-void restructure) via the same self-contained modal Release uses, so the
+// user isn't yanked to the cap sheet mid-flow. Void-year variants stay a
+// cap-sheet exclusive (Front Office → Analytics), where the full chip UI
+// lives. Same eligibility rules as frnRestructure: 2+ years left, base ≥
+// $2.0M, once per season.
+function _frnRestructureEconomics(p) {
+  const c = p?.contract;
+  if (!c) return null;
+  const remaining = c.remaining || 0;
+  if (remaining < 2) return null;
+  if (c.restructuredSeason === franchise.season) return null;
+  const yearIndex = Math.max(0, (c.years || 1) - remaining);
+  const currentBase = c.baseSalaries?.[yearIndex] ?? (c.aav - (c.bonusProration || 0));
+  if (currentBase < 2.0) return null;
+  const newProration = Math.round(currentBase / remaining * 10) / 10;
+  const freed = Math.round((currentBase - newProration) * 10) / 10;
+  return { yearIndex, currentBase, remaining, newProration, freed };
+}
+async function frnRestructureFromManage(name, pos) {
+  const teamId = franchise.chosenTeamId;
+  const p = (franchise.rosters[teamId] || []).find(q => q.name === name && q.position === pos);
+  const eco = p && _frnRestructureEconomics(p);
+  if (!eco) return;
+  const totalDead = Math.round(eco.newProration * eco.remaining * 10) / 10;
+  const msg = `Convert $${eco.currentBase.toFixed(1)}M base salary → signing bonus, prorated over ${eco.remaining}yr. `
+    + `Frees $${eco.freed.toFixed(1)}M this year; carries $${eco.newProration.toFixed(1)}M/yr `
+    + `($${totalDead.toFixed(1)}M total) as future bonus money — dead cap if he's ever cut. Once per season. `
+    + `(Void-year variants live on the cap sheet: Front Office → Analytics.)`;
+  const ok = (typeof _frnConfirm === "function")
+    ? await _frnConfirm(msg, { title: `Restructure ${pos} ${name}?`, confirmLabel: "📝 Restructure" })
+    : true;
+  if (!ok) return;
+  // Re-resolve + re-check after the await — the roster/contract can change
+  // while the modal sits open (another surface, a queued action).
+  const p2 = (franchise.rosters[teamId] || []).find(q => q.name === name && q.position === pos);
+  const eco2 = p2 && _frnRestructureEconomics(p2);
+  if (!eco2) return;
+  // Mutation mirrors frnRestructureConfirm with voidYearsAdd=0 (that function
+  // is welded to _restructurePending + the analytics re-render, so calling it
+  // from here would surface-jump; the legacy cap-sheet flow stays untouched).
+  const c = p2.contract;
+  if (c.baseSalaries) c.baseSalaries[eco2.yearIndex] = 0;
+  c.bonusProration     = Math.round(((c.bonusProration || 0) + eco2.newProration) * 10) / 10;
+  c.signingBonus       = Math.round(((c.signingBonus   || 0) + eco2.currentBase) * 10) / 10;
+  c.restructuredSeason = franchise.season;
+  // Disarm any cap-sheet proposal left armed for this same player: its ✓ row
+  // renders on a name/pos match only, and frnRestructureConfirm applies the
+  // CAPTURED numbers unconditionally — confirming it after this inline apply
+  // would zero an already-zero base and book the bonus a second time
+  // (doubled proration, phantom signing bonus, saved).
+  if (_restructurePending?.name === name && _restructurePending?.pos === pos) {
+    _restructurePending = null;
   }
+  if (typeof saveFranchise === "function") saveFranchise();
+  if (typeof _pushNews === "function") _pushNews({ type: "restructure",
+    label: `🔀 Restructured ${pos} ${name} — freed $${eco2.freed.toFixed(1)}M, added $${eco2.newProration.toFixed(1)}M/yr dead` });
+  if (typeof _frnFlashToast === "function") {
+    _frnFlashToast(`✓ Restructured ${name} · freed $${eco2.freed.toFixed(1)}M this year`, "success");
+  }
+  // Refresh in place: the underlying surface (Cap/Cuts row buttons + cap
+  // numbers), and the player card if it's the surface the click came from
+  // (the overlay lives on document.body, so it survives the tab re-render).
+  const cardOpen = typeof document !== "undefined" && document.getElementById("frn-pcard-overlay");
+  _frnRerenderRosterSurface();
+  if (cardOpen && typeof frnOpenPlayerCard === "function") frnOpenPlayerCard(name, p2.pid);
 }
 
 // ── Pay-cut negotiation ─────────────────────────────────────────────────────
@@ -4411,7 +4466,15 @@ function _frnConfirmModal(opts) {
     };
     cancelBtn.addEventListener("click", () => close(false));
     okBtn.addEventListener("click", () => { if (!okBtn.disabled) close(true); });
-    wrap.addEventListener("click", (e) => { if (e.target === wrap) close(false); });   // click-backdrop to dismiss
+    // Click-backdrop to dismiss — but ignore the first ~250ms: the backdrop
+    // mounts synchronously under the pointer, so the second click of a
+    // double-click on the OPENING button (release/restructure rows) landed
+    // here and instantly self-cancelled the confirm. DOM-only timing guard,
+    // never on the sim path.
+    const _mountedAt = performance.now();
+    wrap.addEventListener("click", (e) => {
+      if (e.target === wrap && performance.now() - _mountedAt > 250) close(false);
+    });
     if (typeInp) {
       typeInp.addEventListener("input", () => {
         okBtn.disabled = typeInp.value.trim() !== typeName;
