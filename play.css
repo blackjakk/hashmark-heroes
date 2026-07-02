@@ -1121,6 +1121,9 @@
   .fps-slot-time { font-size: .58rem; color: var(--gray, #999); }
   .fps-slot-actions { display: flex; align-items: center; gap: .35rem; }
   .fps-empty { color: var(--gray, #999); font-style: italic; text-align: center; padding: 1rem; font-size: .78rem; }
+  /* Boot skeleton — slot-card-sized shimmer rows while the IDB fallback read
+     is in flight (see loadFranchise/_frnIdbBootPending). */
+  .fps-slot-skeleton .ds-skeleton__bar { height: 3.2rem; border-radius: var(--ds-radius-md); }
 
   .fps-starts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .6rem; }
   .fps-start {

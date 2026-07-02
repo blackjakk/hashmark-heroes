@@ -93,25 +93,38 @@
   // Inline-handler attribute helper (trusted expr string).
   function _on(expr) { return expr ? ` onclick="${expr}"` : ""; }
 
+  // Inline Enter/Space activation for non-<button> interactive elements
+  // (chips/tabs/nav links are span/div/a). Static trusted string — no
+  // interpolation ever lands inside it.
+  const _KEY_ACTIVATE =
+    ` onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"`;
+
   // ── button ─────────────────────────────────────────────────────────────────
-  // { label, variant='outline', size, icon, on, disabled, title, type, attrs,
-  //   ariaLabel }
+  // { label, variant='outline', size, icon, on, disabled, busy, title, type,
+  //   attrs, ariaLabel }
   // ariaLabel → emits aria-label="…" (escaped). Essential for icon-only buttons
   // (icon set, no label text) so screen readers announce a name.
+  // busy → in-flight action state: spinner + disabled + aria-busy (label kept,
+  // so the button doesn't change width). For toggling an already-mounted
+  // button around an await, use DS.busy(el, on) instead of re-rendering.
   function button(opts) {
     const o = opts || {};
+    const busy = !!o.busy;
     const cls = cx(
       "ds-btn",
       o.variant && ("ds-btn--" + o.variant),
       o.size && ("ds-btn--" + o.size),
+      busy && "ds-btn--busy",
       o.class || o.cls
     );
+    const spin = busy ? `<span class="ds-spinner ds-spinner--sm" aria-hidden="true"></span>` : "";
     const icon = o.icon ? `<span class="ds-btn__icon">${esc(o.icon)}</span>` : "";
     const type = o.type ? ` type="${esc(o.type)}"` : "";
     const title = o.title ? ` title="${esc(o.title)}"` : "";
     const aria = o.ariaLabel ? ` aria-label="${esc(o.ariaLabel)}"` : "";
-    const dis = o.disabled ? " disabled" : "";
-    return `<button class="${cls}"${type}${title}${aria}${dis}${_on(o.on)}${attrs(o.attrs)}>${icon}${esc(o.label)}</button>`;
+    const dis = (o.disabled || busy) ? " disabled" : "";
+    const busyAttr = busy ? ` aria-busy="true"` : "";
+    return `<button class="${cls}"${type}${title}${aria}${busyAttr}${dis}${_on(o.on)}${attrs(o.attrs)}>${spin}${icon}${esc(o.label)}</button>`;
   }
 
   // ── card ─────────────────────────────────────────────────────────────────
@@ -128,9 +141,13 @@
   }
 
   // ── chip ─────────────────────────────────────────────────────────────────
-  // { label, active, variant, on, title }
+  // { label, active, variant, on, title, disabled }
+  // Interactive chips (`on` set, not disabled) are real controls: they get
+  // role="button" + tabindex="0" + Enter/Space activation so keyboard users
+  // can reach them. Decorative chips (no `on`) stay inert spans.
   function chip(opts) {
     const o = opts || {};
+    const interactive = !!o.on && !o.disabled;
     const cls = cx(
       "ds-chip",
       o.active && "ds-chip--active",
@@ -138,17 +155,27 @@
       o.class || o.cls
     );
     const title = o.title ? ` title="${esc(o.title)}"` : "";
-    return `<span class="${cls}"${title}${_on(o.on)}>${esc(o.label)}</span>`;
+    const a11y = interactive
+      ? ` role="button" tabindex="0"${_KEY_ACTIVATE}`
+      : (o.disabled ? ` aria-disabled="true"` : "");
+    return `<span class="${cls}"${title}${a11y}${interactive ? _on(o.on) : ""}>${esc(o.label)}</span>`;
   }
 
   // ── tab / tabBar ───────────────────────────────────────────────────────────
-  // tab: { id, label, color, active, on }  — `on` is a fn-name called on('id')
+  // tab: { id, label, color, active, on, disabled } — `on` is a fn-name called
+  // on('id'). Interactive tabs are keyboard-reachable (role="button" +
+  // tabindex + Enter/Space); the active one carries aria-current="true".
   function tab(opts) {
     const o = opts || {};
+    const interactive = !!o.on && !o.disabled;
     const cls = cx("ds-tab", o.active && "ds-tab--active", o.class || o.cls);
     const style = o.color ? ` style="--unit-color:${esc(o.color)}"` : "";
-    const click = o.on ? ` onclick="${o.on}('${esc(o.id)}')"` : "";
-    return `<div class="${cls}"${style} data-tab="${esc(o.id)}"${click}>${esc(o.label)}</div>`;
+    const click = interactive ? ` onclick="${o.on}('${esc(o.id)}')"` : "";
+    const a11y = interactive
+      ? ` role="button" tabindex="0"${_KEY_ACTIVATE}`
+      : (o.disabled ? ` aria-disabled="true"` : "");
+    const cur = o.active ? ` aria-current="true"` : "";
+    return `<div class="${cls}"${style} data-tab="${esc(o.id)}"${a11y}${cur}${click}>${esc(o.label)}</div>`;
   }
   // tabBar: { tabs:[{id,label,color}], activeId, on }
   function tabBar(opts) {
@@ -336,24 +363,34 @@
   }
 
   // ── toggle ─────────────────────────────────────────────────────────────────
-  // { expanded, label, on }
+  // { expanded, label, on, disabled, title }
   function toggle(opts) {
     const o = opts || {};
     const cls = cx("ds-toggle", o.expanded && "ds-toggle--expanded", o.class || o.cls);
     const caret = o.expanded ? "▾" : "▸";
-    return `<button class="${cls}" aria-expanded="${o.expanded ? "true" : "false"}"${_on(o.on)}>` +
+    const title = o.title ? ` title="${esc(o.title)}"` : "";
+    const dis = o.disabled ? " disabled" : "";
+    return `<button class="${cls}" aria-expanded="${o.expanded ? "true" : "false"}"${title}${dis}${_on(o.on)}>` +
       `<span class="ds-toggle__caret">${caret}</span>` +
       `<span class="ds-toggle__label">${esc(o.label)}</span>` +
       `</button>`;
   }
 
   // ── toolbar ──────────────────────────────────────────────────────────────
-  // { links:[{label, on}] }  — dot-separated nav
+  // { links:[{label, on, active, disabled}] }  — dot-separated nav. Links are
+  // href-less <a>, so interactive ones need role/tabindex/key activation to
+  // be reachable at all from a keyboard.
   function toolbar(opts) {
     const o = opts || {};
-    const links = (o.links || []).map(l =>
-      `<a class="ds-nav__link"${_on(l.on)}>${esc(l.label)}</a>`
-    ).join(`<span class="ds-nav__sep">·</span>`);
+    const links = (o.links || []).map(l => {
+      const interactive = !!l.on && !l.disabled;
+      const cls = cx("ds-nav__link", l.active && "ds-nav__link--active");
+      const a11y = interactive
+        ? ` role="button" tabindex="0"${_KEY_ACTIVATE}`
+        : (l.disabled ? ` aria-disabled="true"` : "");
+      const cur = l.active ? ` aria-current="true"` : "";
+      return `<a class="${cls}"${a11y}${cur}${interactive ? _on(l.on) : ""}>${esc(l.label)}</a>`;
+    }).join(`<span class="ds-nav__sep">·</span>`);
     return `<div class="ds-toolbar ds-nav">${links}</div>`;
   }
 
@@ -369,6 +406,157 @@
       return `<option value="${esc(op.value)}"${sel}>${esc(op.label)}</option>`;
     }).join("");
     return `<div class="ds-select"><select${id}${onCh}${attrs(o.attrs)}>${options}</select></div>`;
+  }
+
+  // ── spinner ─────────────────────────────────────────────────────────────
+  // { size:'sm'|'lg', label, class }
+  // With `label` → standalone status indicator (role="status" + sr-only text,
+  // announced once). Without → decorative (aria-hidden): use inside a control
+  // that itself carries aria-busy (DS.button{busy} / DS.busy do this).
+  function spinner(opts) {
+    const o = opts || {};
+    const cls = cx("ds-spinner", o.size && ("ds-spinner--" + o.size), o.class || o.cls);
+    if (o.label) {
+      return `<span role="status"><span class="${cls}" aria-hidden="true"></span>` +
+        `<span class="sr-only">${esc(o.label)}</span></span>`;
+    }
+    return `<span class="${cls}" aria-hidden="true"></span>`;
+  }
+
+  // ── skeleton ─────────────────────────────────────────────────────────────
+  // { variant:'text'|'block'|'tile'|'table', lines=3, rows=4, cols=4, width,
+  //   height, label='Loading…', class }
+  // Loading placeholder for content that is genuinely in flight (an IDB read,
+  // a network call) — never for instant renders. Container announces ONCE
+  // (role="status" aria-busy + sr-only label); the shimmer bars are
+  // aria-hidden decoration. Swap it out by re-rendering the region.
+  function skeleton(opts) {
+    const o = opts || {};
+    const variant = o.variant || "text";
+    const cls = cx("ds-skeleton", "ds-skeleton--" + variant, o.class || o.cls);
+    let style = "";
+    if (o.width) style += `width:${esc(o.width)};`;
+    if (o.height) style += `height:${esc(o.height)};`;
+    const styleAttr = style ? ` style="${style}"` : "";
+    let bars = "";
+    if (variant === "table") {
+      const rows = Math.max(1, (o.rows | 0) || 4);
+      const cols = Math.max(1, (o.cols | 0) || 4);
+      for (let r = 0; r < rows; r++) {
+        let cells = "";
+        for (let c = 0; c < cols; c++) cells += `<span class="ds-skeleton__bar"></span>`;
+        bars += `<span class="ds-skeleton__row">${cells}</span>`;
+      }
+    } else if (variant === "tile") {
+      bars = `<span class="ds-skeleton__bar" style="width:45%"></span>` +
+             `<span class="ds-skeleton__bar ds-skeleton__bar--lg"></span>`;
+    } else if (variant === "block") {
+      bars = `<span class="ds-skeleton__bar ds-skeleton__bar--block"></span>`;
+    } else { // text
+      const n = Math.max(1, (o.lines | 0) || 3);
+      for (let i = 0; i < n; i++) {
+        const short = (i === n - 1 && n > 1) ? ` style="width:60%"` : "";
+        bars += `<span class="ds-skeleton__bar"${short}></span>`;
+      }
+    }
+    const label = o.label != null ? o.label : "Loading…";
+    return `<div class="${cls}"${styleAttr} role="status" aria-busy="true" aria-live="polite">` +
+      `<span class="sr-only">${esc(label)}</span>` +
+      `<span class="ds-skeleton__frame" aria-hidden="true">${bars}</span></div>`;
+  }
+
+  // ── emptyState / errorState ──────────────────────────────────────────────
+  // Shared layout (.ds-state), two semantics. body is TRUSTED (compose links/
+  // markup yourself); icon/title/detail are escaped. `action` is either a
+  // DS.button opts object or a pre-built TRUSTED HTML string.
+  function _stateBlock(kind, o) {
+    const cls = cx("ds-state", "ds-state--" + kind, o.compact && "ds-state--compact", o.class || o.cls);
+    const icon = o.icon ? `<div class="ds-state__icon" aria-hidden="true">${esc(o.icon)}</div>` : "";
+    const title = o.title ? `<div class="ds-state__title">${esc(o.title)}</div>` : "";
+    const body = o.body != null ? `<div class="ds-state__body">${o.body}</div>` : "";
+    const detail = o.detail ? `<div class="ds-state__detail">${esc(o.detail)}</div>` : "";
+    const act = o.action == null ? "" : (typeof o.action === "string" ? o.action : button(o.action));
+    const action = act ? `<div class="ds-state__action">${act}</div>` : "";
+    // Errors announce when injected (role="alert"); empty states are plain
+    // content — no live region, no announcement.
+    const aria = kind === "error" ? ` role="alert"` : "";
+    return `<div class="${cls}"${aria}${attrs(o.attrs)}>${icon}${title}${body}${detail}${action}</div>`;
+  }
+  // { icon, title, body, action, compact, class, attrs }
+  function emptyState(opts) { return _stateBlock("empty", opts || {}); }
+  // { icon='⚠', title, body, detail, retry, action, compact, class, attrs }
+  // `retry` sugar: a trusted handler-expression string (or button opts) that
+  // becomes the gold "↻ Retry" action — every error state should offer a way
+  // forward.
+  function errorState(opts) {
+    const o = Object.assign({}, opts || {});
+    if (o.action == null && o.retry != null) {
+      o.action = typeof o.retry === "string"
+        ? { label: "↻ Retry", variant: "gold", on: o.retry }
+        : o.retry;
+    }
+    if (o.icon == null) o.icon = "⚠";
+    return _stateBlock("error", o);
+  }
+
+  // ── toast (DOM helper) ────────────────────────────────────────────────────
+  // DS.toast({message, kind:'success'|'warn'|'error'|'info', duration=3500})
+  // (or DS.toast("message")). Singleton feedback strip, top-center, auto-
+  // dismissing. success/warn/info are polite (role="status"); errors are
+  // assertive (role="alert"). Re-calling replaces the message and restarts
+  // the timer. pointer-events:none — it never blocks clicks. Returns the
+  // element (null outside a DOM).
+  function toast(opts) {
+    if (typeof document === "undefined") return null;
+    const o = typeof opts === "string" ? { message: opts } : (opts || {});
+    const kind = (o.kind === "warn" || o.kind === "error" || o.kind === "info") ? o.kind : "success";
+    let el = document.getElementById("dsToast");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "dsToast";
+      document.body.appendChild(el);
+    }
+    el.className = cx("ds-toast", "ds-toast--" + kind);
+    el.setAttribute("role", kind === "error" ? "alert" : "status");
+    el.setAttribute("aria-live", kind === "error" ? "assertive" : "polite");
+    el.textContent = o.message == null ? "" : String(o.message);
+    void el.offsetWidth; // reflow so a replaced toast re-runs its entrance
+    el.classList.add("ds-toast--visible");
+    clearTimeout(el._dsDismiss);
+    const dur = Number.isFinite(o.duration) ? o.duration : 3500;
+    if (dur > 0) {
+      el._dsDismiss = setTimeout(() => el.classList.remove("ds-toast--visible"), dur);
+    }
+    return el;
+  }
+
+  // ── busy (DOM helper) ─────────────────────────────────────────────────────
+  // DS.busy(elOrSelector, on) — toggle the in-flight state on a mounted
+  // control around an await:  DS.busy(btn, true); try { await work(); }
+  // finally { DS.busy(btn, false); }
+  // Adds/removes: leading spinner, disabled, aria-busy, .ds-btn--busy.
+  // Idempotent; returns the element (null if not found / no DOM).
+  function busy(target, on) {
+    if (typeof document === "undefined") return null;
+    const el = typeof target === "string" ? document.querySelector(target) : target;
+    if (!el) return null;
+    const isBusy = el.getAttribute("aria-busy") === "true";
+    if (on && !isBusy) {
+      el.setAttribute("aria-busy", "true");
+      el.classList.add("ds-btn--busy");
+      if ("disabled" in el) el.disabled = true; else el.setAttribute("aria-disabled", "true");
+      const sp = document.createElement("span");
+      sp.className = "ds-spinner ds-spinner--sm ds-busy__spinner";
+      sp.setAttribute("aria-hidden", "true");
+      el.insertBefore(sp, el.firstChild);
+    } else if (!on && isBusy) {
+      el.removeAttribute("aria-busy");
+      el.classList.remove("ds-btn--busy");
+      if ("disabled" in el) el.disabled = false; else el.removeAttribute("aria-disabled");
+      const sp = el.querySelector(":scope > .ds-busy__spinner");
+      if (sp) sp.remove();
+    }
+    return el;
   }
 
   // ── mount (DOM helper) ──────────────────────────────────────────────────────
@@ -396,6 +584,8 @@
     button, card, chip, tab, tabBar,
     modal, modalHtml, banner, statTile,
     row, table, progress, toggle, toolbar, select,
+    spinner, skeleton, emptyState, errorState,
+    toast, busy,
     mount
   };
 

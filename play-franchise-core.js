@@ -21,6 +21,11 @@ let _restructurePending = null; // {teamId,name,pos,currentBase,newProration,fre
 let _releasePending     = null; // {name,pos,deadPerYr,deadYrs,deadTotal,june1,j1Year1,j1Year2,j1Allowed,j1Used}
 let _payCutPending      = null; // {name,pos,currentAav,market,overpayPct,result:null|"accept"|"decline",newAav,cutPct}
 
+// True while loadFranchise()'s async IDB-fallback read is in flight (local-
+// Storage empty, IDB may hold the save). The start screen renders a loading
+// skeleton instead of "no franchises" until it settles.
+let _frnIdbBootPending = false;
+
 // NFL post-June 1 cap rule: each team gets 2 designations per offseason.
 // Normal cut: all remaining bonus proration counts as dead cap (spread over
 // remaining years in our model). June-1 cut: only this year's proration
@@ -4295,14 +4300,29 @@ function loadFranchise() {
       }).catch(() => {});
     } else {
       franchise = null;
-      // Async IDB fallback — common case is localStorage cleared but IDB intact.
+      // Async IDB fallback — common case is localStorage cleared but IDB
+      // intact. While this read is in flight the start screen shows a loading
+      // skeleton (`_frnIdbBootPending`) instead of flashing "no franchises"
+      // and then popping the dashboard in over it.
+      _frnIdbBootPending = true;
+      const _clearBootPending = () => {
+        if (!_frnIdbBootPending) return;
+        _frnIdbBootPending = false;
+        // Only repaint if the start screen is still what's on screen — never
+        // stomp a dashboard/team-picker the user has since navigated to.
+        if (typeof document !== "undefined" && document.querySelector("#frnHomeContent .fps-hero")
+            && typeof renderFrnStartScreen === "function") {
+          renderFrnStartScreen();
+        }
+      };
       _idbGet(slotId).then(idbFranchise => {
-        if (!idbFranchise) return;
+        if (!idbFranchise) { _clearBootPending(); return; }
         franchise = idbFranchise;
+        _frnIdbBootPending = false;
         if (franchise.pendingFranchiseGame) franchise.pendingFranchiseGame = null;
         _runSaveBackfills();
         if (typeof showFranchiseDashboard === "function") showFranchiseDashboard();
-      }).catch(() => {});
+      }).catch(() => { _clearBootPending(); });
     }
   } catch { franchise = null; }
 }
@@ -5070,7 +5090,13 @@ function renderFrnStartScreen() {
     : sm.phase === "draft" ? "Draft"
     : sm.phase ? (sm.phase[0].toUpperCase() + sm.phase.slice(1).replace(/_/g, " ")) : "—";
 
-  const slotsHtml = slots.length ? slots.map(s => {
+  // While the IDB-fallback read from loadFranchise() is still in flight, the
+  // slot region is genuinely UNKNOWN — render skeleton slots instead of a
+  // false "no franchises" that would pop into a dashboard a beat later.
+  const idbPending = typeof _frnIdbBootPending !== "undefined" && _frnIdbBootPending && !slots.length;
+  const slotsHtml = idbPending
+    ? DS.skeleton({ variant: "table", rows: 2, cols: 1, label: "Checking for saved franchises…", class: "fps-slot-skeleton" })
+    : slots.length ? slots.map(s => {
     const sm = s.summary || {};
     const isActive = meta.activeSlotId === s.id;
     return `<div class="fps-slot ${isActive?"active":""}" style="--accent:${_slotAccent(sm)}">

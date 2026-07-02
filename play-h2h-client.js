@@ -35,6 +35,10 @@ async function h2hCreateMatch(opts) {
   if (o.useFranchiseRoster && fr) { homeTeamId = fr.teamId; homeRoster = fr.roster; }
   if (awayTeamId === homeTeamId) awayTeamId = null;   // joiner picks their own seat anyway
   _h2hStatus("Creating match…");
+  // In-flight feedback on the trigger button — a real network wait. DS.busy
+  // adds spinner + disabled + aria-busy and also guards a double-click from
+  // firing two match creations.
+  const _busyBtn = (typeof DS !== "undefined" && DS.busy) ? DS.busy("#h2hCreateBtn", true) : null;
   try {
     const r = await _h2hPost(base, "/api/match", { homeTeamId, awayTeamId, homeRoster });
     if (r.error) throw new Error(r.error);
@@ -48,6 +52,8 @@ async function h2hCreateMatch(opts) {
   } catch (e) {
     _h2hStatus("");
     alert("Couldn't create the match — is the H2H server running at " + base + "? (" + e.message + ")");
+  } finally {
+    if (_busyBtn) DS.busy(_busyBtn, false);
   }
 }
 

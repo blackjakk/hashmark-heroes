@@ -7355,7 +7355,11 @@ function renderFrnCapCuts() {
     </p>
     <table class="frn-ana-table"><thead>
       <tr><th>Player</th><th>Pos</th><th>Grade</th><th>Cap Hit</th><th>Dead Cap</th><th>Frees</th><th></th></tr>
-    </thead><tbody>${rows || `<tr><td colspan="7" style="color:var(--gray);text-align:center;padding:1.2rem">No players under contract.</td></tr>`}</tbody></table>`;
+    </thead><tbody>${rows || `<tr><td colspan="7">${DS.emptyState({
+      icon: "🧾", title: "No players under contract", compact: true,
+      body: "Sign free agents or trade for players to build out the roster.",
+      action: { label: "🧢 Browse street FAs", variant: "gold", size: "sm", on: "frnOpenStreetFA()" },
+    })}</td></tr>`}</tbody></table>`;
 }
 
 // What the Overview tab renders, by phase. The in-season GM dashboard

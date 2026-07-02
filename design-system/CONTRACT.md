@@ -71,13 +71,16 @@ canvas/broadcast-layout/keyframe rules listed in "Hard rules".
 ## JS API (design-system/ds.js) — window.DS, returns HTML STRING unless noted
 - `DS.esc(s)` → escaped string (delegate to global `_escHtml` if present, else built-in).
 - `DS.attrs(obj)` → ` key="val"` string helper (escaped). `DS.cx(...names)` → class string.
-- `DS.button({label, variant='outline', size, icon, on, disabled, title, type, attrs})`.
+- `DS.button({label, variant='outline', size, icon, on, disabled, busy, title, type, attrs})`.
   `on` is a JS expression string for inline onclick, e.g. `"frnSetTab('roster')"`.
+  `busy` = in-flight state: spinner + `disabled` + `aria-busy="true"`, label kept.
 - `DS.card({eyebrow, title, body, onClose, hero, accent, attrs})`.
-- `DS.chip({label, active, variant, on, title})`.
-- `DS.tab({id, label, color, active, on})` and
+- `DS.chip({label, active, variant, on, title, disabled})`. Interactive chips (`on` set) emit
+  `role="button" tabindex="0"` + Enter/Space activation; `disabled` → `aria-disabled`, handler dropped.
+- `DS.tab({id, label, color, active, on, disabled})` and
   `DS.tabBar({tabs:[{id,label,color}], activeId, on})` where `on` is a fn-name string called
-  as `on('id')` (e.g. `"frnSetTab"`). Renders `<div class="ds-tabbar">…</div>`.
+  as `on('id')` (e.g. `"frnSetTab"`). Renders `<div class="ds-tabbar">…</div>`. Interactive tabs
+  are keyboard-reachable like chips; the active tab carries `aria-current="true"`.
 - `DS.modal({title, body, danger, okLabel='OK', cancelLabel='Cancel', requireType})` →
   RETURNS A Promise<boolean> and MOUNTS to document.body. MUST mirror `_frnConfirmModal`'s
   contract: backdrop click = cancel, Esc = cancel, Enter = confirm (if enabled), focus trap
@@ -86,9 +89,25 @@ canvas/broadcast-layout/keyframe rules listed in "Hard rules".
 - `DS.statTile({label, value, elite})`.
 - `DS.row({cells:[...], mine})`, `DS.table({head:[...], rows:[htmlString...], attrs})`.
 - `DS.progress({pct, color, label, title})`.
-- `DS.toggle({expanded, label, on})`.
-- `DS.toolbar({links:[{label, on}]})` (dot-separated nav).
+- `DS.toggle({expanded, label, on, disabled, title})`.
+- `DS.toolbar({links:[{label, on, active, disabled}]})` (dot-separated nav; interactive links
+  are keyboard-reachable, active carries `aria-current`).
 - `DS.select({id, options:[{value,label,selected}], value, on, attrs})`.
+- `DS.spinner({size:'sm'|'lg', label})` — with `label` → standalone `role="status"` + sr-only
+  text; without → `aria-hidden` decoration for use inside an `aria-busy` control.
+- `DS.skeleton({variant:'text'|'block'|'tile'|'table', lines, rows, cols, width, height, label})`
+  — loading placeholder for genuinely-async content (IDB/network), never instant renders.
+  Container = `role="status" aria-busy` + ONE sr-only label; bars are `aria-hidden`.
+- `DS.emptyState({icon, title, body, action, compact})` / `DS.errorState({icon='⚠', title,
+  body, detail, retry, action, compact})` — shared `.ds-state` layout. `body` TRUSTED,
+  icon/title/detail escaped; `action` = DS.button opts (or trusted HTML). errorState carries
+  `role="alert"` (announced on injection) and `retry` sugar → a gold "↻ Retry" action.
+- `DS.toast({message, kind:'success'|'warn'|'error'|'info', duration=3500})` → DOM helper,
+  RETURNS the element. Singleton top-center feedback strip; success/warn/info = `role="status"`
+  (polite), error = `role="alert"` (assertive); auto-dismisses; `pointer-events:none`.
+  `_frnFlashToast` delegates here — new code should call `DS.toast` directly.
+- `DS.busy(elOrSelector, on)` → DOM helper for async handlers: toggles spinner + `disabled` +
+  `aria-busy` + `.ds-btn--busy` on a mounted control around an await. Idempotent.
 - `DS.mount(parentElOrSelector, html, {replace=false})` → DOM helper for createElement sites:
   parses html and appends (or replaces children). Returns the inserted root element.
 All factories must HTML-escape labels/text by default. `on`/`attrs`/raw `body` are trusted

@@ -112,6 +112,45 @@
     <span style="color:var(--gray);font-size:.75rem">Promise-based · backdrop/Esc = cancel · Enter = confirm</span>
   </div>`));
 
+  // ── Interaction states ─────────────────────────────────────────────────
+  out.push(S("Action feedback — busy / spinner / toast", `<div class="row">
+    ${DS.button({ label: "Saving…", variant: "gold", busy: true })}
+    ${DS.button({ label: "Simulate", variant: "outline", on: "DS.busy(this, true); setTimeout(() => { DS.busy(this, false); DS.toast('Done ✓'); }, 1500)" })}
+    ${DS.spinner({ label: "Loading" })}
+    ${DS.spinner({ size: "lg" })}
+    ${DS.button({ label: "Toast: success", variant: "outline", size: "sm", on: "DS.toast({message:'✓ Released J. Kona · $2.0M dead cap', kind:'success'})" })}
+    ${DS.button({ label: "warn", variant: "outline", size: "sm", on: "DS.toast({message:'⚠ Offer too low — raise the AAV', kind:'warn'})" })}
+    ${DS.button({ label: "error", variant: "outline", size: "sm", on: "DS.toast({message:'Save failed — storage quota exceeded', kind:'error'})" })}
+    ${DS.button({ label: "info", variant: "outline", size: "sm", on: "DS.toast({message:'Trade window closes Week 9', kind:'info'})" })}
+  </div>`));
+
+  out.push(S("Loading skeletons", `<div class="grid3">
+    <div>${DS.skeleton({ variant: "text", lines: 3, label: "Loading bio…" })}</div>
+    <div>${DS.skeleton({ variant: "tile" })}</div>
+    <div>${DS.skeleton({ variant: "table", rows: 3, cols: 3 })}</div>
+  </div>`));
+
+  out.push(S("Empty state", DS.emptyState({
+    icon: "📂", title: "No franchises yet",
+    body: "Start one below — you'll be playing in 30 seconds.",
+    action: { label: "🚀 Quick start", variant: "gold", on: "void 0" },
+  })));
+
+  out.push(S("Error state", DS.errorState({
+    title: "Couldn't reach the H2H server",
+    body: "The match server didn't answer. Check that it's running, then try again.",
+    detail: "POST /api/match — ECONNREFUSED localhost:8787",
+    retry: "DS.toast('Retrying…')",
+  })));
+
+  out.push(S("Keyboard & disabled states", `<div class="row">
+    ${DS.chip({ label: "Interactive chip (Tab + Enter)", on: "DS.toast('chip!')" })}
+    ${DS.chip({ label: "Disabled chip", on: "void 0", disabled: true })}
+    ${DS.toggle({ label: "Disabled toggle", expanded: false, disabled: true })}
+    ${DS.button({ label: "Disabled", variant: "gold", disabled: true })}
+    <span style="color:var(--gray);font-size:.75rem">Tab through — every interactive control shows the gold-on-blue focus ring</span>
+  </div>`));
+
   document.getElementById("gallery").innerHTML = out.join("");
 </script>
 </body>

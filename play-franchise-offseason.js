@@ -9153,6 +9153,14 @@ function frnExtensionSign() {
 // Toast — single transient element near the top of the viewport.
 // Auto-dismisses after 3.5s. Lazy DOM (no element until first call).
 function _frnFlashToast(message, kind) {
+  // Canonical implementation lives in the Design System (DS.toast: token-
+  // colored, transition-tokened, polite/assertive per kind, auto-dismiss).
+  // This wrapper keeps every existing call site working; the inline-styled
+  // body below survives only as a fallback for DS-less contexts.
+  if (typeof DS !== "undefined" && DS && typeof DS.toast === "function") {
+    DS.toast({ message, kind });
+    return;
+  }
   const palette = {
     success: { bg: "rgba(134,224,163,.95)", border: "#86e0a3", color: "#0a1410" },
     warn:    { bg: "rgba(224,176,120,.95)", border: "#e0b078", color: "#0a1410" },

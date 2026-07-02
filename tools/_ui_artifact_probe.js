@@ -123,7 +123,10 @@ process.on("exit", () => children.forEach(c => { try { c.kill("SIGKILL"); } catc
   const fontsOk = await page.evaluate(async () => {
     await document.fonts.ready;
     const out = {};
-    for (const f of ["Bebas Neue", "IBM Plex Mono", "Bricolage Grotesque"]) {
+    // IBM Plex Mono was retired when --font-data went proportional (play.css
+    // :root — --font-mono is now a deprecated alias of --font-data); requiring
+    // it flagged a false "font-missing" on every run after that migration.
+    for (const f of ["Bebas Neue", "Anton", "Bricolage Grotesque"]) {
       try { out[f] = (await document.fonts.load(`16px '${f}'`)).length > 0; }
       catch { out[f] = false; }
     }

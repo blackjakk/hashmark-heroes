@@ -408,6 +408,216 @@
 .ds-select select:focus,
 .ds-select > select:focus { outline: none; border-color: var(--ds-success); }
 
+/* ════════════════════════════════════════════════════════════════════════
+   SPINNER  — inline activity indicator. Decorative inside a busy control
+   (aria-hidden; the CONTROL carries aria-busy); standalone via DS.spinner
+   with a label → role="status" + sr-only text. Under prefers-reduced-motion
+   the global §3 rule freezes the rotation to a static ¾-ring.
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -.15em;
+  border: 2px solid var(--ds-border);
+  border-top-color: var(--ds-primary);
+  border-radius: var(--ds-radius-full);
+  animation: dsSpin .7s linear infinite;
+  flex: none;
+}
+.ds-spinner--sm { width: .8em; height: .8em; border-width: 2px; }
+.ds-spinner--lg { width: 1.6em; height: 1.6em; border-width: 3px; }
+@keyframes dsSpin { to { transform: rotate(360deg); } }
+/* Inside a button the ring picks up the button's own ink so it stays
+   readable on gold/danger fills. */
+.ds-btn .ds-spinner {
+  border-color: color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BUSY BUTTON  — in-flight action feedback. Factory (`busy:true`) or the
+   DS.busy(el, on) DOM helper. Busy ≠ disabled: it reads as "working", not
+   "unavailable", so it keeps more opacity and a progress cursor.
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-btn--busy,
+.ds-btn--busy:disabled,
+.ds-btn--busy[disabled] {
+  opacity: .75;
+  cursor: progress;
+  transform: none !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SKELETON  — loading placeholder. Container: role="status" aria-busy +
+   ONE sr-only label (a single polite announcement); the shimmer bars are
+   aria-hidden decoration. Variants: text / block / tile / table.
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-skeleton { display: block; }
+.ds-skeleton__frame { display: block; }
+.ds-skeleton__bar {
+  display: block;
+  height: .7em;
+  border-radius: var(--ds-radius-sm);
+  background:
+    linear-gradient(90deg,
+      var(--ds-skeleton-base) 25%,
+      var(--ds-skeleton-sheen) 45%,
+      var(--ds-skeleton-base) 65%),
+    var(--ds-skeleton-base);
+  background-size: 200% 100%, auto;
+  animation: dsSkeletonSheen 1.3s var(--ds-ease) infinite;
+  margin-bottom: var(--ds-space-3);
+}
+.ds-skeleton__bar:last-child { margin-bottom: 0; }
+.ds-skeleton__bar--lg { height: 1.4em; }
+.ds-skeleton__bar--block { height: 100%; min-height: 3.5rem; }
+.ds-skeleton__row {
+  display: flex;
+  gap: var(--ds-space-3);
+  margin-bottom: var(--ds-space-3);
+}
+.ds-skeleton__row:last-child { margin-bottom: 0; }
+.ds-skeleton__row .ds-skeleton__bar { flex: 1; margin-bottom: 0; }
+.ds-skeleton--tile {
+  padding: var(--ds-space-4) .65rem;
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+}
+@keyframes dsSkeletonSheen {
+  from { background-position: 200% 0, 0 0; }
+  to   { background-position: -200% 0, 0 0; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATE  — empty / error blocks. One layout, two semantics: empty is plain
+   content; error carries role="alert" (announced when injected) + danger
+   accent. `--compact` for inline slots (table cells, side panels).
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-8) var(--ds-space-6);
+  color: var(--ds-text-muted);
+}
+.ds-state__icon { font-size: 2rem; line-height: 1; opacity: .9; }
+.ds-state__title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--ds-text);
+}
+.ds-state__body {
+  font-family: var(--font-prose);
+  font-size: .78rem;
+  line-height: 1.5;
+  max-width: 34rem;
+}
+.ds-state__detail {
+  font-family: var(--font-data);
+  font-size: var(--bspn-lbl);
+  color: var(--ds-text-muted);
+  word-break: break-word;
+}
+.ds-state__action { margin-top: var(--ds-space-2); }
+.ds-state--error {
+  border: 1px solid var(--ds-danger);
+  border-left-width: 3px;
+  border-radius: var(--ds-radius-lg);
+  background: color-mix(in srgb, var(--ds-danger) 7%, transparent);
+}
+.ds-state--error .ds-state__title { color: var(--ds-danger); }
+.ds-state--compact { padding: var(--ds-space-4); gap: var(--ds-space-2); }
+.ds-state--compact .ds-state__icon { font-size: 1.3rem; }
+.ds-state--compact .ds-state__title { font-size: .85rem; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   TOAST  — transient action feedback (DS.toast DOM helper). Singleton,
+   top-center under the header, auto-dismissing. role=status (polite) for
+   success/warn/info, role=alert (assertive) for errors — set by the helper.
+   pointer-events:none: feedback must never intercept clicks.
+   ════════════════════════════════════════════════════════════════════════ */
+.ds-toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  z-index: var(--ds-z-toast);
+  max-width: 520px;
+  padding: var(--ds-space-4) 1.2rem;
+  border-radius: var(--ds-radius-md);
+  font-family: var(--font-data);
+  font-size: .85rem;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-align: center;
+  box-shadow: var(--ds-shadow-md);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--ds-dur-slow) var(--ds-ease-out),
+              transform var(--ds-dur-slow) var(--ds-ease-out);
+}
+.ds-toast--visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+.ds-toast--success {
+  background: color-mix(in srgb, var(--ds-grade-pos) 95%, transparent);
+  border: 1px solid var(--ds-grade-pos);
+  color: var(--ds-on-primary);
+}
+.ds-toast--warn {
+  background: color-mix(in srgb, var(--ds-grade-caution-soft) 95%, transparent);
+  border: 1px solid var(--ds-grade-caution-soft);
+  color: var(--ds-on-primary);
+}
+.ds-toast--error {
+  background: color-mix(in srgb, var(--ds-grade-neg-strong) 95%, transparent);
+  border: 1px solid var(--ds-grade-neg-strong);
+  color: var(--ds-text);
+}
+.ds-toast--info {
+  background: color-mix(in srgb, var(--ds-accent-blue) 92%, transparent);
+  border: 1px solid var(--ds-accent-blue);
+  color: var(--ds-on-primary);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   INTERACTION-STATE HARDENING  — hover / active / disabled coverage for the
+   existing components (additive; factory adds role/tabindex when interactive)
+   ════════════════════════════════════════════════════════════════════════ */
+/* Pressed feedback on the flat button variants (gold already has one). */
+.ds-btn--outline:active:not(:disabled),
+.ds-btn:not([class*="ds-btn--"]):active:not(:disabled) { transform: translateY(1px); }
+.ds-btn--danger:active:not(:disabled),
+.ds-btn--primary:active:not(:disabled) { transform: translateY(0); filter: brightness(.98); }
+
+/* Interactive chips (factory emits role="button") get pointer + hover ink;
+   decorative chips stay inert. */
+.ds-chip[role="button"] { cursor: pointer; transition: color var(--ds-dur-normal) var(--ds-ease), border-color var(--ds-dur-normal) var(--ds-ease); }
+.ds-chip[role="button"]:not(.ds-chip--active):hover {
+  border-color: var(--ds-primary);
+  color: var(--ds-primary);
+}
+
+/* Disabled state for non-<button> controls (chips/tabs/nav links use
+   aria-disabled — they have no native :disabled). */
+.ds-chip[aria-disabled="true"],
+.ds-tab[aria-disabled="true"],
+.ds-nav__link[aria-disabled="true"] {
+  opacity: .45;
+  cursor: not-allowed;
+}
+.ds-toggle:disabled,
+.ds-toggle[disabled] {
+  opacity: .4;
+  cursor: not-allowed;
+  background: transparent;
+  border-color: var(--ds-border);
+}
+
 /* ── Franchise-dashboard parity ─────────────────────────────────────────────
    Inside #franchiseHome, legacy `.btn` is overridden (play.css) to the franchise
    look: Bricolage face + 10px radius. Migrated `.ds-btn` (incl. pure ds-btn with
@@ -431,7 +641,11 @@
 .ds-btn:focus-visible,
 .ds-chip:focus-visible,
 .ds-tab:focus-visible,
-.ds-toggle:focus-visible {
+.ds-toggle:focus-visible,
+.ds-card__close:focus-visible,
+.ds-nav__link:focus-visible,
+.ds-select select:focus-visible,
+.ds-modal__type-input:focus-visible {
   outline-width: 2px;
   outline-style: solid;
   outline-color: var(--ds-info);
@@ -442,7 +656,11 @@
 .ds-btn:focus:not(:focus-visible),
 .ds-chip:focus:not(:focus-visible),
 .ds-tab:focus:not(:focus-visible),
-.ds-toggle:focus:not(:focus-visible) {
+.ds-toggle:focus:not(:focus-visible),
+.ds-card__close:focus:not(:focus-visible),
+.ds-nav__link:focus:not(:focus-visible),
+.ds-select select:focus:not(:focus-visible),
+.ds-modal__type-input:focus:not(:focus-visible) {
   outline: none;
 }
 

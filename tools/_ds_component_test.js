@@ -83,6 +83,10 @@ const ok = (cond, label) => {
     out.toolbar  = safe(() => D.toolbar({ links: [{ label: xss, on: "void" }] }));
     out.select   = safe(() => D.select({ id: "s1", options: [{ value: "v", label: xss }], value: "v", on: "void" }));
     out.modalHtml = safe(() => D.modalHtml ? D.modalHtml({ title: xss, body: "b" }) : "<div class=\"ds-modal-backdrop\"></div>");
+    out.spinner    = safe(() => D.spinner({ size: "sm", label: xss }));
+    out.skeleton   = safe(() => D.skeleton({ variant: "text", lines: 2, label: xss }));
+    out.emptyState = safe(() => D.emptyState({ icon: "🏈", title: xss, body: "b" }));
+    out.errorState = safe(() => D.errorState({ title: xss, detail: xss, retry: "void 0" }));
     return out;
   }, XSS);
 
@@ -104,6 +108,10 @@ const ok = (cond, label) => {
     // modalHtml returns the inner dialog markup (.ds-modal); DS.modal() wraps it
     // in the .ds-modal-backdrop at mount time (asserted live in §3).
     modalHtml: "ds-modal",
+    spinner: "ds-spinner",
+    skeleton: "ds-skeleton",
+    emptyState: "ds-state--empty",
+    errorState: "ds-state--error",
   };
   // The injected label `"><img ...>` carries a raw `<img`. ds.js escapes `<`→`&lt;`,
   // so a CORRECT factory output must NOT contain the injected opening tag. We test
@@ -252,6 +260,104 @@ const ok = (cond, label) => {
   });
   ok(escRes.value === false, `DS.modal() Escape resolves false (got ${escRes.value})`);
   ok(escRes.stillMounted === false, "DS.modal() unmounts the backdrop after Escape");
+
+  // ── 4. Interaction states: busy / skeleton / states / toast / keyboard ────
+  console.log("— 4. interaction states (busy, skeleton, empty/error, toast, keyboard) —");
+  const states = await page.evaluate(() => {
+    const D = window.DS;
+    const r = {};
+    // busy button (factory form): disabled + aria-busy + spinner, label kept
+    r.busyBtn = D.button({ label: "Save", variant: "gold", busy: true, on: "void 0" });
+    // skeleton semantics: one polite status container, decorative bars hidden
+    r.skel = D.skeleton({ variant: "table", rows: 2, cols: 3 });
+    // error vs empty semantics
+    r.err = D.errorState({ title: "Load failed", detail: "code 7", retry: "void 0" });
+    r.empty = D.emptyState({ icon: "🏈", title: "Nothing here", action: { label: "Go", on: "void 0" } });
+    // keyboard reachability: interactive chip/tab get role+tabindex; inert ones don't
+    r.chipOn = D.chip({ label: "Filter", on: "void 0" });
+    r.chipOff = D.chip({ label: "Badge" });
+    r.chipDis = D.chip({ label: "Filter", on: "void 0", disabled: true });
+    r.tabOn = D.tab({ id: "x", label: "Tab", on: "voidFn", active: true });
+    r.navOn = D.toolbar({ links: [{ label: "Link", on: "void 0" }] });
+    return r;
+  });
+  ok(/aria-busy="true"/.test(states.busyBtn) && /\bdisabled\b/.test(states.busyBtn)
+     && /ds-spinner/.test(states.busyBtn) && /Save/.test(states.busyBtn),
+    "DS.button({busy}) → aria-busy + disabled + spinner, label kept");
+  ok(/role="status"/.test(states.skel) && /aria-busy="true"/.test(states.skel)
+     && /aria-hidden="true"/.test(states.skel) && /sr-only/.test(states.skel),
+    "DS.skeleton() → role=status + aria-busy container, aria-hidden bars, sr-only label");
+  ok((states.skel.match(/ds-skeleton__row/g) || []).length === 2
+     && (states.skel.match(/ds-skeleton__bar/g) || []).length === 6,
+    "DS.skeleton({variant:'table',rows:2,cols:3}) renders 2 rows × 3 bars");
+  ok(/role="alert"/.test(states.err) && /↻ Retry/.test(states.err) && /code 7/.test(states.err),
+    "DS.errorState() → role=alert + retry action + escaped detail");
+  ok(!/role="alert"/.test(states.empty) && /ds-state__action/.test(states.empty),
+    "DS.emptyState() → no alert role, renders its action button");
+  ok(/role="button"/.test(states.chipOn) && /tabindex="0"/.test(states.chipOn) && /onkeydown/.test(states.chipOn),
+    "interactive DS.chip is keyboard-reachable (role=button + tabindex + key activation)");
+  ok(!/tabindex/.test(states.chipOff) && !/role=/.test(states.chipOff),
+    "decorative DS.chip stays inert (no role/tabindex)");
+  ok(/aria-disabled="true"/.test(states.chipDis) && !/onclick/.test(states.chipDis),
+    "disabled DS.chip → aria-disabled, handler dropped");
+  ok(/role="button"/.test(states.tabOn) && /tabindex="0"/.test(states.tabOn) && /aria-current="true"/.test(states.tabOn),
+    "interactive DS.tab is keyboard-reachable; active tab carries aria-current");
+  ok(/role="button"/.test(states.navOn) && /tabindex="0"/.test(states.navOn),
+    "DS.toolbar links are keyboard-reachable");
+
+  // 4b. DS.toast — mount, semantics, auto-dismiss; DS.busy — live toggle
+  const toastRes = await page.evaluate(() => {
+    return new Promise((resolve) => {
+      const D = window.DS;
+      const el = D.toast({ message: "Saved ✓", kind: "success", duration: 250 });
+      const out = {
+        mounted: !!el && el.id === "dsToast",
+        role: el ? el.getAttribute("role") : "",
+        visible: el ? el.classList.contains("ds-toast--visible") : false,
+        z: el ? getComputedStyle(el).zIndex : "",
+        kindClass: el ? el.classList.contains("ds-toast--success") : false,
+      };
+      const err = D.toast({ message: "Boom", kind: "error", duration: 250 });
+      out.errRole = err ? err.getAttribute("role") : "";
+      setTimeout(() => {
+        out.dismissed = !err.classList.contains("ds-toast--visible");
+        resolve(out);
+      }, 600);
+    });
+  });
+  ok(toastRes.mounted && toastRes.visible && toastRes.kindClass,
+    "DS.toast() mounts the singleton and shows the kind class");
+  ok(toastRes.role === "status", `DS.toast(success) is polite role=status (got ${toastRes.role})`);
+  ok(toastRes.errRole === "alert", `DS.toast(error) is assertive role=alert (got ${toastRes.errRole})`);
+  ok(toastRes.z === "5000", `.ds-toast z-index === 5000 (var(--ds-z-toast)) (got ${toastRes.z})`);
+  ok(toastRes.dismissed === true, "DS.toast() auto-dismisses after its duration");
+
+  const busyRes = await page.evaluate(() => {
+    const D = window.DS;
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    D.mount(host, D.button({ label: "Go", variant: "gold", on: "void 0" }));
+    const btn = host.querySelector(".ds-btn");
+    D.busy(btn, true);
+    const on = {
+      disabled: btn.disabled, ariaBusy: btn.getAttribute("aria-busy"),
+      spinner: !!btn.querySelector(".ds-spinner"), cls: btn.classList.contains("ds-btn--busy"),
+    };
+    D.busy(btn, true); // idempotent — must not stack a second spinner
+    on.spinnerCount = btn.querySelectorAll(".ds-spinner").length;
+    D.busy(btn, false);
+    const off = {
+      disabled: btn.disabled, ariaBusy: btn.getAttribute("aria-busy"),
+      spinner: !!btn.querySelector(".ds-spinner"), cls: btn.classList.contains("ds-btn--busy"),
+    };
+    host.remove();
+    return { on, off };
+  });
+  ok(busyRes.on.disabled && busyRes.on.ariaBusy === "true" && busyRes.on.spinner && busyRes.on.cls,
+    "DS.busy(el, true) → disabled + aria-busy + spinner + class");
+  ok(busyRes.on.spinnerCount === 1, "DS.busy is idempotent (no stacked spinners)");
+  ok(!busyRes.off.disabled && !busyRes.off.ariaBusy && !busyRes.off.spinner && !busyRes.off.cls,
+    "DS.busy(el, false) fully restores the control");
 
   ok(errors.length === 0, errors.length ? "page errors: " + errors.slice(0, 3).join(" | ") : "zero page errors");
 

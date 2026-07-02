@@ -98,6 +98,13 @@
   --ds-slate: #5d6b66;
   --ds-neutral: #888;
 
+  /* ── Loading-state surfaces ────────────────────────────────────────────
+     Skeleton shimmer: a resting bar on the lifted surface with a faint
+     moving sheen. The sheen is a low-alpha white wash (same family as
+     --ds-shadow-inset) — defined HERE so ds.css stays literal-free. */
+  --ds-skeleton-base: var(--bg3);
+  --ds-skeleton-sheen: rgba(255,255,255,.07);
+
   /* ── Type roles (ALREADY DEFINED in play.css :root — referenced directly,
         NOT redeclared) ──────────────────────────────────────────────────
      --font-display : condensed caps (team names, section titles, logo)

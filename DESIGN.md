@@ -136,6 +136,22 @@ ring (outline longhands + box-shadow).
 - **`DS.table({head, rows})` / `DS.row({cells, mine})`** — dense data table; `--mine` = your-team row.
 - **`DS.progress({pct, color, label})`** · **`DS.toggle({expanded, label, on})`** ·
   **`DS.toolbar({links})`** (dot-separated nav) · **`DS.select({options, value, on})`**.
+- **`DS.skeleton({variant, lines})`** — shimmer loading placeholder (text/block/tile/table);
+  `role="status" aria-busy` + one sr-only announcement, bars aria-hidden, reduced-motion safe.
+- **`DS.emptyState({icon, title, body, action})`** / **`DS.errorState({…, detail, retry})`** —
+  shared centered layout; errors carry `role="alert"` + a gold Retry action.
+- **`DS.spinner({size, label})`** · **`DS.button({busy:true})`** / **`DS.busy(el, on)`** —
+  in-flight action feedback (spinner + disabled + `aria-busy`, label kept).
+- **`DS.toast({message, kind, duration})`** — singleton top-center feedback strip; polite
+  `role="status"` (errors assertive `role="alert"`), auto-dismiss, never blocks clicks.
+
+**Interaction states (all components):** every interactive control has hover, `:active`,
+`:focus-visible` (gold-on-blue double ring, keyboard-only), and a disabled treatment
+(`:disabled` at .4 opacity; `aria-disabled` for non-button elements; busy at .75 + progress
+cursor — "working", not "unavailable"). Interactive chips/tabs/nav links are span/div/a, so
+the factories emit `role="button" tabindex="0"` + Enter/Space activation; active tabs carry
+`aria-current="true"`. Transitions use `--ds-dur-*`/`--ds-ease*` and collapse under
+`prefers-reduced-motion`.
 
 ---
 
