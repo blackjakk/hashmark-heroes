@@ -148,6 +148,8 @@ need a literal hex (CSS `var()` doesn't resolve there).
 | `--ds-accent-blue` | `#86c8ff` | Info / accent blue |
 | `--ds-slate` | `#5d6b66` | Muted slate border |
 | `--ds-neutral` | `#888` | Neutral gray placeholder |
+| `--ds-skeleton-base` | `var(--bg3)` | Skeleton resting bar |
+| `--ds-skeleton-sheen` | `rgba(255,255,255,.07)` | Skeleton moving sheen |
 
 ### Type (already exist — DS references them directly)
 
@@ -186,9 +188,20 @@ reproduces an existing `play.css` look (line refs in CONTRACT) for zero-regressi
 | `.ds-stat` | `.ds-stat__label/__value`, `--elite` | `meas-cell`, apb leader card |
 | `.ds-table` (thead/tbody) > `.ds-row` | `--mine` | leaders table, roster tables |
 | `.ds-progress` > `.ds-progress__fill` | — | `.progress-bar/.progress-fill`, scheme-fit-bar |
-| `.ds-toggle` | — | `.frn-pregame-toggle` |
-| `.ds-toolbar` / `.ds-nav` > `.ds-nav__link` | — | `_bspnNavHtml`, `.frn-nav-bar` |
+| `.ds-toggle` | `[disabled]` | `.frn-pregame-toggle` |
+| `.ds-toolbar` / `.ds-nav` > `.ds-nav__link` | `--active`, `[aria-disabled]` | `_bspnNavHtml`, `.frn-nav-bar` |
 | `.ds-select` | wrapper for native `<select>` | `select,input` |
+| `.ds-spinner` | `--sm --lg` | (new) inline activity ring |
+| `.ds-btn--busy` | on `.ds-btn` | (new) in-flight action state |
+| `.ds-skeleton` | `--text --block --tile --table`, `.ds-skeleton__bar/__row` | (new) loading shimmer |
+| `.ds-state` | `--empty --error --compact`, `.ds-state__icon/__title/__body/__detail/__action` | hand-rolled empty/error blocks |
+| `.ds-toast` | `--success --warn --error --info`, `--visible` | `#frn-flash-toast` (inline-styled) |
+
+**Interaction states (all interactive classes):** hover + `:active` pressed feedback +
+keyboard-only `:focus-visible` double ring (btn / chip / tab / toggle / card-close / nav link /
+select / modal type-input) + disabled (`:disabled` at .4 opacity; `aria-disabled` for
+span/div/a controls; busy at .75 + `cursor:progress`). Transitions ride `--ds-dur-*` /
+`--ds-ease*` and collapse under `prefers-reduced-motion`.
 
 ---
 
@@ -217,14 +230,16 @@ const a = DS.attrs({ id: "row-3", "data-team": team }); // ` id="row-3" data-tea
 const cls = DS.cx("ds-row", isMine && "ds-row--mine");  // "ds-row ds-row--mine"
 ```
 
-### `DS.button({ label, variant='outline', size, icon, on, disabled, title, type, attrs })`
+### `DS.button({ label, variant='outline', size, icon, on, disabled, busy, title, type, attrs })`
 
 `variant`: `gold`/`primary`/`outline`/`danger`. `size`: `sm`/`lg`. `on` is the inline onclick
-JS expression string.
+JS expression string. `busy` renders the in-flight state (spinner + `disabled` +
+`aria-busy="true"`, label kept so the width doesn't jump).
 
 ```js
 DS.button({ label: "Advance Week", variant: "gold", on: "frnAdvanceWeek()" });
 DS.button({ label: "Release", variant: "danger", size: "sm", on: `frnRelease('${DS.esc(p.id)}')`, title: "Cut player" });
+DS.button({ label: "Saving…", variant: "gold", busy: true });   // re-render form of DS.busy
 ```
 
 ### `DS.card({ eyebrow, title, body, onClose, hero, accent, attrs })`
@@ -235,9 +250,11 @@ DS.button({ label: "Release", variant: "danger", size: "sm", on: `frnRelease('${
 DS.card({ eyebrow: "WEEK 7", title: "Trade Block", body: rowsHtml, hero: true, onClose: "frnCloseCard()" });
 ```
 
-### `DS.chip({ label, active, variant, on, title })`
+### `DS.chip({ label, active, variant, on, title, disabled })`
 
-`variant`: `gold`/`afc`/`nfc`. `active` → `--active`.
+`variant`: `gold`/`afc`/`nfc`. `active` → `--active`. Interactive chips (`on` set) emit
+`role="button" tabindex="0"` + Enter/Space activation automatically; `disabled` →
+`aria-disabled="true"` with the handler dropped.
 
 ```js
 DS.chip({ label: "AFC", variant: "afc", active: conf === "AFC", on: "frnSetConf('AFC')" });
@@ -325,6 +342,63 @@ Native `<select>` styled via `.ds-select`.
 ```js
 DS.select({ id: "teamPick", value: sel, on: "frnPickTeam(this.value)",
   options: teams.map(t => ({ value: t.id, label: t.name })) });
+```
+
+### `DS.spinner({ size, label })`
+
+`size`: `sm`/`lg`. With `label` → standalone `role="status"` + sr-only text (announced once).
+Without → `aria-hidden` decoration for use inside a control that carries `aria-busy` itself.
+
+```js
+DS.spinner({ label: "Loading league…" });
+```
+
+### `DS.skeleton({ variant='text', lines, rows, cols, width, height, label='Loading…' })`
+
+`variant`: `text`/`block`/`tile`/`table`. Loading placeholder for **genuinely-async** content
+(an IDB read, a network call) — never for instant renders (almost everything in this app
+renders from memory in one frame; a skeleton there is worse than none). Container =
+`role="status" aria-busy` + ONE sr-only announcement; the shimmer bars are `aria-hidden`.
+Swap it out by re-rendering the region when the data lands.
+
+```js
+host.innerHTML = DS.skeleton({ variant: "table", rows: 3, cols: 4, label: "Loading standings…" });
+```
+
+### `DS.emptyState({ icon, title, body, action, compact })` · `DS.errorState({ icon='⚠', title, body, detail, retry, action, compact })`
+
+Shared centered `.ds-state` layout. `body` is trusted HTML; icon/title/detail are escaped.
+`action` = a `DS.button` opts object (or trusted HTML string). `errorState` carries
+`role="alert"` (announced when injected) + `retry` sugar (a trusted handler string → a gold
+"↻ Retry"). `compact` for table cells / side panels.
+
+```js
+DS.emptyState({ icon: "📂", title: "No franchises yet", body: "Start one below.",
+  action: { label: "🚀 Quick start", variant: "gold", on: "frnQuickStart()" } });
+DS.errorState({ title: "Couldn't reach the server", detail: e.message, retry: "frnRetryLoad()" });
+```
+
+### `DS.toast({ message, kind='success', duration=3500 })` → element (DOM helper)
+
+Singleton top-center feedback strip (also accepts a plain string). `kind`:
+`success`/`warn`/`error`/`info` — success/warn/info are polite (`role="status"`), errors
+assertive (`role="alert"`). Auto-dismisses; re-calling replaces the message and restarts the
+timer; `pointer-events:none` so it never blocks clicks. `_frnFlashToast` delegates here —
+new code calls `DS.toast` directly.
+
+```js
+DS.toast({ message: `✓ Released ${p.name} · $${dead}M dead cap`, kind: "success" });
+```
+
+### `DS.busy(elOrSelector, on)` → element (DOM helper)
+
+Toggle the in-flight state on a **mounted** control around an `await`: leading spinner +
+`disabled` + `aria-busy` + `.ds-btn--busy`. Idempotent (no stacked spinners); also a cheap
+double-click guard since the control disables synchronously.
+
+```js
+const btn = DS.busy("#h2hCreateBtn", true);
+try { await createMatch(); } finally { DS.busy(btn, false); }
 ```
 
 ### `DS.mount(parentElOrSelector, html, { replace=false })` → inserted root element (DOM helper)

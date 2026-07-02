@@ -52,13 +52,13 @@ must name its cheat surface + how it's closed, same discipline as gate-safety.
      ball-handler normal-play pilot (`_bhSpecForPass`/`_bhNormalPassAnim`).
    - `node tools/_ds_guard.js` — Design System no-bypass ratchet (0 NEW font/color/
      hand-rolled-component bypasses vs `tools/_ds_guard_baseline.json`) when touching
-     franchise UI. Plus `node tools/_ds_component_test.js` (59) + `node tools/_ds_e2e.js`
+     franchise UI. Plus `node tools/_ds_component_test.js` (89) + `node tools/_ds_e2e.js`
      when touching `design-system/`. See "Design System" below.
 3. **`./tools/_stamp_build.sh`** before any push that changes JS or art — rewrites
    `?v=` stamps in play.html and `window.GC_BUILD` (play-sprites appends it to all
    sprite/manifest URLs). Without this, browsers serve stale mixes.
-4. Develop on `claude/charming-cray-ggpd7f`, commit, then:
-   `git push -u origin claude/charming-cray-ggpd7f && git push origin claude/charming-cray-ggpd7f:main`
+4. Develop on the session branch (currently `claude/wizardly-ride-h1ir1i`), commit, then:
+   `git push -u origin <branch> && git push origin <branch>:main`
    (main is always fast-forwarded). User uploads sprite sheets to main via GitHub
    web upload — fetch/merge those in before pushing.
 
@@ -80,6 +80,20 @@ enforces it (a build gate). This is a DOM-only layer; it must stay determinism-n
   the innerHTML idiom); inline handlers via `on:"frnFoo('x')"`; text auto-escaped (`DS.esc`);
   `body`/`cells`/`on`/`attrs` are TRUSTED; extra hook/legacy classes via `class:`/`cls:`.
   `DS.modal()` mirrors `_frnConfirmModal` (Promise, backdrop/Esc=cancel, Enter=confirm).
+- INTERACTION-STATE LAYER (2026-07): `DS.skeleton` (text/block/tile/table shimmer;
+  role="status" aria-busy + ONE sr-only label, bars aria-hidden — ONLY for genuinely-async
+  content like IDB/network reads, never instant renders), `DS.emptyState`/`DS.errorState`
+  (shared `.ds-state`; error = role="alert" + `retry` sugar → gold ↻ Retry),
+  `DS.spinner`, `DS.button{busy}` / `DS.busy(el,on)` (spinner+disabled+aria-busy, label
+  kept; busy=.75+progress cursor ≠ disabled=.4; DS.busy is idempotent + doubles as a
+  double-click guard), `DS.toast({message,kind,duration})` (singleton, token palette,
+  status/alert per kind — `_frnFlashToast` DELEGATES here; new code calls DS.toast).
+  Interactive chips/tabs/nav-links auto-emit `role="button" tabindex="0"` + Enter/Space
+  activation (they're span/div/a); active tab = `aria-current`; disabled non-buttons =
+  `aria-disabled` + handler dropped. :focus-visible double ring covers btn/chip/tab/toggle/
+  card-close/nav-link/select/modal-type-input. 89-check component test; states demoed in
+  `design-system/gallery.html`. Consumers wired: boot IDB-fallback skeleton
+  (`_frnIdbBootPending` → start-screen slot shimmer), Cap/Cuts empty state, H2H Host busy.
 - Migration status: ~200 buttons routed through `DS.button` (guard component bypasses
   235→20) and the scattered sentiment/grade color palette tokenized (color literals
   1664→1396 via byte-identical `--ds-grade-*`/`--ds-accent-blue`/`--ds-slate`/`--ds-neutral`
@@ -536,3 +550,51 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   action-during-locomotion art with no legs of its own. `_LAYER_TORSO_POSES`
   gates which poses opt in (just `carry` today). Don't enable broadly without
   per-pose hip tuning.
+
+## UX pass (2026-07 session) — audit → fixes, all SOLVED + shipped
+
+- Full senior-UX audit of the core flows (severity-rated C/H/M/L, grounded in
+  screenshots + file:line) drove this batch. Fixes landed, each headless-verified
+  + gated:
+  - C1 broken preseason roster table: `.frn-scout-row` was BOTH a grid div
+    (scout list) and a `<tr>` (roster tables) — `display:grid` on a `<tr>`
+    destroyed table layout. Fix: scoped the grid rule to `.frn-scout-list
+    .frn-scout-row`. RULE: never style a bare shared class that's used on both
+    div and table-row elements.
+  - H2 cut/sign feedback: release/street-FA-sign now toast (`_frnFlashToast`).
+  - M2 post-game stale-LIVE HUD: `#fieldStatus` only updates per-snap, so FINAL
+    kept showing "Q1 15:00 · 1st & 10" in live-green. renderStaticEnd now writes
+    "FINAL · <winner> win" (+`.field-status--final` gold), clears the clock; the
+    corner ◀ Return button promotes to a centered pulsing gold "Continue →
+    Franchise ▶" (`_frnGameEndCTA`, reset in `_frnStartLivePlayback`).
+  - H5 next-game CTA hierarchy: the four near-equal actions collapsed to ONE
+    primary (CALL THE PLAYS) + a "⏩ Skip ahead ▾" menu (Watch/Sim/Sim-forward;
+    `_renderHeroSkipCluster`, hands off to the existing sim-forward panel).
+  - H3 player card Manage split: own-player cards now split evaluate
+    (Compare/Watch) vs a labeled Manage group (Shop/Block/📝 Restructure/
+    ✂ Release, danger-fenced at the far edge).
+  - H4 "💰 Cap / Cuts" roster sub-tab (`renderFrnCapCuts`): plain 53-man cap
+    ledger (Cap Hit / Dead / Frees) with inline Restructure + Cut. Frees =
+    hit − this-year dead tick ONLY when dead is actually owed (deadCapOnRelease
+    can report perYear>0 with years=0 on expiring deals → full relief).
+- Cross-surface roster actions (H3/H4 plumbing, additive — legacy preseason/cap-
+  sheet flows untouched): `_frnCommitRelease` (pure standard release),
+  `frnReleaseFromManage` / `frnRestructureFromManage` (self-contained `_frnConfirm`
+  modals → apply → refresh in place), `_frnRerenderRosterSurface`. RULES learned:
+  - Re-render the ACTIVE surface by detecting the mounted shell (`.frn-bb-fnkey`
+    = dashboard → `_frnRenderActiveTab()`, else preseason roster) — NEVER
+    enumerate phases (free_agency/fa_cuts/… always misses one).
+  - Two independent appliers of one mutation MUST disarm each other's pending
+    state: the inline restructure clears a matching `_restructurePending`, else
+    the cap sheet's stale ✓ row re-applies captured numbers on a zeroed base
+    (phantom bonus, doubled dead — found by adversarial review, not testing).
+  - Gate BUTTON VISIBILITY on the same eligibility the handler enforces
+    (`_frnRestructureEconomics`) or you ship an enabled button that silently
+    no-ops (sub-$2M bases).
+  - `_frnConfirmModal` ignores backdrop clicks <250ms after mount (double-click's
+    second click landed on the backdrop = instant self-cancel); the player-card
+    Esc listener yields while a confirm modal is stacked on top.
+- DS interaction-state layer: see "Design System" section above (skeleton/empty/
+  error/spinner/busy/toast + keyboard hardening; `_ui_artifact_probe` font
+  expectation updated IBM Plex Mono → Anton after the proportional --font-data
+  migration — it false-flagged every run).
