@@ -22,8 +22,20 @@
 //   POST /api/league/start      {leagueId, adminToken}      lobby → active
 //   POST /api/league/settings   {leagueId, adminToken, advanceMode, advanceIntervalMs, deadlineLabel}
 //   POST /api/league/advance    {leagueId, adminToken}      manual advance (scheduled fires internally)
+//   POST /api/league/draft/pick {leagueId, token, pid}       fantasy draft: pick intent (your turn only)
+//   GET  /api/league/draft/:id?token=T                       full draft state (seed/order/tape) for resync
 //   GET  /api/league/events/:id?token=T&since=N             SSE; event ids = seq
 //   GET  /api/health
+//
+// FANTASY DRAFT (settings.rosterMode="fantasy_draft" — FANTASY_DRAFT_DESIGN.md
+// S2): commissioner START mints the pool seed and enters phase "drafting".
+// The whole draft is (poolSeed + settings + tape) → rosters; clients submit
+// pick INTENT only and re-derive everything (server/draft-host.js hosts the
+// same generator + draft core the browser runs). AI/unclaimed teams and
+// post-round benches auto-pick server-side; settings.pickClockMs (0 = off)
+// auto-picks a stalled human turn. draft_complete carries artifactHash
+// (sha256 of seed/year/rounds/order/tape) + resultHash (derived rosters) so
+// any participant can re-derive and verify — nobody types in a draft result.
 //
 // EMAIL note: zero-dep server can't send mail without a provider. /invite always
 // returns a copy-ready join link per email; if HH_MAIL_CMD is set (a shell
@@ -72,6 +84,13 @@ function publicLeague(L) {
     pendingInvites: L.invites.filter(iv => !iv.used).map(iv => ({ email: iv.email || null })),
     takenTeams: L.members.map(m => m.teamId),
     seq: L.seq,
+    // Draft summary (full tape via GET /api/league/draft/:id — too big for
+    // every snapshot).
+    draft: L.draft ? {
+      poolSeed: L.draft.poolSeed, year: L.draft.year,
+      rounds: L.settings.draftRounds, picks: L.draft.tape.length,
+      done: L.draft.done, artifactHash: L.draft.artifactHash, resultHash: L.draft.resultHash,
+    } : null,
   };
 }
 
@@ -114,12 +133,21 @@ function sanitizeSettings(s) {
   let iv = Number(s.advanceIntervalMs) || 0;
   const floor = process.env.HH_LEAGUE_TEST ? 100 : 60 * 1000;   // 1 min min in prod; tiny in tests
   if (mode === "scheduled") iv = Math.max(floor, Math.min(iv || 24 * 3600 * 1000, 30 * 24 * 3600 * 1000)); // … 30 days
+  // Fantasy-draft settings (FANTASY_DRAFT_DESIGN.md S2). pickClockMs = 0 means
+  // no clock (picks wait indefinitely); when set, prod floors it at 30s so a
+  // fat-fingered 50ms clock can't instantly auto-draft a whole human league.
+  const clockFloor = process.env.HH_LEAGUE_TEST ? 50 : 30 * 1000;
+  let pc = Number(s.pickClockMs) || 0;
+  if (pc > 0) pc = Math.max(clockFloor, Math.min(pc, 7 * 24 * 3600 * 1000));
   return {
     teamCount: Math.max(2, Math.min(Number(s.teamCount) || MAX_TEAMS, MAX_TEAMS)),
     advanceMode: mode,
     advanceIntervalMs: mode === "scheduled" ? iv : 0,
     deadlineLabel: String(s.deadlineLabel || "").slice(0, 80),
     humanGamesH2H: !!s.humanGamesH2H,   // (later) human-vs-human matchups play live H2H
+    rosterMode: s.rosterMode === "fantasy_draft" ? "fantasy_draft" : "default",
+    draftRounds: [12, 25, 51].includes(Number(s.draftRounds)) ? Number(s.draftRounds) : 12,
+    pickClockMs: pc,
   };
 }
 
@@ -167,8 +195,171 @@ function joinLeague(L, { token, teamId, displayName }) {
 
 function startLeague(L) {
   if (L.phase !== "lobby") return { error: "already started" };
+  // Commissioner clicked START. Fantasy-draft leagues route through the
+  // drafting phase first; default leagues go straight to active as before.
+  if (L.settings.rosterMode === "fantasy_draft") return beginDraft(L);
   L.phase = "active";
   persistAppend(L, { t: "phase", phase: L.phase, season: L.season, week: L.week });
+  pushEvent(L, "started", { season: L.season, week: L.week, members: L.members.length });
+  armSchedule(L);
+  return { ok: true };
+}
+
+// ── Fantasy draft (FANTASY_DRAFT_DESIGN.md S2 — the server is the authority) ─
+// The draft is the pure function (poolSeed + settings + tape) → 32 rosters.
+// The server owns the seed and the tape; clients submit PICK INTENT only and
+// re-derive everything else. Cheat surfaces closed here:
+//   • seed re-roll: minted ONCE inside beginDraft, after the commissioner's
+//     settings are frozen for the draft (recorded in the draft-start record);
+//   • out-of-turn / duplicate / illegal picks: validated against the derived
+//     state before anything is appended;
+//   • roster tampering: rosters are never uploaded — artifactHash covers
+//     (seed, year, rounds, order, tape) and resultHash the derived rosters,
+//     so any participant can re-derive and verify.
+let _draftKit = null;
+function draftKit() {
+  // Lazy: a league server that never hosts a fantasy draft never loads the
+  // generator bundle (~150ms first build, cached after).
+  if (!_draftKit) _draftKit = require("./draft-host.js").loadDraftKit();
+  return _draftKit;
+}
+function liveDraftState(L) {
+  const kit = draftKit();
+  if (!L._built || L._builtSeed !== L.draft.poolSeed) {
+    L._built = kit._fdBuildPool(L.draft.poolSeed, L.draft.year);
+    L._built.order = L.draft.order; // persisted order is the artifact input
+    L._builtSeed = L.draft.poolSeed;
+    L._dst = null;
+  }
+  if (!L._dst) {
+    L._dst = kit._fdApplyTape(L._built, L.draft.tape);
+  } else {
+    for (; L._dst.pickIdx < L.draft.tape.length; L._dst.pickIdx++) {
+      kit._fdApplyPick(L._dst, L.draft.tape[L._dst.pickIdx]);
+    }
+  }
+  return L._dst;
+}
+function appendDraftPick(L, teamId, pid, auto) {
+  L.draft.tape.push({ teamId, pid, auto: !!auto });
+  persistAppend(L, { t: "draft-pick", teamId, pid, auto: !!auto });
+}
+function beginDraft(L) {
+  const kit = draftKit();
+  L.phase = "drafting";
+  L.draft = {
+    poolSeed: crypto.randomBytes(4).readUInt32LE(0),
+    year: new Date().getFullYear(),
+    order: null, tape: [], done: false, artifactHash: null, resultHash: null,
+  };
+  L.draft.order = kit._fdBuildPool(L.draft.poolSeed, L.draft.year).order;
+  persistAppend(L, { t: "phase", phase: L.phase, season: L.season, week: L.week });
+  persistAppend(L, {
+    t: "draft-start", poolSeed: L.draft.poolSeed, year: L.draft.year,
+    order: L.draft.order, draftRounds: L.settings.draftRounds,
+  });
+  pushEvent(L, "draft_started", {
+    poolSeed: L.draft.poolSeed, year: L.draft.year, order: L.draft.order,
+    rounds: L.settings.draftRounds, poolSize: L.draft.order.length * kit.FD_PICKS_PER_TEAM,
+  });
+  draftPump(L);
+  return { ok: true, drafting: true };
+}
+// Advance the draft: auto-pick every AI turn (and every turn past the
+// interactive rounds); stop and arm the clock when a HUMAN is on the clock.
+function draftPump(L) {
+  if (L.phase !== "drafting") return;
+  if (L.draftTimer) { clearTimeout(L.draftTimer); L.draftTimer = null; }
+  const kit = draftKit();
+  const st = liveDraftState(L);
+  const n = L.draft.order.length;
+  const total = n * kit.FD_PICKS_PER_TEAM;
+  const interactive = L.settings.draftRounds * n;
+  const batch = [];
+  const flush = () => {
+    // Auto-picks stream as batched events (a full auto-fill is ~1,600 picks —
+    // one event per pick would churn the 500-entry event log to nothing).
+    for (let i = 0; i < batch.length; i += 120) {
+      pushEvent(L, "picks", { from: batch[i].i, picks: batch.slice(i, i + 120).map(e => [e.teamId, e.pid]) });
+    }
+    batch.length = 0;
+  };
+  for (;;) {
+    if (st.pickIdx >= total) { flush(); return finalizeDraft(L); }
+    const teamId = kit._fdOnClock(st, st.pickIdx);
+    const human = L.members.find(m => m.teamId === teamId);
+    if (human && st.pickIdx < interactive) {
+      flush();
+      pushEvent(L, "on_clock", { i: st.pickIdx, teamId, displayName: human.displayName, clockMs: L.settings.pickClockMs || 0 });
+      return armPickClock(L, st.pickIdx);
+    }
+    const p = kit._fdAutoPick(st, teamId);
+    if (!p) { flush(); pushEvent(L, "draft_error", { i: st.pickIdx }); return; } // unreachable (feasibility rule)
+    batch.push({ i: st.pickIdx, teamId, pid: p.pid });
+    appendDraftPick(L, teamId, p.pid, true);
+    kit._fdApplyPick(st, { teamId, pid: p.pid });
+    st.pickIdx = L.draft.tape.length;
+  }
+}
+function armPickClock(L, pickIdx) {
+  const ms = L.settings.pickClockMs;
+  if (!ms) return; // no clock — the human pick can wait indefinitely
+  L.draftTimer = setTimeout(() => {
+    L.draftTimer = null;
+    if (L.phase !== "drafting") return;
+    const kit = draftKit();
+    const st = liveDraftState(L);
+    if (st.pickIdx !== pickIdx) return; // pick already made — stale timer
+    const teamId = kit._fdOnClock(st, st.pickIdx);
+    const p = kit._fdAutoPick(st, teamId);
+    if (!p) return;
+    appendDraftPick(L, teamId, p.pid, true);
+    kit._fdApplyPick(st, { teamId, pid: p.pid });
+    st.pickIdx = L.draft.tape.length;
+    pushEvent(L, "pick", { i: pickIdx, teamId, pid: p.pid, auto: true, timeout: true });
+    draftPump(L);
+  }, ms);
+  if (L.draftTimer.unref) L.draftTimer.unref();
+}
+function submitDraftPick(L, m, pid) {
+  if (L.phase !== "drafting") return { error: "no draft in progress" };
+  if (m.teamId == null) return { error: "commissioner token has no team seat — use your member token" };
+  const kit = draftKit();
+  const st = liveDraftState(L);
+  const n = L.draft.order.length;
+  if (st.pickIdx >= L.settings.draftRounds * n) return { error: "interactive rounds are over — benches auto-fill" };
+  const onClock = kit._fdOnClock(st, st.pickIdx);
+  if (onClock !== m.teamId) return { error: "not your pick" };
+  const p = st.byPid.get(String(pid));
+  if (!p) return { error: "no such player" };
+  if (st.taken.has(p.pid)) return { error: "player already drafted" };
+  if (!kit._fdLegal(st, m.teamId, p.position)) return { error: "pick blocked by position rules" };
+  if (L.draftTimer) { clearTimeout(L.draftTimer); L.draftTimer = null; }
+  const i = st.pickIdx;
+  appendDraftPick(L, m.teamId, p.pid, false);
+  kit._fdApplyPick(st, { teamId: m.teamId, pid: p.pid });
+  st.pickIdx = L.draft.tape.length;
+  pushEvent(L, "pick", { i, teamId: m.teamId, pid: p.pid, auto: false, by: m.displayName });
+  draftPump(L);
+  return { ok: true, i, pid: p.pid };
+}
+function finalizeDraft(L) {
+  const kit = draftKit();
+  const st = liveDraftState(L);
+  const canonical = JSON.stringify({
+    poolSeed: L.draft.poolSeed, year: L.draft.year,
+    draftRounds: L.settings.draftRounds, order: L.draft.order,
+    tape: L.draft.tape.map(e => [e.teamId, e.pid, e.auto ? 1 : 0]),
+  });
+  L.draft.artifactHash = crypto.createHash("sha256").update(canonical).digest("hex");
+  L.draft.resultHash = crypto.createHash("sha256")
+    .update(JSON.stringify(L.draft.order.map(t => [t, st.rosters[t].map(p => p.pid)])))
+    .digest("hex");
+  L.draft.done = true;
+  L.phase = "active";
+  persistAppend(L, { t: "draft-complete", artifactHash: L.draft.artifactHash, resultHash: L.draft.resultHash });
+  persistAppend(L, { t: "phase", phase: L.phase, season: L.season, week: L.week });
+  pushEvent(L, "draft_complete", { artifactHash: L.draft.artifactHash, resultHash: L.draft.resultHash, picks: L.draft.tape.length });
   pushEvent(L, "started", { season: L.season, week: L.week, members: L.members.length });
   armSchedule(L);
   return { ok: true };
@@ -182,6 +373,9 @@ function updateSettings(L, patch) {
   persistAppend(L, { t: "settings", settings: L.settings });
   pushEvent(L, "settings", L.settings);
   armSchedule(L);
+  // Mid-draft settings change (e.g. the commissioner turns the pick clock on
+  // for an absent GM): re-pump so the new clock arms on the current pick.
+  if (L.phase === "drafting") draftPump(L);
   return L.settings;
 }
 
@@ -219,9 +413,15 @@ function loadPersisted() {
         else if (l.t === "invite-used") { const iv = L.invites.find(x => x.token === l.token); if (iv) iv.used = true; }
         else if (l.t === "settings") L.settings = sanitizeSettings(l.settings);
         else if (l.t === "phase" || l.t === "advance") { L.phase = l.phase || L.phase; if (l.season) L.season = l.season; if (l.week) L.week = l.week; }
+        else if (l.t === "draft-start") L.draft = { poolSeed: l.poolSeed, year: l.year, order: l.order, tape: [], done: false, artifactHash: null, resultHash: null };
+        else if (l.t === "draft-pick") { if (L.draft) L.draft.tape.push({ teamId: l.teamId, pid: l.pid, auto: !!l.auto }); }
+        else if (l.t === "draft-complete") { if (L.draft) { L.draft.done = true; L.draft.artifactHash = l.artifactHash; L.draft.resultHash = l.resultHash; } }
       }
       leagues.set(L.id, L);
       armSchedule(L);   // re-arm scheduled advances after a restart
+      // A draft interrupted by the restart resumes exactly where it stopped —
+      // determinism IS the recovery: the tape replays, then the pump continues.
+      if (L.phase === "drafting" && L.draft) setTimeout(() => { try { draftPump(L); } catch (e) { console.warn("[league draft resume]", L.id, e.message); } }, 50);
     } catch (e) { console.warn("[league reload]", f, e.message); }
   }
   console.log(`[league] reloaded ${leagues.size} league(s)`);
@@ -294,6 +494,35 @@ const server = http.createServer(async (req, res) => {
       const a = adminAuth(b.leagueId, b.adminToken); if (a.error) return json(res, 403, a);
       const r = advanceLeague(a.L, "manual"); if (r.error) return json(res, 400, r);
       return json(res, 200, r);
+    }
+    // Fantasy draft: submit PICK INTENT for your own team's turn. The server
+    // validates (phase / turn / availability / position rules) and appends to
+    // the tape; everything else is derived client-side from (seed, tape).
+    if (req.method === "POST" && url.pathname === "/api/league/draft/pick") {
+      const b = await readBody(req);
+      const auth = memberAuth(b.leagueId, b.token); if (auth.error) return json(res, 403, auth);
+      const r = submitDraftPick(auth.L, auth.m, b.pid); if (r.error) return json(res, 400, r);
+      return json(res, 200, r);
+    }
+    // Full draft state for (re)sync: the seed + settings + tape a client needs
+    // to re-derive the entire draft (SSE only carries the last 500 events).
+    if (req.method === "GET" && url.pathname.startsWith("/api/league/draft/")) {
+      const id = url.pathname.split("/").pop();
+      const token = url.searchParams.get("token");
+      const auth = memberAuth(id, token); if (auth.error) return json(res, 403, auth);
+      const L = auth.L;
+      if (!L.draft) return json(res, 404, { error: "no draft for this league" });
+      const kit = draftKit();
+      const st = liveDraftState(L);
+      const n = L.draft.order.length;
+      return json(res, 200, {
+        poolSeed: L.draft.poolSeed, year: L.draft.year, order: L.draft.order,
+        rounds: L.settings.draftRounds, pickClockMs: L.settings.pickClockMs,
+        tape: L.draft.tape, done: L.draft.done,
+        artifactHash: L.draft.artifactHash, resultHash: L.draft.resultHash,
+        pickIdx: st.pickIdx,
+        onClockTeamId: st.pickIdx < n * kit.FD_PICKS_PER_TEAM ? kit._fdOnClock(st, st.pickIdx) : null,
+      });
     }
     if (req.method === "GET" && url.pathname.startsWith("/api/league/events/")) {
       const id = url.pathname.split("/").pop();

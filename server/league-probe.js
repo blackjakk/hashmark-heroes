@@ -5,6 +5,7 @@
 const http = require("http");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 const { spawn } = require("child_process");
 
 const PORT = 8799;
@@ -108,6 +109,94 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   const after = (await req("GET", `/api/league/${leagueId}?token=${adminToken}`)).body.league;
   check(after && after.members.length === before.members.length, "members survive a restart");
   check(after && after.phase === "active" && after.season === before.season, "phase/season survive a restart");
+
+  // ── FANTASY DRAFT (FANTASY_DRAFT_DESIGN.md S2) ─────────────────────────────
+  console.log("\n[fantasy draft — commissioner start → drafting phase]");
+  const fdc = await req("POST", "/api/league", {
+    name: "Draft Dynasty", adminTeamId: 5, adminName: "Commish",
+    settings: { teamCount: 4, rosterMode: "fantasy_draft", draftRounds: 12, pickClockMs: 0 },
+  });
+  check(fdc.status === 200, "fantasy-draft league created");
+  const fdId = fdc.body.leagueId, fdAdmin = fdc.body.adminToken, fdCommishTok = fdc.body.memberToken;
+  const fdJoin = await req("POST", "/api/league/join", { leagueId: fdId, token: fdc.body.joinCode, teamId: 9, displayName: "GM Bo" });
+  const fdBoTok = fdJoin.body.memberToken;
+  const evDraft = sse(`/api/league/events/${fdId}?token=${fdAdmin}`, 2500);
+  await sleep(150);
+  const fdStart = await req("POST", "/api/league/start", { leagueId: fdId, adminToken: fdAdmin });
+  check(fdStart.status === 200 && fdStart.body.league.phase === "drafting", "commissioner START enters the DRAFT, not active");
+  const snap1 = await req("GET", `/api/league/${fdId}?token=${fdAdmin}`);
+  check(snap1.body.league.phase === "drafting", "phase is drafting");
+  check(snap1.body.league.draft && snap1.body.league.draft.poolSeed > 0, "draft summary carries the server-minted poolSeed");
+
+  console.log("\n[draft state + validation guards]");
+  const dst = await req("GET", `/api/league/draft/${fdId}?token=${fdCommishTok}`);
+  check(dst.status === 200 && Array.isArray(dst.body.order) && dst.body.order.length === 32, "draft state: 32-team order");
+  check(dst.body.tape.length > 0, `AI turns auto-picked up to the first human (${dst.body.tape.length} picks on the tape)`);
+  check([5, 9].includes(dst.body.onClockTeamId), `a HUMAN team is on the clock (team ${dst.body.onClockTeamId})`);
+
+  // Independent re-derivation — the client-side verification path: rebuild the
+  // pool from (seed, year), replay the tape, and pick legally from the result.
+  const kit = require("./draft-host.js").loadDraftKit();
+  const built = kit._fdBuildPool(dst.body.poolSeed, dst.body.year);
+  built.order = dst.body.order;
+  let st = kit._fdApplyTape(built, dst.body.tape);
+  check(st.pickIdx === dst.body.tape.length, "probe re-derived the draft state from (seed, tape)");
+  const onClock = dst.body.onClockTeamId;
+  const humanTok = onClock === 5 ? fdCommishTok : fdBoTok;
+  const otherTok = onClock === 5 ? fdBoTok : fdCommishTok;
+  const legalPick = st.pool.find(p => !st.taken.has(p.pid) && kit._fdLegal(st, onClock, p.position));
+  const takenPid = dst.body.tape[0].pid;
+
+  const wrongTurn = await req("POST", "/api/league/draft/pick", { leagueId: fdId, token: otherTok, pid: legalPick.pid });
+  check(wrongTurn.status === 400 && /not your pick/.test(wrongTurn.body.error), "out-of-turn pick rejected");
+  const dupPick = await req("POST", "/api/league/draft/pick", { leagueId: fdId, token: humanTok, pid: takenPid });
+  check(dupPick.status === 400 && /already drafted/.test(dupPick.body.error), "already-drafted player rejected");
+  const bogus = await req("POST", "/api/league/draft/pick", { leagueId: fdId, token: humanTok, pid: "nope" });
+  check(bogus.status === 400, "bogus pid rejected");
+  const badTok = await req("POST", "/api/league/draft/pick", { leagueId: fdId, token: "WRONG", pid: legalPick.pid });
+  check(badTok.status === 403, "bad token rejected");
+  const good = await req("POST", "/api/league/draft/pick", { leagueId: fdId, token: humanTok, pid: legalPick.pid });
+  check(good.status === 200 && good.body.pid === legalPick.pid, `on-clock human pick accepted (${legalPick.position} ${legalPick.name})`);
+
+  console.log("\n[mid-draft restart — the tape IS the recovery]");
+  const preTape = (await req("GET", `/api/league/draft/${fdId}?token=${fdAdmin}`)).body.tape.length;
+  srv.kill("SIGKILL");
+  await sleep(300);
+  srv = spawnServer();
+  if (!await waitUp()) bad("server didn't respawn mid-draft");
+  const postRestart = await req("GET", `/api/league/draft/${fdId}?token=${fdAdmin}`);
+  check(postRestart.status === 200 && postRestart.body.tape.length >= preTape,
+    `draft survives a restart (tape ${preTape} → ${postRestart.body.tape.length})`);
+  check((await req("GET", `/api/league/${fdId}?token=${fdAdmin}`)).body.league.phase === "drafting", "phase still drafting after restart");
+
+  console.log("\n[pick clock finishes the draft unattended]");
+  const clk = await req("POST", "/api/league/settings", { leagueId: fdId, adminToken: fdAdmin, rosterMode: "fantasy_draft", draftRounds: 12, pickClockMs: 60 });
+  check(clk.status === 200 && clk.body.settings.pickClockMs === 60, "commissioner arms a (test-floor) pick clock mid-draft");
+  let fin = null;
+  for (let i = 0; i < 120; i++) { // 24 human turns × 60ms + 1,600 auto picks
+    await sleep(250);
+    const s = await req("GET", `/api/league/${fdId}?token=${fdAdmin}`);
+    if (s.body.league && s.body.league.phase === "active") { fin = s.body.league; break; }
+  }
+  check(!!fin, "draft ran to completion on the clock (phase → active)");
+  check(fin && fin.draft.done && /^[0-9a-f]{64}$/.test(fin.draft.artifactHash || ""), `artifactHash minted (${(fin?.draft?.artifactHash || "").slice(0, 12)}…)`);
+
+  console.log("\n[anti-cheat: independent verification of the artifact]");
+  const final = (await req("GET", `/api/league/draft/${fdId}?token=${fdBoTok}`)).body;
+  check(final.tape.length === 32 * kit.FD_PICKS_PER_TEAM, `full tape (${final.tape.length} = 32×${kit.FD_PICKS_PER_TEAM})`);
+  st = kit._fdApplyTape(built, final.tape);
+  const myResultHash = crypto.createHash("sha256")
+    .update(JSON.stringify(final.order.map(t => [t, st.rosters[t].map(p => p.pid)])))
+    .digest("hex");
+  check(myResultHash === final.resultHash, "probe re-derived the rosters → resultHash MATCHES the server's");
+  const floorsOk = final.order.every(t => {
+    const c = {};
+    for (const p of st.rosters[t]) c[p.position] = (c[p.position] || 0) + 1;
+    return Object.entries(kit.FD_FLOORS).every(([q, m]) => (c[q] || 0) >= m);
+  });
+  check(floorsOk, "every drafted roster meets every position floor");
+  const humanPicks = final.tape.filter(e => !e.auto).length;
+  check(humanPicks >= 1, `human pick present on the tape (${humanPicks})`);
 
   srv.kill("SIGKILL");
   try { fs.rmSync(DATA, { recursive: true, force: true }); } catch (_) {}

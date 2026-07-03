@@ -17,7 +17,13 @@ Commissioner league-wide fantasy draft (rosters drafted from scratch; the
 "on-chain full-draft mode"): S1 (single-player) SHIPPED —
 `play-franchise-fantasydraft.js` + `tools/_fantasy_draft_probe.js` (20-check
 gate: pool determinism / no-deadlock legality / tape-replay stability / full
-user flow incl. refresh-resume). Design + S2/S3 plan: `FANTASY_DRAFT_DESIGN.md`
+user flow incl. refresh-resume). S2 SERVER SHIPPED — league-server drafting
+phase (`server/draft-host.js` hosts the same gen+draft core in Node;
+intent-only pick endpoint, pick clock, batched events, artifact/result hashes
+independently re-derived by `server/league-probe.js`, 42 checks; run it when
+touching the league server or the draft module). Browser league client (lobby/
+draft room) still doesn't exist — S2 client rides on it whenever it's built.
+Design + S3 plan: `FANTASY_DRAFT_DESIGN.md`
 (pure-function draft: (poolSeed+settings+pickTape)→rosters). KEY FINDING: the
 roster generator's helpers still hold ~11k raw Math.random draws (jersey/
 college numbers, weightedTierPick, …) — seeded gen therefore uses

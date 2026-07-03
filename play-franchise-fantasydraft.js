@@ -86,38 +86,55 @@ function _fdBuildPool(seed, year) {
 }
 
 // ── Derived draft state (replay the tape) ───────────────────────────────────
-// Cache keyed by (seed, tape length) so per-render we only apply NEW picks.
+// PURE core shared by the browser, the league server (server/draft-host.js)
+// and the probes: build an empty state from a pool build, apply tape entries.
+function _fdNewState(built) {
+  const st = {
+    pool: built.pool, teamTiers: built.teamTiers, order: built.order,
+    byPid: new Map(built.pool.map(p => [p.pid, p])),
+    taken: new Set(),
+    rosters: Object.fromEntries(built.order.map(id => [id, []])),
+    counts: Object.fromEntries(built.order.map(id => [id, {}])),
+    availByPos: {}, pickIdx: 0,
+  };
+  for (const pos of FD_POSITIONS) st.availByPos[pos] = 0;
+  for (const p of built.pool) st.availByPos[p.position]++;
+  return st;
+}
+function _fdApplyPick(st, e) {
+  const p = st.byPid.get(e.pid);
+  if (!p || st.taken.has(e.pid)) return false; // tolerate a corrupt entry rather than crash
+  st.taken.add(e.pid);
+  st.rosters[e.teamId].push(p);
+  st.counts[e.teamId][p.position] = (st.counts[e.teamId][p.position] || 0) + 1;
+  st.availByPos[p.position]--;
+  return true;
+}
+// Full derivation: (pool build + tape) → state. What the server, a verifying
+// client, and the artifact re-check all run.
+function _fdApplyTape(built, tape) {
+  const st = _fdNewState(built);
+  for (const e of tape) _fdApplyPick(st, e);
+  st.pickIdx = tape.length;
+  return st;
+}
+
+// Browser-side cached view over franchise.fantasyDraft (incremental: only NEW
+// tape entries are applied per call).
 let _fdCache = null;
 function _fdState() {
   const fd = franchise && franchise.fantasyDraft;
   if (!fd) return null;
   if (!_fdCache || _fdCache.seed !== fd.poolSeed) {
     const built = _fdBuildPool(fd.poolSeed, fd.year);
-    _fdCache = {
-      seed: fd.poolSeed, pool: built.pool, teamTiers: built.teamTiers,
-      byPid: new Map(built.pool.map(p => [p.pid, p])),
-      applied: 0, taken: new Set(),
-      rosters: Object.fromEntries(TEAMS.map(t => [t.id, []])),
-      counts: Object.fromEntries(TEAMS.map(t => [t.id, {}])),
-      availByPos: {},
-    };
-    for (const pos of FD_POSITIONS) _fdCache.availByPos[pos] = 0;
-    for (const p of built.pool) _fdCache.availByPos[p.position]++;
+    built.order = fd.order || built.order; // stored order is the artifact input
+    _fdCache = Object.assign(_fdNewState(built), { seed: fd.poolSeed, applied: 0 });
   }
   const st = _fdCache;
-  const order = franchise.fantasyDraft.order;
-  const tape = franchise.fantasyDraft.tape;
-  for (; st.applied < tape.length; st.applied++) {
-    const e = tape[st.applied];
-    const p = st.byPid.get(e.pid);
-    if (!p || st.taken.has(e.pid)) continue; // tolerate a corrupt entry rather than crash
-    st.taken.add(e.pid);
-    st.rosters[e.teamId].push(p);
-    st.counts[e.teamId][p.position] = (st.counts[e.teamId][p.position] || 0) + 1;
-    st.availByPos[p.position]--;
-  }
+  const tape = fd.tape;
+  for (; st.applied < tape.length; st.applied++) _fdApplyPick(st, tape[st.applied]);
   st.pickIdx = tape.length;
-  st.order = order;
+  st.order = fd.order;
   return st;
 }
 function _fdOnClock(st, pickIdx) {
@@ -167,19 +184,31 @@ function _fdLegal(st, teamId, pos) {
 // BPA + floor urgency + soft shape toward FD_TARGET. Total tiebreak keeps every
 // replay/validator identical.
 function _fdAutoPick(st, teamId) {
+  // Score = overall + per-POSITION bonus, so hoist legality + bonus out of the
+  // player loop (11 checks/turn instead of ~1600×) and single-pass the
+  // OVR-sorted pool with a sound early exit. Selection is IDENTICAL to the
+  // naive per-player scan (same formula, same order, same strict-> tiebreak) —
+  // this is what lets the server run a 1,632-pick auto-fill without blocking.
   const c = st.counts[teamId];
+  const legalPos = {}, bonus = {};
+  let maxBonus = -Infinity;
+  for (const pos of FD_POSITIONS) {
+    legalPos[pos] = _fdLegal(st, teamId, pos);
+    const have = c[pos] || 0;
+    bonus[pos] = (FD_POS_VALUE[pos] || 0)
+      + (have < (FD_FLOORS[pos] || 0) ? 10
+         : have < FD_TARGET[pos] ? 4
+         : -8 * (have - FD_TARGET[pos] + 1));
+    if (legalPos[pos] && bonus[pos] > maxBonus) maxBonus = bonus[pos];
+  }
   let best = null, bestScore = -Infinity;
   for (const p of st.pool) {
-    if (st.taken.has(p.pid)) continue;
-    const pos = p.position;
-    if (!_fdLegal(st, teamId, pos)) continue;
-    const have = c[pos] || 0;
-    let score = (p.overall || 0) + (FD_POS_VALUE[pos] || 0);
-    if (have < (FD_FLOORS[pos] || 0)) score += 10;
-    else if (have < FD_TARGET[pos]) score += 4;
-    else score -= 8 * (have - FD_TARGET[pos] + 1);
+    if (st.taken.has(p.pid) || !legalPos[p.position]) continue;
+    const score = (p.overall || 0) + bonus[p.position];
     if (score > bestScore) { best = p; bestScore = score; }
-    // pool is sorted OVR-desc/name/pid, so first max wins ties deterministically
+    // pool is OVR-desc: no later player (overall ≤ this one's) can beat
+    // bestScore once even this overall + the best legal bonus falls short.
+    if (bestScore >= (p.overall || 0) + maxBonus) break;
   }
   return best;
 }

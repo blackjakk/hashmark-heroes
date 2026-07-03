@@ -1,10 +1,34 @@
 # Fantasy Draft — league-wide "draft every roster from scratch" mode
 
 **Status: S1 SHIPPED (single-player) — `play-franchise-fantasydraft.js`, gated by
-`tools/_fantasy_draft_probe.js` (20 checks). S2 (league-server commissioner flow) and
-S3 (on-chain) remain design.** This is the "on-chain full-draft mode" CLAUDE.md already
+`tools/_fantasy_draft_probe.js` (20 checks). S2 SERVER SHIPPED — the league server's
+drafting phase (`server/league-server.js` + `server/draft-host.js`), gated by
+`server/league-probe.js` (42 checks). The S2 *browser lobby/draft-room client* for
+leagues does not exist yet (no league client UI exists at all — it rides whenever that
+client is built, reusing `renderFantasyDraftRoom` in league mode). S3 (on-chain)
+remains design.** This is the "on-chain full-draft mode" CLAUDE.md already
 anticipates — the gen-time determinism fix (pickBodyType → `_rand()`) was landed
 specifically so this mode could exist.
+
+**S2 server implementation notes:**
+- `server/draft-host.js` hosts the generator + draft core in Node (engine-host's
+  bundle technique + `play-franchise-core.js` + `play-franchise-fantasydraft.js`) —
+  the SAME file the browser runs validates picks server-side. Loaded lazily so a
+  non-draft league server never pays the bundle cost.
+- `settings.rosterMode="fantasy_draft"` + `draftRounds` (12/25/51) + `pickClockMs`
+  (0 = no clock; prod floor 30s). Commissioner START → `phase:"drafting"` →
+  `draft_started` event; AI/unclaimed turns and post-round benches auto-pick
+  server-side (batched `picks` events; humans get `on_clock` + per-pick `pick`
+  events). `POST /api/league/draft/pick` = intent-only;
+  `GET /api/league/draft/:id` = full (seed, order, tape) resync.
+- `_fdAutoPick` was rewritten to hoist legality/bonus per POSITION with a sound
+  early-exit over the OVR-sorted pool — identical selection, full 1,632-pick
+  auto-fill 13.4s → 0.26s (the naive scan would have blocked the server's loop).
+- Completion mints `artifactHash` = sha256(poolSeed, year, rounds, order, tape)
+  and `resultHash` = sha256(derived rosters); the probe independently re-derives
+  the rosters from the wire data and MATCHES resultHash — the anti-cheat contract
+  exercised on every probe run. Mid-draft server restart resumes from the
+  persisted tape (determinism is the recovery).
 
 **S1 implementation notes (deviations from the design below):**
 - SEEDING: the roster generator's helpers still hold ~11k raw `Math.random` draws
