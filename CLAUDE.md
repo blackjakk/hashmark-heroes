@@ -13,6 +13,10 @@ clients submit *intent* only, never trusted outcomes. Determinism
 artifact, never typed in by an admin. Full threat model + MegaETH settlement
 design: `INGAME_CLOCK_AND_MULTIPLAYER.md` §Anti-cheat. Every new MP feature
 must name its cheat surface + how it's closed, same discipline as gate-safety.
+Commissioner league-wide fantasy draft (rosters drafted from scratch; the
+"on-chain full-draft mode"): DESIGNED, not built — `FANTASY_DRAFT_DESIGN.md`
+(pure-function draft: (poolSeed+settings+pickTape)→rosters, war-room reuse,
+league-server drafting phase, cheat surfaces named).
 - CROSS-MACHINE RULE: JS leaves `Math.log/cos/pow/...` precision impl-defined, so
   any libm on the OUTCOME path can fork validators. Use the portable, pure-IEEE
   helpers for outcome-affecting transcendentals — `_olog/_ocos/_osq` (dispatchers,
