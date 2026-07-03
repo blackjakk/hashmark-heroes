@@ -1,9 +1,30 @@
 # Fantasy Draft — league-wide "draft every roster from scratch" mode
 
-**Status: DESIGN (nothing implemented).** The commissioner-start / from-scratch draft
-option. This is the "on-chain full-draft mode" CLAUDE.md already anticipates — the
-gen-time determinism fix (pickBodyType → `_rand()`) was landed specifically so this
-mode could exist.
+**Status: S1 SHIPPED (single-player) — `play-franchise-fantasydraft.js`, gated by
+`tools/_fantasy_draft_probe.js` (20 checks). S2 (league-server commissioner flow) and
+S3 (on-chain) remain design.** This is the "on-chain full-draft mode" CLAUDE.md already
+anticipates — the gen-time determinism fix (pickBodyType → `_rand()`) was landed
+specifically so this mode could exist.
+
+**S1 implementation notes (deviations from the design below):**
+- SEEDING: the roster generator's helpers still hold ~11k raw `Math.random` draws
+  (jersey/college numbers, `weightedTierPick`, flavor rolls, …) beyond the
+  `_rand()`-routed paths — `_setSimRng` alone was NOT reproducible. Pool build and
+  contract assignment therefore run inside `_fdSeededScope(seed, fn)`: a scoped,
+  synchronous **Math.random override** with a mulberry32 stream (the audit-gate
+  technique), restored in `finally`. Five top-level gen draws (assignTeamTiers /
+  assignFranchiseAges / assignContracts / assignDraftInfo ×2) were converted to
+  `_rand()` per the CLAUDE.md rule; full `_rand()`-routing of the helpers is the
+  long-term path to dropping the override.
+- Contracts: `assignContracts(rosters, SALARY_CAP_BASE)` (the tested default-league
+  pricer) runs post-draft under seed `poolSeed ^ 0x5eed5eed` — team totals land
+  ~$163-177M of $200M. This replaces the design's market-value × FIT sketch (same
+  idea, tested code path).
+- Constants: `FD_FLOORS` (hard minimums, mirrors `_seedPracticeSquads`),
+  `FD_TARGET` (= `ROSTER_SLOTS`, 51 picks/team), snake order, rounds 12/25/51.
+- Resume goes through the standard start-screen CONTINUE card (boot deliberately
+  never auto-loads a save); the `fantasy_draft` phase dispatch re-derives the room
+  from `(poolSeed, settings, tape)`.
 
 ## The one-sentence architecture
 

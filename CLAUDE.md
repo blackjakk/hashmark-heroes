@@ -14,9 +14,15 @@ artifact, never typed in by an admin. Full threat model + MegaETH settlement
 design: `INGAME_CLOCK_AND_MULTIPLAYER.md` §Anti-cheat. Every new MP feature
 must name its cheat surface + how it's closed, same discipline as gate-safety.
 Commissioner league-wide fantasy draft (rosters drafted from scratch; the
-"on-chain full-draft mode"): DESIGNED, not built — `FANTASY_DRAFT_DESIGN.md`
-(pure-function draft: (poolSeed+settings+pickTape)→rosters, war-room reuse,
-league-server drafting phase, cheat surfaces named).
+"on-chain full-draft mode"): S1 (single-player) SHIPPED —
+`play-franchise-fantasydraft.js` + `tools/_fantasy_draft_probe.js` (20-check
+gate: pool determinism / no-deadlock legality / tape-replay stability / full
+user flow incl. refresh-resume). Design + S2/S3 plan: `FANTASY_DRAFT_DESIGN.md`
+(pure-function draft: (poolSeed+settings+pickTape)→rosters). KEY FINDING: the
+roster generator's helpers still hold ~11k raw Math.random draws (jersey/
+college numbers, weightedTierPick, …) — seeded gen therefore uses
+`_fdSeededScope` (scoped Math.random override, audit-gate technique), NOT
+_setSimRng alone. Run the probe when touching gen or the draft module.
 - CROSS-MACHINE RULE: JS leaves `Math.log/cos/pow/...` precision impl-defined, so
   any libm on the OUTCOME path can fork validators. Use the portable, pure-IEEE
   helpers for outcome-affecting transcendentals — `_olog/_ocos/_osq` (dispatchers,

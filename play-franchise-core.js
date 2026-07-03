@@ -309,7 +309,7 @@ function assignContracts(rosters, cap) {
       if (!p.contract) {
         p.contract = generateContract(p, cap);
         if ((p.age || 25) > 23) {
-          p.contract.remaining = Math.max(1, Math.ceil(Math.random() * p.contract.years));
+          p.contract.remaining = Math.max(1, Math.ceil(_rand() * p.contract.years));
         }
         freshPlayers.push(p);
       }
@@ -2013,9 +2013,9 @@ function assignDraftInfo(rosters, currentYear) {
         p.draftSeason = (franchise?.season || 1) - yearsInLeague;
         const ovr = p.overall || 70;
         const expectedPick = Math.max(1, Math.min(224,
-          Math.round(260 - (ovr - 50) * 4.8 + (Math.random() - 0.5) * 80)
+          Math.round(260 - (ovr - 50) * 4.8 + (_rand() - 0.5) * 80)
         ));
-        if (Math.random() < 0.05 && ovr < 82) {
+        if (_rand() < 0.05 && ovr < 82) {
           p.draftRound = 0; p.draftPick = null;
         } else {
           p.draftRound = Math.min(7, Math.ceil(expectedPick / 32));
@@ -4924,7 +4924,7 @@ function assignFranchiseAges(rosters) {
     for (const p of roster) {
       if (p.age == null) {
         const base = p.overall >= 85 ? 26 : p.overall >= 75 ? 24 : 22;
-        p.age = base + Math.floor(Math.random() * 7);
+        p.age = base + Math.floor(_rand() * 7);
       }
     }
   }
@@ -4989,7 +4989,7 @@ function assignTeamTiers() {
   ];
   // Fisher-Yates shuffle
   for (let i = tiers.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(_rand() * (i + 1));
     [tiers[i], tiers[j]] = [tiers[j], tiers[i]];
   }
   const out = {};
@@ -5088,6 +5088,7 @@ function renderFrnStartScreen() {
     : sm.phase === "awards" ? "Awards"
     : sm.phase === "offseason" ? "Offseason"
     : sm.phase === "draft" ? "Draft"
+    : sm.phase === "fantasy_draft" ? "Fantasy Draft"
     : sm.phase ? (sm.phase[0].toUpperCase() + sm.phase.slice(1).replace(/_/g, " ")) : "—";
 
   // While the IDB-fallback read from loadFranchise() is still in flight, the
@@ -5169,6 +5170,11 @@ function renderFrnStartScreen() {
         <div class="fps-start-icon">📋</div>
         <div class="fps-start-name">BROWSE ALL 32 TEAMS</div>
         <div class="fps-start-desc">Pick any team — the full picker</div>
+      </button>
+      <button class="fps-start" onclick="frnStartFantasyDraft()">
+        <div class="fps-start-icon">🧢</div>
+        <div class="fps-start-name">FANTASY DRAFT</div>
+        <div class="fps-start-desc">Every roster starts empty — all 32 teams draft from one pool</div>
       </button>
     </div>
   `;

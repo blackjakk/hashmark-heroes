@@ -501,6 +501,7 @@ function showFranchiseDashboard() {
     else if (phase === "season_recap")         renderFrnSeasonRecap();
     else if (phase === "draft")                renderFrnDraft();
     else if (phase === "draft_grade")          _renderPostDraftGrade(_myDraftPicksForGrade());
+    else if (phase === "fantasy_draft")        renderFantasyDraftRoom();
     else if (phase === "regular")              _frnRenderActiveTab();
     else if (phase === "playoffs_pending")     renderFrnPlayoffs();
     else if (phase === "playoffs")             _frnRenderActiveTab();
