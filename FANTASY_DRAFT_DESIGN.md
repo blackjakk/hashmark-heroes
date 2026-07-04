@@ -3,10 +3,12 @@
 **Status: S1 SHIPPED (single-player) — `play-franchise-fantasydraft.js`, gated by
 `tools/_fantasy_draft_probe.js` (20 checks). S2 SERVER SHIPPED — the league server's
 drafting phase (`server/league-server.js` + `server/draft-host.js`), gated by
-`server/league-probe.js` (42 checks). The S2 *browser lobby/draft-room client* for
-leagues does not exist yet (no league client UI exists at all — it rides whenever that
-client is built, reusing `renderFantasyDraftRoom` in league mode). S3 (on-chain)
-remains design.** This is the "on-chain full-draft mode" CLAUDE.md already
+`server/league-probe.js` (42 checks). S2 CLIENT SHIPPED — `play-league-client.js`
+(ONLINE LEAGUE start card: create/join/lobby over the league API + SSE, the live
+league draft room driven by the tape, client-side sha256 re-derivation → VERIFIED
+badge, and "Start my franchise" building the identical local league for every
+member), gated by `tools/_league_client_probe.js` (19 checks, two real browsers).
+S3 (on-chain) remains design.** This is the "on-chain full-draft mode" CLAUDE.md already
 anticipates — the gen-time determinism fix (pickBodyType → `_rand()`) was landed
 specifically so this mode could exist.
 

@@ -540,7 +540,16 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname.startsWith("/api/league/")) {
       const id = url.pathname.split("/").pop();
       const token = url.searchParams.get("token");
-      const auth = memberAuth(id, token); if (auth.error) return json(res, 403, auth);
+      const auth = memberAuth(id, token);
+      if (auth.error) {
+        // Invite PREVIEW: a join link's token (the open joinCode or an unused
+        // single-use invite) may VIEW the lobby snapshot so the joiner can
+        // pick a free team — it cannot act as a member.
+        const L = leagues.get(id);
+        const isInvite = L && (token === L.joinCode || L.invites.some(iv => iv.token === token && !iv.used));
+        if (!isInvite) return json(res, 403, auth);
+        return json(res, 200, { league: publicLeague(L), you: { preview: true } });
+      }
       return json(res, 200, { league: publicLeague(auth.L), you: auth.m.isAdmin ? { isAdmin: true } : { teamId: auth.m.teamId } });
     }
 

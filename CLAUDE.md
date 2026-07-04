@@ -21,8 +21,13 @@ user flow incl. refresh-resume). S2 SERVER SHIPPED — league-server drafting
 phase (`server/draft-host.js` hosts the same gen+draft core in Node;
 intent-only pick endpoint, pick clock, batched events, artifact/result hashes
 independently re-derived by `server/league-probe.js`, 42 checks; run it when
-touching the league server or the draft module). Browser league client (lobby/
-draft room) still doesn't exist — S2 client rides on it whenever it's built.
+touching the league server or the draft module). S2 CLIENT SHIPPED —
+`play-league-client.js` (ONLINE LEAGUE card: create/join/lobby + SSE, live
+league draft room, client-side sha256 verify → VERIFIED badge, "Start my
+franchise" derives the identical local league per member; invite links carry
+the server base, h2h-style) + `tools/_league_client_probe.js` (19 checks, two
+real browsers: deep-link join, SSE picks, unattended clock finish, cross-
+browser PID-identical rosters). Run BOTH probes when touching league code.
 Design + S3 plan: `FANTASY_DRAFT_DESIGN.md`
 (pure-function draft: (poolSeed+settings+pickTape)→rosters). KEY FINDING: the
 roster generator's helpers still hold ~11k raw Math.random draws (jersey/

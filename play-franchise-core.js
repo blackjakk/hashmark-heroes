@@ -5176,6 +5176,11 @@ function renderFrnStartScreen() {
         <div class="fps-start-name">FANTASY DRAFT</div>
         <div class="fps-start-desc">Every roster starts empty — all 32 teams draft from one pool</div>
       </button>
+      <button class="fps-start" onclick="frnLeagueHome()">
+        <div class="fps-start-icon">🌐</div>
+        <div class="fps-start-name">ONLINE LEAGUE</div>
+        <div class="fps-start-desc">Create or rejoin a league with real GMs — commissioner, lobby, live draft</div>
+      </button>
     </div>
   `;
 }

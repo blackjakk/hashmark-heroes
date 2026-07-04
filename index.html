@@ -17,7 +17,7 @@
     // followed while already on this page — head scripts don't re-run then).
     (function () {
       function fwd() {
-        if (/^#h2h=/.test(location.hash) || /[?&]dev=1/.test(location.search)) {
+        if (/^#h2h=|^#league=/.test(location.hash) || /[?&]dev=1/.test(location.search)) {
           location.replace("./play.html" + location.search + location.hash);
         }
       }
