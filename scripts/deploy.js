@@ -104,6 +104,24 @@ async function main() {
     console.log("Resolver set  :", process.env.RESOLVER);
   }
 
+  // ── 8. DraftSettlement (VRF-seeded fantasy-draft genesis settlement) ────────
+  // Same VRF wiring + bond/window as ProofSettlement; the resolver's referee
+  // tool is server/draft-verify.js (re-derives the artifact via draft-host).
+  const DraftSettlement = await ethers.getContractFactory("DraftSettlement");
+  const draftSettlement = await DraftSettlement.deploy(vrfCoordinator, subId, keyHash, BOND, WINDOW);
+  await draftSettlement.waitForDeployment();
+  const draftSettlementAddr = await draftSettlement.getAddress();
+  console.log("DraftSettlement:", draftSettlementAddr, `(bond ${ethers.formatEther(BOND)} ETH, window ${WINDOW}s, sub ${subId})`);
+  if (vrfMockAddr) {
+    const mock = await ethers.getContractAt("VRFCoordinatorV2Mock", vrfMockAddr);
+    await (await mock.addConsumer(subId, draftSettlementAddr)).wait();
+  }
+  await (await leagueMgr.setDraftSettlement(draftSettlementAddr)).wait();
+  console.log("LeagueManager → DraftSettlement linked (genesis-draft ingestion)");
+  if (process.env.RESOLVER) {
+    await (await draftSettlement.setResolver(process.env.RESOLVER)).wait();
+  }
+
   // ── Permissions ────────────────────────────────────────────────────────────
   await (await playerNFT.setMinter(draftAddr, true)).wait();
   await (await playerNFT.setMinter(freeAgencyAddr, true)).wait();

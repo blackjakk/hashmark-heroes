@@ -8,7 +8,19 @@ drafting phase (`server/league-server.js` + `server/draft-host.js`), gated by
 league draft room driven by the tape, client-side sha256 re-derivation → VERIFIED
 badge, and "Start my franchise" building the identical local league for every
 member), gated by `tools/_league_client_probe.js` (19 checks, two real browsers).
-S3 (on-chain) remains design.** This is the "on-chain full-draft mode" CLAUDE.md already
+S3 SHIPPED (contracts): `DraftSettlement.sol`
+(VRF v2 pool seed — poolSeed = uint32(uint256(seed)) — bonded propose/challenge,
+finalize/resolve; a successful challenge VOIDS the draft since there is no coherent
+"challenger's genesis" — re-run honestly against the same seed) +
+`LeagueManager.ingestGenesisDraft` (permissionless pull of a finalized draft as the
+season's once-only roster genesis, roster-building phases only) +
+`server/draft-verify.js` (the resolver's referee: re-derives the artifact via
+draft-host, prints/compares both canonical hashes, checks the on-chain seed
+derivation; proven against a real 1,632-pick server draft and a tampered-tape
+negative). 53 hardhat tests green (16 new). REMAINING WIRING (not built): the league
+server sourcing its poolSeed from the chain in on-chain mode, and per-pick GM
+signatures inside the artifact (closes the fabricated-pick surface — documented
+limitation in the contract natspec).** This is the "on-chain full-draft mode" CLAUDE.md already
 anticipates — the gen-time determinism fix (pickBodyType → `_rand()`) was landed
 specifically so this mode could exist.
 

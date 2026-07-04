@@ -12,6 +12,13 @@ interface IProofSettlement {
     );
 }
 
+/// @notice The proven-draft view of DraftSettlement (see DraftSettlement.sol).
+interface IDraftSettlement {
+    function settledDraft(bytes32 draftId) external view returns (
+        bool finalized, bytes32 artifactHash, bytes32 resultHash, bytes32 seed
+    );
+}
+
 /// @notice Manages seasons, game results, standings, and the championship
 contract LeagueManager is Ownable {
     TeamNFT       public immutable teamNFT;
@@ -55,6 +62,22 @@ contract LeagueManager is Ownable {
     /// The settlement contract that proves match outcomes (set by the owner).
     IProofSettlement public proofSettlement;
 
+    /// The settlement contract that proves the league-genesis fantasy draft.
+    IDraftSettlement public draftSettlement;
+
+    /// The immutable roster genesis of a season: the PROVEN fantasy-draft
+    /// artifact every member's local league derives from. Set at most once per
+    /// season, only from a finalized DraftSettlement draft — rosters are never
+    /// typed in (FANTASY_DRAFT_DESIGN.md S3).
+    struct GenesisDraft {
+        bytes32 draftId;
+        bytes32 artifactHash;
+        bytes32 resultHash;
+        bytes32 seed;
+        bool    set;
+    }
+    mapping(uint256 => GenesisDraft) public genesisDrafts;   // season => genesis
+
     // season → games
     mapping(uint256 => Game[]) public schedule;
     // season → teamId → record
@@ -70,6 +93,8 @@ contract LeagueManager is Ownable {
     event GameRecorded(uint256 indexed season, uint8 week, uint256 home, uint256 away, uint8 hs, uint8 as_);
     event GameSettled(uint256 indexed season, uint256 indexed gameIdx, bytes32 matchId, bytes32 resultHash, uint8 hs, uint8 as_);
     event ProofSettlementSet(address indexed settlement);
+    event DraftSettlementSet(address indexed settlement);
+    event GenesisDraftSettled(uint256 indexed season, bytes32 indexed draftId, bytes32 artifactHash, bytes32 resultHash);
     event PlayoffsSet(uint256 indexed season, uint256[14] seeds);
     event ChampionCrowned(uint256 indexed season, uint256 indexed teamId, address owner_);
 
@@ -143,6 +168,34 @@ contract LeagueManager is Ownable {
 
         emit GameRecorded(season, g.week, g.homeTeamId, g.awayTeamId, hs, as_);
         emit GameSettled(season, gameIdx, g.matchId, rh, hs, as_);
+    }
+
+    /// Point the league at its draft-settlement contract (roster genesis source).
+    function setDraftSettlement(address ds) external onlyOwner {
+        require(ds != address(0), "LM: zero settlement");
+        draftSettlement = IDraftSettlement(ds);
+        emit DraftSettlementSet(ds);
+    }
+
+    /// @notice Pull a FINALIZED fantasy draft from DraftSettlement as this
+    /// season's roster genesis. Permissionless (the data is already proven);
+    /// guarded to ONCE per season and to the roster-building phases — a genesis
+    /// can't be swapped after the schedule starts settling against it.
+    function ingestGenesisDraft(bytes32 draftId) external {
+        require(address(draftSettlement) != address(0), "LM: no draft settlement");
+        require(phase == Phase.FreeAgency || phase == Phase.Draft, "LM: wrong phase");
+        GenesisDraft storage g = genesisDrafts[season];
+        require(!g.set, "LM: genesis already set");
+
+        (bool finalized, bytes32 ah, bytes32 rh, bytes32 seed) = draftSettlement.settledDraft(draftId);
+        require(finalized, "LM: not finalized");
+
+        g.draftId      = draftId;
+        g.artifactHash = ah;
+        g.resultHash   = rh;
+        g.seed         = seed;
+        g.set          = true;
+        emit GenesisDraftSettled(season, draftId, ah, rh);
     }
 
     function _applyStandings(uint256 homeTeamId, uint256 awayTeamId, uint8 homeScore, uint8 awayScore) internal {

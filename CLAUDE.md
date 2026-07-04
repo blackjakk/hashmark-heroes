@@ -53,8 +53,17 @@ _setSimRng alone. Run the probe when touching gen or the draft module.
   proven result, bound to the franchise via `TeamNFT.ownerOf`. Canonical outcome
   hash = `server/result-hash.js` (strips motion/statsSnap/desc, key-sorted).
   TeamNFT metadata is seeded post-deploy (`setTeams`, `scripts/teams.js`) — its
-  literals were in the constructor and blew the EIP-3860 init-code limit. 37 tests
-  in `test/`. Deploy: `scripts/deploy.js` (auto-mocks the VRF coordinator when
+  literals were in the constructor and blew the EIP-3860 init-code limit.
+  `DraftSettlement.sol` = the FANTASY DRAFT's genesis settlement (S3): VRF pool
+  seed (off-chain poolSeed MUST be uint32(uint256(seed))), bonded propose
+  (artifactHash, resultHash) → challenge window → resolve; successful challenge
+  VOIDS (no challenger-genesis; re-run vs the same seed).
+  `LeagueManager.ingestGenesisDraft(draftId)` pulls a finalized draft as the
+  season's once-only roster genesis. Referee tool: `server/draft-verify.js`
+  (re-derives via draft-host; --seed checks the uint32 derivation;
+  --expect-* for dispute adjudication). KNOWN LIMIT (natspec'd): the artifact
+  can't prove a GM's pick wasn't fabricated by the server — needs per-pick
+  signatures (future tier). 53 tests in `test/`. Deploy: `scripts/deploy.js` (auto-mocks the VRF coordinator when
   none is configured — MegaETH testnet has no Chainlink VRF yet); runbook in
   `DEPLOY.md`. Local dry-run: `npx hardhat run scripts/deploy.js`.
 
