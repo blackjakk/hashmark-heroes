@@ -4357,6 +4357,85 @@ document.addEventListener("click", (e) => {
   _frnCloseSlotMenu();
 });
 
+// ─── Save export / import ────────────────────────────────────────────────────
+// Browser saves are the scariest part of a local-only game: cleared site data
+// or a new device means a lost franchise. Export writes a self-describing JSON
+// file (IDB-canonical data — the freshest copy); import creates a brand-new
+// slot, NEVER overwriting an existing save. Round-trip is exercised headless.
+async function _frnExportSlotData(slotId) {
+  // IDB is the canonical store; localStorage is the (possibly slimmed) mirror.
+  let data = null;
+  try { data = await _idbGet(slotId); } catch {}
+  if (!data) {
+    try { data = JSON.parse(localStorage.getItem(_slotDataKey(slotId)) || "null"); } catch {}
+  }
+  if (!data) return null;
+  const meta = _readSlotsMeta();
+  const slot = (meta.slots || []).find(x => x.id === slotId);
+  return {
+    format: "hh-save-v1",
+    exportedAt: new Date().toISOString(),
+    slotName: slot ? slot.name : null,
+    summary: slot ? slot.summary : null,
+    franchise: data,
+  };
+}
+async function frnExportSlot(slotId) {
+  const env = await _frnExportSlotData(slotId);
+  if (!env) {
+    if (typeof DS !== "undefined" && DS.toast) DS.toast({ message: "Nothing to export — that slot has no readable save", kind: "error" });
+    return;
+  }
+  const sm = env.summary || {};
+  const name = `hashmark-${String(sm.teamName || env.slotName || "save").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-s${sm.season || 1}w${sm.week || 1}.json`;
+  const blob = new Blob([JSON.stringify(env)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  if (typeof DS !== "undefined" && DS.toast) DS.toast({ message: `⬇ Exported ${name}`, kind: "success" });
+}
+// Pure import (probe-callable): validates, lands in a FRESH slot, saves.
+function _frnImportSaveObject(obj) {
+  const fr = obj && obj.format === "hh-save-v1" ? obj.franchise : obj; // bare franchise accepted
+  if (!fr || typeof fr !== "object" || !Number.isFinite(Number(fr.chosenTeamId)) || typeof fr.rosters !== "object") {
+    return { error: "not a Hashmark Heroes save (missing chosenTeamId/rosters)" };
+  }
+  const meta = _readSlotsMeta();
+  meta.activeSlotId = null;              // force a brand-new slot on save
+  _writeSlotsMeta(meta);
+  franchise = fr;
+  if (franchise.pendingFranchiseGame) franchise.pendingFranchiseGame = null;
+  try { _runSaveBackfills(); } catch {}  // heal older exports like any old save
+  saveFranchise();
+  return { ok: true, slotId: _readSlotsMeta().activeSlotId };
+}
+function frnImportSavePrompt() {
+  const inp = document.createElement("input");
+  inp.type = "file";
+  inp.accept = ".json,application/json";
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      let obj = null;
+      try { obj = JSON.parse(String(rd.result)); } catch {}
+      const r = obj ? _frnImportSaveObject(obj) : { error: "that file isn't JSON" };
+      if (r.error) {
+        if (typeof DS !== "undefined" && DS.toast) DS.toast({ message: "Import failed — " + r.error, kind: "error" });
+      } else {
+        if (typeof DS !== "undefined" && DS.toast) DS.toast({ message: "✓ Save imported as a new franchise slot", kind: "success" });
+        franchise = null;                // stay on the start screen; user picks Load
+        renderFrnStartScreen();
+      }
+    };
+    rd.readAsText(f);
+  };
+  inp.click();
+}
+
 // ─── Styled confirm modal ──────────────────────────────────────────────────
 // Promise<boolean> returning replacement for `confirm()`. Use for any action
 // where the user could lose work — especially destructive ops (delete, release,
@@ -5111,6 +5190,7 @@ function renderFrnStartScreen() {
         <div class="frn-slot-menu-wrap">
           <button class="btn btn-outline frn-slot-menu-btn" onclick="_frnToggleSlotMenu(${s.id}, event)" aria-label="More actions">⋯</button>
           <div class="frn-slot-menu" id="frnSlotMenu${s.id}">
+            <button class="frn-slot-menu-item" onclick="_frnCloseSlotMenu();frnExportSlot(${s.id})">⬇ Export save file</button>
             <button class="frn-slot-menu-item" onclick="_frnCloseSlotMenu();frnRenameSlot(${s.id})">✎ Rename</button>
             <button class="frn-slot-menu-item danger" onclick="_frnCloseSlotMenu();frnDeleteSlot(${s.id})">🗑 Delete franchise…</button>
           </div>
@@ -5151,7 +5231,8 @@ function renderFrnStartScreen() {
 
     ${continueHtml}
 
-    <div class="fps-section-title">📂 YOUR FRANCHISES <span>(${slots.length})</span></div>
+    <div class="fps-section-title" style="display:flex;align-items:center;gap:.6rem">📂 YOUR FRANCHISES <span>(${slots.length})</span>
+      <span style="margin-left:auto">${DS.button({ label: "⬆ Import save", variant: "outline", size: "sm", on: "frnImportSavePrompt()", title: "Load a previously exported .json save as a new slot" })}</span></div>
     <div class="fps-slots">${slotsHtml}</div>
 
     <div class="fps-section-title">＋ START A NEW FRANCHISE</div>
