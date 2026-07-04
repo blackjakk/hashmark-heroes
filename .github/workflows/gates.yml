@@ -1,0 +1,77 @@
+name: Gates
+
+# The full regression battery on every push — the same gates CLAUDE.md's ship
+# workflow runs by hand. Two parallel jobs:
+#   game    — determinism gates + UI/system probes (Node + headless Chromium).
+#             Every probe honors PLAYWRIGHT_LIB, so CI installs playwright
+#             locally and points them at it (dev boxes keep the /opt default).
+#   contracts — the Hardhat suite (ProofSettlement / DraftSettlement /
+#             LeagueManager / TeamNFT).
+#
+# main is also the Pages deploy branch (pages.yml), so a red run here means a
+# broken build is LIVE — treat failures as ship-stoppers, exactly like the
+# local gate discipline.
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  game:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PLAYWRIGHT_LIB: playwright
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install probe toolchain (playwright + static server)
+        run: |
+          npm install --no-save playwright http-server
+          npx playwright install --with-deps chromium
+      - name: Audit gate (sim drift, 0 required)
+        run: node _audit_gate.js --fast
+      - name: Teleport gate (egregious/runaway/loop vs baseline)
+        run: ./_teleport_gate.sh
+      - name: Teleport loop classifier self-test
+        run: node _teleport_loop_selftest.js
+      - name: Animation pose audit (27 families, 0 flags)
+        run: node tools/_anim_pose_audit.js
+      - name: Design System guard (no new bypasses)
+        run: node tools/_ds_guard.js
+      - name: Design System component test
+        run: node tools/_ds_component_test.js
+      - name: Design System E2E
+        run: node tools/_ds_e2e.js
+      - name: Playsheet probe (28 checks)
+        run: node tools/_playsheet_probe.js
+      - name: UI artifact probe (0 artifacts)
+        run: node tools/_ui_artifact_probe.js
+      - name: Fantasy draft probe (pool determinism / legality / replay)
+        run: node tools/_fantasy_draft_probe.js
+      - name: League server probe (lifecycle + authoritative draft)
+        run: node server/league-probe.js
+      - name: League client probe (two browsers, SSE draft, hash verify)
+        run: node tools/_league_client_probe.js
+
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Hardhat tests (settlement + league + NFT suites)
+        run: npx hardhat test

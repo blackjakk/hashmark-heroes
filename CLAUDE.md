@@ -69,6 +69,11 @@ _setSimRng alone. Run the probe when touching gen or the draft module.
 
 ## Ship workflow (every push)
 
+CI: `.github/workflows/gates.yml` runs this battery + all probes + the hardhat
+suite on every push (main + claude/**) — main is also the Pages deploy branch,
+so a red run means a broken build is LIVE. The local workflow below remains
+the pre-push discipline; CI is the backstop.
+
 1. `node --check <file>.js` after every JS edit.
 2. Run the gates (all must pass):
    - `node _audit_gate.js --fast` — sim drift, 0 drift required (3 metrics ±tolerance).
