@@ -213,6 +213,38 @@ function _fdAutoPick(st, teamId) {
   return best;
 }
 
+// ── Pick queue ──────────────────────────────────────────────────────────────
+// A user-ordered wishlist of pids (persisted on franchise.fantasyDraft.queue).
+// Auto-picks FOR THE USER (auto-rest + the post-round bench fill) take the
+// first queued player that is still available AND legal before falling back
+// to BPA-by-need. Pure function of (state, queue) — replay is unaffected
+// because only the resulting tape entry is the artifact.
+function _fdQueueBest(st, teamId, queue) {
+  for (const pid of (queue || [])) {
+    if (st.taken.has(pid)) continue;
+    const p = st.byPid.get(pid);
+    if (p && _fdLegal(st, teamId, p.position)) return p;
+  }
+  return null;
+}
+function frnFantasyQueueToggle(pid) {
+  const fd = franchise.fantasyDraft;
+  fd.queue = fd.queue || [];
+  const i = fd.queue.indexOf(pid);
+  if (i >= 0) fd.queue.splice(i, 1); else fd.queue.push(pid);
+  saveFranchise();
+  renderFantasyDraftRoom();
+}
+function frnFantasyQueueMove(pid, dir) {
+  const q = franchise.fantasyDraft.queue || [];
+  const i = q.indexOf(pid);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= q.length) return;
+  [q[i], q[j]] = [q[j], q[i]];
+  saveFranchise();
+  renderFantasyDraftRoom();
+}
+
 // ── Advancing the draft ─────────────────────────────────────────────────────
 function _fdAppendPick(teamId, pid, auto) {
   franchise.fantasyDraft.tape.push({ teamId, pid, auto: !!auto });
@@ -230,7 +262,7 @@ function _fdAdvance() {
     const userTurn = teamId === franchise.chosenTeamId;
     const interactive = st.pickIdx < interactivePicks;
     if (userTurn && interactive && !fd.autoRest) return "user";
-    const p = _fdAutoPick(st, teamId);
+    const p = (userTurn && _fdQueueBest(st, teamId, fd.queue)) || _fdAutoPick(st, teamId);
     if (!p) return "stuck"; // provably unreachable (legality feasibility) — belt & suspenders
     _fdAppendPick(teamId, p.pid, true);
   }
@@ -372,7 +404,15 @@ async function frnFantasyAutoRest() {
 
 // ── The draft room ──────────────────────────────────────────────────────────
 let _fdFilter = "ALL";
+let _fdSearch = "";
 function _fdSetFilter(pos) { _fdFilter = pos; renderFantasyDraftRoom(); }
+function _fdSetSearch(v) {
+  _fdSearch = String(v || "");
+  renderFantasyDraftRoom();
+  // The room re-renders wholesale — restore focus + caret so typing flows.
+  const el = document.getElementById("fdSearch");
+  if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+}
 
 function renderFantasyDraftRoom() {
   const navEl = document.getElementById("frnNavBar"); if (navEl) navEl.style.display = "none";
@@ -407,19 +447,42 @@ function renderFantasyDraftRoom() {
     return `<span class="ds-chip" style="color:${col};border-color:${col}">${pos} ${have}/${tgt}${have < floor ? " ⚠" : ""}</span>`;
   }).join(" ");
 
-  // Board (filtered, top 60)
-  const avail = st.pool.filter(p => !st.taken.has(p.pid) && (_fdFilter === "ALL" || p.position === _fdFilter));
+  // Board (position + name filtered, top 60)
+  const q = _fdSearch.trim().toLowerCase();
+  const queue = fd.queue || [];
+  const avail = st.pool.filter(p => !st.taken.has(p.pid)
+    && (_fdFilter === "ALL" || p.position === _fdFilter)
+    && (!q || p.name.toLowerCase().includes(q)));
   const shown = avail.slice(0, 60);
   const rows = shown.map(p => {
     const legal = mine && _fdLegal(st, franchise.chosenTeamId, p.position);
+    const queued = queue.includes(p.pid);
     return `<tr>
       <td style="font-weight:800;color:var(--gold-lt)">${p.overall}</td>
       <td style="font-weight:700;text-align:left">${_escHtml(p.name)}</td>
       <td style="color:var(--gray)">${p.position}</td>
       <td style="color:var(--gray)">${p.age || "?"}</td>
-      <td>${mine ? DS.button({ label: "Draft", variant: legal ? "gold" : "outline", size: "sm", disabled: !legal, on: `frnFantasyDraftPick('${_escHtml(p.pid)}')`, title: legal ? `Draft ${p.name}` : "Blocked by your remaining position minimums", ariaLabel: `Draft ${p.name}` }) : ""}</td>
+      <td style="white-space:nowrap">${DS.button({ label: queued ? "✓" : "＋", variant: "outline", size: "sm",
+        on: `frnFantasyQueueToggle('${_escHtml(p.pid)}')`,
+        title: queued ? `Remove ${p.name} from your queue` : `Queue ${p.name} — auto-picks take your queue first`,
+        ariaLabel: `${queued ? "Unqueue" : "Queue"} ${p.name}`,
+        attrs: queued ? { style: "color:var(--gold-lt);border-color:var(--gold)" } : null })}${mine ? " " + DS.button({ label: "Draft", variant: legal ? "gold" : "outline", size: "sm", disabled: !legal, on: `frnFantasyDraftPick('${_escHtml(p.pid)}')`, title: legal ? `Draft ${p.name}` : "Blocked by your remaining position minimums", ariaLabel: `Draft ${p.name}` }) : ""}</td>
     </tr>`;
   }).join("");
+  // Queue panel rows (kept even when a queued player gets taken — struck out).
+  const queueRows = queue.map((pid, i) => {
+    const p = st.byPid.get(pid);
+    if (!p) return "";
+    const gone = st.taken.has(pid);
+    return `<div style="display:flex;align-items:center;gap:.35rem;padding:.12rem 0${gone ? ";opacity:.45;text-decoration:line-through" : ""}">
+      <b style="color:var(--gray);min-width:1.2rem">${i + 1}.</b>
+      <span style="flex:1"><b style="color:var(--gray)">${p.position}</b> ${_escHtml(p.name)} <b style="color:var(--gold-lt)">${p.overall}</b>${gone ? " (taken)" : ""}</span>
+      ${DS.button({ label: "▲", variant: "outline", size: "sm", on: `frnFantasyQueueMove('${_escHtml(pid)}',-1)`, ariaLabel: `Move ${p.name} up`, disabled: i === 0 })}
+      ${DS.button({ label: "▼", variant: "outline", size: "sm", on: `frnFantasyQueueMove('${_escHtml(pid)}',1)`, ariaLabel: `Move ${p.name} down`, disabled: i === queue.length - 1 })}
+      ${DS.button({ label: "✕", variant: "outline", size: "sm", on: `frnFantasyQueueToggle('${_escHtml(pid)}')`, ariaLabel: `Remove ${p.name} from queue` })}
+    </div>`;
+  }).join("");
+  const queueHead = mine ? _fdQueueBest(st, franchise.chosenTeamId, queue) : null;
 
   const filters = ["ALL", ...FD_POSITIONS].map(pos =>
     DS.chip({ label: pos, active: _fdFilter === pos, on: `_fdSetFilter('${pos}')` })).join(" ");
@@ -437,13 +500,21 @@ function renderFantasyDraftRoom() {
     ${recent ? `<div style="display:flex;gap:.35rem;flex-wrap:wrap;justify-content:center;margin-bottom:1rem">${recent}</div>` : ""}
     <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:1rem;align-items:start">
       <div>
-        <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem">${filters}</div>
+        <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem;align-items:center">${filters}
+          <input id="fdSearch" type="search" value="${_escHtml(_fdSearch)}" placeholder="🔎 player name…"
+            oninput="_fdSetSearch(this.value)" aria-label="Search players by name"
+            style="margin-left:auto;min-width:11rem;font-size:.72rem;padding:.3rem .5rem"></div>
         <table class="frn-ana-table"><thead>
           <tr><th>OVR</th><th style="text-align:left">Player</th><th>Pos</th><th>Age</th><th></th></tr>
         </thead><tbody>${rows}</tbody></table>
         <div style="color:var(--gray);font-size:.65rem;margin-top:.4rem">showing ${shown.length} of ${avail.length} available</div>
       </div>
       <div>
+        ${queue.length || mine ? `<div class="fps-section-title" style="margin-top:0">MY QUEUE · ${queue.length}</div>
+        ${queueHead && mine ? DS.button({ label: `⭐ Draft #1 queued — ${queueHead.position} ${queueHead.name}`, variant: "gold", size: "sm", on: `frnFantasyDraftPick('${_escHtml(queueHead.pid)}')`, attrs: { style: "margin-bottom:.4rem;width:100%" } }) : ""}
+        <div style="border:1px solid var(--border);border-radius:8px;padding:.4rem .55rem;font-size:.72rem;margin-bottom:.8rem;max-height:180px;overflow-y:auto">
+          ${queueRows || `<div style="color:var(--gray);font-style:italic">Empty — ＋ players from the board. Auto-picks take your queue first.</div>`}
+        </div>` : ""}
         <div class="fps-section-title" style="margin-top:0">MY ROSTER · ${myRoster.length}/${FD_PICKS_PER_TEAM}</div>
         <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.7rem">${needChips}</div>
         <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;font-size:.75rem">

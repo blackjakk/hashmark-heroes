@@ -28,6 +28,12 @@ franchise" derives the identical local league per member; invite links carry
 the server base, h2h-style) + `tools/_league_client_probe.js` (19 checks, two
 real browsers: deep-link join, SSE picks, unattended clock finish, cross-
 browser PID-identical rosters). Run BOTH probes when touching league code.
+PICK QUEUES (SP + league): a private, ordered pid wishlist — board ＋/✓ toggle,
+▲▼✕ panel, "Draft #1 queued" quick action, 🔎 name search on both boards.
+SP auto-rest/bench-fill and the SERVER's clock-timeout auto-pick take the queue
+head (first available + legal) before BPA (`_fdQueueBest` / server `queuedBest`;
+league queues sync via POST /api/league/draft/queue, PRIVATE — never broadcast).
+Tape stays the only artifact, so replay/verification are unaffected.
 Design + S3 plan: `FANTASY_DRAFT_DESIGN.md`
 (pure-function draft: (poolSeed+settings+pickTape)→rosters). KEY FINDING: the
 roster generator's helpers still hold ~11k raw Math.random draws (jersey/

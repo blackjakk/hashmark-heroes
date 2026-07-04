@@ -23,6 +23,7 @@
 //   POST /api/league/settings   {leagueId, adminToken, advanceMode, advanceIntervalMs, deadlineLabel}
 //   POST /api/league/advance    {leagueId, adminToken}      manual advance (scheduled fires internally)
 //   POST /api/league/draft/pick {leagueId, token, pid}       fantasy draft: pick intent (your turn only)
+//   POST /api/league/draft/queue {leagueId, token, pids:[…]}  private queue; clock timeouts take it first
 //   GET  /api/league/draft/:id?token=T                       full draft state (seed/order/tape) for resync
 //   GET  /api/league/events/:id?token=T&since=N             SSE; event ids = seq
 //   GET  /api/health
@@ -112,6 +113,7 @@ function newLeagueShell(h) {
     settings: h.settings || { teamCount: MAX_TEAMS, advanceMode: "manual", advanceIntervalMs: 0, deadlineLabel: "" },
     members: [], invites: [], phase: "lobby", season: 1, week: 1,
     seq: 0, eventLog: [], subscribers: new Set(), timer: null,
+    queues: {},   // memberToken → [pids] — PRIVATE pick queues (never broadcast)
   };
 }
 
@@ -311,7 +313,12 @@ function armPickClock(L, pickIdx) {
     const st = liveDraftState(L);
     if (st.pickIdx !== pickIdx) return; // pick already made — stale timer
     const teamId = kit._fdOnClock(st, st.pickIdx);
-    const p = kit._fdAutoPick(st, teamId);
+    // A timed-out human's PRIVATE queue is honored first (first queued player
+    // still available AND legal), then BPA-by-need — the fantasy-platform
+    // contract that makes long async clocks livable. Only the resulting tape
+    // entry is the artifact, so replay/verification are unaffected.
+    const member = L.members.find(m => m.teamId === teamId);
+    const p = (member && queuedBest(kit, st, teamId, L.queues[member.token])) || kit._fdAutoPick(st, teamId);
     if (!p) return;
     appendDraftPick(L, teamId, p.pid, true);
     kit._fdApplyPick(st, { teamId, pid: p.pid });
@@ -320,6 +327,14 @@ function armPickClock(L, pickIdx) {
     draftPump(L);
   }, ms);
   if (L.draftTimer.unref) L.draftTimer.unref();
+}
+function queuedBest(kit, st, teamId, pids) {
+  for (const pid of (pids || [])) {
+    if (st.taken.has(pid)) continue;
+    const p = st.byPid.get(pid);
+    if (p && kit._fdLegal(st, teamId, p.position)) return p;
+  }
+  return null;
 }
 function submitDraftPick(L, m, pid) {
   if (L.phase !== "drafting") return { error: "no draft in progress" };
@@ -416,6 +431,7 @@ function loadPersisted() {
         else if (l.t === "draft-start") L.draft = { poolSeed: l.poolSeed, year: l.year, order: l.order, tape: [], done: false, artifactHash: null, resultHash: null };
         else if (l.t === "draft-pick") { if (L.draft) L.draft.tape.push({ teamId: l.teamId, pid: l.pid, auto: !!l.auto }); }
         else if (l.t === "draft-complete") { if (L.draft) { L.draft.done = true; L.draft.artifactHash = l.artifactHash; L.draft.resultHash = l.resultHash; } }
+        else if (l.t === "draft-queue") L.queues[l.token] = l.pids || [];
       }
       leagues.set(L.id, L);
       armSchedule(L);   // re-arm scheduled advances after a restart
@@ -494,6 +510,17 @@ const server = http.createServer(async (req, res) => {
       const a = adminAuth(b.leagueId, b.adminToken); if (a.error) return json(res, 403, a);
       const r = advanceLeague(a.L, "manual"); if (r.error) return json(res, 400, r);
       return json(res, 200, r);
+    }
+    // Fantasy draft: set your PRIVATE pick queue (auto-picks on your clock
+    // timeout take it first). Replace-semantics; capped; never broadcast.
+    if (req.method === "POST" && url.pathname === "/api/league/draft/queue") {
+      const b = await readBody(req);
+      const auth = memberAuth(b.leagueId, b.token); if (auth.error) return json(res, 403, auth);
+      if (!auth.m.token) return json(res, 400, { error: "commissioner token has no seat — use your member token" });
+      const pids = (Array.isArray(b.pids) ? b.pids : []).slice(0, 100).map(String);
+      auth.L.queues[auth.m.token] = pids;
+      persistAppend(auth.L, { t: "draft-queue", token: auth.m.token, pids });
+      return json(res, 200, { ok: true, count: pids.length });
     }
     // Fantasy draft: submit PICK INTENT for your own team's turn. The server
     // validates (phase / turn / availability / position rules) and appends to

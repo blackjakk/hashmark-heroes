@@ -169,6 +169,19 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
     `draft survives a restart (tape ${preTape} → ${postRestart.body.tape.length})`);
   check((await req("GET", `/api/league/${fdId}?token=${fdAdmin}`)).body.league.phase === "drafting", "phase still drafting after restart");
 
+  console.log("\n[private queue honored by the clock]");
+  // It's a human's turn right now (clock still 0). Queue a specific legal,
+  // available player for the ON-CLOCK member — the timeout pick at exactly
+  // this tape index must be that player.
+  const dst2 = (await req("GET", `/api/league/draft/${fdId}?token=${fdAdmin}`)).body;
+  const preClock = dst2.tape.length;
+  const st2 = kit._fdApplyTape(built, dst2.tape);
+  const onClock2 = dst2.onClockTeamId;
+  const tok2 = onClock2 === 5 ? fdCommishTok : fdBoTok;
+  const queued = st2.pool.filter(pp => !st2.taken.has(pp.pid) && kit._fdLegal(st2, onClock2, pp.position))[3]; // NOT the BPA head
+  const qr = await req("POST", "/api/league/draft/queue", { leagueId: fdId, token: tok2, pids: [queued.pid] });
+  check(qr.status === 200 && qr.body.count === 1, `on-clock GM queued ${queued.position} ${queued.name} (deliberately not BPA)`);
+
   console.log("\n[pick clock finishes the draft unattended]");
   const clk = await req("POST", "/api/league/settings", { leagueId: fdId, adminToken: fdAdmin, rosterMode: "fantasy_draft", draftRounds: 12, pickClockMs: 60 });
   check(clk.status === 200 && clk.body.settings.pickClockMs === 60, "commissioner arms a (test-floor) pick clock mid-draft");
@@ -197,6 +210,9 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   check(floorsOk, "every drafted roster meets every position floor");
   const humanPicks = final.tape.filter(e => !e.auto).length;
   check(humanPicks >= 1, `human pick present on the tape (${humanPicks})`);
+  const clockPick = final.tape[preClock];
+  check(clockPick && clockPick.teamId === onClock2 && clockPick.pid === queued.pid,
+    `clock timeout drafted the QUEUED player, not BPA (${queued.name})`);
 
   srv.kill("SIGKILL");
   try { fs.rmSync(DATA, { recursive: true, force: true }); } catch (_) {}

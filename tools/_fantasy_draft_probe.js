@@ -147,8 +147,14 @@ const ok = (cond, label) => {
   ok(resumed.phase === "fantasy_draft" && resumed.roomUp, "refresh mid-draft resumes the draft room");
   ok(resumed.tape === tapeBefore && resumed.myCount === 2, `tape + my picks survive reload (tape ${resumed.tape}/${tapeBefore})`);
 
-  // Auto-rest → finish → preseason, contracts on everyone, cap sane
+  // Auto-rest → finish → preseason, contracts on everyone, cap sane.
+  // Also: the QUEUE contract — it's the user's turn right now, so auto-rest's
+  // FIRST pick must take the queue head (legal + available at this instant).
   const finish = await page.evaluate(async () => {
+    const stq = _fdState();
+    const target = stq.pool.find(p => !stq.taken.has(p.pid) && _fdLegal(stq, franchise.chosenTeamId, p.position));
+    franchise.fantasyDraft.queue = [target.pid];
+    window.__queuedPid = target.pid;
     franchise.fantasyDraft.autoRest = true;
     const status = _fdAdvance();
     saveFranchise();
@@ -163,8 +169,10 @@ const ok = (cond, label) => {
       maxCap: Math.max(...capTotals), minCap: Math.min(...capTotals),
       myRoster: rosters[franchise.chosenTeamId].length,
       psSeeded: !!franchise.practiceSquads,
+      queueHonored: rosters[franchise.chosenTeamId].some(p => p.pid === window.__queuedPid),
     };
   });
+  ok(finish.queueHonored, "auto-rest drafted the QUEUED player first (queue > BPA)");
   ok(finish.status === "done" && finish.phase === "preseason" && finish.done, `auto-rest finishes into preseason (phase=${finish.phase})`);
   ok(finish.teams === 32 && finish.everyoneSigned, "all 32 drafted rosters are fully signed");
   ok(finish.minCap > 40 && finish.maxCap < 210, `team cap totals sane (min $${finish.minCap.toFixed(0)}M, max $${finish.maxCap.toFixed(0)}M)`);

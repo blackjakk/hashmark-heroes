@@ -150,42 +150,42 @@
 
 </div>
 <script src="vendor/pixi.min.js"></script>
-<script>window.GC_BUILD="20260704202103";</script>
-<script src="play-data.js?v=20260704202103"></script>
-<script src="play-player.js?v=20260704202103"></script>
-<script src="play-audio.js?v=20260704202103"></script>
-<script src="play-fx.js?v=20260704202103"></script>
+<script>window.GC_BUILD="20260704215909";</script>
+<script src="play-data.js?v=20260704215909"></script>
+<script src="play-player.js?v=20260704215909"></script>
+<script src="play-audio.js?v=20260704215909"></script>
+<script src="play-fx.js?v=20260704215909"></script>
 <!-- Physics sim primitives: SimPlayer, simIntercept, etc.
      Used by play-animation.js to drive defender pursuit with real
      velocity/acceleration/intercept-angles instead of straight-line
      tween. Engine still owns outcomes; this is the visual layer. -->
-<script src="play-sim.js?v=20260704202103"></script>
+<script src="play-sim.js?v=20260704215909"></script>
 <!-- Path B Phase 2 — engine-owned motion schema + playback utility.
      Engine emits play.motion (per-player waypoint tracks, ball track,
      discrete events). Animation reads via MotionPlayback.sampleTrack
      and renders. Pure playback layer; no per-frame inference. -->
-<script src="play-motion.js?v=20260704202103"></script>
+<script src="play-motion.js?v=20260704215909"></script>
 <!-- PIXI.js WebGL renderer — backs play-field-pixi.js + play-player-pixi.js.
      Served from vendor/pixi.min.js (7.4.0), loaded once at the top of the
      script block. A second CDN copy (7.4.3) used to load here too — ~1MB of
      double parse, an effective version that silently differed online vs
      offline, and a hard failure in offline/sandboxed runs. Removed. -->
-<script src="play-field-pixi.js?v=20260704202103"></script>
-<script src="play-engine.js?v=20260704202103"></script>
-<script src="play-render.js?v=20260704202103"></script>
-<script src="play-sprites.js?v=20260704202103"></script>
-<script src="play-player-pixi.js?v=20260704202103"></script>
-<script src="play-simtools.js?v=20260704202103"></script>
-<script src="play-broadcast.js?v=20260704202103"></script>
-<script src="play-animation.js?v=20260704202103"></script>
+<script src="play-field-pixi.js?v=20260704215909"></script>
+<script src="play-engine.js?v=20260704215909"></script>
+<script src="play-render.js?v=20260704215909"></script>
+<script src="play-sprites.js?v=20260704215909"></script>
+<script src="play-player-pixi.js?v=20260704215909"></script>
+<script src="play-simtools.js?v=20260704215909"></script>
+<script src="play-broadcast.js?v=20260704215909"></script>
+<script src="play-animation.js?v=20260704215909"></script>
 <!-- Design System component factories (window.DS). Must load before the franchise UI. -->
-<script src="design-system/ds.js?v=20260704202103"></script>
-<script src="play-franchise-core.js?v=20260704202103"></script>
-<script src="play-franchise-season.js?v=20260704202103"></script>
-<script src="play-franchise-stats.js?v=20260704202103"></script>
-<script src="play-franchise-offseason.js?v=20260704202103"></script>
-<script src="play-franchise-fantasydraft.js?v=20260704202103"></script>
-<script src="play-league-client.js?v=20260704202103"></script>
-<script src="play-h2h-client.js?v=20260704202103"></script>
+<script src="design-system/ds.js?v=20260704215909"></script>
+<script src="play-franchise-core.js?v=20260704215909"></script>
+<script src="play-franchise-season.js?v=20260704215909"></script>
+<script src="play-franchise-stats.js?v=20260704215909"></script>
+<script src="play-franchise-offseason.js?v=20260704215909"></script>
+<script src="play-franchise-fantasydraft.js?v=20260704215909"></script>
+<script src="play-league-client.js?v=20260704215909"></script>
+<script src="play-h2h-client.js?v=20260704215909"></script>
 </body>
 </html>

@@ -30,6 +30,7 @@ let _lgSt = null;        // derived draft state (incremental over _lgDraft.tape)
 let _lgApplied = 0;
 let _lgScreen = null;    // "lobby" | "draft" | "done" — which screen is mounted
 let _lgFilter = "ALL";
+let _lgSearch = "";
 let _lgOnClock = null;   // last on_clock event data
 let _lgVerify = null;    // null | "pending" | "ok" | "mismatch"
 
@@ -360,6 +361,35 @@ function _lgApplyWirePicks(from, picks) {
   if (_lgScreen === "draft") renderLeagueDraftRoom();
 }
 function _lgSetFilter(pos) { _lgFilter = pos; renderLeagueDraftRoom(); }
+function _lgSetSearch(v) {
+  _lgSearch = String(v || "");
+  renderLeagueDraftRoom();
+  const el = document.getElementById("lgSearch");
+  if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+}
+// Private pick queue: kept on the session (survives reload) and synced to the
+// server, whose clock-timeout auto-pick honors it (queue head → BPA fallback).
+function _lgQueueSync() {
+  _lgSaveSession();
+  _lgApi("/api/league/draft/queue", { leagueId: _lg.leagueId, token: _lg.token, pids: _lg.queue || [] })
+    .catch(() => { if (typeof DS !== "undefined") DS.toast({ message: "Queue not synced — server unreachable (it still works locally)", kind: "warn" }); });
+}
+function frnLeagueQueueToggle(pid) {
+  _lg.queue = _lg.queue || [];
+  const i = _lg.queue.indexOf(pid);
+  if (i >= 0) _lg.queue.splice(i, 1); else _lg.queue.push(pid);
+  _lgQueueSync();
+  renderLeagueDraftRoom();
+}
+function frnLeagueQueueMove(pid, dir) {
+  const q = _lg.queue || [];
+  const i = q.indexOf(pid);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= q.length) return;
+  [q[i], q[j]] = [q[j], q[i]];
+  _lgQueueSync();
+  renderLeagueDraftRoom();
+}
 
 function renderLeagueDraftRoom() {
   if (!_lgDraft || !_lgSt) return;
@@ -391,19 +421,41 @@ function renderLeagueDraftRoom() {
     return `<span class="ds-chip" style="color:${col};border-color:${col}">${pos} ${have}/${tgt}${have < floor ? " ⚠" : ""}</span>`;
   }).join(" ");
 
-  const avail = st.pool.filter(p => !st.taken.has(p.pid) && (_lgFilter === "ALL" || p.position === _lgFilter));
+  const qs = _lgSearch.trim().toLowerCase();
+  const queue = _lg.queue || [];
+  const avail = st.pool.filter(p => !st.taken.has(p.pid)
+    && (_lgFilter === "ALL" || p.position === _lgFilter)
+    && (!qs || p.name.toLowerCase().includes(qs)));
   const shown = avail.slice(0, 60);
   const rows = shown.map(p => {
     const legal = mine && _fdLegal(st, _lg.teamId, p.position);
+    const queued = queue.includes(p.pid);
     return `<tr>
       <td style="font-weight:800;color:var(--gold-lt)">${p.overall}</td>
       <td style="font-weight:700;text-align:left">${_escHtml(p.name)}</td>
       <td style="color:var(--gray)">${p.position}</td>
       <td style="color:var(--gray)">${p.age || "?"}</td>
-      <td>${mine ? DS.button({ label: "Draft", variant: legal ? "gold" : "outline", size: "sm", disabled: !legal,
+      <td style="white-space:nowrap">${DS.button({ label: queued ? "✓" : "＋", variant: "outline", size: "sm",
+        on: `frnLeagueQueueToggle('${_escHtml(p.pid)}')`,
+        title: queued ? `Remove ${p.name} from your queue` : `Queue ${p.name} — your clock timeouts draft from this list first`,
+        ariaLabel: `${queued ? "Unqueue" : "Queue"} ${p.name}`,
+        attrs: queued ? { style: "color:var(--gold-lt);border-color:var(--gold)" } : null })}${mine ? " " + DS.button({ label: "Draft", variant: legal ? "gold" : "outline", size: "sm", disabled: !legal,
         on: `frnLeaguePick('${_escHtml(p.pid)}', this)`, ariaLabel: `Draft ${p.name}` }) : ""}</td>
     </tr>`;
   }).join("");
+  const queueRows = queue.map((pid, i) => {
+    const p = st.byPid.get(pid);
+    if (!p) return "";
+    const gone = st.taken.has(pid);
+    return `<div style="display:flex;align-items:center;gap:.35rem;padding:.12rem 0${gone ? ";opacity:.45;text-decoration:line-through" : ""}">
+      <b style="color:var(--gray);min-width:1.2rem">${i + 1}.</b>
+      <span style="flex:1"><b style="color:var(--gray)">${p.position}</b> ${_escHtml(p.name)} <b style="color:var(--gold-lt)">${p.overall}</b>${gone ? " (taken)" : ""}</span>
+      ${DS.button({ label: "▲", variant: "outline", size: "sm", on: `frnLeagueQueueMove('${_escHtml(pid)}',-1)`, ariaLabel: `Move ${p.name} up`, disabled: i === 0 })}
+      ${DS.button({ label: "▼", variant: "outline", size: "sm", on: `frnLeagueQueueMove('${_escHtml(pid)}',1)`, ariaLabel: `Move ${p.name} down`, disabled: i === queue.length - 1 })}
+      ${DS.button({ label: "✕", variant: "outline", size: "sm", on: `frnLeagueQueueToggle('${_escHtml(pid)}')`, ariaLabel: `Remove ${p.name} from queue` })}
+    </div>`;
+  }).join("");
+  const queueHead = mine ? (() => { for (const pid of queue) { if (!st.taken.has(pid)) { const p = st.byPid.get(pid); if (p && _fdLegal(st, _lg.teamId, p.position)) return p; } } return null; })() : null;
   const filters = ["ALL", ...FD_POSITIONS].map(pos =>
     DS.chip({ label: pos, active: _lgFilter === pos, on: `_lgSetFilter('${pos}')` })).join(" ");
 
@@ -424,13 +476,21 @@ function renderLeagueDraftRoom() {
     ${recent ? `<div style="display:flex;gap:.35rem;flex-wrap:wrap;justify-content:center;margin-bottom:1rem">${recent}</div>` : ""}
     <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:1rem;align-items:start">
       <div>
-        <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem">${filters}</div>
+        <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem;align-items:center">${filters}
+          <input id="lgSearch" type="search" value="${_escHtml(_lgSearch)}" placeholder="🔎 player name…"
+            oninput="_lgSetSearch(this.value)" aria-label="Search players by name"
+            style="margin-left:auto;min-width:11rem;font-size:.72rem;padding:.3rem .5rem"></div>
         <table class="frn-ana-table"><thead>
           <tr><th>OVR</th><th style="text-align:left">Player</th><th>Pos</th><th>Age</th><th></th></tr>
         </thead><tbody>${rows}</tbody></table>
         <div style="color:var(--gray);font-size:.65rem;margin-top:.4rem">showing ${shown.length} of ${avail.length} available</div>
       </div>
       <div>
+        <div class="fps-section-title" style="margin-top:0">MY QUEUE · ${queue.length}</div>
+        ${queueHead && mine ? DS.button({ label: `⭐ Draft #1 queued — ${queueHead.position} ${queueHead.name}`, variant: "gold", size: "sm", on: `frnLeaguePick('${_escHtml(queueHead.pid)}', this)`, attrs: { style: "margin-bottom:.4rem;width:100%" } }) : ""}
+        <div style="border:1px solid var(--border);border-radius:8px;padding:.4rem .55rem;font-size:.72rem;margin-bottom:.8rem;max-height:180px;overflow-y:auto">
+          ${queueRows || `<div style="color:var(--gray);font-style:italic">Empty — ＋ players from the board. If your clock runs out, the server drafts from this list first.</div>`}
+        </div>
         <div class="fps-section-title" style="margin-top:0">MY ROSTER · ${myRoster.length}/${FD_PICKS_PER_TEAM}</div>
         <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.7rem">${needChips}</div>
         <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;font-size:.75rem">
