@@ -618,6 +618,34 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   gates which poses opt in (just `carry` today). Don't enable broadly without
   per-pose hip tuning.
 
+## NEXT UP (handoff, 2026-07): league M2 — shared-season sim
+
+The top backlog item, deliberately NOT started at the tail of a long session.
+The league server's `advance` only ticks a clock; M2 makes online leagues one
+REAL shared season. Design considerations already reasoned through:
+- DEFAULT-ROSTER leagues have no canonical rosters (each client generates its
+  own — they differ per member). Fix first: on START, server mints a leagueSeed
+  and rosters derive from it (the exact fantasy-draft pattern minus picks;
+  `server/draft-host.js` already hosts the generator). Fantasy leagues already
+  have canonical rosters via (poolSeed + tape).
+- On advance: server sims the week's games via the hosted engine
+  (`engine-host.js` loads GameSimulator) under _setSimRng(derived per-game
+  seed), stores results + result hashes (server/result-hash.js), applies
+  standings, broadcasts over the existing SSE plumbing; clients rebuild from
+  events/snapshots like the draft room does. `settings.humanGamesH2H` (stub)
+  routes human-vs-human matchups to live H2H instead of auto-sim.
+- Scope honestly: weeks → standings first; playoffs + offseason rollover are
+  their own passes. Extend `server/league-probe.js` per slice.
+Also queued: per-pick GM signatures in the draft artifact (closes the
+fabricated-pick surface, natspec'd in DraftSettlement.sol) and the
+CROSS-MACHINE gen-determinism audit (S3 disputes assume any resolver
+re-derives the pool identically on any hardware — gen path needs the same
+libm audit the sim engine got; probe cross-engine, not just same-V8).
+SESSION-ENV NOTE: this environment's container resets can silently restore a
+stale checkpoint — PUSH (branch + main) immediately after EVERY commit, and
+verify expected files exist before editing. CI (gates.yml) landed this session
+but its first real Actions run hasn't been observed — check the Actions tab.
+
 ## UX pass (2026-07 session) — audit → fixes, all SOLVED + shipped
 
 - Full senior-UX audit of the core flows (severity-rated C/H/M/L, grounded in
