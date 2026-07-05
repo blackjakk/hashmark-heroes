@@ -656,14 +656,34 @@ ticked a clock). Shipped along the planned slices:
   headless hosts that bundle the franchise layer have `franchise` DEFINED but
   null (audit bundle: undefined; browser: object; league server: null — the
   third state the old guards missed and crashed on).
-- PROBES: `server/league-probe.js` now 68 checks (canonical genesis
+- PROBES: `server/league-probe.js` now 71 checks (canonical genesis
   re-derived, fixtures match the RNG-free schedule, standings = fold of
   results, independent re-sim resultHash match for BOTH roster modes, restart
-  mid-season, season-complete parking); `tools/_league_client_probe.js` now 30
-  checks (two browsers: default-league season screen over SSE, VERIFIED
-  badges, advance → live scores, PID-identical local franchises). Verifier
-  recipe: rosters NATIVE, game re-sim PORTABLE, NO franchise loaded
-  (server/README.md §League server).
+  mid-season, season-complete parking, genesis-freeze + seed-publication
+  guards); `tools/_league_client_probe.js` now 30 checks (two browsers:
+  default-league season screen over SSE, VERIFIED badges, advance → live
+  scores, PID-identical local franchises). Verifier recipe: rosters NATIVE,
+  game re-sim PORTABLE, NO franchise loaded (server/README.md §League server).
+- ADVERSARIAL-REVIEW HARDENING (same session, follow-up commit — 18 findings
+  raised, 13 confirmed, all closed): (1) GENESIS FREEZE — rosterMode/
+  draftRounds are immutable once phase leaves lobby (rosterMode became the
+  genesis POINTER seasonRosters branches on; a post-START flip silently
+  swapped the verified genesis or bricked the season). (2) SEED PUBLICATION —
+  fantasy leagues now commit leagueSeed to the public event log in
+  `draft_started`, BEFORE any pick exists (it previously first appeared in
+  `started` AFTER the full tape = a seed-shopping window for an operator who
+  knows the finished rosters). (3) ATOMIC ADVANCE — one week-results record
+  carries results + a standings CLONE + the week/phase bump (`next`), written
+  BEFORE memory commits: no memory/disk fork on append failure, no
+  double-fold after a torn two-record write, and event-log history no longer
+  aliases the live standings object. (4) tolerant per-line jsonl reload (one
+  torn line skipped, not the whole league); manual advance re-arms the
+  scheduled timer; season_complete releases the roster cache. Client: verify
+  badge keyed to (leagueId, leagueSeed) — never a stale VERIFIED across
+  league switches; `_lgLeaveScreens()` on every league-screen exit (SSE
+  re-renders were stomping the dashboard); server-sourced numerics coerced
+  via `_lgNum` before innerHTML (a malicious deep-linked server could smuggle
+  markup through "numbers"); Start-my-franchise disabled on hash MISMATCH.
 NEXT SLICES: playoffs + offseason rollover (own passes; the league parks at
 season_complete); `settings.humanGamesH2H` is still a stub — routing
 human-vs-human fixtures to live H2H is its own slice. Also still queued:

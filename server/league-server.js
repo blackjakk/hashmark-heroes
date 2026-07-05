@@ -397,6 +397,13 @@ function beginDraft(L) {
   pushEvent(L, "draft_started", {
     poolSeed: L.draft.poolSeed, year: L.draft.year, order: L.draft.order,
     rounds: L.settings.draftRounds, poolSize: L.draft.order.length * kit.FD_PICKS_PER_TEAM,
+    // The SEASON seed root, committed to the public event log BEFORE any pick
+    // exists. Without this, a fantasy draft left the leagueSeed server-private
+    // until finalizeDraft's `started` event — a window in which an operator
+    // knowing the finished rosters could shop seeds. Published here, there is
+    // nothing to shop: no roster knowledge exists yet, and clients can pin it
+    // against the value the season later reports (adversarial-review finding).
+    leagueSeed: L.leagueSeed,
   });
   draftPump(L);
   return { ok: true, drafting: true };
@@ -523,6 +530,18 @@ function updateSettings(L, patch) {
   const next = sanitizeSettings({ ...L.settings, ...patch });
   // teamCount can't drop below current members
   next.teamCount = Math.max(next.teamCount, L.members.length);
+  // GENESIS FIELDS FREEZE once the league leaves the lobby: rosterMode is the
+  // season's roster-genesis POINTER (seasonRosters branches on it every
+  // advance) and draftRounds is a hashed draft input — a post-START flip
+  // would let a commissioner swap the genesis every member verified (or
+  // brick a default league mid-season). Adversarial-review finding, closed
+  // with the same discipline as the seasonWeeks test gate.
+  if (L.phase !== "lobby") {
+    next.rosterMode = L.settings.rosterMode;
+    next.draftRounds = L.settings.draftRounds;
+    if ("seasonWeeks" in L.settings) next.seasonWeeks = L.settings.seasonWeeks;
+    else delete next.seasonWeeks;
+  }
   L.settings = next;
   persistAppend(L, { t: "settings", settings: L.settings });
   pushEvent(L, "settings", L.settings);
@@ -563,18 +582,31 @@ async function advanceLeague(L, reason) {
       // live through a 16-game week (~2.5s total).
       await new Promise(res => setImmediate(res));
     }
+    // Fold standings into a fresh CLONE — each week's record and event must
+    // carry its own immutable snapshot. (The live object was previously
+    // aliased into the event log + jsonl, so later advances mutated replayed
+    // history — adversarial-review finding.)
+    const standings = JSON.parse(JSON.stringify(L.standings || kit.initStandings()));
+    for (const r of results) applyResult(standings, r);
+    const nextPhase = week >= seasonWeeks(L) ? "season_complete" : "active";
+    const nextWeek = nextPhase === "season_complete" ? week : week + 1;
+    // ONE atomic record per advance, persisted BEFORE memory commits. Crash
+    // mid-sim → nothing persisted, re-advance re-sims byte-identically
+    // (determinism is the recovery). Persist FAILURE → memory untouched, no
+    // memory/disk fork. And reload can never double-fold a week — the old
+    // week-results/advance record PAIR could tear between the two appends,
+    // reloading standings that already contained week W with L.week still at
+    // W (re-advance would fold W twice).
+    persistAppend(L, {
+      t: "week-results", season, week, results, standings,
+      next: { season, week: nextWeek, phase: nextPhase }, reason: reason || "manual",
+    });
     L.results[week] = results;
-    if (!L.standings) L.standings = kit.initStandings();
-    for (const r of results) applyResult(L.standings, r);
-    if (week >= seasonWeeks(L)) L.phase = "season_complete";
-    else L.week = week + 1;
-    // ONE atomic record per week, AFTER the full sim (standings snapshot
-    // included so reload never needs the kit). A crash mid-week persists
-    // nothing — re-advancing re-sims the identical results (determinism is
-    // the recovery, the draft-resume discipline).
-    persistAppend(L, { t: "week-results", season, week, results, standings: L.standings });
-    persistAppend(L, { t: "advance", season: L.season, week: L.week, phase: L.phase, reason: reason || "manual" });
-    pushEvent(L, "week_results", { season, week, results, standings: L.standings });
+    L.standings = standings;
+    L.week = nextWeek;
+    L.phase = nextPhase;
+    if (nextPhase === "season_complete") L._seasonRosters = null; // re-derivable — release the cache
+    pushEvent(L, "week_results", { season, week, results, standings });
     pushEvent(L, "advanced", { season: L.season, week: L.week, phase: L.phase, reason: reason || "manual" });
   } finally {
     L._simming = false;
@@ -600,7 +632,13 @@ function loadPersisted() {
   try { files = fs.readdirSync(DATA_DIR).filter(f => f.endsWith(".jsonl")); } catch (_) { return; }
   for (const f of files) {
     try {
-      const lines = fs.readFileSync(path.join(DATA_DIR, f), "utf8").trim().split("\n").filter(Boolean).map(l => JSON.parse(l));
+      // Per-line tolerant parse: ONE torn/truncated line (a crash mid-append)
+      // must skip that line, not drop the whole league (adversarial-review
+      // finding — M2's multi-KB week-results appends widened the torn-write
+      // window).
+      const lines = fs.readFileSync(path.join(DATA_DIR, f), "utf8").split("\n").filter(Boolean).map(l => {
+        try { return JSON.parse(l); } catch (_) { console.warn("[league reload] skipping torn line in", f); return null; }
+      }).filter(Boolean);
       const h = lines.find(l => l.t === "header"); if (!h) continue;
       const L = newLeagueShell(h);
       for (const l of lines) {
@@ -617,8 +655,15 @@ function loadPersisted() {
         else if (l.t === "rosters-hash") L.rostersHash = l.rostersHash;
         else if (l.t === "standings") L.standings = l.standings;
         // week-results carries a standings snapshot so reload never rebuilds
-        // rosters/the kit — the LAST record wins (records are appended in order).
-        else if (l.t === "week-results") { L.results[l.week] = l.results; L.standings = l.standings || L.standings; }
+        // rosters/the kit — the LAST record wins (records are appended in
+        // order). `next` (the same-record week/phase bump) makes the advance
+        // ATOMIC on disk; legacy records without it are followed by a
+        // separate "advance" record handled above.
+        else if (l.t === "week-results") {
+          L.results[l.week] = l.results;
+          L.standings = l.standings || L.standings;
+          if (l.next) { if (l.next.season) L.season = l.next.season; if (l.next.week) L.week = l.next.week; if (l.next.phase) L.phase = l.next.phase; }
+        }
       }
       leagues.set(L.id, L);
       armSchedule(L);   // re-arm scheduled advances after a restart
@@ -698,6 +743,7 @@ const server = http.createServer(async (req, res) => {
       // M2: the week sims inside — the response lands after the results do
       // (~2.5s for a 16-game week; SSE keeps everyone else current).
       const r = await advanceLeague(a.L, "manual"); if (r.error) return json(res, 400, r);
+      armSchedule(a.L);   // a manual advance restarts the scheduled countdown
       return json(res, 200, r);
     }
     // Fantasy draft: set your PRIVATE pick queue (auto-picks on your clock

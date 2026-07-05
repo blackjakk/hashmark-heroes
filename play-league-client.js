@@ -35,6 +35,7 @@ let _lgOnClock = null;   // last on_clock event data
 let _lgVerify = null;    // null | "pending" | "ok" | "mismatch"
 let _lgSeason = null;    // M2: GET /api/league/season/:id payload (results + standings)
 let _lgSeasonVerify = null;  // default-roster gen verify: null | "pending" | "ok" | "mismatch"
+let _lgSeasonVerifyKey = null; // "<leagueId>|<leagueSeed>" the verdict belongs to — NEVER show a stale badge
 let _lgSeasonBuilt = null;   // cached _fdBuildDefaultLeague result (verify ⇄ start-franchise reuse)
 
 // ── session + api ───────────────────────────────────────────────────────────
@@ -46,6 +47,7 @@ function _lgSaveSession() { try { localStorage.setItem(LG_KEY, JSON.stringify(_l
 function _lgClearSession() {
   try { localStorage.removeItem(LG_KEY); } catch {}
   _lg = null; _lgLeague = null; _lgDraft = null; _lgBuilt = null; _lgSt = null; _lgApplied = 0;
+  _lgSeason = null; _lgSeasonVerify = null; _lgSeasonVerifyKey = null; _lgSeasonBuilt = null;
   if (_lgES) { try { _lgES.close(); } catch {} _lgES = null; }
 }
 function _lgDefaultBase() {
@@ -118,7 +120,7 @@ function renderLeagueCreate() {
         <div style="text-align:center;color:var(--gray);font-size:.72rem">
           Joining instead? Open the commissioner's <b>#league=…</b> link — it lands you in the lobby.
         </div>
-        ${DS.button({ label: "← Back", variant: "outline", on: "renderFrnStartScreen()" })}
+        ${DS.button({ label: "← Back", variant: "outline", on: "_lgLeaveScreens();renderFrnStartScreen()" })}
       </div>
     </div>`;
 }
@@ -322,7 +324,7 @@ function renderLeagueLobby() {
             title: fd ? "Locks the lobby, mints the pool seed, and opens the draft" : "Locks the lobby and starts season 1" }) : ""}
         ${DS.button({ label: "↻ Refresh", variant: "outline", on: "_lgResume()" })}
         ${DS.button({ label: "🚪 Leave league", variant: "outline", on: "frnLeagueLeave()" })}
-        ${DS.button({ label: "⌂ Home", variant: "outline", on: "renderFrnStartScreen()" })}
+        ${DS.button({ label: "⌂ Home", variant: "outline", on: "_lgLeaveScreens();renderFrnStartScreen()" })}
       </div>
       ${!isAdmin ? `<p style="color:var(--gray);font-size:.72rem">Waiting on the commissioner to start.</p>` : ""}
     </div>`;
@@ -373,7 +375,11 @@ async function _lgEnterSeason() {
     return;
   }
   renderLeagueSeason();
-  if (_lgSeason.rosterMode !== "fantasy_draft" && _lgSeasonVerify == null) _lgVerifySeasonRosters();
+  // Verdict is keyed to (leagueId, leagueSeed) — switching leagues (or a
+  // server changing its published seed) forces a fresh comparison instead of
+  // showing another league's VERIFIED badge.
+  const vKey = `${_lg.leagueId}|${_lgSeason.leagueSeed}`;
+  if (_lgSeason.rosterMode !== "fantasy_draft" && _lgSeasonVerifyKey !== vKey) _lgVerifySeasonRosters();
 }
 async function _lgRefreshSeason() {
   _lgSeason = await _lgApi(`/api/league/season/${_lg.leagueId}?token=${encodeURIComponent(_lg.token)}`);
@@ -383,6 +389,7 @@ async function _lgRefreshSeason() {
 async function _lgVerifySeasonRosters() {
   if (!_lgSeason || _lgSeason.leagueSeed == null || !_lgSeason.rostersHash) return;
   _lgSeasonVerify = "pending";
+  _lgSeasonVerifyKey = `${_lg.leagueId}|${_lgSeason.leagueSeed}`;
   if (_lgScreen === "season") renderLeagueSeason();
   await new Promise(r => setTimeout(r, 30));   // paint the pending chip before the ~1s synchronous gen
   try {
@@ -392,13 +399,18 @@ async function _lgVerifySeasonRosters() {
     }
     const mine = await _lgSha256(_fdRosterIds(_lgSeasonBuilt.rosters));
     _lgSeasonVerify = mine === _lgSeason.rostersHash ? "ok" : "mismatch";
-  } catch { _lgSeasonVerify = null; } // no crypto.subtle (insecure context) — skip, don't fake it
+  } catch { _lgSeasonVerify = null; _lgSeasonVerifyKey = null; } // no crypto.subtle — skip, don't fake it (key cleared so re-entry retries)
   if (_lgScreen === "season") renderLeagueSeason();
 }
+// Server-sourced numbers are COERCED before hitting innerHTML — a malicious
+// league server (the deep-link base is attacker-choosable) must not be able
+// to smuggle markup through "numeric" fields (adversarial-review finding).
+function _lgNum(x) { const n = Number(x); return Number.isFinite(n) ? n : 0; }
 function _lgStandingsRows(conf) {
   const st = _lgSeason.standings || {};
   const rows = TEAMS.filter(t => t.conference === conf).map(t => {
-    const s = st[t.id] || { w: 0, l: 0, t: 0, pf: 0, pa: 0 };
+    const raw = st[t.id] || {};
+    const s = { w: _lgNum(raw.w), l: _lgNum(raw.l), t: _lgNum(raw.t), pf: _lgNum(raw.pf), pa: _lgNum(raw.pa) };
     const gp = s.w + s.l + s.t;
     return { t, s, pct: gp ? (s.w + s.t / 2) / gp : 0, diff: s.pf - s.pa };
   }).sort((a, b) => b.pct - a.pct || b.diff - a.diff || a.t.id - b.t.id);
@@ -426,18 +438,19 @@ function renderLeagueSeason() {
   const isAdmin = !!_lg.adminToken;
 
   const scoreRow = (g) => {
-    const h = _lgTeam(g.homeId), a = _lgTeam(g.awayId);
-    const mine = g.homeId === _lg.teamId || g.awayId === _lg.teamId;
-    const hWin = g.homeScore > g.awayScore, aWin = g.awayScore > g.homeScore;
+    const h = _lgTeam(_lgNum(g.homeId)), a = _lgTeam(_lgNum(g.awayId));
+    const hs = _lgNum(g.homeScore), as = _lgNum(g.awayScore);
+    const mine = _lgNum(g.homeId) === _lg.teamId || _lgNum(g.awayId) === _lg.teamId;
+    const hWin = hs > as, aWin = as > hs;
     return `<div style="display:flex;align-items:center;gap:.5rem;padding:.28rem .55rem;border:1px solid var(--border);border-radius:8px${mine ? ";border-color:var(--gold);background:rgba(212,175,55,.07)" : ""}"
       title="result hash ${_escHtml((g.resultHash || "").slice(0, 16))}…">
-      <span style="flex:1;text-align:right${aWin ? ";font-weight:800" : ""}">${_escHtml((a.abbr || a.name.slice(0, 3)).toUpperCase())} ${g.awayScore}</span>
+      <span style="flex:1;text-align:right${aWin ? ";font-weight:800" : ""}">${_escHtml((a.abbr || a.name.slice(0, 3)).toUpperCase())} ${as}</span>
       <span style="color:var(--gray);font-size:.6rem">@</span>
-      <span style="flex:1${hWin ? ";font-weight:800" : ""}">${_escHtml((h.abbr || h.name.slice(0, 3)).toUpperCase())} ${g.homeScore}</span>
+      <span style="flex:1${hWin ? ";font-weight:800" : ""}">${_escHtml((h.abbr || h.name.slice(0, 3)).toUpperCase())} ${hs}</span>
     </div>`;
   };
   const results = lastWeek ? (S.results[lastWeek] || []).map(scoreRow).join("") : "";
-  const upcoming = !done ? generateFranchiseSchedule().filter(g => g.week === S.week).map(g => {
+  const upcoming = !done ? generateFranchiseSchedule().filter(g => g.week === _lgNum(S.week)).map(g => {
     const h = _lgTeam(g.homeId), a = _lgTeam(g.awayId);
     const mine = g.homeId === _lg.teamId || g.awayId === _lg.teamId;
     return `<span class="ds-chip"${mine ? ' style="border-color:var(--gold);color:var(--gold-lt)"' : ""}>${_escHtml((a.abbr || a.name.slice(0, 3)).toUpperCase())} @ ${_escHtml((h.abbr || h.name.slice(0, 3)).toUpperCase())}</span>`;
@@ -466,19 +479,19 @@ function renderLeagueSeason() {
       <div class="fps-hero-badge">🌐</div>
       <div class="fps-hero-title">${_escHtml(_lg.leagueName || "LEAGUE")}</div>
       <div class="fps-hero-sub">${done
-        ? `<b style="color:var(--gold-lt)">SEASON ${S.season} COMPLETE</b> · ${weeks.length} weeks in the books — playoffs land in the next milestone`
-        : `SEASON ${S.season} · WEEK ${S.week} of ${S.weeks || 18} · one shared season, simmed by the league server`}</div>
+        ? `<b style="color:var(--gold-lt)">SEASON ${_lgNum(S.season)} COMPLETE</b> · ${weeks.length} weeks in the books — playoffs land in the next milestone`
+        : `SEASON ${_lgNum(S.season)} · WEEK ${_lgNum(S.week)} of ${_lgNum(S.weeks) || 18} · one shared season, simmed by the league server`}</div>
     </div>
     <div style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:center;margin-bottom:1rem">${verifyChip}</div>
     ${isAdmin && !done ? `<div style="display:flex;justify-content:center;margin-bottom:1rem">
-      ${DS.button({ label: `▶ Advance — sim week ${S.week}`, variant: "gold", on: "frnLeagueAdvanceWeek(this)",
+      ${DS.button({ label: `▶ Advance — sim week ${_lgNum(S.week)}`, variant: "gold", on: "frnLeagueAdvanceWeek(this)",
         title: "Sims every game of the current week on the server; results + hashes broadcast to all members" })}</div>` : ""}
     ${!isAdmin && !done ? `<p style="text-align:center;color:var(--gray);font-size:.72rem;margin-bottom:1rem">The commissioner advances the week — results arrive here live.</p>` : ""}
     ${lastWeek ? `
       <div class="fps-section-title">WEEK ${lastWeek} RESULTS</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(13rem,1fr));gap:.4rem;max-width:56rem;margin:0 auto 1rem">${results}</div>` : ""}
     ${upcoming ? `
-      <div class="fps-section-title">WEEK ${S.week} MATCHUPS</div>
+      <div class="fps-section-title">WEEK ${_lgNum(S.week)} MATCHUPS</div>
       <div style="display:flex;gap:.35rem;flex-wrap:wrap;justify-content:center;max-width:56rem;margin:0 auto 1rem">${upcoming}</div>` : ""}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(20rem,1fr));gap:1rem;max-width:56rem;margin:0 auto 1rem">
       ${confTable("AFC")}${confTable("NFC")}
@@ -487,12 +500,19 @@ function renderLeagueSeason() {
       ${fantasy
         ? DS.button({ label: "🧢 Draft results & verify", variant: "outline", on: "_lgEnterDraft()" })
         : DS.button({ label: "▶ Start my franchise from this league", variant: "gold", on: "frnLeagueStartLocalDefault(this)",
-            title: "Creates a local franchise with the canonical 32-team league — every member derives the identical rosters" })}
+            disabled: _lgSeasonVerify === "mismatch",
+            title: _lgSeasonVerify === "mismatch"
+              ? "Roster hash mismatch — this league's genesis could not be verified; do not build from it"
+              : "Creates a local franchise with the canonical 32-team league — every member derives the identical rosters" })}
       ${DS.button({ label: "↻ Refresh", variant: "outline", on: "_lgEnterSeason()" })}
       ${DS.button({ label: "🚪 Leave league", variant: "outline", on: "frnLeagueLeave()" })}
-      ${DS.button({ label: "⌂ Home", variant: "outline", on: "renderFrnStartScreen()" })}
+      ${DS.button({ label: "⌂ Home", variant: "outline", on: "_lgLeaveScreens();renderFrnStartScreen()" })}
     </div>`;
 }
+// Leaving the league surfaces for another screen (dashboard, start screen)
+// MUST drop _lgScreen — SSE handlers re-render "the current league screen"
+// and would otherwise stomp whatever replaced it (adversarial-review finding).
+function _lgLeaveScreens() { _lgScreen = null; }
 async function frnLeagueAdvanceWeek(btn) {
   if (btn && typeof DS !== "undefined") DS.busy(btn, true);
   try {
@@ -542,6 +562,7 @@ async function frnLeagueStartLocalDefault(btn) {
     _seedPracticeSquads();
     if (typeof _seedCollegePipeline === "function") _seedCollegePipeline();
     saveFranchise();
+    _lgLeaveScreens();   // SSE season events must not repaint over the dashboard
     showFranchiseDashboard();
   } catch (e) {
     if (typeof DS !== "undefined") DS.toast({ message: "Couldn't build the franchise — " + e.message, kind: "error" });
@@ -784,7 +805,7 @@ function renderLeagueDone() {
         title: "Creates a local franchise with the drafted 32-team league — every member derives the identical league" })}
       ${DS.button({ label: "📅 League season", variant: "outline", on: "_lgEnterSeason()",
         title: "The shared season — server-simmed weeks, live standings" })}
-      ${DS.button({ label: "⌂ Home", variant: "outline", on: "renderFrnStartScreen()" })}
+      ${DS.button({ label: "⌂ Home", variant: "outline", on: "_lgLeaveScreens();renderFrnStartScreen()" })}
     </div>`;
   if (_lgVerify == null || _lgVerify === "pending") {
     _lgVerifyResult().then(() => { if (_lgScreen === "done") renderLeagueDone(); });
@@ -818,6 +839,7 @@ async function frnLeagueStartLocalFranchise(btn) {
       },
     };
     _fdCache = null;   // shared top-level binding with the fantasy-draft module
+    _lgLeaveScreens(); // SSE league events must not repaint over the dashboard
     _fdFinish();       // derives rosters + seeded contracts + boots preseason
   } catch (e) {
     if (typeof DS !== "undefined") DS.toast({ message: "Couldn't build the franchise — " + e.message, kind: "error" });

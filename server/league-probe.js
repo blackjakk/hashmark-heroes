@@ -313,6 +313,15 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   check(seasonEvents.some(e => e.type === "started" && e.data.leagueSeed === m2Snap.leagueSeed), "SSE 'started' carried the leagueSeed");
   check(seasonEvents.some(e => e.type === "week_results" && (e.data.results || []).length === 16), "SSE 'week_results' streamed the simmed week");
 
+  console.log("\n[M2 — genesis fields freeze once the league starts]");
+  // rosterMode is the season's roster-genesis pointer — a post-START flip
+  // would swap the genesis every member verified (or brick the season).
+  const flip = await req("POST", "/api/league/settings", { leagueId: m2Id, adminToken: m2Admin, rosterMode: "fantasy_draft" });
+  check(flip.status === 200 && flip.body.settings.rosterMode === "default",
+    "post-START rosterMode flip is IGNORED (genesis pointer frozen)");
+  const m2Adv3 = await req("POST", "/api/league/advance", { leagueId: m2Id, adminToken: m2Admin });
+  check(m2Adv3.status === 200 && m2Adv3.body.simmed === 16, "season still sims from the original genesis after the attempted flip");
+
   console.log("\n[M2 — season completion parks the league]");
   const shortL = await req("POST", "/api/league", { name: "Short Season", adminTeamId: 20, adminName: "X", settings: { teamCount: 2, seasonWeeks: 1 } });
   await req("POST", "/api/league/start", { leagueId: shortL.body.leagueId, adminToken: shortL.body.adminToken });
@@ -327,6 +336,13 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   const fdSeason = (await req("GET", `/api/league/season/${fdId}?token=${fdBoTok}`)).body;
   const fdWk1 = fdSeason.results[1] || fdSeason.results["1"] || [];
   check(fdWk1.length === 16 && fdSeason.leagueSeed > 0, "fantasy season ledger + leagueSeed published");
+  // Seed-shopping closure: the SEASON seed root must have been committed to
+  // the public event log BEFORE any pick existed — draft_started carries it,
+  // and it must be the same seed the season later sims under.
+  const draftEvents = await evDraft;
+  const ds0 = draftEvents.find(e => e.type === "draft_started");
+  check(!!ds0 && ds0.data.leagueSeed > 0 && ds0.data.leagueSeed === fdSeason.leagueSeed,
+    "leagueSeed was published in draft_started (pre-roster-knowledge) and matches the season's");
   // Re-derive the DRAFTED rosters from (poolSeed + tape) — the genesis every
   // member already verified — and re-sim a game against the published hash.
   const fdRosters = kit._fdApplyTape(built, final.tape).rosters;
