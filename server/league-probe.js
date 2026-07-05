@@ -25,15 +25,21 @@ function req(method, p, body) {
     r.on("error", reject); if (data) r.write(data); r.end();
   });
 }
-// collect SSE events for `ms`
+// collect SSE events for `ms` — resolves with whatever was collected if the
+// server dies mid-stream (the restart-recovery sections kill it on purpose).
 function sse(p, ms) {
   return new Promise((resolve) => {
     const events = [];
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(events); } };
     const r = http.get({ host: "127.0.0.1", port: PORT, path: p }, res => {
       let buf = "";
       res.on("data", c => { buf += c; let i; while ((i = buf.indexOf("\n\n")) >= 0) { const blk = buf.slice(0, i); buf = buf.slice(i + 2); const tl = blk.split("\n").find(l => l.startsWith("event: ")); const dl = blk.split("\n").find(l => l.startsWith("data: ")); if (tl) events.push({ type: tl.slice(7), data: dl ? JSON.parse(dl.slice(6)) : null }); } });
+      res.on("error", finish);
+      res.on("end", finish);
     });
-    setTimeout(() => { r.destroy(); resolve(events); }, ms);
+    r.on("error", finish);
+    setTimeout(() => { r.destroy(); finish(); }, ms);
   });
 }
 
@@ -79,7 +85,9 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   check(snap.body.league.phase === "lobby", "phase is lobby pre-start");
 
   console.log("\n[commissioner start + manual advance, watched over SSE]");
-  const evP = sse(`/api/league/events/${leagueId}?token=${adminToken}`, 1500);
+  // M2: START pays the one-time draft-kit build (~2s) and advance SIMS the
+  // week (~2.5s) — the window must outlive both, with CI headroom.
+  const evP = sse(`/api/league/events/${leagueId}?token=${adminToken}`, 15000);
   await sleep(150);
   const start = await req("POST", "/api/league/start", { leagueId, adminToken });
   check(start.status === 200 && start.body.league.phase === "active", "admin starts the dynasty → active");
@@ -96,9 +104,14 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   console.log("\n[scheduled advance fires on its own]");
   await req("POST", "/api/league/settings", { leagueId, adminToken, advanceMode: "scheduled", advanceIntervalMs: 250 });
   const wk0 = (await req("GET", `/api/league/${leagueId}?token=${adminToken}`)).body.league.week;
-  await sleep(700);
-  const wk1 = (await req("GET", `/api/league/${leagueId}?token=${adminToken}`)).body.league.week;
+  // M2: an advance now SIMS the whole week (~2-3s), so poll instead of a
+  // fixed sleep.
+  let wk1 = wk0;
+  for (let i = 0; i < 60 && wk1 <= wk0; i++) { await sleep(250); wk1 = (await req("GET", `/api/league/${leagueId}?token=${adminToken}`)).body.league.week; }
   check(wk1 > wk0, `scheduled mode auto-advanced without input (${wk0} → ${wk1})`);
+  // Back to manual — a 250ms scheduled loop that sims 16 games per tick would
+  // otherwise churn the server for the rest of the probe.
+  await req("POST", "/api/league/settings", { leagueId, adminToken, advanceMode: "manual" });
 
   console.log("\n[restart recovery — determinism is the recovery]");
   const before = (await req("GET", `/api/league/${leagueId}?token=${adminToken}`)).body.league;
@@ -213,6 +226,113 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   const clockPick = final.tape[preClock];
   check(clockPick && clockPick.teamId === onClock2 && clockPick.pid === queued.pid,
     `clock timeout drafted the QUEUED player, not BPA (${queued.name})`);
+
+  // ── M2 SHARED SEASON (server-simmed weeks → standings) ─────────────────────
+  // Independent re-sim helper — the challenger's recipe, straight from the
+  // league-server header: rosters re-derived NATIVELY from the genesis, the
+  // game re-simmed under PORTABLE math with the documented seed formula.
+  const { resultHash } = require("./result-hash.js");
+  const probeSim = (leagueSeed, season, week, homeId, awayId, rosters) => {
+    const seed = crypto.createHash("sha256")
+      .update(`hh-league-game|${leagueSeed}|${season}|${week}|${homeId}|${awayId}`).digest().readUInt32LE(0);
+    const clone = (x) => JSON.parse(JSON.stringify(x));
+    if (kit._setPortableMath) kit._setPortableMath(true);
+    kit._setSimRng(seed >>> 0);
+    try {
+      return new kit.GameSimulator(kit.TEAMS.find(t => t.id === homeId), kit.TEAMS.find(t => t.id === awayId),
+        clone(rosters[homeId]), clone(rosters[awayId])).simulate();
+    } finally { kit._clearSimRng(); if (kit._setPortableMath) kit._setPortableMath(false); }
+  };
+  const refold = (results) => {
+    const st = Object.fromEntries(kit.TEAMS.map(t => [t.id, { w: 0, l: 0, t: 0, pf: 0, pa: 0 }]));
+    for (const wk of Object.values(results)) for (const g of wk) {
+      const h = st[g.homeId], a = st[g.awayId];
+      h.pf += g.homeScore; h.pa += g.awayScore; a.pf += g.awayScore; a.pa += g.homeScore;
+      if (g.homeScore > g.awayScore) { h.w++; a.l++; }
+      else if (g.awayScore > g.homeScore) { a.w++; h.l++; }
+      else { h.t++; a.t++; }
+    }
+    return st;
+  };
+
+  console.log("\n[M2 — default league: canonical genesis at START]");
+  const m2c = await req("POST", "/api/league", { name: "Season Dynasty", adminTeamId: 7, adminName: "Commish", settings: { teamCount: 4 } });
+  const m2Id = m2c.body.leagueId, m2Admin = m2c.body.adminToken;
+  await req("POST", "/api/league/join", { leagueId: m2Id, token: m2c.body.joinCode, teamId: 12, displayName: "GM Sue" });
+  const evSeason = sse(`/api/league/events/${m2Id}?token=${m2Admin}`, 12000);
+  await sleep(150);
+  const m2Start = await req("POST", "/api/league/start", { leagueId: m2Id, adminToken: m2Admin });
+  check(m2Start.status === 200 && m2Start.body.league.phase === "active", "default league START → active");
+  const m2Snap = m2Start.body.league;
+  check(m2Snap.leagueSeed > 0, `leagueSeed minted at START (${m2Snap.leagueSeed})`);
+  check(/^[0-9a-f]{64}$/.test(m2Snap.rostersHash || ""), `rostersHash published (${(m2Snap.rostersHash || "").slice(0, 12)}…)`);
+  check(m2Snap.standings && Object.keys(m2Snap.standings).length === 32
+    && Object.values(m2Snap.standings).every(s => s.w === 0 && s.l === 0), "standings start 32 × 0-0");
+  const m2Built = kit._fdBuildDefaultLeague(m2Snap.leagueSeed, m2Snap.year);
+  const m2MyHash = crypto.createHash("sha256").update(kit._fdRosterIds(m2Built.rosters)).digest("hex");
+  check(m2MyHash === m2Snap.rostersHash, "probe re-derived all 32 rosters from the seed → rostersHash MATCHES");
+
+  console.log("\n[M2 — advance sims the week server-side]");
+  const m2Adv = await req("POST", "/api/league/advance", { leagueId: m2Id, adminToken: m2Admin });
+  check(m2Adv.status === 200 && m2Adv.body.week === 2 && m2Adv.body.simmed === 16, `advance simmed the week (${m2Adv.body.simmed} games) → week 2`);
+  const m2Season = (await req("GET", `/api/league/season/${m2Id}?token=${m2Admin}`)).body;
+  const m2Wk1 = m2Season.results[1] || m2Season.results["1"] || [];
+  check(m2Wk1.length === 16, `season ledger holds 16 week-1 results`);
+  const fixtures = kit.generateFranchiseSchedule().filter(g => g.week === 1);
+  check(m2Wk1.every((g, i) => g.homeId === fixtures[i].homeId && g.awayId === fixtures[i].awayId),
+    "results follow the RNG-free schedule's week-1 fixtures exactly");
+  check(m2Wk1.every(g => Number.isFinite(g.homeScore) && Number.isFinite(g.awayScore) && /^[0-9a-f]{64}$/.test(g.resultHash)),
+    "every game carries scores + a 64-hex resultHash");
+  check(JSON.stringify(refold(m2Season.results)) === JSON.stringify(m2Season.standings),
+    "standings are exactly the fold of the published results");
+  const m2PubSnap = (await req("GET", `/api/league/${m2Id}?token=${m2Admin}`)).body.league;
+  check(m2PubSnap.lastResults && m2PubSnap.lastResults.week === 1 && m2PubSnap.lastResults.games.length === 16,
+    "snapshot carries the last simmed week inline");
+
+  console.log("\n[M2 — anti-cheat: independent re-sim of a published result]");
+  const g0 = m2Wk1[0];
+  const mySim = probeSim(m2Season.leagueSeed, 1, 1, g0.homeId, g0.awayId, m2Built.rosters);
+  check(mySim.homeScore === g0.homeScore && mySim.awayScore === g0.awayScore,
+    `probe re-simmed game 1 → same score (${mySim.homeScore}-${mySim.awayScore})`);
+  check(resultHash(mySim) === g0.resultHash, "probe's re-sim resultHash MATCHES the server's — the result is PROVEN, not asserted");
+
+  console.log("\n[M2 — restart mid-season: the ledger is the recovery]");
+  srv.kill("SIGKILL");
+  await sleep(300);
+  srv = spawnServer();
+  if (!await waitUp()) bad("server didn't respawn mid-season");
+  const m2After = (await req("GET", `/api/league/season/${m2Id}?token=${m2Admin}`)).body;
+  check(m2After.week === 2 && (m2After.results[1] || m2After.results["1"] || []).length === 16, "week + results survive a restart");
+  check(JSON.stringify(m2After.standings) === JSON.stringify(m2Season.standings), "standings survive a restart (persisted snapshot, no kit rebuild)");
+  const m2Adv2 = await req("POST", "/api/league/advance", { leagueId: m2Id, adminToken: m2Admin });
+  check(m2Adv2.status === 200 && m2Adv2.body.week === 3, "post-restart advance sims week 2 (rosters re-derived from the seed)");
+  const m2Wk2 = ((await req("GET", `/api/league/season/${m2Id}?token=${m2Admin}`)).body.results[2] || [])[0];
+  const mySim2 = probeSim(m2Season.leagueSeed, 1, 2, m2Wk2.homeId, m2Wk2.awayId, m2Built.rosters);
+  check(resultHash(mySim2) === m2Wk2.resultHash, "week-2 re-sim hash matches — post-restart roster derivation is canonical");
+  const seasonEvents = await evSeason;
+  check(seasonEvents.some(e => e.type === "started" && e.data.leagueSeed === m2Snap.leagueSeed), "SSE 'started' carried the leagueSeed");
+  check(seasonEvents.some(e => e.type === "week_results" && (e.data.results || []).length === 16), "SSE 'week_results' streamed the simmed week");
+
+  console.log("\n[M2 — season completion parks the league]");
+  const shortL = await req("POST", "/api/league", { name: "Short Season", adminTeamId: 20, adminName: "X", settings: { teamCount: 2, seasonWeeks: 1 } });
+  await req("POST", "/api/league/start", { leagueId: shortL.body.leagueId, adminToken: shortL.body.adminToken });
+  const finAdv = await req("POST", "/api/league/advance", { leagueId: shortL.body.leagueId, adminToken: shortL.body.adminToken });
+  check(finAdv.status === 200 && finAdv.body.phase === "season_complete", "final-week advance parks phase at season_complete");
+  const finAdv2 = await req("POST", "/api/league/advance", { leagueId: shortL.body.leagueId, adminToken: shortL.body.adminToken });
+  check(finAdv2.status === 400 && /season complete/.test(finAdv2.body.error || ""), "advancing a complete season is rejected (playoffs are the next milestone)");
+
+  console.log("\n[M2 — fantasy league: the drafted genesis feeds the season]");
+  const fdAdv = await req("POST", "/api/league/advance", { leagueId: fdId, adminToken: fdAdmin });
+  check(fdAdv.status === 200 && fdAdv.body.simmed === 16, "drafted league advance sims the week");
+  const fdSeason = (await req("GET", `/api/league/season/${fdId}?token=${fdBoTok}`)).body;
+  const fdWk1 = fdSeason.results[1] || fdSeason.results["1"] || [];
+  check(fdWk1.length === 16 && fdSeason.leagueSeed > 0, "fantasy season ledger + leagueSeed published");
+  // Re-derive the DRAFTED rosters from (poolSeed + tape) — the genesis every
+  // member already verified — and re-sim a game against the published hash.
+  const fdRosters = kit._fdApplyTape(built, final.tape).rosters;
+  const fdG = fdWk1[0];
+  const fdSim = probeSim(fdSeason.leagueSeed, 1, 1, fdG.homeId, fdG.awayId, fdRosters);
+  check(resultHash(fdSim) === fdG.resultHash, "fantasy game re-sim from (poolSeed + tape) rosters MATCHES the server's resultHash");
 
   srv.kill("SIGKILL");
   try { fs.rmSync(DATA, { recursive: true, force: true }); } catch (_) {}

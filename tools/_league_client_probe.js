@@ -169,6 +169,79 @@ async function until(fn, ms, step = 250) {
     Object.values(franchise.rosters).every(r => r.every(p => p.contract && p.contract.aav > 0)));
   ok(contractsOk, "every drafted player is signed");
 
+  // ── M2: DEFAULT league — one shared, server-simmed season ─────────────────
+  console.log("— default league: canonical rosters + the shared season —");
+  await A.page.evaluate(() => { localStorage.clear(); renderFrnStartScreen(); });
+  await A.page.evaluate((port) => {
+    const btn = [...document.querySelectorAll(".fps-start")].find(b => /ONLINE LEAGUE/.test(b.textContent));
+    btn.click();
+  }, PORT);
+  await A.page.waitForTimeout(400);
+  await A.page.evaluate((port) => {
+    _lgSetCreateFantasy(false);   // default rosters
+    document.getElementById("lgName").value = "Season Bowl";
+    document.getElementById("lgGm").value = "Commish";
+    document.getElementById("lgBase").value = `http://127.0.0.1:${port}`;
+    frnLeagueCreateSubmit();
+  }, PORT);
+  const lobby2 = await until(() => A.page.evaluate(() =>
+    /LOBBY/.test(document.body.textContent) && !!document.getElementById("lgShare")), 8000);
+  ok(!!lobby2, "default-league create → lobby");
+  const invite2 = await A.page.evaluate(() => document.getElementById("lgShare").value);
+  await B.page.evaluate(() => localStorage.clear());
+  // B is already on play.html — a goto that only changes the #league= hash is
+  // a same-document navigation (no reload, no boot join hook). Detour through
+  // about:blank to force a REAL load of the invite link.
+  await B.page.goto("about:blank");
+  await B.page.goto(invite2.replace(/^https?:\/\/[^/]+/, `http://127.0.0.1:${PORT}`), { waitUntil: "domcontentloaded" });
+  await B.page.waitForTimeout(1600);
+  await until(() => B.page.evaluate(() => document.querySelectorAll(".fps-start").length >= 30), 8000);
+  await B.page.evaluate(() => {
+    document.getElementById("lgGm").value = "GM Sky";
+    [...document.querySelectorAll(".fps-start")].find(b => !b.disabled && /Claim/.test(b.textContent)).click();
+  });
+  await until(() => B.page.evaluate(() => /LOBBY/.test(document.body.textContent)), 8000);
+
+  await A.page.evaluate(() => {
+    [...document.querySelectorAll("button")].find(b => /Start the league/.test(b.textContent)).click();
+  });
+  const seasonA = await until(() => A.page.evaluate(() => /SEASON 1 · WEEK 1/.test(document.body.textContent)), 15000);
+  const seasonB = await until(() => B.page.evaluate(() => /SEASON 1 · WEEK 1/.test(document.body.textContent)), 15000);
+  ok(!!seasonA, "commissioner lands on the SEASON screen (default league goes straight to active)");
+  ok(!!seasonB, "member follows over SSE 'started' into the season screen");
+  const verSA = await until(() => A.page.evaluate(() => /ROSTERS VERIFIED/.test(document.body.textContent)), 20000, 500);
+  const verSB = await until(() => B.page.evaluate(() => /ROSTERS VERIFIED/.test(document.body.textContent)), 20000, 500);
+  ok(!!verSA, "commissioner's client re-derived the 32 canonical rosters → VERIFIED");
+  ok(!!verSB, "member's client re-derived the 32 canonical rosters → VERIFIED");
+
+  console.log("— commissioner advances: the server sims the week for everyone —");
+  await A.page.evaluate(() => {
+    [...document.querySelectorAll("button")].find(b => /Advance — sim week/.test(b.textContent)).click();
+  });
+  const resA = await until(() => A.page.evaluate(() => /WEEK 1 RESULTS/.test(document.body.textContent)), 25000, 500);
+  const resB = await until(() => B.page.evaluate(() => /WEEK 1 RESULTS/.test(document.body.textContent)), 25000, 500);
+  ok(!!resA, "results render for the commissioner after the sim");
+  ok(!!resB, "results arrive at the member over SSE week_results");
+  const standingsLive = await A.page.evaluate(() =>
+    /SEASON 1 · WEEK 2/.test(document.body.textContent) && /1-0/.test(document.body.textContent));
+  ok(standingsLive, "week advanced to 2 and standings show 1-0 records");
+
+  console.log("— both members derive the identical default league locally —");
+  for (const C of [A, B]) {
+    await C.page.evaluate(() => {
+      [...document.querySelectorAll("button")].find(b => /Start my franchise from this league/.test(b.textContent)).click();
+    });
+  }
+  const preA2 = await until(() => A.page.evaluate(() => typeof franchise !== "undefined" && franchise && franchise.phase === "preseason"), 30000, 500);
+  const preB2 = await until(() => B.page.evaluate(() => typeof franchise !== "undefined" && franchise && franchise.phase === "preseason"), 30000, 500);
+  ok(!!preA2 && !!preB2, "both members land in preseason from the canonical league");
+  const rosterA2 = await A.page.evaluate(() => (franchise.rosters[5] || []).map(p => p.pid).join(","));
+  const rosterB2 = await B.page.evaluate(() => (franchise.rosters[5] || []).map(p => p.pid).join(","));
+  ok(rosterA2.length > 0 && rosterA2 === rosterB2, "sample default-league roster is PID-IDENTICAL across both browsers");
+  const signed2 = await A.page.evaluate(() =>
+    Object.values(franchise.rosters).every(r => r.every(p => p.contract && p.contract.aav > 0)));
+  ok(signed2, "every canonical-league player is signed (seeded contracts)");
+
   ok(A.errs.length === 0, A.errs.length ? "A page errors: " + A.errs.slice(0, 3).join(" | ") : "zero page errors (commissioner)");
   ok(B.errs.length === 0, B.errs.length ? "B page errors: " + B.errs.slice(0, 3).join(" | ") : "zero page errors (member)");
 

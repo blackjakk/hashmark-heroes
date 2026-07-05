@@ -85,6 +85,44 @@ function _fdBuildPool(seed, year) {
   });
 }
 
+// ── Canonical DEFAULT league (league M2 — shared-season genesis) ────────────
+// A default-roster ONLINE league needs canonical rosters every member derives
+// identically: the fantasy-draft pattern MINUS picks. Same gen sequence as
+// _fdBuildPool (tiers → per-team gen → ages → draft info → career teams)
+// under _fdSeededScope, with `year` pinned (a replay after New Year's Eve
+// still reproduces byte-identically) — but rosters KEEP their team identity.
+// Contracts are deliberately NOT assigned here: generateContract needs
+// helpers outside the server bundle (play-franchise-offseason.js), they never
+// enter the sim or the rostersHash, and the client signs them at "Start my
+// franchise" under a derived seed — exactly _fdFinish's discipline. Shared by
+// the browser client (verify + local franchise), the league server
+// (server/draft-host.js hosts this file), and the probes.
+function _fdBuildDefaultLeague(seed, year) {
+  return _fdSeededScope(seed, () => {
+    const rosters = {};
+    const usedNames = new Set();
+    const teamTiers = assignTeamTiers();
+    for (const t of TEAMS) {
+      const roster = genFranchiseRoster(t, usedNames, teamTiers[t.id]);
+      roster.forEach(p => usedNames.add(p.name));
+      rosters[t.id] = roster;
+    }
+    assignFranchiseAges(rosters);
+    assignDraftInfo(rosters, year);
+    if (typeof assignCareerTeams === "function") assignCareerTeams(rosters);
+    let i = 0;
+    for (const t of TEAMS) for (const p of rosters[t.id]) { if (!p.pid) p.pid = "lg" + (i++); }
+    return { rosters, teamTiers };
+  });
+}
+// Canonical serializer for a rosters hash — ONE string shape shared by the
+// server (node:crypto) and clients (crypto.subtle), so the hashes compare.
+// pids are drawn from the seeded stream during gen, so they fingerprint the
+// entire generation (same shape as the draft resultHash's roster listing).
+function _fdRosterIds(rosters) {
+  return JSON.stringify(TEAMS.map(t => [t.id, (rosters[t.id] || []).map(p => p.pid)]));
+}
+
 // ── Derived draft state (replay the tape) ───────────────────────────────────
 // PURE core shared by the browser, the league server (server/draft-host.js)
 // and the probes: build an empty state from a pool build, apply tape entries.

@@ -7,9 +7,35 @@
 // design: INGAME_CLOCK_AND_MULTIPLAYER.md.
 //
 // Phase M1 = lifecycle + membership + invites + commissioner controls +
-// advancement MODE (manual | scheduled). Running the franchise sim server-side
-// on each advance is the next phase; M1's `advance` progresses the league clock
-// and broadcasts, which is the substrate the client + sim integration ride on.
+// advancement MODE (manual | scheduled).
+//
+// Phase M2 = SHARED-SEASON SIM (this file, "season" sections below): the
+// league is one REAL season, owned by the server. START mints a leagueSeed;
+// default-roster leagues derive canonical rosters from it (the fantasy-draft
+// pattern minus picks — `_fdBuildDefaultLeague`); fantasy leagues take their
+// rosters from the finished draft (poolSeed + tape). Each `advance` sims the
+// current week's games through the hosted engine (the same bundle draft-host
+// already loads carries GameSimulator) under _setSimRng(per-game seed),
+// records {scores, resultHash} per game (server/result-hash.js), applies
+// standings, and broadcasts `week_results` over the existing SSE plumbing.
+// Playoffs + offseason rollover are the NEXT slices — after week 18 the
+// league parks in phase "season_complete".
+//
+// M2 anti-cheat surfaces (CLAUDE.md discipline — named + closed):
+//   • seed shopping (server re-rolls until it likes the results): leagueSeed
+//     is minted ONCE at START, before any sim, and published in the started
+//     event + snapshot. Per-game seeds are a PURE HASH of published inputs —
+//     sha256("hh-league-game|leagueSeed|season|week|homeId|awayId") first 4
+//     bytes LE — so there is no per-game entropy to shop.
+//   • fabricated scores: every game carries resultHash; the schedule is
+//     RNG-free (generateFranchiseSchedule) and rosters re-derive from the
+//     published genesis, so ANY participant can re-sim any game headlessly
+//     (portable math, no franchise loaded — the league-probe does exactly
+//     this) and compare hashes. Results are proven, never typed in.
+//   • client-submitted outcomes: none exist — advance is commissioner intent
+//     only; all outcomes are computed server-side.
+//   • standings tampering: standings are a pure fold over the published
+//     results; the probe recomputes them independently.
 //
 // API (all JSON; auth = admin token or per-member token):
 //   POST /api/league            {name, adminTeamId, adminName, settings}
@@ -19,12 +45,13 @@
 //   POST /api/league/join       {leagueId, token, teamId, displayName}
 //        → {memberToken, teamId}                       (token = invite token OR joinCode)
 //   GET  /api/league/:id?token=T                       league snapshot
-//   POST /api/league/start      {leagueId, adminToken}      lobby → active
+//   POST /api/league/start      {leagueId, adminToken}      lobby → active (mints leagueSeed)
 //   POST /api/league/settings   {leagueId, adminToken, advanceMode, advanceIntervalMs, deadlineLabel}
-//   POST /api/league/advance    {leagueId, adminToken}      manual advance (scheduled fires internally)
+//   POST /api/league/advance    {leagueId, adminToken}      sims the week, then week+1
 //   POST /api/league/draft/pick {leagueId, token, pid}       fantasy draft: pick intent (your turn only)
 //   POST /api/league/draft/queue {leagueId, token, pids:[…]}  private queue; clock timeouts take it first
 //   GET  /api/league/draft/:id?token=T                       full draft state (seed/order/tape) for resync
+//   GET  /api/league/season/:id?token=T                      full season state (results + standings) for resync
 //   GET  /api/league/events/:id?token=T&since=N             SSE; event ids = seq
 //   GET  /api/health
 //
@@ -49,6 +76,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const { execFile } = require("child_process");
+const { resultHash } = require("./result-hash.js");
 
 const PORT = Number(process.argv[2] || process.env.HH_LEAGUE_PORT || 8788);
 const DATA_DIR = process.env.HH_LEAGUE_DATA || path.join(__dirname, "data-leagues");
@@ -78,6 +106,8 @@ function persistHeader(L) {
 function persistAppend(L, rec) { fs.appendFileSync(leagueFile(L.id), JSON.stringify(rec) + "\n"); }
 
 function publicLeague(L) {
+  const weeks = Object.keys(L.results).map(Number);
+  const lastWeek = weeks.length ? Math.max(...weeks) : 0;
   return {
     id: L.id, name: L.name, phase: L.phase, season: L.season, week: L.week,
     settings: L.settings, joinCode: L.joinCode,
@@ -92,6 +122,11 @@ function publicLeague(L) {
       rounds: L.settings.draftRounds, picks: L.draft.tape.length,
       done: L.draft.done, artifactHash: L.draft.artifactHash, resultHash: L.draft.resultHash,
     } : null,
+    // M2 shared season: genesis + standings + the LAST simmed week inline;
+    // the full week-by-week ledger via GET /api/league/season/:id.
+    leagueSeed: L.leagueSeed, year: L.year, rostersHash: L.rostersHash,
+    standings: L.standings,
+    lastResults: lastWeek ? { week: lastWeek, games: L.results[lastWeek] } : null,
   };
 }
 
@@ -114,6 +149,12 @@ function newLeagueShell(h) {
     members: [], invites: [], phase: "lobby", season: 1, week: 1,
     seq: 0, eventLog: [], subscribers: new Set(), timer: null,
     queues: {},   // memberToken → [pids] — PRIVATE pick queues (never broadcast)
+    // ── M2 shared season ──
+    leagueSeed: null,   // uint32 minted at START (schedule/game seeds + default-roster gen)
+    year: null,         // pinned at START so gen replays after New Year's still match
+    rostersHash: null,  // default leagues: sha256(_fdRosterIds(derived rosters))
+    results: {},        // week → [{week, homeId, awayId, homeScore, awayScore, resultHash}]
+    standings: null,    // teamId → {w, l, t, pf, pa} — persisted with each week-results record
   };
 }
 
@@ -150,6 +191,8 @@ function sanitizeSettings(s) {
     rosterMode: s.rosterMode === "fantasy_draft" ? "fantasy_draft" : "default",
     draftRounds: [12, 25, 51].includes(Number(s.draftRounds)) ? Number(s.draftRounds) : 12,
     pickClockMs: pc,
+    // Probe-only (see seasonWeeks()): dropped entirely outside HH_LEAGUE_TEST.
+    ...(process.env.HH_LEAGUE_TEST && Number(s.seasonWeeks) > 0 ? { seasonWeeks: Math.floor(Number(s.seasonWeeks)) } : {}),
   };
 }
 
@@ -197,14 +240,105 @@ function joinLeague(L, { token, teamId, displayName }) {
 
 function startLeague(L) {
   if (L.phase !== "lobby") return { error: "already started" };
-  // Commissioner clicked START. Fantasy-draft leagues route through the
-  // drafting phase first; default leagues go straight to active as before.
+  // Commissioner clicked START. Every league mints its genesis seed HERE —
+  // once, before any sim, published immediately (seed-shopping closed).
+  // Fantasy-draft leagues route through the drafting phase first; default
+  // leagues derive canonical rosters from the seed and go active.
+  L.leagueSeed = crypto.randomBytes(4).readUInt32LE(0);
+  L.year = new Date().getFullYear();
+  persistAppend(L, { t: "season-genesis", leagueSeed: L.leagueSeed, year: L.year });
   if (L.settings.rosterMode === "fantasy_draft") return beginDraft(L);
+  const kit = draftKit();
+  const built = kit._fdBuildDefaultLeague(L.leagueSeed, L.year);
+  L.rostersHash = crypto.createHash("sha256").update(kit._fdRosterIds(built.rosters)).digest("hex");
+  L._seasonRosters = built.rosters;   // cache (re-derivable — never persisted)
+  L.standings = kit.initStandings();
+  persistAppend(L, { t: "rosters-hash", rostersHash: L.rostersHash });
+  persistAppend(L, { t: "standings", standings: L.standings });
   L.phase = "active";
   persistAppend(L, { t: "phase", phase: L.phase, season: L.season, week: L.week });
-  pushEvent(L, "started", { season: L.season, week: L.week, members: L.members.length });
+  pushEvent(L, "started", {
+    season: L.season, week: L.week, members: L.members.length,
+    leagueSeed: L.leagueSeed, year: L.year, rostersHash: L.rostersHash,
+  });
   armSchedule(L);
   return { ok: true };
+}
+
+// ── M2 shared season — server-side week sims ────────────────────────────────
+// The season is a pure function of published inputs: rosters from the genesis
+// (leagueSeed for default leagues, poolSeed+tape for fantasy), the RNG-free
+// schedule, and per-game seeds hashed from (leagueSeed, season, week, teams).
+// The server holds no outcome authority a verifier can't re-derive.
+const SEASON_WEEKS = 18;   // = FRANCHISE_WEEKS (schedule spans 18 weeks, 1 bye)
+// Probe-only override: a 1-week "season" exercises the season_complete
+// parking without 18 real sims. Test-gated in sanitizeSettings — outside
+// HH_LEAGUE_TEST the field is dropped, so a commissioner can NOT shorten a
+// live season (that would be a real cheat surface). Only gates the phase
+// flip; the schedule and every per-game seed are untouched.
+function seasonWeeks(L) { return (process.env.HH_LEAGUE_TEST && L.settings.seasonWeeks) || SEASON_WEEKS; }
+
+function gameSeed(leagueSeed, season, week, homeId, awayId) {
+  // First 4 bytes (LE) of sha256 over pipe-joined published inputs. No
+  // entropy: same league, same fixture → same seed, on any machine.
+  const h = crypto.createHash("sha256")
+    .update(`hh-league-game|${leagueSeed}|${season}|${week}|${homeId}|${awayId}`).digest();
+  return h.readUInt32LE(0);
+}
+
+let _schedCache = null;
+function leagueSchedule(kit) {
+  // generateFranchiseSchedule is RNG-free — one flat 272-game array shared by
+  // every league and every client (no per-league derivation needed).
+  if (!_schedCache) _schedCache = kit.generateFranchiseSchedule();
+  return _schedCache;
+}
+
+function seasonRosters(L) {
+  if (L._seasonRosters) return L._seasonRosters;
+  const kit = draftKit();
+  if (L.settings.rosterMode === "fantasy_draft") {
+    if (!L.draft || !L.draft.done) return null;
+    L._seasonRosters = liveDraftState(L).rosters;   // (poolSeed + tape) → rosters
+  } else {
+    if (L.leagueSeed == null) return null;
+    L._seasonRosters = kit._fdBuildDefaultLeague(L.leagueSeed, L.year).rosters;
+  }
+  return L._seasonRosters;
+}
+
+function applyResult(standings, g) {
+  // Mirrors recordFranchiseResult's core (play-franchise-core.js) — W/L/T + PF/PA.
+  const h = standings[g.homeId], a = standings[g.awayId];
+  if (!h || !a) return;
+  h.pf += g.homeScore; h.pa += g.awayScore;
+  a.pf += g.awayScore; a.pa += g.homeScore;
+  if (g.homeScore > g.awayScore) { h.w++; a.l++; }
+  else if (g.awayScore > g.homeScore) { a.w++; h.l++; }
+  else { h.t++; a.t++; }
+}
+
+function simLeagueGame(kit, L, week, homeId, awayId) {
+  const home = kit.TEAMS.find(t => t.id === homeId);
+  const away = kit.TEAMS.find(t => t.id === awayId);
+  const rosters = seasonRosters(L);
+  const seed = gameSeed(L.leagueSeed, L.season, week, homeId, awayId);
+  // Portable math for the SIM only: a challenger on different hardware must
+  // reproduce the result bit-for-bit (the h2h-server discipline). Restored to
+  // native in finally — roster GEN stays native (the shipped fantasy-draft
+  // status quo; the cross-machine gen audit is a separate queued task), so a
+  // verifier re-derives rosters natively, then re-sims games portably.
+  // Rosters are cloned per sim — the engine mutates player objects.
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  if (kit._setPortableMath) kit._setPortableMath(true);
+  kit._setSimRng(seed >>> 0);
+  try {
+    const sim = new kit.GameSimulator(home, away, clone(rosters[homeId]), clone(rosters[awayId]));
+    return sim.simulate();
+  } finally {
+    kit._clearSimRng();
+    if (kit._setPortableMath) kit._setPortableMath(false);
+  }
 }
 
 // ── Fantasy draft (FANTASY_DRAFT_DESIGN.md S2 — the server is the authority) ─
@@ -372,10 +506,15 @@ function finalizeDraft(L) {
     .digest("hex");
   L.draft.done = true;
   L.phase = "active";
+  // M2: the drafted league is the season's roster genesis (its fingerprint is
+  // the draft resultHash — rostersHash stays null for fantasy leagues).
+  L._seasonRosters = null;   // rebuilt lazily from (poolSeed + tape) on first sim
+  L.standings = kit.initStandings();
+  persistAppend(L, { t: "standings", standings: L.standings });
   persistAppend(L, { t: "draft-complete", artifactHash: L.draft.artifactHash, resultHash: L.draft.resultHash });
   persistAppend(L, { t: "phase", phase: L.phase, season: L.season, week: L.week });
   pushEvent(L, "draft_complete", { artifactHash: L.draft.artifactHash, resultHash: L.draft.resultHash, picks: L.draft.tape.length });
-  pushEvent(L, "started", { season: L.season, week: L.week, members: L.members.length });
+  pushEvent(L, "started", { season: L.season, week: L.week, members: L.members.length, leagueSeed: L.leagueSeed, year: L.year });
   armSchedule(L);
   return { ok: true };
 }
@@ -394,21 +533,63 @@ function updateSettings(L, patch) {
   return L.settings;
 }
 
-function advanceLeague(L, reason) {
-  if (L.phase !== "active") return { error: "dynasty not active" };
-  // M1: progress the league clock (18-week seasons, then rollover). The actual
-  // game-sim/offseason resolution server-side is the next phase.
-  if (L.week >= 18) { L.week = 1; L.season += 1; }
-  else { L.week += 1; }
-  persistAppend(L, { t: "advance", season: L.season, week: L.week, reason: reason || "manual" });
-  pushEvent(L, "advanced", { season: L.season, week: L.week, reason: reason || "manual" });
-  return { season: L.season, week: L.week };
+async function advanceLeague(L, reason) {
+  if (L.phase !== "active") return { error: L.phase === "season_complete" ? "season complete — playoffs are the next milestone" : "dynasty not active" };
+  if (L._simming) return { error: "week sim already in progress" };
+  if (L.leagueSeed == null) {
+    // Pre-M2 league (started before season-genesis existed): keep the M1
+    // clock-tick behavior rather than failing the commissioner.
+    if (L.week >= SEASON_WEEKS) { L.week = 1; L.season += 1; } else { L.week += 1; }
+    persistAppend(L, { t: "advance", season: L.season, week: L.week, reason: reason || "manual" });
+    pushEvent(L, "advanced", { season: L.season, week: L.week, reason: reason || "manual" });
+    return { season: L.season, week: L.week };
+  }
+  const kit = draftKit();
+  const season = L.season, week = L.week;
+  const rosters = seasonRosters(L);
+  if (!rosters) return { error: "no season rosters — draft not finished?" };
+  const fixtures = leagueSchedule(kit).filter(g => g.week === week);
+  L._simming = true;
+  try {
+    const results = [];
+    for (const g of fixtures) {
+      const r = simLeagueGame(kit, L, week, g.homeId, g.awayId);
+      results.push({
+        week, homeId: g.homeId, awayId: g.awayId,
+        homeScore: r.homeScore, awayScore: r.awayScore,
+        resultHash: resultHash(r),
+      });
+      // ~150ms of blocking per game — yield between games so SSE/http stay
+      // live through a 16-game week (~2.5s total).
+      await new Promise(res => setImmediate(res));
+    }
+    L.results[week] = results;
+    if (!L.standings) L.standings = kit.initStandings();
+    for (const r of results) applyResult(L.standings, r);
+    if (week >= seasonWeeks(L)) L.phase = "season_complete";
+    else L.week = week + 1;
+    // ONE atomic record per week, AFTER the full sim (standings snapshot
+    // included so reload never needs the kit). A crash mid-week persists
+    // nothing — re-advancing re-sims the identical results (determinism is
+    // the recovery, the draft-resume discipline).
+    persistAppend(L, { t: "week-results", season, week, results, standings: L.standings });
+    persistAppend(L, { t: "advance", season: L.season, week: L.week, phase: L.phase, reason: reason || "manual" });
+    pushEvent(L, "week_results", { season, week, results, standings: L.standings });
+    pushEvent(L, "advanced", { season: L.season, week: L.week, phase: L.phase, reason: reason || "manual" });
+  } finally {
+    L._simming = false;
+  }
+  return { season: L.season, week: L.week, phase: L.phase, simmed: L.results[week].length };
 }
 
 function armSchedule(L) {
   if (L.timer) { clearTimeout(L.timer); L.timer = null; }
   if (L.phase === "active" && L.settings.advanceMode === "scheduled" && L.settings.advanceIntervalMs > 0) {
-    L.timer = setTimeout(() => { advanceLeague(L, "scheduled"); armSchedule(L); }, L.settings.advanceIntervalMs);
+    L.timer = setTimeout(() => {
+      Promise.resolve(advanceLeague(L, "scheduled"))
+        .catch(e => console.warn("[league advance]", L.id, e.message))
+        .then(() => armSchedule(L));
+    }, L.settings.advanceIntervalMs);
     if (L.timer.unref) L.timer.unref();
   }
 }
@@ -432,6 +613,12 @@ function loadPersisted() {
         else if (l.t === "draft-pick") { if (L.draft) L.draft.tape.push({ teamId: l.teamId, pid: l.pid, auto: !!l.auto }); }
         else if (l.t === "draft-complete") { if (L.draft) { L.draft.done = true; L.draft.artifactHash = l.artifactHash; L.draft.resultHash = l.resultHash; } }
         else if (l.t === "draft-queue") L.queues[l.token] = l.pids || [];
+        else if (l.t === "season-genesis") { L.leagueSeed = l.leagueSeed; L.year = l.year; }
+        else if (l.t === "rosters-hash") L.rostersHash = l.rostersHash;
+        else if (l.t === "standings") L.standings = l.standings;
+        // week-results carries a standings snapshot so reload never rebuilds
+        // rosters/the kit — the LAST record wins (records are appended in order).
+        else if (l.t === "week-results") { L.results[l.week] = l.results; L.standings = l.standings || L.standings; }
       }
       leagues.set(L.id, L);
       armSchedule(L);   // re-arm scheduled advances after a restart
@@ -508,7 +695,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/league/advance") {
       const b = await readBody(req);
       const a = adminAuth(b.leagueId, b.adminToken); if (a.error) return json(res, 403, a);
-      const r = advanceLeague(a.L, "manual"); if (r.error) return json(res, 400, r);
+      // M2: the week sims inside — the response lands after the results do
+      // (~2.5s for a 16-game week; SSE keeps everyone else current).
+      const r = await advanceLeague(a.L, "manual"); if (r.error) return json(res, 400, r);
       return json(res, 200, r);
     }
     // Fantasy draft: set your PRIVATE pick queue (auto-picks on your clock
@@ -549,6 +738,23 @@ const server = http.createServer(async (req, res) => {
         artifactHash: L.draft.artifactHash, resultHash: L.draft.resultHash,
         pickIdx: st.pickIdx,
         onClockTeamId: st.pickIdx < n * kit.FD_PICKS_PER_TEAM ? kit._fdOnClock(st, st.pickIdx) : null,
+      });
+    }
+    // M2: full season state for (re)sync — the week-by-week results ledger +
+    // standings + everything a verifier needs to re-derive the season
+    // (genesis seeds; the schedule is RNG-free and derived client-side).
+    if (req.method === "GET" && url.pathname.startsWith("/api/league/season/")) {
+      const id = url.pathname.split("/").pop();
+      const token = url.searchParams.get("token");
+      const auth = memberAuth(id, token); if (auth.error) return json(res, 403, auth);
+      const L = auth.L;
+      return json(res, 200, {
+        leagueSeed: L.leagueSeed, year: L.year, rosterMode: L.settings.rosterMode,
+        rostersHash: L.rostersHash,
+        draft: L.draft && L.draft.done ? { poolSeed: L.draft.poolSeed, year: L.draft.year, artifactHash: L.draft.artifactHash, resultHash: L.draft.resultHash } : null,
+        phase: L.phase, season: L.season, week: L.week,
+        weeks: SEASON_WEEKS,
+        results: L.results, standings: L.standings,
       });
     }
     if (req.method === "GET" && url.pathname.startsWith("/api/league/events/")) {

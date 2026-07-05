@@ -20,14 +20,16 @@ gate: pool determinism / no-deadlock legality / tape-replay stability / full
 user flow incl. refresh-resume). S2 SERVER SHIPPED — league-server drafting
 phase (`server/draft-host.js` hosts the same gen+draft core in Node;
 intent-only pick endpoint, pick clock, batched events, artifact/result hashes
-independently re-derived by `server/league-probe.js`, 42 checks; run it when
+independently re-derived by `server/league-probe.js`, 68 checks; run it when
 touching the league server or the draft module). S2 CLIENT SHIPPED —
 `play-league-client.js` (ONLINE LEAGUE card: create/join/lobby + SSE, live
 league draft room, client-side sha256 verify → VERIFIED badge, "Start my
 franchise" derives the identical local league per member; invite links carry
-the server base, h2h-style) + `tools/_league_client_probe.js` (19 checks, two
+the server base, h2h-style) + `tools/_league_client_probe.js` (30 checks, two
 real browsers: deep-link join, SSE picks, unattended clock finish, cross-
 browser PID-identical rosters). Run BOTH probes when touching league code.
+LEAGUE M2 (shared-season sim) SHIPPED — the server sims real weeks; see
+"League M2" section below for the full design + verifier recipe.
 PICK QUEUES (SP + league): a private, ordered pid wishlist — board ＋/✓ toggle,
 ▲▼✕ panel, "Draft #1 queued" quick action, 🔎 name search on both boards.
 SP auto-rest/bench-fill and the SERVER's clock-timeout auto-pick take the queue
@@ -618,33 +620,68 @@ white features survive. sprites/_fix_heads.py (head transplant) is SUPERSEDED
   gates which poses opt in (just `carry` today). Don't enable broadly without
   per-pose hip tuning.
 
-## NEXT UP (handoff, 2026-07): league M2 — shared-season sim
+## League M2 — shared-season sim (SHIPPED 2026-07-05)
 
-The top backlog item, deliberately NOT started at the tail of a long session.
-The league server's `advance` only ticks a clock; M2 makes online leagues one
-REAL shared season. Design considerations already reasoned through:
-- DEFAULT-ROSTER leagues have no canonical rosters (each client generates its
-  own — they differ per member). Fix first: on START, server mints a leagueSeed
-  and rosters derive from it (the exact fantasy-draft pattern minus picks;
-  `server/draft-host.js` already hosts the generator). Fantasy leagues already
-  have canonical rosters via (poolSeed + tape).
-- On advance: server sims the week's games via the hosted engine
-  (`engine-host.js` loads GameSimulator) under _setSimRng(derived per-game
-  seed), stores results + result hashes (server/result-hash.js), applies
-  standings, broadcasts over the existing SSE plumbing; clients rebuild from
-  events/snapshots like the draft room does. `settings.humanGamesH2H` (stub)
-  routes human-vs-human matchups to live H2H instead of auto-sim.
-- Scope honestly: weeks → standings first; playoffs + offseason rollover are
-  their own passes. Extend `server/league-probe.js` per slice.
-Also queued: per-pick GM signatures in the draft artifact (closes the
-fabricated-pick surface, natspec'd in DraftSettlement.sol) and the
-CROSS-MACHINE gen-determinism audit (S3 disputes assume any resolver
-re-derives the pool identically on any hardware — gen path needs the same
-libm audit the sim engine got; probe cross-engine, not just same-V8).
+Online leagues are one REAL shared season, server-owned (was: `advance` only
+ticked a clock). Shipped along the planned slices:
+- CANONICAL ROSTERS: START mints `leagueSeed` (once, published in the started
+  event + snapshot — no re-roll). Default-roster leagues derive all 32 rosters
+  from it via `_fdBuildDefaultLeague` (play-franchise-fantasydraft.js — the
+  pool build's gen sequence with teams KEPT; contracts deferred to the client
+  finish under `leagueSeed ^ 0x5eed5eed`, _fdFinish's exact discipline, because
+  generateContract needs offseason.js helpers outside the server bundle) and
+  publish `rostersHash` = sha256(`_fdRosterIds`). Fantasy leagues: genesis
+  stays (poolSeed + tape). The 18-week schedule is RNG-free → identical
+  everywhere, nothing to canonicalize.
+- WEEK SIM: `advance` sims the week through the DRAFT-HOST bundle (it already
+  contained play-engine.js; EXPORT_HOOK now also exposes GameSimulator +
+  schedule/standings builders — engine-host stays for h2h). Per-game seed =
+  first 4 LE bytes of sha256("hh-league-game|leagueSeed|season|week|home|away")
+  — a pure hash of published inputs, no per-game entropy to shop. Sims run
+  PORTABLE math (restored native in finally; GEN stays native = the shipped
+  fantasy status quo). Per game only {scores, resultHash} is stored/broadcast
+  (`week_results` SSE + GET /api/league/season/:id); standings fold
+  server-side; ONE atomic `week-results` jsonl record per week (standings
+  snapshot included so reload never needs the kit) — a crash mid-sim loses
+  nothing, re-advancing re-sims byte-identically. Week 18 → phase
+  "season_complete" (probe-only `settings.seasonWeeks` shortcut,
+  HH_LEAGUE_TEST-gated). ~150ms/game, ~2.5s/week wall.
+- CLIENT: season HQ screen in play-league-client.js (conference standings,
+  last-week scores, this-week fixtures, live via week_results/advanced SSE;
+  commissioner ▶ Advance with DS.busy). Default leagues get a ROSTERS
+  VERIFIED badge (client re-derives all 32 rosters from leagueSeed and
+  sha256-compares) + "Start my franchise" (canonical rosters + seeded
+  contracts → preseason). ENGINE NULL-GUARD RULE learned: play-engine's
+  `typeof franchise !== "undefined"` guards ALSO need `&& franchise` —
+  headless hosts that bundle the franchise layer have `franchise` DEFINED but
+  null (audit bundle: undefined; browser: object; league server: null — the
+  third state the old guards missed and crashed on).
+- PROBES: `server/league-probe.js` now 68 checks (canonical genesis
+  re-derived, fixtures match the RNG-free schedule, standings = fold of
+  results, independent re-sim resultHash match for BOTH roster modes, restart
+  mid-season, season-complete parking); `tools/_league_client_probe.js` now 30
+  checks (two browsers: default-league season screen over SSE, VERIFIED
+  badges, advance → live scores, PID-identical local franchises). Verifier
+  recipe: rosters NATIVE, game re-sim PORTABLE, NO franchise loaded
+  (server/README.md §League server).
+NEXT SLICES: playoffs + offseason rollover (own passes; the league parks at
+season_complete); `settings.humanGamesH2H` is still a stub — routing
+human-vs-human fixtures to live H2H is its own slice. Also still queued:
+per-pick GM signatures in the draft artifact (fabricated-pick surface,
+natspec'd in DraftSettlement.sol) and the CROSS-MACHINE gen-determinism audit
+(gen path needs the same libm audit the sim got; probe cross-engine).
 SESSION-ENV NOTE: this environment's container resets can silently restore a
 stale checkpoint — PUSH (branch + main) immediately after EVERY commit, and
-verify expected files exist before editing. CI (gates.yml) landed this session
-but its first real Actions run hasn't been observed — check the Actions tab.
+verify expected files exist before editing.
+CI (gates.yml, first runs observed 2026-07-05): RED on every push since it
+landed — two pre-existing breaks, both fixed this session: (1)
+package-lock.json was out of sync with package.json → `npm ci` refused
+(lock regenerated; 53 hardhat tests green); (2) _anim_pose_audit
+false-flagged the v2-ONLY poses (celebrate2/3, td_celebrate,
+signal_first_down) as 404-or-missing on slow runners — the v1 preload 404s
+them and the fixed 1.5s settle expired before the v2 manifest reload landed;
+the audit now waits for networkidle + SpriteAtlas.stats().loading===0 and
+polls http-server readiness instead of sleeping. Gate strictness unchanged.
 
 ## UX pass (2026-07 session) — audit → fixes, all SOLVED + shipped
 

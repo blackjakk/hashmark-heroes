@@ -81,7 +81,37 @@ node server/determinism-hazard-probe.js  # CROSS-MACHINE: enumerate outcome-path
                                    # result flips (the on-chain validator-fork risk)
 PORTABLE=1 node server/determinism-hazard-probe.js  # same, with the portable-math
                                    # mode ON → 0 outcome-path libm calls, infinite margin
+node server/league-probe.js        # league server: lifecycle + authoritative draft +
+                                   # M2 shared season (canonical rosters, server week
+                                   # sims, independent re-sim of published results)
+node tools/_league_client_probe.js # two REAL browsers: league lobby/draft/season UI
 ```
+
+## League server (shared dynasty) — M2 shared season
+
+`league-server.js` hosts multiplayer DYNASTIES (one league, many GMs). Since M2
+the season itself is server-authoritative:
+
+- **START mints `leagueSeed`** (once, published immediately — no re-roll).
+  Default-roster leagues derive all 32 rosters from it via
+  `_fdBuildDefaultLeague` (the fantasy-draft pattern minus picks) and publish
+  `rostersHash`; fantasy leagues take the finished draft (poolSeed + tape) as
+  genesis. The 18-week schedule is RNG-free — identical on every client.
+- **`advance` sims the current week** through the hosted engine (the same
+  bundle `draft-host.js` loads): per-game seed = first 4 LE bytes of
+  `sha256("hh-league-game|<leagueSeed>|<season>|<week>|<homeId>|<awayId>")`,
+  sim under `_setSimRng(seed)` with **portable math**, publish
+  `{scores, resultHash}` per game (`result-hash.js`), fold standings,
+  broadcast `week_results` over SSE. Full ledger: `GET /api/league/season/:id`.
+- **Verification** (the anti-cheat contract): re-derive rosters NATIVELY from
+  the genesis, re-sim any game PORTABLY with the seed formula, compare
+  `resultHash`. `league-probe.js` does exactly this on every run; browser
+  clients verify `rostersHash` live (VERIFIED badge on the season screen).
+- Restarts are free: results persist as one atomic `week-results` record per
+  week (standings snapshot included); a crash mid-sim loses nothing —
+  re-advancing re-sims byte-identical results.
+- After week 18 the league parks in `phase: "season_complete"` — playoffs and
+  offseason rollover are the next slices.
 
 ## Verifying a settled match (challenger / auditor tool)
 

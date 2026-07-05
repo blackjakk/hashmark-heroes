@@ -864,8 +864,10 @@ class GameSimulator {
       // him out for this game. Real recovery is fine because there's no
       // injury label, but the engine won't re-pick him.
       tackler._benchedRestOfGame = true;
-      // Track for franchise news / discipline if available
-      if (typeof franchise !== "undefined") {
+      // Track for franchise news / discipline if available. (The null check
+      // matters in headless hosts that bundle the franchise layer — there
+      // `franchise` exists as a global but is null; see server/draft-host.js.)
+      if (typeof franchise !== "undefined" && franchise) {
         if (!franchise._ejectionLog) franchise._ejectionLog = {};
         const sk = String(franchise.season);
         if (!franchise._ejectionLog[sk]) franchise._ejectionLog[sk] = [];
@@ -1083,13 +1085,13 @@ class GameSimulator {
     };
     // Concussion bookkeeping — big-hit concussions must count toward
     // the per-season stacking AND the Second Impact recency window.
-    if (t.label === "concussion" && typeof franchise !== "undefined") {
+    if (t.label === "concussion" && typeof franchise !== "undefined" && franchise) {
       player._concussionsThisSeason = (player._concussionsThisSeason || 0) + 1;
       player._lastConcussionWeek = franchise.week;
     }
     if (careerEnding) {
       player._retiringFromInjury = true;
-      if (typeof franchise !== "undefined") {
+      if (typeof franchise !== "undefined" && franchise) {
         if (!franchise._careerEndingLog) franchise._careerEndingLog = {};
         const sk = String(franchise.season);
         if (!franchise._careerEndingLog[sk] || typeof franchise._careerEndingLog[sk] === "number") {
@@ -1111,7 +1113,7 @@ class GameSimulator {
     if (typeof _bumpBodyPart === "function") {
       bodyPart = _bumpBodyPart(player, t.label, isCatastrophic ? 55 : 30);
     }
-    if (typeof franchise !== "undefined") {
+    if (typeof franchise !== "undefined" && franchise) {
       player.injuryHistory.push({
         season: franchise.season,
         week: franchise.week,
@@ -1190,7 +1192,7 @@ class GameSimulator {
     // HC clock-management style per team
     const tidOf = (key) => key === "home" ? this.home.id : this.away.id;
     const styleFor = (key) => {
-      if (typeof franchise === "undefined") return null;
+      if (typeof franchise === "undefined" || !franchise) return null;
       return franchise.coaches?.[tidOf(key)]?.hc?.specialtyTrait;
     };
     const toWindowFor = (key) => {
@@ -3213,9 +3215,9 @@ class GameSimulator {
     // Determine offensive/defensive team IDs for franchise.coaches lookups.
     const _offTeamId = this.poss === "home" ? this.home.id : this.away.id;
     const _defTeamId = this.poss === "home" ? this.away.id : this.home.id;
-    const _ocTrait   = (typeof franchise !== "undefined") ? franchise.coaches?.[_offTeamId]?.oc?.trait  : null;
-    const _dcTrait   = (typeof franchise !== "undefined") ? franchise.coaches?.[_defTeamId]?.dc?.trait  : null;
-    const _hcSpec    = (typeof franchise !== "undefined") ? franchise.coaches?.[_offTeamId]?.hc?.specialtyTrait : null;
+    const _ocTrait   = (typeof franchise !== "undefined" && franchise) ? franchise.coaches?.[_offTeamId]?.oc?.trait  : null;
+    const _dcTrait   = (typeof franchise !== "undefined" && franchise) ? franchise.coaches?.[_defTeamId]?.dc?.trait  : null;
+    const _hcSpec    = (typeof franchise !== "undefined" && franchise) ? franchise.coaches?.[_offTeamId]?.hc?.specialtyTrait : null;
     // HC Motivator: +1 offense rating when trailing by ≤7 in Q4
     const _offScore = this.score[this.poss];
     const _defScore2= this.score[this.poss === "home" ? "away" : "home"];
@@ -3407,7 +3409,7 @@ class GameSimulator {
       // Conservative always punts/kicks. Game Manager mildly conservative
       // (favors safe outcomes). 0.60-1.40 range.
       const offTeamId = this.poss === "home" ? this.home.id : this.away.id;
-      const hcStyle = (typeof franchise !== "undefined")
+      const hcStyle = (typeof franchise !== "undefined" && franchise)
         ? franchise.coaches?.[offTeamId]?.hc?.specialtyTrait : null;
       const hcAggMul = hcStyle === "Riverboat Gambler" ? 1.40
                      : hcStyle === "Conservative"      ? 0.60
@@ -3476,7 +3478,7 @@ class GameSimulator {
       // override is applied AFTER traditional `action` is set, so legacy
       // saves with no analyticsAgg (defaulted to 50 by _backfillCoachingStaff)
       // get a meaningful but bounded behavior shift.
-      const hcAA = ((typeof franchise !== "undefined")
+      const hcAA = ((typeof franchise !== "undefined" && franchise)
         ? (franchise.coaches?.[offTeamId]?.hc?.analyticsAgg ?? 50)
         : 50) / 100;
       let _mffAnalyticsAction = null;
@@ -3630,7 +3632,7 @@ class GameSimulator {
       // not the HC's.
       if (action === "go" && !_coordDrove4th && (hcStyle === "Riverboat Gambler" || hcStyle === "Conservative" || this.ytg >= 3)) {
         const offTeamObj = this.poss === "home" ? this.home : this.away;
-        const hcName = (typeof franchise !== "undefined")
+        const hcName = (typeof franchise !== "undefined" && franchise)
           ? franchise.coaches?.[offTeamId]?.hc?.name : null;
         this._pushVisual({
           kind: "hc_decision",
@@ -4175,7 +4177,7 @@ class GameSimulator {
     // Attack throws everywhere; Trench General / Run Architect lean run;
     // QB Whisperer slightly pass; Red Zone Genius slightly run.
     const offTid = this.poss === "home" ? this.home.id : this.away.id;
-    const ocBiasTrait = (typeof franchise !== "undefined") ? franchise.coaches?.[offTid]?.oc?.trait : null;
+    const ocBiasTrait = (typeof franchise !== "undefined" && franchise) ? franchise.coaches?.[offTid]?.oc?.trait : null;
     // Per-trait magnitudes halved from the fantasy-football tier (+/-0.10) to NFL-
     // realistic (+/-0.05). Real coach effect on pass rate is ~4-6pp at the extreme
     // (most coaches sit within a couple points of league mean even in their preferred
@@ -4190,7 +4192,7 @@ class GameSimulator {
                      :                                       0;
     // HC personality also tilts — Riverboat Gambler more pass (he wants
     // chunk plays), Conservative more run (clock-bleed).
-    const hcStyleTrait = (typeof franchise !== "undefined") ? franchise.coaches?.[offTid]?.hc?.specialtyTrait : null;
+    const hcStyleTrait = (typeof franchise !== "undefined" && franchise) ? franchise.coaches?.[offTid]?.hc?.specialtyTrait : null;
     const hcPassBias = hcStyleTrait === "Riverboat Gambler" ?  0.04
                      : hcStyleTrait === "Conservative"      ? -0.05
                      :                                          0;
@@ -7722,7 +7724,7 @@ class GameSimulator {
         // 2 more often even in non-chart situations; Riverboat HCs even
         // more so; Conservatives basically never except down 2 late.
         const offTidXP = this.poss === "home" ? this.home.id : this.away.id;
-        const hcStyleXP = (typeof franchise !== "undefined") ? franchise.coaches?.[offTidXP]?.hc?.specialtyTrait : null;
+        const hcStyleXP = (typeof franchise !== "undefined" && franchise) ? franchise.coaches?.[offTidXP]?.hc?.specialtyTrait : null;
         const hcXpMul = hcStyleXP === "Riverboat Gambler" ? 1.50
                       : hcStyleXP === "Conservative"      ? 0.50
                       : hcStyleXP === "Game Manager"      ? 0.85

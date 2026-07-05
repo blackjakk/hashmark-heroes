@@ -66,6 +66,17 @@ const EXPORT_HOOK = `
   __exports._fdOnClock = _fdOnClock;
   __exports._fdLegal = _fdLegal;
   __exports._fdAutoPick = _fdAutoPick;
+  // League M2 (shared-season sim): canonical default-league gen, the RNG-free
+  // schedule/standings builders, and the engine — the same bundle already
+  // contains play-engine.js, so the league server sims weeks off THIS kit.
+  __exports._fdBuildDefaultLeague = _fdBuildDefaultLeague;
+  __exports._fdRosterIds = _fdRosterIds;
+  __exports.generateFranchiseSchedule = generateFranchiseSchedule;
+  __exports.initStandings = initStandings;
+  __exports.GameSimulator = GameSimulator;
+  __exports._setSimRng = _setSimRng;
+  __exports._clearSimRng = _clearSimRng;
+  __exports._setPortableMath = typeof _setPortableMath === "function" ? _setPortableMath : null;
 `;
 
 let _cached = null;
