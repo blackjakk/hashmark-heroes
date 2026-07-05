@@ -82,14 +82,39 @@ const EXPECT = `{
 
 (async () => {
   children.push(spawn("npx", ["http-server", "-p", String(PORT), "-s", path.join(__dirname, "..")], { stdio: "ignore" }));
-  await new Promise(r => setTimeout(r, 1500));
+  // Poll readiness instead of a fixed sleep — a cold `npx http-server` on a CI
+  // runner can take longer than any guess.
+  await (async () => {
+    const http = require("http");
+    for (let i = 0; i < 120; i++) {
+      const up = await new Promise(res => {
+        const r = http.get({ host: "localhost", port: PORT, path: "/play.html" }, x => { x.resume(); res(x.statusCode === 200); });
+        r.on("error", () => res(false));
+      });
+      if (up) return;
+      await new Promise(r => setTimeout(r, 500));
+    }
+    throw new Error("http-server never came up on :" + PORT);
+  })();
   const browser = await chromium.launch({ headless: true });
   children.push({ kill: () => browser.close().catch(() => {}) });
   const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const errors = [];
   page.on("pageerror", e => errors.push(String(e.message).slice(0, 160)));
   await page.goto(`http://localhost:${PORT}/play.html`, { waitUntil: "domcontentloaded", timeout: 30000 });
-  await page.waitForTimeout(1500);
+  // Sprite loading is TWO-PHASE: the v1 preload 404s the v2-only poses
+  // (celebrate2/3, td_celebrate, signal_first_down live only in sprites2/),
+  // then the manifest fetch purges + reloads them from v2. The audit's
+  // evaluate below is one synchronous block — whatever the cache holds when
+  // it starts is frozen for the whole run. A fixed sleep let slow CI runners
+  // freeze the cache BETWEEN the phases (v1 404 recorded, v2 reload not yet
+  // applied) → false `404-or-missing` flags on exactly those poses. Wait for
+  // the network to quiesce (covers the manifest round-trip + the reloads it
+  // triggers) and for the sprite cache to have no in-flight entries.
+  await page.waitForLoadState("networkidle", { timeout: 120000 });
+  await page.waitForFunction(
+    () => typeof SpriteAtlas !== "undefined" && SpriteAtlas.anyLoaded() && SpriteAtlas.stats().loading === 0,
+    null, { timeout: 120000 });
 
   const report = await page.evaluate(`(async () => {
     const FAMS = ${FAMILIES};
