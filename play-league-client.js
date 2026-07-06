@@ -82,56 +82,279 @@ function frnLeagueHome() {
   renderLeagueCreate();
 }
 
+// ── create-a-league: a 3-step DS.form wizard ────────────────────────────────
+// The normie contract (mirrors the H2H host modal): the form finds the league
+// server ITSELF; the address lives folded under Advanced and only opens when
+// discovery fails or create errors. Validation is blur-then-live (DS.form),
+// errors render inline in the field slots, failure lands in the form-level
+// .ds-form-error with the form still OPEN. Chip toggles update IN PLACE —
+// they must never re-render the form and eat what the user already typed.
+// PROBE CONTRACT: #lgName/#lgGm/#lgTeam/#lgBase/#lgClock keep their ids and
+// frnLeagueCreateSubmit() stays directly callable — the two-browser probe
+// fills fields by id and submits without driving the wizard.
+const _LG_LAST_SERVER_KEY = "hh_lg_last_server";
+const _LG_LAST_GM_KEY = "hh_lg_last_gm";
+let _lgCreateFantasy = true, _lgCreateRounds = 12, _lgCreateClock = 86400000;
+let _lgCreateCtl = null;      // DS.form controller for the mounted create form
+let _lgCreateStepper = null;  // DS.stepper controller
+let _lgSrvFound = null;       // discovery result {base, health} | null
+let _lgDiscovery = null;      // in-flight discovery promise
+
+async function _lgPing(base) {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 1300);
+    const r = await fetch(base.replace(/\/+$/, "") + "/api/health", { signal: ctrl.signal });
+    clearTimeout(t);
+    const j = await r.json();
+    // A LEAGUE server's health reports a leagues count — that's how we tell
+    // it apart from the h2h match server on the same box.
+    if (j && j.ok && "leagues" in j) return j;
+  } catch (_) { /* not a league server */ }
+  return null;
+}
+async function _lgFindServer() {
+  const candidates = [];
+  if (/^https?:$/.test(location.protocol)) candidates.push(location.origin);
+  try { const last = localStorage.getItem(_LG_LAST_SERVER_KEY); if (last) candidates.push(last); } catch (_) {}
+  candidates.push("http://localhost:8788");
+  const seen = new Set();
+  for (const c of candidates) {
+    const base = String(c).replace(/\/+$/, "");
+    if (seen.has(base)) continue;
+    seen.add(base);
+    const health = await _lgPing(base);
+    if (health) { _lgSrvFound = { base, health }; return _lgSrvFound; }
+  }
+  return null;
+}
+
+function _lgRosterChipsHtml() {
+  return `${DS.chip({ label: "Default rosters", active: !_lgCreateFantasy, on: "_lgSetCreateFantasy(false)" })}
+    ${DS.chip({ label: "🧢 Fantasy draft", active: _lgCreateFantasy, on: "_lgSetCreateFantasy(true)" })}`;
+}
+function _lgRoundsChipsHtml() {
+  return [12, 25, 51].map(r => DS.chip({ label: String(r), active: _lgCreateRounds === r, on: `_lgSetCreateRounds(${r})` })).join(" ");
+}
+// IN-PLACE updates: swap only the chip rows and the fantasy-options fold —
+// never the form — so step position and typed values survive the toggle.
+function _lgSetCreateFantasy(v) {
+  _lgCreateFantasy = !!v;
+  const chips = document.getElementById("lgRosterChips");
+  const opts = document.getElementById("lgDraftOpts");
+  if (chips) chips.innerHTML = _lgRosterChipsHtml();
+  if (opts) opts.hidden = !_lgCreateFantasy;
+}
+function _lgSetCreateRounds(r) {
+  _lgCreateRounds = r;
+  const chips = document.getElementById("lgRoundsChips");
+  if (chips) chips.innerHTML = _lgRoundsChipsHtml();
+}
+
 function renderLeagueCreate() {
   _lgHideShell();
   const teamOpts = TEAMS.map(t => ({ value: t.id, label: `${t.city} ${t.name}` }));
+  let lastGm = "", lastServer = "";
+  try {
+    lastGm = localStorage.getItem(_LG_LAST_GM_KEY) || "";
+    lastServer = localStorage.getItem(_LG_LAST_SERVER_KEY) || "";
+  } catch (_) {}
+  const stepDefs = [
+    { id: "league", label: "Your league" },
+    { id: "rosters", label: "Rosters" },
+    { id: "create", label: "Create" },
+  ];
   _lgHost().innerHTML = `
     <div class="fps-hero" style="margin-bottom:1rem">
       <div class="fps-hero-badge">🌐</div>
       <div class="fps-hero-title">ONLINE LEAGUE</div>
       <div class="fps-hero-sub">One league, real people — a commissioner, a lobby, and (if you dare) a full fantasy draft</div>
     </div>
-    <div style="max-width:34rem;margin:0 auto">
-      <div class="fps-section-title">CREATE A LEAGUE</div>
-      <div style="display:flex;flex-direction:column;gap:.6rem">
-        <label style="font-size:.72rem;color:var(--gray)">League name
-          <input id="lgName" type="text" value="Sunday Dynasty" maxlength="60" style="width:100%"></label>
-        <label style="font-size:.72rem;color:var(--gray)">Your GM name
-          <input id="lgGm" type="text" value="Commish" maxlength="40" style="width:100%"></label>
-        <label style="font-size:.72rem;color:var(--gray)">Your team
-          ${DS.select({ id: "lgTeam", options: teamOpts, value: TEAMS[0].id })}</label>
-        <label style="font-size:.72rem;color:var(--gray)">League server
-          <input id="lgBase" type="text" value="${_escHtml(_lgDefaultBase())}" style="width:100%"></label>
-        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.2rem">
-          <span style="font-size:.68rem;color:var(--gray);letter-spacing:1px">ROSTERS:</span>
-          ${DS.chip({ label: "Default rosters", active: !_lgCreateFantasy, on: "_lgSetCreateFantasy(false)" })}
-          ${DS.chip({ label: "🧢 Fantasy draft", active: _lgCreateFantasy, on: "_lgSetCreateFantasy(true)" })}
+    <div id="lgCreateRoot" style="max-width:34rem;margin:0 auto">
+      <div data-steps-header></div>
+      <form autocomplete="on" style="margin-top:1rem">
+        <div class="ds-form-error"></div>
+
+        <div data-step-panel>
+          ${DS.field({
+            id: "lgName", label: "League name", required: true,
+            hint: "What your group calls this dynasty — it's on every invite.",
+            control: DS.input({
+              id: "lgName", name: "leagueName", value: "Sunday Dynasty",
+              required: true, maxlength: 60, enterkeyhint: "next",
+              autocomplete: "off", spellcheck: "false",
+            }),
+          })}
+          ${DS.field({
+            id: "lgGm", label: "Your GM name", required: true,
+            control: DS.input({
+              id: "lgGm", name: "gmName", value: lastGm || "Commish",
+              required: true, maxlength: 40, enterkeyhint: "next",
+              autocomplete: "nickname",
+            }),
+          })}
+          ${DS.field({
+            id: "lgTeam", label: "Your team",
+            control: DS.select({ id: "lgTeam", options: teamOpts, value: TEAMS[0].id, attrs: { name: "team" } }),
+          })}
+          <div style="display:flex;justify-content:flex-end;margin-top:.4rem">
+            ${DS.button({ label: "Next →", variant: "gold", type: "button", attrs: { "data-step-next": true } })}
+          </div>
         </div>
-        <div id="lgDraftOpts" style="display:${_lgCreateFantasy ? "flex" : "none"};align-items:center;gap:.5rem;flex-wrap:wrap">
-          <span style="font-size:.68rem;color:var(--gray);letter-spacing:1px">ROUNDS YOU CALL:</span>
-          ${[12, 25, 51].map(r => DS.chip({ label: String(r), active: _lgCreateRounds === r, on: `_lgSetCreateRounds(${r})` })).join("")}
-          <span style="font-size:.68rem;color:var(--gray);letter-spacing:1px;margin-left:.6rem">PICK CLOCK:</span>
-          ${DS.select({ id: "lgClock", value: String(_lgCreateClock), options: [
-            { value: "0", label: "No clock" }, { value: "60000", label: "1 minute" },
-            { value: "3600000", label: "1 hour" }, { value: "86400000", label: "24 hours" },
-          ] })}
+
+        <div data-step-panel hidden>
+          <div class="ds-field">
+            <span class="ds-field__label" id="lgRosterLbl">Rosters</span>
+            <div id="lgRosterChips" role="group" aria-labelledby="lgRosterLbl"
+              style="display:flex;gap:.5rem;flex-wrap:wrap">${_lgRosterChipsHtml()}</div>
+            <div class="ds-field__hint">Default = everyone starts from the same generated 32-team league.
+              Fantasy draft = draft night — every roster built from scratch, live with your friends.</div>
+            <div class="ds-field__error"></div>
+          </div>
+          <div id="lgDraftOpts" ${_lgCreateFantasy ? "" : "hidden"}>
+            <div class="ds-field">
+              <span class="ds-field__label" id="lgRoundsLbl">Rounds you call live</span>
+              <div id="lgRoundsChips" role="group" aria-labelledby="lgRoundsLbl"
+                style="display:flex;gap:.5rem;flex-wrap:wrap">${_lgRoundsChipsHtml()}</div>
+              <div class="ds-field__hint">After your live rounds, benches auto-fill — 12 is a tight draft night, 51 is the full grind.</div>
+              <div class="ds-field__error"></div>
+            </div>
+            ${DS.field({
+              id: "lgClock", label: "Pick clock",
+              hint: "A stalled pick auto-drafts from that GM's queue when the clock runs out.",
+              control: DS.select({
+                id: "lgClock", value: String(_lgCreateClock), attrs: { name: "clock" },
+                options: [
+                  { value: "0", label: "No clock — picks wait" }, { value: "60000", label: "1 minute (live draft)" },
+                  { value: "3600000", label: "1 hour" }, { value: "86400000", label: "24 hours (async league)" },
+                ],
+              }),
+            })}
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:.4rem">
+            ${DS.button({ label: "← Back", variant: "outline", type: "button", attrs: { "data-step-back": true } })}
+            ${DS.button({ label: "Next →", variant: "gold", type: "button", attrs: { "data-step-next": true } })}
+          </div>
         </div>
-        ${DS.button({ label: "🌐 Create league", variant: "gold", on: "frnLeagueCreateSubmit(this)" })}
-        <div style="text-align:center;color:var(--gray);font-size:.72rem">
-          Joining instead? Open the commissioner's <b>#league=…</b> link — it lands you in the lobby.
+
+        <div data-step-panel hidden>
+          <div id="lgRecap" style="font-size:.75rem;color:var(--gray);margin-bottom:.7rem"></div>
+          <div id="lgSrvStatus" role="status" style="font-size:.72rem;margin-bottom:.8rem;color:var(--gray)">
+            ${DS.spinner({ size: "sm" })} Looking for a league server…
+          </div>
+          <details id="lgAdvanced" style="margin-bottom:.8rem">
+            <summary style="cursor:pointer;font-size:.68rem;color:var(--gray);letter-spacing:.5px">Advanced — league server address</summary>
+            <div style="margin-top:.6rem">
+              ${DS.field({
+                id: "lgBase", label: "League server", required: true,
+                hint: "Usually found automatically. Enter an address only if someone is hosting a server for your group.",
+                control: DS.input({
+                  id: "lgBase", name: "server", type: "url", required: true,
+                  value: lastServer || _lgDefaultBase(), placeholder: "http://localhost:8788",
+                  autocomplete: "url", inputmode: "url", enterkeyhint: "go", spellcheck: "false",
+                }),
+              })}
+            </div>
+          </details>
+          <div style="display:flex;justify-content:space-between;margin-top:.4rem">
+            ${DS.button({ label: "← Back", variant: "outline", type: "button", attrs: { "data-step-back": true } })}
+            ${DS.button({ label: "🌐 Create league", variant: "gold", type: "submit" })}
+          </div>
         </div>
-        ${DS.button({ label: "← Back", variant: "outline", on: "_lgLeaveScreens();renderFrnStartScreen()" })}
+      </form>
+      <div style="text-align:center;color:var(--gray);font-size:.72rem;margin-top:1rem">
+        Joining instead? Open the commissioner's <b>#league=…</b> link — it lands you in the lobby.
+      </div>
+      <div style="display:flex;justify-content:center;margin-top:.6rem">
+        ${DS.button({ label: "← Back to start screen", variant: "outline", on: "_lgLeaveScreens();renderFrnStartScreen()" })}
       </div>
     </div>`;
-}
-let _lgCreateFantasy = true, _lgCreateRounds = 12, _lgCreateClock = 86400000;
-function _lgSetCreateFantasy(v) { _lgCreateFantasy = !!v; renderLeagueCreate(); }
-function _lgSetCreateRounds(r) { _lgCreateRounds = r; renderLeagueCreate(); }
 
-async function frnLeagueCreateSubmit(btn) {
+  const root = document.getElementById("lgCreateRoot");
+  const srvInput = document.getElementById("lgBase");
+  const advanced = document.getElementById("lgAdvanced");
+  const status = document.getElementById("lgSrvStatus");
+  let userTouchedServer = false;
+  srvInput.addEventListener("input", () => { userTouchedServer = true; });
+
+  // Silent discovery, kicked off at mount so it's usually resolved before the
+  // user reaches step 3. Found → green check, address stays folded. Not
+  // found → plain words + the fold opens itself.
+  _lgSrvFound = null;
+  _lgDiscovery = _lgFindServer().then((found) => {
+    if (!document.getElementById("lgCreateRoot")) return found; // screen left
+    if (found) {
+      if (!userTouchedServer) srvInput.value = found.base;
+      status.innerHTML = `<span style="color:var(--ds-success)">✓ League server found</span>` +
+        ` <span style="opacity:.7">(${DS.esc(found.base)})</span>`;
+    } else {
+      status.innerHTML = `<span style="color:var(--ds-grade-warn)">No league server found.</span>` +
+        ` If someone hosts one for your group, put their address under Advanced.` +
+        `<span style="display:block;opacity:.7;margin-top:.2rem">Hosting it yourself is one command: <code>node server/league-server.js</code></span>`;
+      advanced.open = true;
+    }
+    return found;
+  });
+
+  _lgCreateCtl = DS.form(root, {
+    validate: {
+      leagueName: (v) => String(v).trim() ? "" : "Give the league a name.",
+      gmName: (v) => String(v).trim() ? "" : "Your fellow GMs need to know who you are.",
+      server: (v) => /^https?:\/\//i.test(String(v).trim()) ? "" : "Must start with http:// or https://",
+    },
+    onSubmit: async () => {
+      await _lgDiscovery; // let a still-running probe fill the address first
+      // The field may be folded (validation skips hidden fields) — re-check
+      // here and unfold with the error rather than firing a doomed request.
+      const base = String(srvInput.value || "").trim().replace(/\/+$/, "");
+      if (!/^https?:\/\//i.test(base)) {
+        advanced.open = true;
+        _lgCreateCtl.setError("server", "Must start with http:// or https://");
+        srvInput.focus();
+        return;
+      }
+      const r = await frnLeagueCreateSubmit(null, { quiet: true });
+      if (r && r.error) {
+        advanced.open = true; // the address is the usual culprit — show it
+        return { error: r.error };
+      }
+    },
+  });
+  _lgCreateStepper = DS.stepper(root, { steps: stepDefs, form: _lgCreateCtl });
+
+  // Keyboard contract: Enter on a non-final step means "Next", not "submit
+  // the whole thing with steps unseen". (Implicit submission would otherwise
+  // fire the create from step 1.)
+  root.querySelector("form").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const t = e.target;
+    if (!(t instanceof HTMLElement) || t.tagName === "BUTTON" || t.tagName === "TEXTAREA") return;
+    if (_lgCreateStepper && _lgCreateStepper.index < 2) { e.preventDefault(); _lgCreateStepper.next(); }
+  });
+  // Live recap when the final panel shows (registered after the stepper's own
+  // click handler, so the step has already advanced when this runs).
+  root.addEventListener("click", (e) => {
+    if (!e.target.closest("[data-step-next], [data-step-back]")) return;
+    if (_lgCreateStepper && _lgCreateStepper.index === 2) {
+      const team = TEAMS.find(t => String(t.id) === String(document.getElementById("lgTeam")?.value)) || TEAMS[0];
+      const recap = `${document.getElementById("lgName")?.value || "League"} · ` +
+        `${document.getElementById("lgGm")?.value || "GM"} · ${team.city} ${team.name} · ` +
+        (_lgCreateFantasy ? `🧢 fantasy draft, ${_lgCreateRounds} live rounds` : "default rosters");
+      const el = document.getElementById("lgRecap");
+      if (el) el.textContent = recap;
+    }
+  });
+  setTimeout(() => { document.getElementById("lgName")?.focus(); }, 30);
+}
+
+// Creates the league on the server. Directly callable (the probes do) — reads
+// live field values by id. With {quiet} it returns {ok}/{error} for the
+// DS.form inline-error path instead of toasting.
+async function frnLeagueCreateSubmit(btn, opts) {
+  const quiet = !!(opts && opts.quiet);
   const base = (document.getElementById("lgBase")?.value || _lgDefaultBase()).replace(/\/+$/, "");
-  const name = document.getElementById("lgName")?.value || "New Dynasty";
-  const gm = document.getElementById("lgGm")?.value || "Commissioner";
+  const name = (document.getElementById("lgName")?.value || "New Dynasty").trim() || "New Dynasty";
+  const gm = (document.getElementById("lgGm")?.value || "Commissioner").trim() || "Commissioner";
   // DS.select puts the id on the <select> element itself.
   const teamId = Number(document.getElementById("lgTeam")?.value || TEAMS[0].id);
   const clock = Number(document.getElementById("lgClock")?.value ?? _lgCreateClock);
@@ -147,9 +370,16 @@ async function frnLeagueCreateSubmit(btn) {
     _lg = { base, leagueId: r.leagueId, token: r.memberToken, adminToken: r.adminToken,
             teamId: r.teamId, displayName: gm, leagueName: name, joinCode: r.joinCode };
     _lgSaveSession();
+    try {
+      localStorage.setItem(_LG_LAST_SERVER_KEY, base);
+      localStorage.setItem(_LG_LAST_GM_KEY, gm);
+    } catch (_) {}
+    if (typeof DS !== "undefined") DS.toast({ message: `✓ ${name} is live — invite your GMs from the lobby`, kind: "success", duration: 3200 });
     await _lgResume();
+    return { ok: true };
   } catch (e) {
-    if (typeof DS !== "undefined") DS.toast({ message: "Couldn't create the league — " + e.message, kind: "error" });
+    if (!quiet && typeof DS !== "undefined") DS.toast({ message: "Couldn't create the league — " + e.message, kind: "error" });
+    return { ok: false, error: "Couldn't create the league — " + e.message };
   } finally {
     if (btn && typeof DS !== "undefined") DS.busy(btn, false);
   }
@@ -184,6 +414,8 @@ function renderLeagueJoin(leagueId, inviteToken, base) {
         <div class="fps-start-desc">${gone ? "Taken" : "Claim this franchise"}</div>
       </button>`;
     }).join("");
+    let lastGm = "";
+    try { lastGm = localStorage.getItem(_LG_LAST_GM_KEY) || ""; } catch (_) {}
     _lgHost().innerHTML = `
       <div class="fps-hero" style="margin-bottom:1rem">
         <div class="fps-hero-badge">🌐</div>
@@ -191,14 +423,32 @@ function renderLeagueJoin(leagueId, inviteToken, base) {
         <div class="fps-hero-sub">Pick your GM name and claim a team</div>
       </div>
       <div style="max-width:34rem;margin:0 auto .8rem">
-        <label style="font-size:.72rem;color:var(--gray)">Your GM name
-          <input id="lgGm" type="text" value="GM" maxlength="40" style="width:100%"></label>
+        ${DS.field({
+          id: "lgGm", label: "Your GM name", required: true,
+          control: DS.input({
+            id: "lgGm", name: "gmName", value: lastGm || "GM",
+            required: true, maxlength: 40, autocomplete: "nickname", enterkeyhint: "done",
+            on: "this.removeAttribute('aria-invalid');this.closest('.ds-field').querySelector('.ds-field__error').textContent=''",
+          }),
+        })}
       </div>
       <div class="fps-starts">${cards}</div>`;
   });
 }
 async function frnLeagueJoinSubmit(leagueId, inviteToken, teamId, btn) {
-  const gm = document.getElementById("lgGm")?.value || "GM";
+  const gmInput = document.getElementById("lgGm");
+  const gm = (gmInput?.value || "").trim();
+  if (!gm) {
+    // Inline, next to the field — not a toast the user has to chase.
+    if (gmInput) {
+      gmInput.setAttribute("aria-invalid", "true");
+      const slot = gmInput.closest(".ds-field")?.querySelector(".ds-field__error");
+      if (slot) slot.textContent = "Pick a GM name first — it's how the league knows you.";
+      gmInput.focus();
+    }
+    return;
+  }
+  try { localStorage.setItem(_LG_LAST_GM_KEY, gm); } catch (_) {}
   if (btn && typeof DS !== "undefined") DS.busy(btn, true);
   try {
     const r = await _lgApi("/api/league/join", { leagueId, token: inviteToken, teamId, displayName: gm });
