@@ -1095,7 +1095,7 @@ async function frnRestructureFromManage(name, pos) {
   const msg = `Convert $${eco.currentBase.toFixed(1)}M base salary → signing bonus, prorated over ${eco.remaining}yr. `
     + `Frees $${eco.freed.toFixed(1)}M this year; carries $${eco.newProration.toFixed(1)}M/yr `
     + `($${totalDead.toFixed(1)}M total) as future bonus money — dead cap if he's ever cut. Once per season. `
-    + `(Void-year variants live on the cap sheet: Front Office → Analytics.)`;
+    + `(Void-year variants live on the cap sheet: Front Office → Cap Sheet.)`;
   const ok = (typeof _frnConfirm === "function")
     ? await _frnConfirm(msg, { title: `Restructure ${pos} ${name}?`, confirmLabel: "📝 Restructure" })
     : true;

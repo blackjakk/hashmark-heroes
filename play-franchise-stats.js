@@ -2779,6 +2779,7 @@ const _BSPN_NAV_LINKS = [
   { id: "SCORECENTER", action: "showFranchiseDashboard()" },
   { id: "STANDINGS",   action: "renderFrnStandings()" },
   { id: "STATS",       action: "renderFrnLeaders()" },
+  { id: "ANALYTICS",   action: "renderFrnAnalyticsHub()" },
   { id: "LEGACY",      action: "renderFrnLegacy()" },
   { id: "WIRE",        action: "renderFrnNewsArchive()" },
 ];
@@ -3114,6 +3115,190 @@ function renderFrnLeaders(tab) {
           <table style="width:100%;border-collapse:collapse">
             <tbody>${rows}</tbody>
           </table>
+        </section>
+      </div>
+    </div>`;
+}
+
+// ── BSPN ANALYTICS PAGE ─────────────────────────────────────────────────────
+// The football-analytics home (2026-07 feature audit): the EPA/WPA layer,
+// PFF-style grades, and signature plays were all COMPUTED (MFF.md) but only
+// surfaced piecemeal on recap cards and player popovers — and the dashboard
+// tab named "Analytics" was actually the cap sheet (now labeled Cap Sheet).
+// This page is the league-wide view over the same proven data paths:
+// _mffGetEPA() (team + player EPA aggregates), _mffComputeLeagueGrades()
+// (facet grades), and mffSeasonTopSwingsHtml (signature plays).
+function _anaPlayerIndex() {
+  // name → {pos, teamId} from the season stat tables (display attribution).
+  const idx = new Map();
+  for (const [tidStr, players] of Object.entries(franchise.seasonStats || {})) {
+    for (const [name, st] of Object.entries(players)) {
+      if (!idx.has(name)) idx.set(name, { pos: st.pos || "", teamId: Number(tidStr) });
+    }
+  }
+  return idx;
+}
+function _anaTeamCell(teamId) {
+  const t = teamId != null ? getTeam(teamId) : null;
+  return t ? `<span style="color:${_teamInk(t.primary)}">${_bspnLiveAbbr(t)}</span>` : "—";
+}
+function _anaSigned(v, digits = 1) {
+  const n = +v || 0;
+  const col = n > 0 ? "var(--blgood, #7ee08a)" : n < 0 ? "var(--blbad, #ff7a6a)" : "var(--blgray)";
+  return `<span style="color:${col};font-weight:700">${n >= 0 ? "+" : ""}${n.toFixed(digits)}</span>`;
+}
+function _anaCard(title, inner) {
+  return `<div class="frn-pg-card" style="margin-bottom:.6rem">
+    <div class="frn-pg-card-title">${title}</div>${inner}</div>`;
+}
+function _anaTeamTiers() {
+  const e = _mffGetEPA();
+  const team = e?.team || {};
+  const rows = Object.entries(team).map(([tidStr, t]) => {
+    const off = t.plays ? t.epa / t.plays : 0;
+    const def = t.plays_def ? t.epa_def / t.plays_def : 0; // EPA ALLOWED per play — lower is better
+    return { tid: Number(tidStr), off, def, net: off - def,
+             sucO: t.plays ? t.suc / t.plays : 0, sucD: t.plays_def ? t.suc_def / t.plays_def : 0,
+             plays: t.plays };
+  }).filter(r => r.plays >= 30).sort((a, b) => b.net - a.net);
+  if (!rows.length) return _anaEmpty();
+  return _anaCard("🏈 TEAM EPA TIERS — offense vs defense, per play", `
+    <table class="frn-ana-table">
+      <thead><tr><th>#</th><th style="text-align:left">Team</th><th>OFF EPA/play</th><th>OFF success</th><th>DEF EPA/play allowed</th><th>DEF success allowed</th><th>NET</th></tr></thead>
+      <tbody>${rows.map((r, i) => {
+        const t = getTeam(r.tid);
+        return `<tr${t && r.tid === franchise.chosenTeamId ? ' style="background:rgba(200,169,0,.07)"' : ""}>
+          <td style="color:var(--gold)">${i + 1}</td>
+          <td style="text-align:left;font-weight:700">${t ? teamLink(t) : "?"}</td>
+          <td>${_anaSigned(r.off, 3)}</td>
+          <td style="color:var(--blgray)">${(r.sucO * 100).toFixed(0)}%</td>
+          <td>${_anaSigned(r.def, 3)}</td>
+          <td style="color:var(--blgray)">${(r.sucD * 100).toFixed(0)}%</td>
+          <td>${_anaSigned(r.net, 3)}</td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table>
+    <div style="color:var(--blgray);font-size:.6rem;margin-top:.35rem">DEF EPA/play allowed: what opposing offenses generate per snap — lower (more negative) is better. NET = OFF − DEF.</div>`);
+}
+function _anaEpaLeaders() {
+  const e = _mffGetEPA();
+  if (!e || !e.totals?.plays) return _anaEmpty();
+  const idx = _anaPlayerIndex();
+  const row = (name, cells) => {
+    const m = idx.get(name) || {};
+    return `<tr>
+      <td style="text-align:left">${_playerLinkSmart(name)} <span style="color:var(--gray);font-size:.6rem">(${m.pos || "?"})</span></td>
+      <td>${_anaTeamCell(m.teamId)}</td>${cells}</tr>`;
+  };
+  const qbs = [...(e.qb || new Map()).entries()].filter(([, q]) => q.db >= 20)
+    .sort((a, b) => (b[1].epa / b[1].db) - (a[1].epa / a[1].db)).slice(0, 12);
+  const recs = [...(e.rec || new Map()).entries()].filter(([, r]) => r.rec >= 10)
+    .sort((a, b) => b[1].epa - a[1].epa).slice(0, 12);
+  const rbs = [...(e.rb || new Map()).entries()].filter(([, r]) => r.att >= 25)
+    .sort((a, b) => b[1].epa - a[1].epa).slice(0, 12);
+  const qbT = qbs.length ? _anaCard("🎯 QB — EPA PER DROPBACK (min 20 dropbacks)", `
+    <table class="frn-ana-table">
+      <thead><tr><th style="text-align:left">Player</th><th>Team</th><th>EPA/db</th><th>Total EPA</th><th>CPOE</th><th>Success</th></tr></thead>
+      <tbody>${qbs.map(([n, q]) => row(n, `
+        <td>${_anaSigned(q.epa / q.db, 3)}</td>
+        <td>${_anaSigned(q.epa, 1)}</td>
+        <td>${q.attComp ? _anaSigned(((q.actComp - q.xComp) / q.attComp) * 100, 1) + "%" : "—"}</td>
+        <td style="color:var(--blgray)">${((q.suc / q.db) * 100).toFixed(0)}%</td>`)).join("")}</tbody>
+    </table>`) : "";
+  const recT = recs.length ? _anaCard("🙌 RECEIVERS — TOTAL EPA (min 10 receptions)", `
+    <table class="frn-ana-table">
+      <thead><tr><th style="text-align:left">Player</th><th>Team</th><th>Total EPA</th><th>EPA/rec</th><th>Rec</th></tr></thead>
+      <tbody>${recs.map(([n, r]) => row(n, `
+        <td>${_anaSigned(r.epa, 1)}</td>
+        <td>${_anaSigned(r.epa / r.rec, 2)}</td>
+        <td style="color:var(--blgray)">${r.rec}</td>`)).join("")}</tbody>
+    </table>`) : "";
+  const rbT = rbs.length ? _anaCard("💨 RUSHERS — TOTAL EPA (min 25 carries)", `
+    <table class="frn-ana-table">
+      <thead><tr><th style="text-align:left">Player</th><th>Team</th><th>Total EPA</th><th>EPA/att</th><th>Att</th></tr></thead>
+      <tbody>${rbs.map(([n, r]) => row(n, `
+        <td>${_anaSigned(r.epa, 1)}</td>
+        <td>${_anaSigned(r.epa / r.att, 2)}</td>
+        <td style="color:var(--blgray)">${r.att}</td>`)).join("")}</tbody>
+    </table>`) : "";
+  return (qbT + recT + rbT) || _anaEmpty();
+}
+function _anaGrades() {
+  const grades = _mffComputeLeagueGrades();
+  if (!grades.size) return _anaEmpty();
+  const idx = _anaPlayerIndex();
+  const facets = [
+    { key: "g_prsh", label: "🔥 PASS RUSH", snaps: "prs_snaps", snapLbl: "rush snaps" },
+    { key: "g_cov",  label: "🛡 COVERAGE",  snaps: "cov_tgt",   snapLbl: "targets" },
+    { key: "g_ppro", label: "🧱 PASS PROTECTION", snaps: "pp_snaps", snapLbl: "pro snaps" },
+    { key: "g_rblk", label: "🚜 RUN BLOCKING", snaps: "rb_snaps", snapLbl: "blk snaps" },
+    { key: "g_rstf", label: "⛔ RUN DEFENSE", snaps: "rd_snaps", snapLbl: "run snaps" },
+  ];
+  return facets.map(f => {
+    const list = [...grades.entries()].filter(([, g]) => g[f.key] != null)
+      .sort((a, b) => b[1][f.key] - a[1][f.key]).slice(0, 10);
+    if (!list.length) return "";
+    return _anaCard(`${f.label} — top 10 (0-99 grade)`, `
+      <table class="frn-ana-table">
+        <thead><tr><th>#</th><th style="text-align:left">Player</th><th>Team</th><th>Grade</th><th>Volume</th></tr></thead>
+        <tbody>${list.map(([n, g], i) => {
+          const m = idx.get(n) || {};
+          const val = Math.round(g[f.key]);
+          const col = val >= 80 ? "var(--blgood, #7ee08a)" : val >= 60 ? "var(--blgold)" : "var(--blgray)";
+          return `<tr>
+            <td style="color:var(--gold)">${i + 1}</td>
+            <td style="text-align:left">${_playerLinkSmart(n)} <span style="color:var(--gray);font-size:.6rem">(${m.pos || "?"})</span></td>
+            <td>${_anaTeamCell(m.teamId)}</td>
+            <td style="font-weight:900;color:${col};font-size:.95rem">${val}</td>
+            <td style="color:var(--blgray);font-size:.62rem">${g[f.snaps] || 0} ${f.snapLbl}</td>
+          </tr>`;
+        }).join("")}</tbody>
+      </table>`);
+  }).join("");
+}
+function _anaSignaturePlays() {
+  const html = typeof mffSeasonTopSwingsHtml === "function" ? mffSeasonTopSwingsHtml(15) : "";
+  return html ? _anaCard("⚡ SIGNATURE PLAYS — biggest win-probability swings of the season", html) : _anaEmpty();
+}
+function _anaEmpty() {
+  return `<div style="color:var(--gray);font-size:.78rem;padding:1.2rem;text-align:center;font-style:italic">
+    Analytics come alive once games are in the books — play or sim a few weeks.</div>`;
+}
+function renderFrnAnalyticsHub(tab) {
+  frnHoverTipHide(); _frnHoverTipPgHide && _frnHoverTipPgHide();
+  tab = tab || "teams";
+  const tabs = [
+    { id: "teams",  label: "🏈 TEAM TIERS" },
+    { id: "epa",    label: "⚡ EPA LEADERS" },
+    { id: "grades", label: "🏅 PLAYER GRADES" },
+    { id: "plays",  label: "🎬 SIGNATURE PLAYS" },
+  ];
+  let body = "";
+  if (tab === "teams") body = _anaTeamTiers();
+  else if (tab === "epa") body = _anaEpaLeaders();
+  else if (tab === "grades") body = _anaGrades();
+  else if (tab === "plays") body = _anaSignaturePlays();
+  const navHtml = tabs.map(t => `
+    <button class="bspnlive-nav-item ${t.id === tab ? "active" : ""}"
+      style="background:transparent;border:0;font-family:inherit;cursor:pointer;padding:0;${t.id === tab ? "color:var(--blwhite)" : ""}"
+      onclick="renderFrnAnalyticsHub('${t.id}')">[${t.label}]</button>
+  `).join(" ");
+  $("frnHomeContent").innerHTML = `
+    <div class="bspnlive-root" style="margin:-1rem -1.5rem 0 -1.5rem;padding-bottom:1rem">
+      <header class="bspnlive-header">
+        <div>
+          <div class="bspnlive-logo">BSPN</div>
+          <div class="bspnlive-logo-sub">ANALYTICS · SEASON ${franchise.season} · EPA / GRADES / SIGNATURE PLAYS</div>
+        </div>
+        <nav class="bspnlive-nav" style="flex-wrap:wrap;gap:.7rem .9rem">${_bspnNavHtml("ANALYTICS")}</nav>
+      </header>
+      <div style="padding:.55rem 1.4rem;border-bottom:1px solid var(--blborder);display:flex;gap:.55rem;flex-wrap:wrap;align-items:center">
+        <button class="bspn-back" onclick="showFranchiseDashboard()">‹ Return to Main Screen</button>
+        ${navHtml}
+      </div>
+      <div style="padding:1rem 1.4rem">
+        <section class="bspn-panel" style="padding:.8rem 1rem;background:var(--blbg2)">
+          ${body}
         </section>
       </div>
     </div>`;
@@ -7430,7 +7615,7 @@ const _FRN_FO_TABS = [
   { id: "fa",       label: "Free Agents", fn: () => typeof renderFrnFANegotiations === "function" && renderFrnFANegotiations() },
   { id: "scouting", label: "🎓 College Scout", fn: () => typeof renderFrnScoutingBoard === "function" && renderFrnScoutingBoard() },
   { id: "coaches",  label: "Coaches",     fn: () => typeof renderFrnCoachingStaff  === "function" && renderFrnCoachingStaff() },
-  { id: "cap",      label: "📊 Analytics",  fn: () => typeof renderFrnAnalytics      === "function" && renderFrnAnalytics("mysheet") },
+  { id: "cap",      label: "📊 Cap Sheet",  fn: () => typeof renderFrnAnalytics      === "function" && renderFrnAnalytics("mysheet") },
   // Absorbed from the retired Tools tab — both are Front Office concerns.
   { id: "jointpractice", label: "🏟 Joint Practice", fn: () => typeof renderFrnScrimmages === "function" && renderFrnScrimmages() },
   { id: "futurefas",     label: "📅 Future FAs",     fn: () => typeof renderFrnProjectedFAs === "function" && renderFrnProjectedFAs() },
@@ -8280,7 +8465,7 @@ function renderFrnRegular() {
   const psBadge    = psAlerts ? `<span class="frn-nav-badge alert">${psAlerts}</span>` : "";
   const quickNavHtml = `
     <div class="frn-quick-nav">
-      <button class="frn-cap-btn primary" onclick="renderFrnAnalytics('mysheet')" aria-label="Analytics">📊 Analytics</button>
+      <button class="frn-cap-btn primary" onclick="renderFrnAnalytics('mysheet')" aria-label="Cap sheet">📊 Cap Sheet</button>
       ${week <= TRADE_DEADLINE_WEEK ? `<button class="frn-cap-btn primary" onclick="frnOpenTrade()" aria-label="Trade">🔀 Trade${tradeBadge}</button>` : ""}
       <button class="frn-cap-btn primary" onclick="renderFrnChat()" aria-label="Chat">💬 Chat${chatBadge}</button>
       <div class="frn-more-nav-wrap">

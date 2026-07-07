@@ -331,6 +331,28 @@ const ok = (c, l) => { if (c) { pass++; console.log("  ✓ " + l); } else { fail
     ok(cr.rendered, "Legacy record book renders the ALL-TIME CAREER table");
   }
 
+  console.log("— 9. BSPN analytics hub —");
+  const an = await page.evaluate(() => {
+    const out = { tabs: {}, nav: false, capRenamed: false };
+    for (const t of ["teams", "epa", "grades", "plays"]) {
+      try {
+        renderFrnAnalyticsHub(t);
+        const html = document.getElementById("frnHomeContent").innerHTML;
+        // A tab passes if it shows data or the honest empty state — never blank.
+        out.tabs[t] = html.includes("ANALYTICS · SEASON") &&
+          (html.includes("frn-ana-table") || html.includes("Analytics come alive") || html.includes("bspnlive-"));
+      } catch (e) { out.tabs[t] = "ERR: " + String(e.message).slice(0, 60); }
+    }
+    out.nav = /ANALYTICS/.test(document.querySelector(".bspnlive-nav")?.textContent || "");
+    out.teamRows = (document.getElementById("frnHomeContent").innerHTML.match(/<tr/g) || []).length;
+    renderFrnAnalyticsHub("teams");
+    out.tiersHaveTeams = (document.getElementById("frnHomeContent").innerHTML.match(/<tr/g) || []).length > 10;
+    return out;
+  });
+  ok(Object.values(an.tabs).every(v => v === true), `all 4 analytics tabs render (${JSON.stringify(an.tabs).slice(0, 80)})`);
+  ok(an.nav, "BSPN nav carries the ANALYTICS link");
+  ok(an.tiersHaveTeams, "team EPA tiers table is populated after a played season");
+
   ok(errors.length === 0, errors.length ? "page errors: " + errors.slice(0, 3).join(" | ") : "zero page errors");
   console.log(fail === 0 ? `\nALL-PASS (${pass} checks)` : `\n${fail} FAILURES / ${pass + fail}`);
   await browser.close();

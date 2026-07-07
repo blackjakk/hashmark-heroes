@@ -958,7 +958,7 @@ function renderFrnPreseason(tab, scoutId, scoutView, selName) {
         <div class="frn-banner-cap" style="color:${overCap?"var(--red)":capUsed/cap>=0.95?"#e8a000":"var(--green-lt)"}">
           CAP $${capUsed.toFixed(1)}M / $${cap.toFixed(0)}M
           <span style="color:var(--gray);font-weight:400"> · Room $${capLeft.toFixed(1)}M</span>
-          <button class="frn-cap-btn" onclick="renderFrnAnalytics('mysheet')" aria-label="Analytics">📊 Analytics</button>
+          <button class="frn-cap-btn" onclick="renderFrnAnalytics('mysheet')" aria-label="Cap sheet">📊 Cap Sheet</button>
         </div>
       </div>
       <div style="text-align:right">
