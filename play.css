@@ -10517,6 +10517,31 @@
   /* Analytics hub: the user's team row in league-wide tables. */
   .frn-ana-myrow { background: rgba(200, 169, 0, .07); }
 
+  /* Week recap: league scores strip + injury digest. */
+  .frn-recap-scores {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+    gap: .35rem; margin: 0 0 .8rem;
+  }
+  .frn-recap-score {
+    display: flex; align-items: center; justify-content: center; gap: .45rem;
+    border: 1px solid var(--blborder, #333); border-radius: 8px;
+    padding: .3rem .5rem; font-size: .74rem;
+  }
+  .frn-recap-score.mine { border-color: var(--gold); background: rgba(200, 169, 0, .07); }
+  .frn-recap-injuries {
+    border-top: 1px solid var(--blborder, #333);
+    margin: .7rem 0 0; padding-top: .55rem;
+  }
+
+  /* Watch-reel chain: bottom-center bar over the broadcast. */
+  .frn-hl-reel-bar {
+    position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+    z-index: 9999; display: flex; align-items: center; gap: .8rem;
+    background: rgba(8, 12, 9, .92); border: 1px solid var(--gold);
+    border-radius: 999px; padding: .4rem 1rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .5);
+  }
+
   /* Holdout Center — always-on offer composer (right rail of each demand row) */
   .frn-offer-panel {
     background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;

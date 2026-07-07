@@ -353,6 +353,49 @@ const ok = (c, l) => { if (c) { pass++; console.log("  ✓ " + l); } else { fail
   ok(an.nav, "BSPN nav carries the ANALYTICS link");
   ok(an.tiersHaveTeams, "team EPA tiers table is populated after a played season");
 
+  console.log("— 10. week recap content + watch-reel chain —");
+  const wr = await page.evaluate(async () => {
+    if (typeof frnExitReplay === "function") frnExitReplay();
+    await new Promise(r => setTimeout(r, 200));
+    // Force the recap for the most recent week with clips.
+    const wk = (franchise.replayClips || []).filter(h => h.season === franchise.season)
+      .map(h => h.week).sort((a, b) => b - a)[0];
+    if (wk == null) return { skip: true };
+    franchise.phase = "regular"; franchise.weekPending = true; franchise.week = wk;
+    franchise._lastRecapSeen = null;
+    document.getElementById("frn-week-recap-modal")?.remove();
+    _showWeekRecapIfReady();
+    const modal = document.getElementById("frn-week-recap-modal");
+    const out = {
+      skip: false,
+      modal: !!modal,
+      scores: !!modal?.querySelector(".frn-recap-scores .frn-recap-score"),
+      reelBtn: !!modal && /Watch the reel/.test(modal.textContent),
+    };
+    if (out.reelBtn) {
+      frnPlayWeekReel();
+      await new Promise(r => setTimeout(r, 500));
+      out.reelBar = document.getElementById("frn-hl-reel-bar")?.textContent.includes("REEL 1/") || false;
+      out.opensOnPlay = typeof playHead !== "undefined" && gameResult && playHead === gameResult.plays.length - 1;
+      frnReelSkip();
+      await new Promise(r => setTimeout(r, 400));
+      out.skipAdvances = document.getElementById("frn-hl-reel-bar")?.textContent.includes("REEL 2/") || false;
+      frnExitReplay();
+      await new Promise(r => setTimeout(r, 200));
+      out.exitCleans = !document.getElementById("frn-hl-reel-bar") && !window._replayMode;
+    }
+    document.getElementById("frn-week-recap-modal")?.remove();
+    return out;
+  });
+  if (wr.skip) ok(false, "no clips available for the recap test");
+  else {
+    ok(wr.modal && wr.scores, "recap modal shows the league scores strip");
+    ok(wr.reelBtn, "recap offers 🎬 Watch the reel");
+    ok(wr.reelBar && wr.opensOnPlay, "reel starts on clip 1, opened ON its advertised play");
+    ok(wr.skipAdvances, "⏭ NEXT advances the reel");
+    ok(wr.exitCleans, "exit tears down the reel bar + replay mode");
+  }
+
   ok(errors.length === 0, errors.length ? "page errors: " + errors.slice(0, 3).join(" | ") : "zero page errors");
   console.log(fail === 0 ? `\nALL-PASS (${pass} checks)` : `\n${fail} FAILURES / ${pass + fail}`);
   await browser.close();

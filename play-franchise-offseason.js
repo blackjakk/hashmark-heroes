@@ -2166,10 +2166,34 @@ function _showWeekRecapIfReady() {
     .filter(h => h.season === franchise.season && h.week === completedWeek)
     .sort((a, b) => b.rating - a.rating)
     .slice(0, 6);
-  if (!top.length) return;
+  // A clip-less week still gets its recap — scores + injuries carry it
+  // (the old early-return silently skipped the whole modal; audit #4).
+  const playedGames = (franchise.schedule || []).filter(g => g.week === completedWeek && g.played);
+  if (!top.length && !playedGames.length) return;
   // Already rendered? Skip
   if (document.getElementById("frn-week-recap-modal")) return;
   const myId = franchise.chosenTeamId;
+  // League scores strip — every final from the completed week, mine first.
+  const scoreRows = playedGames
+    .slice()
+    .sort((a, b) => ((b.homeId === myId || b.awayId === myId) ? 1 : 0) - ((a.homeId === myId || a.awayId === myId) ? 1 : 0))
+    .map(g => {
+      const h = getTeam(g.homeId), a = getTeam(g.awayId);
+      if (!h || !a) return "";
+      const mine = g.homeId === myId || g.awayId === myId;
+      const hWin = g.homeScore > g.awayScore, aWin = g.awayScore > g.homeScore;
+      return `<div class="frn-recap-score${mine ? " mine" : ""}">
+        <span style="${aWin ? "font-weight:800" : "color:var(--blgray)"}">${a.abbr} ${g.awayScore}</span>
+        <span style="color:var(--blgray);font-size:.6rem">@</span>
+        <span style="${hWin ? "font-weight:800" : "color:var(--blgray)"}">${h.abbr} ${g.homeScore}</span>
+      </div>`;
+    }).join("");
+  // Injury digest — this week's wire entries (labels are self-contained).
+  const injuryNews = (franchise.news || [])
+    .filter(n => n.type === "injury" && n.season === franchise.season && n.week === completedWeek)
+    .slice(-6);
+  const injuryRows = injuryNews.map(n =>
+    `<div style="font-size:.68rem;color:var(--blgray);padding:.14rem 0">${n.label || ""}</div>`).join("");
   const cards = top.map((h, idx) => {
     const meta = _HIGHLIGHT_LABELS[h.type] || { icon: "▶", text: h.type, accent: "#888" };
     const offTeam = h.poss === "home" ? getTeam(h.homeId) : getTeam(h.awayId);
@@ -2206,15 +2230,93 @@ function _showWeekRecapIfReady() {
       <div class="frn-week-recap-header">
         <div class="frn-week-recap-eyebrow">📺 HASHMARK HEROES HIGHLIGHTS</div>
         <h1 class="frn-week-recap-title">WEEK ${completedWeek} TOP PLAYS</h1>
-        <div class="frn-week-recap-sub">${top.length} of the league's best moments — click ▶ to re-watch in slow-mo.</div>
+        <div class="frn-week-recap-sub">${top.length
+          ? `${top.length} of the league's best moments — click ▶ to re-watch in slow-mo.`
+          : "A quiet week for the highlight desk — here's how it went."}</div>
       </div>
-      <div class="frn-week-recap-cards">${cards}</div>
+      ${scoreRows ? `<div class="frn-recap-scores">${scoreRows}</div>` : ""}
+      ${top.length ? `<div class="frn-week-recap-cards">${cards}</div>`
+        : `<div style="text-align:center;color:var(--blgray);font-size:.72rem;font-style:italic;padding:.6rem 0">No standout clips made the cut this week.</div>`}
+      ${injuryRows ? `<div class="frn-recap-injuries">
+        <div style="font-size:.62rem;letter-spacing:1.5px;color:var(--blgray);margin-bottom:.2rem">🏥 INJURY REPORT</div>
+        ${injuryRows}</div>` : ""}
       <div class="frn-week-recap-cta">
         ${DS.button({ label: "✗ Dismiss", variant: "outline", on: "frnDismissWeekRecap()" })}
+        ${top.length >= 2 ? DS.button({ label: "🎬 Watch the reel", variant: "gold", on: "frnPlayWeekReel()",
+          title: "Plays this week's top clips back to back — sit back" }) : ""}
         ${DS.button({ label: "📺 OPEN REPLAY LIBRARY", class: "btn-gold-big", on: "frnOpenReplaysTab()" })}
       </div>
     </div>`;
   document.body.appendChild(el);
+}
+
+// ── Watch-reel chain ─────────────────────────────────────────────────────────
+// Plays the completed week's top clips back to back: each clip opens ON its
+// advertised play (the replay contract), and when the playback engine parks
+// (playing=false after the final card) the reel advances. The bar's cleanup
+// hook in frnExitReplay predates this implementation — the comment at
+// _showWeekRecapIfReady advertised a "play-all chain" that never existed
+// (2026-07 feature audit).
+let _frnReel = null;   // { ids, idx, watcher }
+function frnPlayWeekReel() {
+  const completedWeek = franchise?.week;
+  const ids = (franchise?.replayClips || [])
+    .filter(h => h.season === franchise.season && h.week === completedWeek)
+    .sort((a, b) => b.rating - a.rating)
+    .slice(0, 6)
+    .map(h => h.id);
+  if (!ids.length) return;
+  frnDismissWeekRecap();
+  _frnReelStop();
+  _frnReel = { ids, idx: -1, watcher: null };
+  _frnReelNext();
+}
+function _frnReelStop() {
+  if (_frnReel?.watcher) clearInterval(_frnReel.watcher);
+  _frnReel = null;
+  const bar = document.getElementById("frn-hl-reel-bar");
+  if (bar) bar.remove();
+}
+function frnReelSkip() { if (_frnReel) _frnReelNext(); }
+function _frnReelNext() {
+  if (!_frnReel) return;
+  if (_frnReel.watcher) { clearInterval(_frnReel.watcher); _frnReel.watcher = null; }
+  _frnReel.idx++;
+  if (_frnReel.idx >= _frnReel.ids.length) {
+    _frnReelStop();
+    frnExitReplay();
+    return;
+  }
+  const h = (franchise.replayClips || []).find(x => x.id === _frnReel.ids[_frnReel.idx]);
+  if (!h) { _frnReelNext(); return; }
+  frnReplayClip(h.id);
+  _frnReelBar(h);
+  // Advance when playback parks (playing flips false at the final card),
+  // with a beat of dwell so the result card lands before the cut.
+  let parkedAt = 0;
+  _frnReel.watcher = setInterval(() => {
+    if (!_frnReel) return;
+    if (typeof playing !== "undefined" && playing === false) {
+      if (!parkedAt) { parkedAt = Date.now(); return; }
+      if (Date.now() - parkedAt >= 1400) _frnReelNext();
+    } else {
+      parkedAt = 0;
+    }
+  }, 400);
+}
+function _frnReelBar(h) {
+  let bar = document.getElementById("frn-hl-reel-bar");
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "frn-hl-reel-bar";
+    bar.className = "frn-hl-reel-bar";
+    document.body.appendChild(bar);
+  }
+  const meta = _HIGHLIGHT_LABELS[h.type] || { icon: "▶", text: h.type };
+  bar.innerHTML = `
+    <span style="color:var(--gold-lt);font-weight:900;letter-spacing:1px">🎬 REEL ${_frnReel.idx + 1}/${_frnReel.ids.length}</span>
+    <span style="color:var(--gray);font-size:.66rem">${meta.icon} ${meta.text} · ${_escHtml((h.desc || "").slice(0, 60))}</span>
+    <button class="frn-replay-exit-btn" style="position:static;display:inline-block" onclick="frnReelSkip()">⏭ NEXT</button>`;
 }
 
 function frnDismissWeekRecap() {
@@ -2508,6 +2610,10 @@ function frnExitReplay() {
   if (btn) btn.style.display = "none";
   const lu = document.getElementById("frnReplayLeadupBtn");
   if (lu) lu.style.display = "none";
+  // Exiting playback ends any running reel (watcher + bar). _frnReelStop
+  // also removes the bar element, so the explicit removal stays as a
+  // belt-and-suspenders for pre-reel saves.
+  if (typeof _frnReelStop === "function") _frnReelStop();
   const bar = document.getElementById("frn-hl-reel-bar");
   if (bar) bar.remove();
   const ga = (typeof gameArea !== "undefined") ? gameArea : document.getElementById("gameArea");
