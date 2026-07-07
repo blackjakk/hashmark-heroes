@@ -2652,17 +2652,42 @@ function _initFrontOffice() {
   }
 }
 // Tenure tick at season start — also handles contract expiry → replacement.
+// The USER's team is exempt from the auto-churn (2026-07 audit #7): the
+// coach carousel has always skipped chosenTeamId ("user manages their own
+// staff"), but this tick didn't — a hand-picked GM could coin-flip vanish
+// into a random replacement. User-team roles now auto-RENEW on expiry (news
+// wire, +10% salary — fire/replace anytime from the Front Office page) and
+// leave a VACANCY on retirement for the user to fill from the market
+// (effect helpers null-guard vacancies to neutral).
 function _tickFrontOfficeTenure() {
   if (!franchise.frontOffice) return;
+  const myId = franchise.chosenTeamId;
   for (const t of TEAMS) {
     const fo = franchise.frontOffice[t.id];
     if (!fo) continue;
     for (const role of ["gm", "scout", "trainer", "strength"]) {
       const p = fo[role];
-      if (!p) { fo[role] = _rollFrontOfficer(role); continue; }
+      if (!p) {
+        // User vacancies stay open until the user hires; AI teams refill.
+        if (t.id !== myId) fo[role] = _rollFrontOfficer(role);
+        continue;
+      }
       p.yearsWithTeam = (p.yearsWithTeam || 0) + 1;
       p.age = (p.age || 45) + 1;
       p.contractYears = (p.contractYears || 1) - 1;
+      if (t.id === myId) {
+        if (p.age >= 70) {
+          fo[role] = null;
+          if (typeof _pushNews === "function") _pushNews({ type: "coach_depart",
+            label: `🎓 Your ${role.toUpperCase()} ${p.name} retires at ${p.age} — hire a replacement from the Front Office market` });
+        } else if (p.contractYears <= 0) {
+          p.contractYears = 2;
+          p.salary = +((p.salary || 0.5) * 1.10).toFixed(1);
+          if (typeof _pushNews === "function") _pushNews({ type: "coach_hire",
+            label: `🖊 Your ${role.toUpperCase()} ${p.name} auto-renewed 2yr at $${p.salary.toFixed(1)}M — fire & replace anytime from the Front Office page` });
+        }
+        continue;
+      }
       // Contract expired — coin-flip on extension, otherwise hire fresh.
       if (p.contractYears <= 0) {
         const keepProb = clamp(0.35 + (p.rating - 60) / 100, 0.20, 0.85);

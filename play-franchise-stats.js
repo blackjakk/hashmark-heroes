@@ -3622,108 +3622,13 @@ function _legacyAwards() {
 }
 
 // ── Coaches view + hire/fire ──────────────────────────────────────────────────
-function renderFrnCoaches() {
-  frnHoverTipHide(); _frnHoverTipPgHide && _frnHoverTipPgHide();
-  if (!franchise.coaches) _initCoachingStaff();
-  if (!franchise._coachingFAs) franchise._coachingFAs = [
-    _rollCoach(), _rollCoach(), _rollCoach(), _rollCoach()
-  ];
-  const myId = franchise.chosenTeamId;
-  const myHc = franchise.coaches[myId]?.hc;
-  const myTeam = getTeam(myId);
-
-  const traitDesc = key => COACH_TRAITS.find(t => t.key === key)?.desc || "";
-
-  const leagueRows = TEAMS.map(t => {
-    const hc = franchise.coaches[t.id]?.hc;
-    const isMe = t.id === myId;
-    return `<tr style="${isMe?"background:rgba(200,169,0,0.10)":""}">
-      <td style="font-weight:${isMe?700:400}">${teamLink(t)}</td>
-      <td>${hc?.name || "—"}</td>
-      <td style="color:var(--gold);font-size:.66rem">${hc?.specialtyTrait || hc?.trait || "—"}</td>
-      <td style="color:var(--gray)">${hc?.age || "?"}</td>
-      <td style="color:var(--gray);font-size:.65rem">${hc?.yearsWithTeam ?? 0}yr</td>
-      <td>${hc?.record?.w || 0}-${hc?.record?.l || 0}${hc?.record?.championships ? " · 🏆"+hc.record.championships : ""}</td>
-    </tr>`;
-  }).join("");
-
-  const fasHtml = franchise._coachingFAs.map((c, i) => `
-    <div class="frn-coach-fa">
-      <div style="flex:1">
-        <div style="font-weight:700">${c.name}</div>
-        <div style="color:var(--gray);font-size:.66rem">Age ${c.age} · <span style="color:var(--gold)">${c.trait}</span></div>
-        <div style="color:var(--gray);font-size:.6rem">${traitDesc(c.trait)}</div>
-      </div>
-      ${DS.button({label:"Hire",variant:"gold",on:`frnHireCoach(${i})`,attrs:{style:"font-size:.65rem;padding:.25rem .65rem"}})}
-    </div>
-  `).join("") || `<div style="color:var(--gray);font-size:.7rem;font-style:italic;padding:.4rem">No coaches on the market right now.</div>`;
-
-  $("frnHomeContent").innerHTML = `
-    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.7rem;flex-wrap:wrap">
-      <div style="font-size:1.05rem;font-weight:900;color:var(--gold)">🎩 COACHING STAFF</div>
-      ${DS.button({label:"← Back",on:"showFranchiseDashboard()",attrs:{style:"margin-left:auto"}})}
-    </div>
-    <div class="frn-pg-row">
-      <div class="frn-pg-card" style="flex:1">
-        <div class="frn-pg-card-title">YOUR HEAD COACH · ${myTeam.name}</div>
-        ${myHc ? `
-          <div style="padding:.45rem 0">
-            <div style="font-size:1rem;font-weight:900">${myHc.name}</div>
-            <div style="color:var(--gold);font-size:.78rem;margin-top:.15rem">
-              ${myHc.specialtyTrait || myHc.trait || "—"}
-              ${myHc.cultureTrait ? `<span style="color:var(--gray);margin-left:.4rem">· ${myHc.cultureTrait}</span>` : ""}
-            </div>
-            ${myHc.rating != null ? `<div style="color:var(--gray);font-size:.62rem">Rating: <b>${myHc.rating}</b></div>` : ""}
-            <div style="color:var(--gray);font-size:.66rem;margin-top:.3rem">
-              Age ${myHc.age} · ${myHc.yearsWithTeam}yr with team · Record ${myHc.record.w}-${myHc.record.l}
-              ${myHc.record.championships ? " · 🏆 "+myHc.record.championships : ""}
-            </div>
-          </div>
-          ${DS.button({label:"✗ Fire coach (forfeit experience)",on:"frnFireCoach()",attrs:{style:"color:var(--red);font-size:.65rem;padding:.25rem .65rem"}})}
-          ${DS.button({label:"View Full Staff",on:"renderFrnCoachingStaff()",attrs:{style:"font-size:.65rem;padding:.25rem .65rem;margin-top:.3rem"}})}` : `<div style="color:var(--gray);font-style:italic">No head coach. Hire from free agents below.</div>`}
-      </div>
-      <div class="frn-pg-card" style="flex:1.2">
-        <div class="frn-pg-card-title">FREE AGENT COACHES</div>
-        ${fasHtml}
-      </div>
-    </div>
-    <div class="frn-pg-card">
-      <div class="frn-pg-card-title">LEAGUE HEAD COACHES</div>
-      <table class="frn-pg-totals">
-        <thead><tr><th>Team</th><th>Coach</th><th>Trait</th><th>Age</th><th>Tenure</th><th>Record</th></tr></thead>
-        <tbody>${leagueRows}</tbody>
-      </table>
-    </div>`;
-}
-
-async function frnHireCoach(idx) {
-  const pool = franchise._coachingFAs || [];
-  const hire = pool[idx];
-  if (!hire) return;
-  if (!await _frnConfirm(`Hire ${hire.name} (${hire.trait})?`)) return;
-  const myId = franchise.chosenTeamId;
-  const oldHc = franchise.coaches[myId]?.hc;
-  if (oldHc) pool.push(oldHc); // released coach lands back on the FA market
-  hire.yearsWithTeam = 0;
-  franchise.coaches[myId] = { hc: hire };
-  pool.splice(idx, 1);
-  // Refill the pool with a fresh roll
-  while (pool.length < 4) pool.push(_rollCoach());
-  saveFranchise();
-  renderFrnCoaches();
-}
-
-async function frnFireCoach() {
-  const myId = franchise.chosenTeamId;
-  const hc = franchise.coaches[myId]?.hc;
-  if (!hc) return;
-  if (!await _frnConfirm(`Fire ${hc.name}? They'll go back to the FA pool.`)) return;
-  if (!franchise._coachingFAs) franchise._coachingFAs = [];
-  franchise._coachingFAs.push(hc);
-  franchise.coaches[myId] = { hc: null };
-  saveFranchise();
-  renderFrnCoaches();
-}
+// [removed] renderFrnCoaches / frnHireCoach / frnFireCoach — zero-reference
+// legacy HC-only page (2026-07 audit #7 dead-code pass; restore from git if
+// needed). Its hire/fire wrote `franchise.coaches[myId] = { hc }`, WIPING the
+// team's OC/DC/STC/position staff, and it drew from a private _coachingFAs
+// pool disconnected from the real carousel market. The full-staff page
+// (renderFrnCoachingStaff) + frnFireStaffSlot/_frnOpenContractEditor are the
+// living replacements.
 
 // ── Alumni view — recent former players of the user's team ──────────────────
 function renderFrnAlumni(yearsBackArg) {
