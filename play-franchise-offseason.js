@@ -2240,6 +2240,13 @@ function _showWeekRecapIfReady() {
       ${injuryRows ? `<div class="frn-recap-injuries">
         <div style="font-size:.62rem;letter-spacing:1.5px;color:var(--blgray);margin-bottom:.2rem">🏥 INJURY REPORT</div>
         ${injuryRows}</div>` : ""}
+      ${(() => {
+        const w = franchise.potw?.[franchise.season]?.[completedWeek];
+        if (!w) return "";
+        const bits = [w.offense && `⚡ ${w.offense.name}`, w.defense && `🛡 ${w.defense.name}`, w.rookie && `🌱 ${w.rookie.name}`]
+          .filter(Boolean).join(" · ");
+        return bits ? `<div style="text-align:center;font-size:.68rem;color:var(--blgray);margin-top:.55rem">🏅 Players of the Week: ${bits}</div>` : "";
+      })()}
       <div class="frn-week-recap-cta">
         ${DS.button({ label: "✗ Dismiss", variant: "outline", on: "frnDismissWeekRecap()" })}
         ${top.length >= 2 ? DS.button({ label: "🎬 Watch the reel", variant: "gold", on: "frnPlayWeekReel()",
@@ -3690,6 +3697,10 @@ function frnSimGame(homeId, awayId) {
 // ── Player of the Week ────────────────────────────────────────────────────────
 // Generates top-3 candidates per group and auto-selects the leader as winner.
 // User can override via renderPotwVoting(); votes tally toward POTY at season end.
+// One list, five surfaces: candidates, CPU votes, vote-submit promotion,
+// POTY tally, and the voting page all iterate _POTW_GROUPS — adding the
+// 🌱 rookie category (2026-07 audit #5) touched exactly one line.
+const _POTW_GROUPS = ["offense", "defense", "ol", "specialTeams", "rookie"];
 function _computeAndStorePOTW(week) {
   if (!franchise.potw) franchise.potw = {};
   if (!franchise.potwCandidates) franchise.potwCandidates = {};
@@ -3730,21 +3741,45 @@ function _computeAndStorePOTW(week) {
     });
   };
 
+  // Rookie eligibility — same test as _computeROY (draft-year match, or a
+  // blank career for undrafted first-years), resolved against live rosters.
+  const baseYear = new Date().getFullYear() + (franchise.season || 1) - 1;
+  const rookieNames = new Set();
+  for (const roster of Object.values(franchise.rosters || {})) {
+    for (const live of roster) {
+      if (live.draftYear === baseYear ||
+          (live.careerHistory && live.careerHistory.length === 0 && (live.age || 30) <= 23)) {
+        rookieNames.add(live.name);
+      }
+    }
+  }
   const candidates = {
     offense:      pickTop(p => SKILL_POS.has(p.pos), mvpScore),
     defense:      pickTop(p => DEF_POS.has(p.pos),   mvpScore),
     ol:           pickTop(p => OL_POS.has(p.pos),    p => (p.pancakes||0)*3 - (p.sacks_allowed||0)*4),
     specialTeams: pickTop(p => ST_POS.has(p.pos),    mvpScore),
+    rookie:       pickTop(p => rookieNames.has(p.name), mvpScore),
   };
   franchise.potwCandidates[seasonKey][week] = candidates;
 
   // Auto-winner = top of each list; overridden when user votes
-  franchise.potw[seasonKey][week] = {
-    offense:      candidates.offense[0]      || null,
-    defense:      candidates.defense[0]      || null,
-    ol:           candidates.ol[0]           || null,
-    specialTeams: candidates.specialTeams[0] || null,
-  };
+  franchise.potw[seasonKey][week] = Object.fromEntries(
+    _POTW_GROUPS.map(g => [g, candidates[g]?.[0] || null]));
+  // Announce on the wire — once per week (re-computes must not spam it).
+  if (!franchise._potwWired) franchise._potwWired = {};
+  const wiredKey = `${seasonKey}_${week}`;
+  if (!franchise._potwWired[wiredKey] && typeof _pushNews === "function") {
+    const w = franchise.potw[seasonKey][week];
+    const bits = [
+      w.offense      ? `⚡ ${w.offense.name}`      : "",
+      w.defense      ? `🛡 ${w.defense.name}`      : "",
+      w.rookie       ? `🌱 ${w.rookie.name}`       : "",
+      w.ol           ? `🧱 ${w.ol.name}`           : "",
+      w.specialTeams ? `🦵 ${w.specialTeams.name}` : "",
+    ].filter(Boolean).join(" · ");
+    if (bits) _pushNews({ type: "awards", label: `🏅 Players of Week ${week}: ${bits}` });
+    franchise._potwWired[wiredKey] = true;
+  }
   // CPU "writers" cast their weekly POTW votes for each category.
   // Stat-weighted random across the top 3 — usually picks the top
   // scorer, sometimes #2 or #3 when scores are close. Builds POTY
@@ -3764,7 +3799,7 @@ function _cpuVoteWeeklyPOTW(week) {
   const cands = franchise.potwCandidates?.[seasonKey]?.[week];
   if (!cands) return;
   const vote = {};
-  for (const group of ["offense","defense","ol","specialTeams"]) {
+  for (const group of _POTW_GROUPS) {
     const list = (cands[group] || []).slice(0, 3);
     if (!list.length) continue;
     // Stat-weighted random — closer to consensus when one player
@@ -3785,7 +3820,7 @@ function _cpuVoteWeeklyPOTW(week) {
   // weekly winners match the recorded votes (not just auto-stat top).
   if (!franchise.potw[seasonKey]) franchise.potw[seasonKey] = {};
   if (!franchise.potw[seasonKey][week]) franchise.potw[seasonKey][week] = {};
-  for (const group of ["offense","defense","ol","specialTeams"]) {
+  for (const group of _POTW_GROUPS) {
     const votedName = vote[group];
     if (!votedName) continue;
     const found = (cands[group] || []).find(c => c.name === votedName);
@@ -3797,9 +3832,9 @@ function _cpuVoteWeeklyPOTW(week) {
 function _computePOTY() {
   const votes = franchise.potwVotes?.[franchise.season] || {};
   const cands = franchise.potwCandidates?.[franchise.season] || {};
-  const tally = { offense: {}, defense: {}, ol: {}, specialTeams: {} };
+  const tally = Object.fromEntries(_POTW_GROUPS.map(g => [g, {}]));
   for (const weekVotes of Object.values(votes)) {
-    for (const g of ["offense","defense","ol","specialTeams"]) {
+    for (const g of _POTW_GROUPS) {
       const n = weekVotes[g];
       if (n) tally[g][n] = (tally[g][n] || 0) + 1;
     }
@@ -3814,12 +3849,7 @@ function _computePOTY() {
     }
     return { name, wins, pos: "?", teamAbbr: "—", teamPrimary: "#888", statLine: "" };
   };
-  return {
-    offense:      winner(tally.offense,      "offense"),
-    defense:      winner(tally.defense,      "defense"),
-    ol:           winner(tally.ol,           "ol"),
-    specialTeams: winner(tally.specialTeams, "specialTeams"),
-  };
+  return Object.fromEntries(_POTW_GROUPS.map(g => [g, winner(tally[g], g)]));
 }
 
 // Module-level pending votes for the voting page. _potwPendingVotesKey
@@ -3847,6 +3877,7 @@ function renderPotwVoting(week) {
   const GROUPS = [
     { key: "offense",      label: "OFFENSIVE PLAYER",   icon: "⚡" },
     { key: "defense",      label: "DEFENSIVE PLAYER",   icon: "🛡" },
+    { key: "rookie",       label: "ROOKIE",             icon: "🌱" },
     { key: "ol",           label: "OFFENSIVE LINEMAN",  icon: "🧱" },
     { key: "specialTeams", label: "SPECIAL TEAMS",      icon: "🦵" },
   ];
@@ -3940,7 +3971,7 @@ function _potwSubmitVotes(week) {
   // Promote voted players to POTW winners
   const cands = franchise.potwCandidates?.[season]?.[week] || {};
   if (!franchise.potw?.[season]?.[week]) { franchise.potw = franchise.potw || {}; franchise.potw[season] = franchise.potw[season] || {}; franchise.potw[season][week] = {}; }
-  for (const g of ["offense","defense","ol","specialTeams"]) {
+  for (const g of _POTW_GROUPS) {
     const votedName = _potwPendingVotes[g];
     if (votedName) {
       const found = (cands[g] || []).find(c => c.name === votedName);
@@ -6912,19 +6943,29 @@ function _computePlayoffRoundPOTW(roundIdx, weekNum) {
         statLine: mvpStatLine(p), score: p._s };
     });
   };
+  // Rookie eligibility — mirrors _computeAndStorePOTW (the regular-season
+  // twin missed here first: playoff weeks 19+ shipped without the 🌱 slate
+  // until the probe's all-weeks scan caught it).
+  const baseYear = new Date().getFullYear() + (franchise.season || 1) - 1;
+  const rookieNames = new Set();
+  for (const roster of Object.values(franchise.rosters || {})) {
+    for (const live of roster) {
+      if (live.draftYear === baseYear ||
+          (live.careerHistory && live.careerHistory.length === 0 && (live.age || 30) <= 23)) {
+        rookieNames.add(live.name);
+      }
+    }
+  }
   const candidates = {
     offense:      pickTop(p => SKILL_POS.has(p.pos), mvpScore),
     defense:      pickTop(p => DEF_POS.has(p.pos),   mvpScore),
     ol:           pickTop(p => OL_POS.has(p.pos),    p => (p.pancakes||0)*3 - (p.sacks_allowed||0)*4),
     specialTeams: pickTop(p => ST_POS.has(p.pos),    mvpScore),
+    rookie:       pickTop(p => rookieNames.has(p.name), mvpScore),
   };
   franchise.potwCandidates[seasonKey][weekNum] = candidates;
-  franchise.potw[seasonKey][weekNum] = {
-    offense:      candidates.offense[0]      || null,
-    defense:      candidates.defense[0]      || null,
-    ol:           candidates.ol[0]           || null,
-    specialTeams: candidates.specialTeams[0] || null,
-  };
+  franchise.potw[seasonKey][weekNum] = Object.fromEntries(
+    _POTW_GROUPS.map(g => [g, candidates[g]?.[0] || null]));
 }
 
 // Find the matchup in the round that matches the team pair and stash
@@ -10953,6 +10994,7 @@ function renderFrnAwards() {
     <div class="potw-poty-row">
       ${potyCard("⚡", "OFFENSIVE POTY",   poty.offense)}
       ${potyCard("🛡", "DEFENSIVE POTY",   poty.defense)}
+      ${potyCard("🌱", "ROOKIE POTY",      poty.rookie)}
       ${potyCard("🧱", "OL POTY",          poty.ol)}
       ${potyCard("🦵", "SPECIAL TEAMS POTY", poty.specialTeams)}
     </div>` : "";

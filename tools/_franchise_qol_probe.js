@@ -396,6 +396,30 @@ const ok = (c, l) => { if (c) { pass++; console.log("  ✓ " + l); } else { fail
     ok(wr.exitCleans, "exit tears down the reel bar + replay mode");
   }
 
+  console.log("— 11. weekly awards: rookie category + wire announcement —");
+  const pw = await page.evaluate(() => {
+    // POTW computed during the simmed weeks — inspect the latest week's slate.
+    const season = franchise.season;
+    const weeks = Object.keys(franchise.potwCandidates?.[season] || {});
+    if (!weeks.length) return { skip: true };
+    const noRookie = weeks.filter(w => !Array.isArray(franchise.potwCandidates[season][w]?.rookie));
+    return {
+      skip: false,
+      weeks: weeks.length,
+      noRookie,
+      wired: (franchise.news || []).some(n => n.type === "awards" && /Players of Week/.test(n.label || "")),
+      potyHasRookie: typeof _computePOTY === "function" ? ("rookie" in _computePOTY()) : false,
+    };
+  });
+  if (pw.skip) ok(false, "no POTW slates computed");
+  else {
+    ok(pw.noRookie.length === 0, pw.noRookie.length === 0
+      ? `every weekly slate includes the 🌱 rookie category (${pw.weeks} weeks)`
+      : `weeks missing rookie slate: ${pw.noRookie.join(",")} of ${pw.weeks}`);
+    ok(pw.wired, "weekly winners announced on the news wire");
+    ok(pw.potyHasRookie, "POTY tally carries the rookie group");
+  }
+
   ok(errors.length === 0, errors.length ? "page errors: " + errors.slice(0, 3).join(" | ") : "zero page errors");
   console.log(fail === 0 ? `\nALL-PASS (${pass} checks)` : `\n${fail} FAILURES / ${pass + fail}`);
   await browser.close();
