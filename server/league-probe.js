@@ -322,13 +322,57 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   const m2Adv3 = await req("POST", "/api/league/advance", { leagueId: m2Id, adminToken: m2Admin });
   check(m2Adv3.status === 200 && m2Adv3.body.simmed === 16, "season still sims from the original genesis after the attempted flip");
 
-  console.log("\n[M2 — season completion parks the league]");
+  console.log("\n[M3 — playoffs: bracket rounds, champion, rollover]");
   const shortL = await req("POST", "/api/league", { name: "Short Season", adminTeamId: 20, adminName: "X", settings: { teamCount: 2, seasonWeeks: 1 } });
-  await req("POST", "/api/league/start", { leagueId: shortL.body.leagueId, adminToken: shortL.body.adminToken });
-  const finAdv = await req("POST", "/api/league/advance", { leagueId: shortL.body.leagueId, adminToken: shortL.body.adminToken });
-  check(finAdv.status === 200 && finAdv.body.phase === "season_complete", "final-week advance parks phase at season_complete");
-  const finAdv2 = await req("POST", "/api/league/advance", { leagueId: shortL.body.leagueId, adminToken: shortL.body.adminToken });
-  check(finAdv2.status === 400 && /season complete/.test(finAdv2.body.error || ""), "advancing a complete season is rejected (playoffs are the next milestone)");
+  const m3Id = shortL.body.leagueId, m3Admin = shortL.body.adminToken;
+  await req("POST", "/api/league/start", { leagueId: m3Id, adminToken: m3Admin });
+  const m3adv = () => req("POST", "/api/league/advance", { leagueId: m3Id, adminToken: m3Admin });
+  const finAdv = await m3adv();
+  check(finAdv.status === 200 && finAdv.body.phase === "season_complete", "final regular week → phase season_complete");
+  const roundSizes = [];
+  let last = null;
+  for (let i = 0; i < 4; i++) { last = await m3adv(); roundSizes.push(last.body.simmed); }
+  check(roundSizes.join("/") === "6/4/2/1", `four advances sim the bracket rounds (${roundSizes.join("/")})`);
+  check(last.body.phase === "season_over" && last.body.champion != null, `Super Bowl crowns a champion (team ${last.body.champion})`);
+  const m3Season = (await req("GET", `/api/league/season/${m3Id}?token=${m3Admin}`)).body;
+  // ANTI-CHEAT: bracket seeding is a pure fold of the PUBLISHED standings —
+  // re-derive it independently under the documented total order.
+  const seedRank = (tid) => { const s = m3Season.standings[tid]; const gp = s.w + s.l + s.t; return { pct: gp ? (s.w + s.t / 2) / gp : 0, diff: s.pf - s.pa, pf: s.pf }; };
+  const seedCmp = (a, b) => { const ra = seedRank(a), rb = seedRank(b); return rb.pct - ra.pct || rb.diff - ra.diff || rb.pf - ra.pf || a - b; };
+  const mySeeds = {};
+  for (const conf of ["AFC", "NFC"]) mySeeds[conf] = kit.TEAMS.filter(t => t.conference === conf).map(t => t.id).sort(seedCmp).slice(0, 7);
+  check(JSON.stringify(mySeeds) === JSON.stringify(m3Season.playoffs.seeds), "bracket seeds re-derived from published standings → MATCH");
+  // ANTI-CHEAT: a playoff result re-sims to the published hash ({isPlayoff:true}).
+  const sbGame = m3Season.playoffs.rounds[3][0];
+  const m3Built = kit._fdBuildDefaultLeague(m3Season.leagueSeed, m3Season.year);
+  const sbSeed = crypto.createHash("sha256")
+    .update(`hh-league-game|${m3Season.leagueSeed}|1|${sbGame.week}|${sbGame.homeId}|${sbGame.awayId}`).digest().readUInt32LE(0);
+  const sbClone = (x) => JSON.parse(JSON.stringify(x));
+  if (kit._setPortableMath) kit._setPortableMath(true);
+  kit._setSimRng(sbSeed >>> 0);
+  let sbSim;
+  try {
+    sbSim = new kit.GameSimulator(kit.TEAMS.find(t => t.id === sbGame.homeId), kit.TEAMS.find(t => t.id === sbGame.awayId),
+      sbClone(m3Built.rosters[sbGame.homeId]), sbClone(m3Built.rosters[sbGame.awayId]), { isPlayoff: true }).simulate();
+  } finally { kit._clearSimRng(); if (kit._setPortableMath) kit._setPortableMath(false); }
+  check(resultHash(sbSim) === sbGame.resultHash, "Super Bowl re-sim resultHash MATCHES — playoff results are proven too");
+  check((m3Season.champions || []).some(c => c.season === 1 && c.teamId === last.body.champion), "champion recorded on the trophy shelf");
+  // Rollover: same genesis, fresh slate, season-namespaced seeds.
+  const roll = await m3adv();
+  check(roll.status === 200 && roll.body.rolledOver && roll.body.season === 2 && roll.body.phase === "active", "advance from season_over rolls to season 2");
+  const s2 = (await req("GET", `/api/league/season/${m3Id}?token=${m3Admin}`)).body;
+  check(s2.rostersHash === m3Season.rostersHash && Object.keys(s2.results).length === 0 && s2.playoffs === null
+    && Object.values(s2.standings).every(x => x.w === 0 && x.l === 0), "rollover keeps the roster genesis, resets results/standings/bracket");
+  const s2adv = await m3adv();
+  check(s2adv.status === 200 && s2adv.body.simmed === 16, "season 2 sims (per-game seeds re-namespaced by season)");
+  // Restart mid-dynasty: champions + phase + season-2 results survive.
+  srv.kill("SIGKILL");
+  await sleep(300);
+  srv = spawnServer();
+  if (!await waitUp()) bad("server didn't respawn post-rollover");
+  const m3After = (await req("GET", `/api/league/season/${m3Id}?token=${m3Admin}`)).body;
+  check(m3After.season === 2 && (m3After.champions || []).length === 1 && (m3After.results[1] || []).length === 16,
+    "restart mid-dynasty: trophy shelf + season-2 ledger survive");
 
   console.log("\n[M2 — fantasy league: the drafted genesis feeds the season]");
   const fdAdv = await req("POST", "/api/league/advance", { leagueId: fdId, adminToken: fdAdmin });

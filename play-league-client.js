@@ -535,6 +535,17 @@ function _lgConnectSSE() {
     }
     if (_lgScreen === "season") renderLeagueSeason();
   });
+  // M3: bracket rounds + the season rollover, live.
+  _lgES.addEventListener("playoff_results", (e) => {
+    const d = JSON.parse(e.data);
+    if (_lgSeason) _lgSeason.playoffs = d.playoffs || _lgSeason.playoffs;
+    if (_lgScreen === "season") renderLeagueSeason();
+  });
+  _lgES.addEventListener("rollover", (e) => {
+    const d = JSON.parse(e.data);
+    if (typeof DS !== "undefined") DS.toast({ message: `🏁 Season ${_lgNum(d.season)} is live — same league, fresh slate`, kind: "success", duration: 3200 });
+    if (_lgScreen === "season") _lgEnterSeason(); // full resync — results/standings reset
+  });
   _lgES.onerror = () => { /* EventSource auto-reconnects; snapshots resync on screen entry */ };
 }
 
@@ -677,6 +688,51 @@ function _lgStandingsRows(conf) {
     </tr>`;
   }).join("");
 }
+// M3 bracket — played rounds by conference + who's still alive + champion.
+// Renders only server-published data (playoffs snapshot from SSE/season
+// endpoint); scores/ids coerced via _lgNum like every season surface.
+function _lgBracketHtml(S) {
+  const P = S.playoffs;
+  if (!P) return "";
+  const roundNames = S.roundNames || ["Wild Card", "Divisional", "Conference Championship", "Super Bowl"];
+  const gameRow = (g) => {
+    const h = _lgTeam(_lgNum(g.homeId)), a = _lgTeam(_lgNum(g.awayId));
+    const hs = _lgNum(g.homeScore), as = _lgNum(g.awayScore);
+    const win = _lgNum(g.winnerId);
+    const nm = (t, id, sc, won) => `<span style="${won ? "font-weight:800" : "color:var(--gray)"}">${_escHtml((t.abbr || t.name.slice(0, 3)).toUpperCase())} ${sc}${won ? " ✓" : ""}</span>`;
+    return `<div style="display:flex;gap:.5rem;justify-content:center;padding:.14rem 0" title="result hash ${_escHtml((g.resultHash || "").slice(0, 16))}…">
+      ${g.conf && g.conf !== "SB" ? `<span style="color:var(--gray);font-size:.58rem;min-width:2rem">${_escHtml(String(g.conf))}</span>` : `<span style="color:var(--gold-lt);font-size:.58rem;min-width:2rem">SB</span>`}
+      ${nm(a, g.awayId, as, win === _lgNum(g.awayId))}
+      <span style="color:var(--gray);font-size:.6rem">@</span>
+      ${nm(h, g.homeId, hs, win === _lgNum(g.homeId))}
+    </div>`;
+  };
+  const rounds = (P.rounds || []).map((games, i) => `
+    <div style="border:1px solid var(--border);border-radius:8px;padding:.45rem .7rem;min-width:13rem">
+      <div class="fps-section-title" style="margin:0 0 .3rem;font-size:.62rem">${_escHtml(roundNames[i] || `Round ${i + 1}`)}</div>
+      ${games.map(gameRow).join("")}
+    </div>`).join("");
+  const aliveChips = P.champion == null ? ["AFC", "NFC"].map(conf =>
+    `<div style="display:flex;gap:.3rem;flex-wrap:wrap;align-items:center;justify-content:center">
+      <span style="color:var(--gray);font-size:.6rem;letter-spacing:1px">${conf} ALIVE:</span>
+      ${(P.alive?.[conf] || []).map(id => {
+        const t = _lgTeam(_lgNum(id));
+        return `<span class="ds-chip" style="border-color:${t.primary}">${_escHtml((t.abbr || t.name.slice(0, 3)).toUpperCase())}</span>`;
+      }).join(" ")}
+    </div>`).join("") : "";
+  const champ = P.champion != null ? (() => {
+    const t = _lgTeam(_lgNum(P.champion));
+    return `<div style="text-align:center;margin:.6rem 0 .2rem">
+      <span class="ds-chip" style="border-color:var(--gold);color:var(--gold-lt);font-size:.85rem;padding:.4rem .9rem">
+        🏆 SEASON ${_lgNum(P.season)} CHAMPIONS — ${_escHtml(t.city)} ${_escHtml(t.name)}</span>
+    </div>`;
+  })() : "";
+  return `
+    <div class="fps-section-title">PLAYOFFS</div>
+    ${champ}
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center;max-width:60rem;margin:0 auto .6rem">${rounds}</div>
+    <div style="display:flex;flex-direction:column;gap:.3rem;margin-bottom:1rem">${aliveChips}</div>`;
+}
 function renderLeagueSeason() {
   if (!_lgSeason) return;
   _lgScreen = "season";
@@ -700,7 +756,7 @@ function renderLeagueSeason() {
     </div>`;
   };
   const results = lastWeek ? (S.results[lastWeek] || []).map(scoreRow).join("") : "";
-  const upcoming = !done ? generateFranchiseSchedule().filter(g => g.week === _lgNum(S.week)).map(g => {
+  const upcoming = S.phase === "active" ? generateFranchiseSchedule().filter(g => g.week === _lgNum(S.week)).map(g => {
     const h = _lgTeam(g.homeId), a = _lgTeam(g.awayId);
     const mine = g.homeId === _lg.teamId || g.awayId === _lg.teamId;
     return `<span class="ds-chip"${mine ? ' style="border-color:var(--gold);color:var(--gold-lt)"' : ""}>${_escHtml((a.abbr || a.name.slice(0, 3)).toUpperCase())} @ ${_escHtml((h.abbr || h.name.slice(0, 3)).toUpperCase())}</span>`;
@@ -728,15 +784,32 @@ function renderLeagueSeason() {
     <div class="fps-hero" style="margin-bottom:.8rem">
       <div class="fps-hero-badge">🌐</div>
       <div class="fps-hero-title">${_escHtml(_lg.leagueName || "LEAGUE")}</div>
-      <div class="fps-hero-sub">${done
-        ? `<b style="color:var(--gold-lt)">SEASON ${_lgNum(S.season)} COMPLETE</b> · ${weeks.length} weeks in the books — playoffs land in the next milestone`
-        : `SEASON ${_lgNum(S.season)} · WEEK ${_lgNum(S.week)} of ${_lgNum(S.weeks) || 18} · one shared season, simmed by the league server`}</div>
+      <div class="fps-hero-sub">${(() => {
+        const roundNames = S.roundNames || ["Wild Card", "Divisional", "Conference Championship", "Super Bowl"];
+        if (S.phase === "season_over") {
+          const t = _lgTeam(_lgNum(S.playoffs?.champion));
+          return `<b style="color:var(--gold-lt)">SEASON ${_lgNum(S.season)} COMPLETE</b> · 🏆 ${_escHtml(t.city)} ${_escHtml(t.name)} are champions`;
+        }
+        if (S.phase === "playoffs") {
+          const next = roundNames[_lgNum(S.playoffs?.roundIdx)] || "next round";
+          return `<b style="color:var(--gold-lt)">PLAYOFFS</b> · SEASON ${_lgNum(S.season)} · up next: ${_escHtml(next)}`;
+        }
+        if (done) return `<b style="color:var(--gold-lt)">REGULAR SEASON COMPLETE</b> · ${weeks.length} weeks in the books — the bracket awaits`;
+        return `SEASON ${_lgNum(S.season)} · WEEK ${_lgNum(S.week)} of ${_lgNum(S.weeks) || 18} · one shared season, simmed by the league server`;
+      })()}</div>
     </div>
     <div style="display:flex;gap:.4rem;flex-wrap:wrap;justify-content:center;margin-bottom:1rem">${verifyChip}</div>
-    ${isAdmin && !done ? `<div style="display:flex;justify-content:center;margin-bottom:1rem">
-      ${DS.button({ label: `▶ Advance — sim week ${_lgNum(S.week)}`, variant: "gold", on: "frnLeagueAdvanceWeek(this)",
-        title: "Sims every game of the current week on the server; results + hashes broadcast to all members" })}</div>` : ""}
-    ${!isAdmin && !done ? `<p style="text-align:center;color:var(--gray);font-size:.72rem;margin-bottom:1rem">The commissioner advances the week — results arrive here live.</p>` : ""}
+    ${isAdmin ? (() => {
+      const roundNames = S.roundNames || ["Wild Card", "Divisional", "Conference Championship", "Super Bowl"];
+      const label = S.phase === "season_complete" ? "🏈 Seed the bracket — sim the Wild Card round"
+        : S.phase === "playoffs" ? `▶ Sim the ${roundNames[_lgNum(S.playoffs?.roundIdx)] || "next round"}`
+        : S.phase === "season_over" ? `🏁 Start season ${_lgNum(S.season) + 1}`
+        : `▶ Advance — sim week ${_lgNum(S.week)}`;
+      return `<div style="display:flex;justify-content:center;margin-bottom:1rem">
+        ${DS.button({ label, variant: "gold", on: "frnLeagueAdvanceWeek(this)",
+          title: "Sims on the server; results + hashes broadcast to every member" })}</div>`;
+    })() : `<p style="text-align:center;color:var(--gray);font-size:.72rem;margin-bottom:1rem">The commissioner advances the league — results arrive here live.</p>`}
+    ${_lgBracketHtml(S)}
     ${lastWeek ? `
       <div class="fps-section-title">WEEK ${lastWeek} RESULTS</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(13rem,1fr));gap:.4rem;max-width:56rem;margin:0 auto 1rem">${results}</div>` : ""}

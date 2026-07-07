@@ -18,8 +18,17 @@
 // already loads carries GameSimulator) under _setSimRng(per-game seed),
 // records {scores, resultHash} per game (server/result-hash.js), applies
 // standings, and broadcasts `week_results` over the existing SSE plumbing.
-// Playoffs + offseason rollover are the NEXT slices — after week 18 the
-// league parks in phase "season_complete".
+//
+// Phase M3 = PLAYOFFS + ROLLOVER: after the final regular week the league
+// enters "season_complete"; each further advance sims one bracket round
+// (seeded as a PURE FOLD of the published standings — win% → point diff →
+// PF → teamId, no RNG; 7 seeds/conference, #1 bye, reseed, Super Bowl) with
+// {isPlayoff:true} at week = seasonWeeks+round+1, publishing results +
+// hashes per round ("playoff_results" SSE). Champion → "season_over"; one
+// more advance rolls to season N+1 — same canonical rosters ("arcade"
+// rollover v1; cross-season player development is its own future slice),
+// standings reset, per-game seeds re-namespace via the season hash input.
+// Scheduled leagues self-drive through the whole loop.
 //
 // M2 anti-cheat surfaces (CLAUDE.md discipline — named + closed):
 //   • seed shopping (server re-rolls until it likes the results): leagueSeed
@@ -127,6 +136,7 @@ function publicLeague(L) {
     leagueSeed: L.leagueSeed, year: L.year, rostersHash: L.rostersHash,
     standings: L.standings,
     lastResults: lastWeek ? { week: lastWeek, games: L.results[lastWeek] } : null,
+    playoffs: L.playoffs, champions: L.champions || [],
   };
 }
 
@@ -155,6 +165,8 @@ function newLeagueShell(h) {
     rostersHash: null,  // default leagues: sha256(_fdRosterIds(derived rosters))
     results: {},        // week → [{week, homeId, awayId, homeScore, awayScore, resultHash}]
     standings: null,    // teamId → {w, l, t, pf, pa} — persisted with each week-results record
+    playoffs: null,     // M3 bracket state {season, roundIdx, seeds, alive, rounds, champion}
+    champions: [],      // [{season, teamId}] — the trophy shelf
   };
 }
 
@@ -318,7 +330,108 @@ function applyResult(standings, g) {
   else { h.t++; a.t++; }
 }
 
-function simLeagueGame(kit, L, week, homeId, awayId) {
+// ── M3 playoffs — bracket as a PURE FOLD of the published standings ──────────
+// Anti-cheat: seeding uses a documented TOTAL ORDER over published data (win%
+// desc → point diff desc → PF desc → teamId asc — no RNG, no h2h lookups a
+// verifier would have to reconstruct), so any member re-derives the identical
+// bracket from GET /api/league/season. 14-team format mirroring the client
+// franchise: 7 seeds per conference, #1 bye, reseed each round, then the
+// Super Bowl (better seed-order team is "home" for the sim). Per-game seeds
+// reuse the published formula with week = seasonWeeks + roundIdx + 1, so
+// playoff games can never collide with regular-season seeds. A playoff sim
+// runs {isPlayoff:true} (engine playoff OT — ties can't happen; if the engine
+// ever returned one anyway, the HIGHER SEED advances, documented here).
+const PLAYOFF_ROUNDS = ["Wild Card", "Divisional", "Conference Championship", "Super Bowl"];
+function _seedOrder(kit, standings) {
+  const rank = (tid) => {
+    const s = standings[tid] || { w: 0, l: 0, t: 0, pf: 0, pa: 0 };
+    const gp = s.w + s.l + s.t;
+    return { pct: gp ? (s.w + s.t / 2) / gp : 0, diff: s.pf - s.pa, pf: s.pf };
+  };
+  const cmp = (a, b) => {
+    const ra = rank(a), rb = rank(b);
+    return rb.pct - ra.pct || rb.diff - ra.diff || rb.pf - ra.pf || a - b;
+  };
+  const seeds = {};
+  for (const conf of ["AFC", "NFC"]) {
+    seeds[conf] = kit.TEAMS.filter(t => t.conference === conf).map(t => t.id).sort(cmp).slice(0, 7);
+  }
+  return seeds;
+}
+// Matchups for the round about to be simmed. `alive` = seed-ordered surviving
+// teamIds per conference (seed order is the seeds array order, which reseeding
+// preserves by filtering it).
+function _playoffMatchups(P, roundIdx) {
+  const pair = (arr) => {
+    // Highest surviving hosts lowest surviving, and so on inward.
+    const g = [];
+    for (let i = 0; i < Math.floor(arr.length / 2); i++) {
+      g.push({ homeId: arr[i], awayId: arr[arr.length - 1 - i] });
+    }
+    return g;
+  };
+  if (roundIdx === 3) {
+    // Super Bowl: the two conference champions; better regular-season seed
+    // order hosts (deterministic; conceptually a neutral field).
+    const [a] = P.alive.AFC, [n] = P.alive.NFC;
+    const home = P.sbHomeConf === "AFC" ? a : n;
+    const away = home === a ? n : a;
+    return [{ homeId: home, awayId: away, conf: "SB" }];
+  }
+  const out = [];
+  for (const conf of ["AFC", "NFC"]) {
+    const alive = P.alive[conf];
+    const field = roundIdx === 0 ? alive.slice(1) : alive; // #1 byes the Wild Card
+    for (const m of pair(field)) out.push({ ...m, conf });
+  }
+  return out;
+}
+// Sims the round P.roundIdx into P (a detached clone — the caller persists
+// BEFORE committing P onto the league, the atomic-advance discipline).
+async function _simPlayoffRound(L, kit, P) {
+  const week = seasonWeeks(L) + P.roundIdx + 1;
+  const fixtures = _playoffMatchups(P, P.roundIdx);
+  const results = [];
+  for (const g of fixtures) {
+    const r = simLeagueGame(kit, L, week, g.homeId, g.awayId, /*isPlayoff=*/true);
+    let winnerId;
+    if (r.homeScore !== r.awayScore) {
+      winnerId = r.homeScore > r.awayScore ? g.homeId : g.awayId;
+    } else {
+      // Documented backstop (engine playoff OT should never tie): the higher
+      // seed advances — earlier in the conference's alive order; SB: the
+      // seed-order host.
+      const order = g.conf === "SB" ? [g.homeId, g.awayId]
+        : (P.alive[g.conf] || []).filter(id => id === g.homeId || id === g.awayId);
+      winnerId = order[0];
+    }
+    results.push({ week, conf: g.conf, homeId: g.homeId, awayId: g.awayId,
+      homeScore: r.homeScore, awayScore: r.awayScore, winnerId, resultHash: resultHash(r) });
+    await new Promise(res => setImmediate(res));
+  }
+  // Fold survivors, preserving seed order (this IS the reseed).
+  if (P.roundIdx === 3) {
+    P.champion = results[0].winnerId;
+  } else {
+    const winners = new Set(results.map(r => r.winnerId));
+    for (const conf of ["AFC", "NFC"]) {
+      const byeTeam = P.roundIdx === 0 ? [P.alive[conf][0]] : [];
+      P.alive[conf] = [...byeTeam, ...P.alive[conf].filter(id => winners.has(id) && !byeTeam.includes(id))];
+    }
+    if (P.roundIdx === 2) {
+      // Which conference hosts the Super Bowl: the champion ranked better in
+      // the ORIGINAL seeding order (same published total order; ties by conf id).
+      const a = P.alive.AFC[0], n = P.alive.NFC[0];
+      const aPos = P.seeds.AFC.indexOf(a), nPos = P.seeds.NFC.indexOf(n);
+      P.sbHomeConf = aPos < nPos ? "AFC" : aPos > nPos ? "NFC" : (a < n ? "AFC" : "NFC");
+    }
+  }
+  P.rounds.push(results);
+  P.roundIdx += 1;
+  return results;
+}
+
+function simLeagueGame(kit, L, week, homeId, awayId, isPlayoff) {
   const home = kit.TEAMS.find(t => t.id === homeId);
   const away = kit.TEAMS.find(t => t.id === awayId);
   const rosters = seasonRosters(L);
@@ -329,11 +442,14 @@ function simLeagueGame(kit, L, week, homeId, awayId) {
   // status quo; the cross-machine gen audit is a separate queued task), so a
   // verifier re-derives rosters natively, then re-sims games portably.
   // Rosters are cloned per sim — the engine mutates player objects.
+  // Playoff games sim with {isPlayoff:true} (engine playoff OT — a verifier
+  // must pass the same option; documented in the M3 header).
   const clone = (x) => JSON.parse(JSON.stringify(x));
   if (kit._setPortableMath) kit._setPortableMath(true);
   kit._setSimRng(seed >>> 0);
   try {
-    const sim = new kit.GameSimulator(home, away, clone(rosters[homeId]), clone(rosters[awayId]));
+    const sim = new kit.GameSimulator(home, away, clone(rosters[homeId]), clone(rosters[awayId]),
+      isPlayoff ? { isPlayoff: true } : undefined);
     return sim.simulate();
   } finally {
     kit._clearSimRng();
@@ -553,8 +669,17 @@ function updateSettings(L, patch) {
 }
 
 async function advanceLeague(L, reason) {
-  if (L.phase !== "active") return { error: L.phase === "season_complete" ? "season complete — playoffs are the next milestone" : "dynasty not active" };
   if (L._simming) return { error: "week sim already in progress" };
+  // M3: the postseason rides the SAME commissioner-intent advance —
+  //   active (weeks 1..N) → season_complete → [seed bracket + Wild Card]
+  //   → playoffs (rounds) → season_over (champion) → [rollover] → active S+1.
+  if (L.leagueSeed != null && (L.phase === "season_complete" || L.phase === "playoffs")) {
+    return advancePlayoffRound(L, reason);
+  }
+  if (L.leagueSeed != null && L.phase === "season_over") {
+    return rolloverSeason(L, reason);
+  }
+  if (L.phase !== "active") return { error: "dynasty not active" };
   if (L.leagueSeed == null) {
     // Pre-M2 league (started before season-genesis existed): keep the M1
     // clock-tick behavior rather than failing the commissioner.
@@ -614,9 +739,80 @@ async function advanceLeague(L, reason) {
   return { season: L.season, week: L.week, phase: L.phase, simmed: L.results[week].length };
 }
 
+// M3: one playoff ROUND per advance. The bracket is seeded on the first call
+// (a pure fold of the published standings — see _seedOrder) and published
+// with every round's atomic record, so reload and verifiers never re-derive
+// from private state.
+async function advancePlayoffRound(L, reason) {
+  const kit = draftKit();
+  if (!seasonRosters(L)) return { error: "no season rosters — draft not finished?" };
+  L._simming = true;
+  try {
+    const clone = (x) => JSON.parse(JSON.stringify(x));
+    const P = L.playoffs ? clone(L.playoffs) : (() => {
+      const seeds = _seedOrder(kit, L.standings);
+      return { season: L.season, roundIdx: 0, seeds,
+               alive: { AFC: [...seeds.AFC], NFC: [...seeds.NFC] },
+               sbHomeConf: null, rounds: [], champion: null };
+    })();
+    const roundIdx = P.roundIdx;
+    const results = await _simPlayoffRound(L, kit, P);
+    const nextPhase = P.champion != null ? "season_over" : "playoffs";
+    // Atomic record BEFORE memory commits (the M2 advance discipline): the
+    // full playoffs snapshot rides every record — reload takes the last one.
+    persistAppend(L, {
+      t: "playoff-results", season: L.season, roundIdx, results,
+      playoffs: P, next: { phase: nextPhase }, reason: reason || "manual",
+    });
+    L.playoffs = P;
+    L.phase = nextPhase;
+    if (P.champion != null) {
+      L.champions = L.champions || [];
+      if (!L.champions.some(c => c.season === L.season)) L.champions.push({ season: L.season, teamId: P.champion });
+    }
+    pushEvent(L, "playoff_results", {
+      season: L.season, roundIdx, roundName: PLAYOFF_ROUNDS[roundIdx] || `Round ${roundIdx + 1}`,
+      results, playoffs: P, champion: P.champion,
+    });
+    pushEvent(L, "advanced", { season: L.season, week: L.week, phase: L.phase, reason: reason || "manual" });
+    return { season: L.season, phase: L.phase, round: PLAYOFF_ROUNDS[roundIdx], simmed: results.length, champion: P.champion };
+  } finally {
+    L._simming = false;
+  }
+}
+
+// M3 rollover — "arcade" v1: SAME canonical rosters (the genesis re-derives;
+// player development/aging across league seasons is its own future slice),
+// standings reset, results cleared, season++. The schedule is RNG-free and
+// identical; per-game seeds re-namespace automatically (season is a hash
+// input), so season N+1 is a fresh, fully re-derivable season.
+function rolloverSeason(L, reason) {
+  const kit = draftKit();
+  const nextSeason = L.season + 1;
+  const standings = kit.initStandings();
+  persistAppend(L, {
+    t: "rollover", season: nextSeason, standings,
+    next: { season: nextSeason, week: 1, phase: "active" }, reason: reason || "manual",
+  });
+  const champ = L.playoffs?.champion ?? null;
+  L.season = nextSeason;
+  L.week = 1;
+  L.phase = "active";
+  L.standings = standings;
+  L.results = {};
+  L.playoffs = null;
+  pushEvent(L, "rollover", { season: nextSeason, lastChampion: champ });
+  pushEvent(L, "advanced", { season: L.season, week: L.week, phase: L.phase, reason: reason || "manual" });
+  armSchedule(L);
+  return { season: L.season, week: L.week, phase: L.phase, rolledOver: true };
+}
+
 function armSchedule(L) {
   if (L.timer) { clearTimeout(L.timer); L.timer = null; }
-  if (L.phase === "active" && L.settings.advanceMode === "scheduled" && L.settings.advanceIntervalMs > 0) {
+  // M3: scheduled leagues self-drive through the whole loop — weeks, bracket
+  // rounds, and the rollover into next season.
+  const drivable = ["active", "season_complete", "playoffs", "season_over"].includes(L.phase);
+  if (drivable && L.settings.advanceMode === "scheduled" && L.settings.advanceIntervalMs > 0) {
     L.timer = setTimeout(() => {
       Promise.resolve(advanceLeague(L, "scheduled"))
         .catch(e => console.warn("[league advance]", L.id, e.message))
@@ -663,6 +859,22 @@ function loadPersisted() {
           L.results[l.week] = l.results;
           L.standings = l.standings || L.standings;
           if (l.next) { if (l.next.season) L.season = l.next.season; if (l.next.week) L.week = l.next.week; if (l.next.phase) L.phase = l.next.phase; }
+        }
+        // M3: each round record carries the full bracket snapshot (last wins);
+        // a rollover record resets the season surfaces in one step.
+        else if (l.t === "playoff-results") {
+          L.playoffs = l.playoffs || L.playoffs;
+          if (l.next?.phase) L.phase = l.next.phase;
+          if (L.playoffs?.champion != null) {
+            L.champions = L.champions || [];
+            if (!L.champions.some(c => c.season === l.season)) L.champions.push({ season: l.season, teamId: L.playoffs.champion });
+          }
+        }
+        else if (l.t === "rollover") {
+          if (l.next) { L.season = l.next.season; L.week = l.next.week; L.phase = l.next.phase; }
+          L.standings = l.standings || L.standings;
+          L.results = {};
+          L.playoffs = null;
         }
       }
       leagues.set(L.id, L);
@@ -801,6 +1013,8 @@ const server = http.createServer(async (req, res) => {
         phase: L.phase, season: L.season, week: L.week,
         weeks: SEASON_WEEKS,
         results: L.results, standings: L.standings,
+        playoffs: L.playoffs, champions: L.champions || [],
+        roundNames: PLAYOFF_ROUNDS,
       });
     }
     if (req.method === "GET" && url.pathname.startsWith("/api/league/events/")) {

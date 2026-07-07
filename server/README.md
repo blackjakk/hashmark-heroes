@@ -110,8 +110,15 @@ the season itself is server-authoritative:
 - Restarts are free: results persist as one atomic `week-results` record per
   week (standings snapshot included); a crash mid-sim loses nothing —
   re-advancing re-sims byte-identical results.
-- After week 18 the league parks in `phase: "season_complete"` — playoffs and
-  offseason rollover are the next slices.
+- **Playoffs (M3)**: after the final regular week, each advance sims one
+  bracket round. Seeding is a pure fold of the published standings (win% →
+  point diff → PF → teamId — re-derivable by any member), 7 seeds per
+  conference, #1 bye, reseed each round. Playoff games sim with
+  `{isPlayoff: true}` at `week = seasonWeeks + round + 1` — an independent
+  verifier must pass the same option and week. Champion → one more advance
+  rolls to season N+1 (same canonical rosters, fresh standings; per-game
+  seeds re-namespace via the season hash input). Scheduled leagues
+  self-drive the entire loop.
 
 ## Verifying a settled match (challenger / auditor tool)
 

@@ -684,12 +684,30 @@ ticked a clock). Shipped along the planned slices:
   re-renders were stomping the dashboard); server-sourced numerics coerced
   via `_lgNum` before innerHTML (a malicious deep-linked server could smuggle
   markup through "numbers"); Start-my-franchise disabled on hash MISMATCH.
-NEXT SLICES: playoffs + offseason rollover (own passes; the league parks at
-season_complete); `settings.humanGamesH2H` is still a stub — routing
-human-vs-human fixtures to live H2H is its own slice. Also still queued:
-per-pick GM signatures in the draft artifact (fabricated-pick surface,
-natspec'd in DraftSettlement.sol) and the CROSS-MACHINE gen-determinism audit
-(gen path needs the same libm audit the sim got; probe cross-engine).
+LEAGUE M3 (playoffs + rollover) SHIPPED 2026-07-07: after the final regular
+week ("season_complete") each advance sims ONE bracket round — seeding is a
+PURE FOLD of the published standings (win% → point diff → PF → teamId; no
+RNG, no h2h reconstruction), 7 seeds/conf + #1 bye + reseed + Super Bowl
+(seed-order host), games sim {isPlayoff:true} at week seasonWeeks+round+1
+(seeds can't collide with regular weeks; VERIFIERS MUST PASS THE SAME OPT).
+Champion → "season_over" → one more advance = "arcade" rollover v1: SAME
+canonical rosters (cross-season player dev is its own queued slice),
+standings/results/bracket reset, season++ re-namespaces every game seed.
+Every playoff record carries the full bracket snapshot (atomic, last-wins
+reload); scheduled leagues self-drive the whole loop; champions land on a
+persisted trophy shelf. Client: phase-aware season HQ (bracket rounds, alive
+chips, champion banner, dynamic advance labels through "Start season N+1"),
+live via playoff_results/rollover SSE. Probes: league-probe 79 checks
+(bracket re-derived from published standings, SB re-sim hash match, rollover
+genesis/reset assertions, restart mid-dynasty), client probe 39 (two
+browsers driven to a champion + season 2).
+NEXT SLICES: `settings.humanGamesH2H` is still a stub — routing human-vs-
+human fixtures to live H2H is its own slice. Also still queued: cross-season
+player development for league rollovers, per-pick GM signatures in the draft
+artifact (fabricated-pick surface, natspec'd in DraftSettlement.sol), the
+CROSS-MACHINE gen-determinism audit (gen path needs the same libm audit the
+sim got; probe cross-engine), and LeagueSettlement (weekly resultHashes on
+chain — the artifacts are already published + re-simmable).
 SESSION-ENV NOTE: this environment's container resets can silently restore a
 stale checkpoint — PUSH (branch + main) immediately after EVERY commit, and
 verify expected files exist before editing.

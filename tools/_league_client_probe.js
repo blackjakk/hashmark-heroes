@@ -187,6 +187,12 @@ async function until(fn, ms, step = 250) {
   const lobby2 = await until(() => A.page.evaluate(() =>
     /LOBBY/.test(document.body.textContent) && !!document.getElementById("lgShare")), 8000);
   ok(!!lobby2, "default-league create → lobby");
+  // M3: shrink the regular season to ONE week (test-gated setting, allowed
+  // only while the lobby is open) so the scene reaches the playoffs fast.
+  await A.page.evaluate(async () => {
+    await fetch(_lg.base + "/api/league/settings", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ leagueId: _lg.leagueId, adminToken: _lg.adminToken, seasonWeeks: 1 }) });
+  });
   const invite2 = await A.page.evaluate(() => document.getElementById("lgShare").value);
   await B.page.evaluate(() => localStorage.clear());
   // B is already on play.html — a goto that only changes the #league= hash is
@@ -223,8 +229,35 @@ async function until(fn, ms, step = 250) {
   ok(!!resA, "results render for the commissioner after the sim");
   ok(!!resB, "results arrive at the member over SSE week_results");
   const standingsLive = await A.page.evaluate(() =>
-    /SEASON 1 · WEEK 2/.test(document.body.textContent) && /1-0/.test(document.body.textContent));
-  ok(standingsLive, "week advanced to 2 and standings show 1-0 records");
+    /REGULAR SEASON COMPLETE/.test(document.body.textContent) && /1-0/.test(document.body.textContent));
+  ok(standingsLive, "1-week season completes with 1-0 standings (M3 fast path)");
+
+  console.log("— M3: the commissioner drives the bracket to a champion —");
+  for (const roundBtn of [/Seed the bracket/, /Sim the Divisional/, /Sim the Conference/, /Sim the Super Bowl/]) {
+    const clicked = await until(() => A.page.evaluate((src) => {
+      const b = [...document.querySelectorAll("button")].find(x => new RegExp(src).test(x.textContent) && !x.disabled);
+      if (b) { b.click(); return true; }
+      return false;
+    }, roundBtn.source), 20000, 400);
+    ok(!!clicked, `round button found + clicked (${roundBtn.source.slice(0, 24)}…)`);
+  }
+  const champA = await until(() => A.page.evaluate(() => /CHAMPIONS —/.test(document.body.textContent)), 25000, 500);
+  const champB = await until(() => B.page.evaluate(() => /CHAMPIONS —/.test(document.body.textContent)), 25000, 500);
+  ok(!!champA, "commissioner sees the champion banner");
+  ok(!!champB, "member sees the champion over SSE playoff_results");
+  const bracketB = await B.page.evaluate(() =>
+    /Wild Card/.test(document.body.textContent) && /Super Bowl/.test(document.body.textContent));
+  ok(bracketB, "member's bracket shows all four rounds");
+
+  console.log("— M3: rollover into season 2 —");
+  await A.page.evaluate(() => {
+    [...document.querySelectorAll("button")].find(x => /Start season 2/.test(x.textContent)).click();
+  });
+  const s2A = await until(() => A.page.evaluate(() => /SEASON 2 · WEEK 1/.test(document.body.textContent)), 20000, 500);
+  const s2B = await until(() => B.page.evaluate(() => /SEASON 2 · WEEK 1/.test(document.body.textContent)), 20000, 500);
+  ok(!!s2A && !!s2B, "both browsers land in SEASON 2 · WEEK 1 (rollover over SSE)");
+  const verStill = await A.page.evaluate(() => /ROSTERS VERIFIED/.test(document.body.textContent));
+  ok(verStill, "roster genesis still VERIFIED after rollover (same leagueSeed)");
 
   console.log("— both members derive the identical default league locally —");
   for (const C of [A, B]) {
