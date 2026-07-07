@@ -3383,6 +3383,7 @@ function _legacyRecordBook() {
   const rec = franchise.records || {};
   const sg = rec.singleGame || {};
   const ss = rec.singleSeason || {};
+  const cr = rec.career || {};
   if (!Object.keys(sg).length && !Object.keys(ss).length) {
     return `<div style="color:var(--gray);font-size:.78rem;padding:1rem;text-align:center;font-style:italic">The record book is empty. Play through a season to start the books.</div>`;
   }
@@ -3417,7 +3418,8 @@ function _legacyRecordBook() {
   };
 
   return `${buildTable("📖 SINGLE-GAME RECORDS", sg, true)}
-          ${buildTable("📅 SINGLE-SEASON RECORDS", ss, false)}`;
+          ${buildTable("📅 SINGLE-SEASON RECORDS", ss, false)}
+          ${buildTable("🏆 ALL-TIME CAREER RECORDS", cr, false)}`;
 }
 
 function _legacyAwards() {

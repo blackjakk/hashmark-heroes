@@ -311,6 +311,26 @@ const ok = (c, l) => { if (c) { pass++; console.log("  ✓ " + l); } else { fail
     ok(ra.clipOpens !== false, ra.clipOpens === null ? "no recorded clip available (skipped)" : "Replays-tab clip ALSO opens on its advertised play");
   }
 
+  console.log("— 8. all-time career record book —");
+  const cr = await page.evaluate(() => {
+    // The season rolled to career at awards; the career bucket must exist,
+    // be fully seeded, and never sit below its baselines.
+    if (typeof _RECORD_BASELINES_CAREER === "undefined") return { missing: true };
+    const bucket = franchise.records?.career || {};
+    const keys = Object.keys(_RECORD_BASELINES_CAREER);
+    const seeded = keys.every(k => bucket[k] && bucket[k].value >= _RECORD_BASELINES_CAREER[k]);
+    const holders = keys.every(k => !!bucket[k]?.playerName);
+    const html = _legacyRecordBook();
+    return { missing: false, nKeys: Object.keys(bucket).length, seeded, holders,
+             rendered: /ALL-TIME CAREER RECORDS/.test(html) };
+  });
+  if (cr.missing) ok(false, "career record baselines missing");
+  else {
+    ok(cr.nKeys >= 13 && cr.seeded, `career record book seeded at/above baselines (${cr.nKeys} categories)`);
+    ok(cr.holders, "every career record has a holder");
+    ok(cr.rendered, "Legacy record book renders the ALL-TIME CAREER table");
+  }
+
   ok(errors.length === 0, errors.length ? "page errors: " + errors.slice(0, 3).join(" | ") : "zero page errors");
   console.log(fail === 0 ? `\nALL-PASS (${pass} checks)` : `\n${fail} FAILURES / ${pass + fail}`);
   await browser.close();

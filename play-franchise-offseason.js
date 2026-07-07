@@ -43,11 +43,26 @@ const _RECORD_BASELINES_SINGLE_SEASON = {
   fg_made: 35,
   pancakes: 50,
 };
+// ALL-TIME CAREER records (2026-07 feature audit): the career LEADERS list
+// (_legacyCareer) only sees active rosters + HoF snapshots, so a great
+// non-HoF career vanished from history at retirement. The record book's
+// career bucket makes the all-time MARKS permanent. Baselines ≈ a dozen
+// elite seasons of the single-season bars — legendary but breakable over a
+// long franchise ("League historical" holders, same seeding discipline).
+const _RECORD_BASELINES_CAREER = {
+  pass_yds: 61250, pass_td: 465, pass_comp: 5500,
+  rush_yds: 15800, rush_td: 140,
+  rec_yds: 14500, rec_td: 130, rec: 1200,
+  sk: 175, int_made: 65, tkl: 1800,
+  fg_made: 480,
+  pancakes: 600,
+};
 
 function _ensureRecordBook() {
   if (!franchise.records) franchise.records = {};
   if (!franchise.records.singleGame)   franchise.records.singleGame = {};
   if (!franchise.records.singleSeason) franchise.records.singleSeason = {};
+  if (!franchise.records.career)       franchise.records.career = {};
   if (!franchise.records.brokenLog)    franchise.records.brokenLog = [];
   // Seed any missing baseline; lift any active record below baseline so
   // existing saves don't keep getting "broken" by routine games. Holder
@@ -68,12 +83,15 @@ function _ensureRecordBook() {
   };
   seed(franchise.records.singleGame,   _RECORD_BASELINES_SINGLE_GAME);
   seed(franchise.records.singleSeason, _RECORD_BASELINES_SINGLE_SEASON);
+  seed(franchise.records.career,       _RECORD_BASELINES_CAREER);
   // One-time prune: drop brokenLog entries whose "new" value is below
   // the league baseline — those came from the pre-seed era when any
   // non-zero stat became a record.
   if (!franchise.records._baselinesPruned) {
     const minVal = (key, recordType) =>
-      (recordType === "single-game" ? _RECORD_BASELINES_SINGLE_GAME : _RECORD_BASELINES_SINGLE_SEASON)[key] || 0;
+      (recordType === "single-game" ? _RECORD_BASELINES_SINGLE_GAME
+       : recordType === "career" ? _RECORD_BASELINES_CAREER
+       : _RECORD_BASELINES_SINGLE_SEASON)[key] || 0;
     franchise.records.brokenLog = franchise.records.brokenLog.filter(b => {
       const threshold = minVal(b.category, b.recordType);
       return (b["new"]?.value || 0) >= threshold;
@@ -150,6 +168,41 @@ function _updateSingleSeasonRecords() {
         });
       }
       franchise.records.singleSeason[def.key] = best;
+    }
+  }
+}
+
+// Called from _rollSeasonStatsToCareer with the players whose careers just
+// absorbed the season — the one moment their careerStats are current AND
+// they're still on a roster (retirements process AFTER the roll, so a
+// walk-off legend's final numbers are captured before they leave).
+function _updateCareerRecords(touched) {
+  if (!touched || !touched.length) return;
+  _ensureRecordBook();
+  for (const { p, teamId } of touched) {
+    const cs = p.careerStats || {};
+    const pos = p.position || "";
+    for (const def of _RECORD_CATS) {
+      if (def.key === "fg_long") continue; // single-game only
+      if (!def.scope.includes(pos)) continue;
+      const v = +cs[def.key] || 0;
+      if (v <= 0) continue;
+      const existing = franchise.records.career[def.key];
+      if (!existing || v > existing.value) {
+        const next = { value: v, playerName: p.name, pos, teamId, season: franchise.season };
+        // Don't log the SAME player raising their own career mark — that
+        // would fire every single season of a great career. Only a new
+        // NAME toppling the books is a moment.
+        if (existing && existing.season != null && existing.playerName !== p.name) {
+          franchise.records.brokenLog.push({
+            recordType: "career",
+            category: def.key, label: def.label,
+            broken: { ...existing }, "new": next,
+            atSeason: franchise.season,
+          });
+        }
+        franchise.records.career[def.key] = next;
+      }
     }
   }
 }
@@ -11038,7 +11091,7 @@ function renderFrnAwards() {
         const stripe = t?.primary || "#b07a00";
         return `<div class="bspnlive-broken-row" style="border-left-color:${stripe}">
           <div class="bspnlive-broken-head">
-            <span class="bspnlive-broken-scope">${b.recordType === "single-game" ? "SINGLE-GAME" : "SINGLE-SEASON"}</span>
+            <span class="bspnlive-broken-scope">${b.recordType === "single-game" ? "SINGLE-GAME" : b.recordType === "career" ? "ALL-TIME CAREER" : "SINGLE-SEASON"}</span>
             <span class="bspnlive-broken-cat">${b.label}</span>
           </div>
           <div class="bspnlive-broken-new">
@@ -26789,6 +26842,7 @@ function _rollSeasonStatsToCareer() {
   const ss = franchise.seasonStats || {};
   const seasonNum = franchise.season;
   const touchedPlayers = new Set();
+  const _careerTouched = []; // {p, teamId} — feeds the all-time career record book
   for (const [tIdStr, players] of Object.entries(ss)) {
     const teamId = Number(tIdStr);
     const team = getTeam(teamId);
@@ -26798,6 +26852,7 @@ function _rollSeasonStatsToCareer() {
       const player = roster.find(p => p.name === name);
       if (!player) continue;
       touchedPlayers.add(player);
+      _careerTouched.push({ p: player, teamId });
       if (!player.careerStats)   player.careerStats   = {};
       if (!player.careerHistory) player.careerHistory = [];
       // Accumulate every numeric stat field. "Long" stats are maxima
@@ -26918,6 +26973,9 @@ function _rollSeasonStatsToCareer() {
   // Career milestone check — runs once per season after totals are
   // finalized. Emits wire entries for crossings.
   try { _checkCareerMilestones(); } catch (e) {}
+  // All-time career record book — same once-per-season boundary, careers
+  // just absorbed the season and retirements haven't processed yet.
+  try { _updateCareerRecords(_careerTouched); } catch (e) {}
 }
 
 // Collapse multiple careerHistory rows that share a season number to
