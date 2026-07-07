@@ -6869,6 +6869,24 @@ function _faAIBidRound(week, isInitial) {
   const candidates = isInitial
     ? [...(franchise.freeAgents || []), ...Object.values(negs).map(n => n.fa)]
     : Object.values(negs).filter(n => n.state === "negotiating").map(n => n.fa);
+  if (!isInitial) {
+    // The market's tail keeps moving WITHOUT the user (2026-07 audit #8):
+    // non-initial rounds previously only raised inside existing negotiations,
+    // so a pool player who drew no round-0 interest was frozen until the user
+    // opened a negotiation themselves. Each round the AI front offices now
+    // also look at the un-negotiated pool — the best remaining names plus a
+    // random depth sample — through the SAME lazy-create + interest-roll path
+    // the initial round uses (bounded: ≤16 extra players/round).
+    const inNegs = new Set(Object.values(negs).map(n => _negKey(n.fa)));
+    const remaining = (franchise.freeAgents || []).filter(fa => fa && !fa.contract && !inNegs.has(_negKey(fa)));
+    remaining.sort((a, b) => (b.overall || 0) - (a.overall || 0));
+    const sampled = remaining.slice(0, 10);
+    const tail = remaining.slice(10);
+    for (let i = 0; i < 6 && tail.length; i++) {
+      sampled.push(tail.splice(Math.floor(Math.random() * tail.length), 1)[0]);
+    }
+    candidates.push(...sampled);
+  }
 
   for (const fa of candidates) {
     const neg = negs[_negKey(fa)];

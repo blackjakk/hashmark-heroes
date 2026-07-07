@@ -420,6 +420,71 @@ const ok = (c, l) => { if (c) { pass++; console.log("  ✓ " + l); } else { fail
     ok(pw.potyHasRookie, "POTY tally carries the rookie group");
   }
 
+  console.log("— 12. staff agency: legacy wipe-bug page gone, FO user-team exemption —");
+  const st = await page.evaluate(async () => {
+    const out = {};
+    // (a) The staff-wiping legacy trio is dead code, removed.
+    out.legacyGone = typeof renderFrnCoaches === "undefined" && typeof frnHireCoach === "undefined" && typeof frnFireCoach === "undefined";
+    // (b) The living staff pages render.
+    try { renderFrnCoachingStaff(); out.staffPage = /COACH/i.test(document.getElementById("frnHomeContent").textContent); } catch (e) { out.staffPage = "ERR " + e.message.slice(0, 50); }
+    try { renderFrnFrontOffice(); out.foPage = /GENERAL MANAGER/i.test(document.getElementById("frnHomeContent").textContent); } catch (e) { out.foPage = "ERR " + e.message.slice(0, 50); }
+    // (c) FO tick: user team auto-renews on expiry (same person), AI refills.
+    const myId = franchise.chosenTeamId;
+    const otherId = TEAMS.find(t => t.id !== myId).id;
+    const fo = franchise.frontOffice;
+    const gmName = fo[myId].gm.name;
+    fo[myId].gm.contractYears = 1; fo[myId].gm.age = 50;
+    fo[otherId].scout = null;
+    _tickFrontOfficeTenure();
+    out.userRenewed = fo[myId].gm && fo[myId].gm.name === gmName && fo[myId].gm.contractYears === 2;
+    out.renewNews = (franchise.news || []).some(n => /auto-renewed 2yr/.test(n.label || ""));
+    out.aiRefilled = !!fo[otherId].scout;
+    // (d) Retirement leaves a USER vacancy (not an auto-random), which the
+    //     user fills from the market.
+    fo[myId].trainer.age = 70; fo[myId].trainer.contractYears = 3;
+    _tickFrontOfficeTenure();
+    out.vacancyOnRetire = fo[myId].trainer === null;
+    _frnConfirm = async () => true; // bare-name override — the modal auto-confirms
+    _refreshFrontOfficeMarket();
+    await frnFOHire("trainer", 0);
+    out.hiredFromMarket = !!fo[myId].trainer && fo[myId].trainer.yearsWithTeam === 0;
+    return out;
+  });
+  ok(st.legacyGone, "legacy renderFrnCoaches/frnHireCoach/frnFireCoach removed (staff-wipe bug surface gone)");
+  ok(st.staffPage === true && st.foPage === true, `coaching staff + front office pages render (${st.staffPage}/${st.foPage})`);
+  ok(st.userRenewed && st.renewNews, "user-team FO auto-renews on expiry (same person, news wired) instead of coin-flip churn");
+  ok(st.aiRefilled, "AI-team vacancies still auto-refill");
+  ok(st.vacancyOnRetire && st.hiredFromMarket, "user-team retirement leaves a vacancy the user fills from the market");
+
+  console.log("— 13. FA market: AI opens negotiations on the un-touched pool —");
+  const fam = await page.evaluate(() => {
+    // Synthesize a small FA pool from REAL roster players (correct shape),
+    // no user involvement, then run a NON-initial AI bid round — the audit-#8
+    // defect was that these players stayed frozen forever.
+    const src = franchise.rosters[TEAMS.find(t => t.id !== franchise.chosenTeamId).id];
+    const pool = src.filter(p => (p.overall || 0) >= 74).slice(0, 4).map(p => ({
+      ...JSON.parse(JSON.stringify(p)),
+      contract: null,
+      demandedAAV: Math.max(4, ((p.overall || 74) - 62) * 0.55),
+      demandedYears: 3, faKind: "vet", motivation: "money",
+    }));
+    if (pool.length < 2) return { skip: true };
+    const savedFA = franchise.freeAgents, savedNegs = franchise.faNegotiations;
+    franchise.freeAgents = pool;
+    franchise.faNegotiations = {};
+    let opened = 0;
+    for (let round = 1; round <= 5 && !opened; round++) {
+      _faAIBidRound(round, false);
+      opened = Object.values(franchise.faNegotiations)
+        .filter(n => !n.yourBid && Object.keys(n.aiBids || {}).length > 0).length;
+    }
+    const out = { skip: false, pool: pool.length, opened };
+    franchise.freeAgents = savedFA; franchise.faNegotiations = savedNegs; // restore
+    return out;
+  });
+  if (fam.skip) ok(false, "couldn't synthesize an FA pool");
+  else ok(fam.opened > 0, `AI opened ${fam.opened} negotiation(s) on un-touched pool players (no user bid involved)`);
+
   ok(errors.length === 0, errors.length ? "page errors: " + errors.slice(0, 3).join(" | ") : "zero page errors");
   console.log(fail === 0 ? `\nALL-PASS (${pass} checks)` : `\n${fail} FAILURES / ${pass + fail}`);
   await browser.close();
