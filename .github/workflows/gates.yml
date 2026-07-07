@@ -61,6 +61,17 @@ jobs:
         run: node server/league-probe.js
       - name: League client probe (two browsers, SSE draft, hash verify)
         run: node tools/_league_client_probe.js
+      # The anti-cheat backbone — determinism + H2H authority. These prove the
+      # (seed+inputs)→hash contract the on-chain layer settles on; they were
+      # local-only until the 2026-07 feature audit flagged the gap.
+      - name: Determinism probe (stable re-sim / seed-sensitive / tamper-evident)
+        run: node server/determinism-probe.js
+      - name: H2H probe (full match over the wire + independent artifact re-sim)
+        run: node server/h2h-probe.js
+      - name: H2H recovery probe (SIGKILL mid-match → exact state restore)
+        run: node server/h2h-recovery-probe.js
+      - name: H2H client probe (two real browsers through the UI to FINAL)
+        run: node server/h2h-client-probe.js
 
   contracts:
     runs-on: ubuntu-latest
