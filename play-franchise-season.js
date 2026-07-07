@@ -5188,10 +5188,14 @@ function frnStartSeason() {
 
 // ── Free Agency ───────────────────────────────────────────────────────────────
 // First action in every season. A curated pool of veterans, mid-tier
-// starters, and wildcards drops onto the market. The user (only) makes
-// offers (AAV + years), can pre-flag which players they'd cut to make
-// room, and at "End FA" all offers resolve based on whether the offer
-// meets the player's demand. AI teams don't compete for now.
+// starters, and wildcards drops onto the market. The user makes offers
+// (AAV + years) and can pre-flag which players they'd cut to make room;
+// AI teams DO compete on contested names — _faAIBidRound opens and raises
+// rival bids each round, and resolution weighs the player's satisfaction
+// with every table (fit/scheme/contender, not just dollars). KNOWN LIMIT
+// (2026-07 audit #8, queued): AI activity centers on players the user is
+// negotiating for — the wider pool isn't independently drained by all 31
+// AI front offices.
 
 
 // FA pool templates — each kind defines its own age band, draft pedigree,

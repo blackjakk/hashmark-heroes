@@ -3593,6 +3593,10 @@ function advanceWeekIfDone() {
 // phase are all reused; only the resolution cadence + a per-week screen are new.
 // (The pre-draft REORDER — moving this window ahead of the draft — and offseason
 // trade churn ride on this same machinery in a later stage.)
+// STATUS (2026-07 feature audit #6): KEEP, experimental. The window reuses the
+// tested negotiation engine and the default-OFF path is byte-identical, so it
+// costs nothing to carry. Flipping it default-ON is a product call that needs
+// its own balance pass + gate run — do that deliberately, not as a drive-by.
 const OFFSEASON_CALENDAR = [
   { stage: "fa1", title: "Frenzy" },        // week 1: top of the market moves
   { stage: "fa2", title: "Wave 2" },        // week 2: depth tier signs
