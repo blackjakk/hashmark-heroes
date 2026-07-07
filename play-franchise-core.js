@@ -1872,8 +1872,11 @@ function _combineWeight(p) {
   const strBase = trenchPos ? 75 : 60;
   const strDelta = str - strBase;
   const trenchScale = trenchPos ? 3.0 : 1.8;
+  // _olog, not Math.log: weightLbs feeds effectiveSpeed/break-tackles — the
+  // OUTCOME path — so this transcendental must be portable-dispatchable
+  // (CROSS-MACHINE RULE). Native by default; bit-exact under portable math.
   const strBump = ["K","P"].includes(pos) ? 0
-                : Math.sign(strDelta) * Math.log(1 + Math.abs(strDelta)) * trenchScale;
+                : Math.sign(strDelta) * _olog(1 + Math.abs(strDelta)) * trenchScale;
   // BodyType-specific mass adjustment. pickBodyType (play-render.js)
   // returns: HUGE, BIG, TALL_HEAVY, HEAVY_SHORT, BROAD, COMPACT,
   // LEAN, NORMAL, SLENDER, PLUS_SIZE. The map covers all of them so

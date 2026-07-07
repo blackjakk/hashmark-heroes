@@ -162,15 +162,21 @@ function validRoster(r) {
         && typeof p.name === "string" && typeof p.position === "string");
 }
 
-function createMatch({ homeTeamId, awayTeamId, clockMs, defense, homeRoster }) {
+function createMatch({ homeTeamId, awayTeamId, clockMs, defense, homeRoster, seed }) {
   const home = eng.getTeam(homeTeamId);
   if (!home) throw new Error("bad home team id");
   if (awayTeamId != null && (!eng.getTeam(awayTeamId) || awayTeamId === homeTeamId)) {
     throw new Error("bad away team id");
   }
   if (homeRoster != null && !validRoster(homeRoster)) throw new Error("bad home roster");
+  // Optional caller-supplied seed (league M4): a LEAGUE FIXTURE match binds
+  // the match seed to the league's canonical per-game seed, and the league
+  // server re-verifies the derivation before ingesting the artifact — so a
+  // caller choosing a seed here buys nothing on that path. For plain
+  // friendlies the server keeps minting its own.
+  const boundSeed = Number.isFinite(Number(seed)) ? (Number(seed) >>> 0) : null;
   const m = newMatchShell({
-    id: rid(8), seed: (Math.random() * 0xFFFFFFFF) >>> 0,
+    id: rid(8), seed: boundSeed != null ? boundSeed : (Math.random() * 0xFFFFFFFF) >>> 0,
     homeTeamId,
     awayTeamId: awayTeamId ?? null,    // finalized at join (the joiner may bring their own team)
     settings: {

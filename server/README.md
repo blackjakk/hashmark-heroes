@@ -119,6 +119,22 @@ the season itself is server-authoritative:
   rolls to season N+1 (same canonical rosters, fresh standings; per-game
   seeds re-namespace via the season hash input). Scheduled leagues
   self-drive the entire loop.
+- **Live human fixtures (M4, `settings.humanGamesH2H`)**: a fixture between
+  two claimed teams is NOT auto-simmed — `advance` publishes the week as
+  OPEN (`week_partial`; standings only fold at close) and the members play
+  it on an h2h server, seed-bound to the league's own per-game derivation
+  (createMatch accepts an optional `seed`). `POST /api/league/h2h-result`
+  ingests the finished match artifact only after re-verifying EVERYTHING:
+  the fixture is pending, the seed re-derives, both rosters equal the
+  canonical genesis, and the full tape re-sims to the same resultHash.
+  Because an artifact can't prove the opponent authorized the tape (the
+  inputs are public — one member could fabricate a match solo), ingest is
+  two-party: the first verified submission proposes, the opponent's matching
+  submission confirms; conflicting verified artifacts freeze the fixture as
+  disputed. The commissioner's next advance is the deadline hammer — it
+  force-sims anything still waiting (byte-identical to a null-tape replay,
+  the coordinator-defer property). `POST /api/league/h2h-challenge` relays
+  the match invite to the opponent over league SSE.
 
 ## Verifying a settled match (challenger / auditor tool)
 
@@ -150,7 +166,11 @@ turns that open risk into a measured list:
 
 - **Outcome-path libm calls** (during re-sim, fixed rosters): `Math.pow` ~994,
   `Math.log` ~354, `Math.cos` ~336 per game. `Math.sin`/`hypot` are render-only
-  (not in the headless outcome path).
+  (not in the headless outcome path). (Since M4 both Node hosts bundle the
+  franchise layer — bundle parity, see engine-host.js header — which put
+  `combineMeasurables`' weight formula on the outcome path; its `Math.log` was
+  switched to the `_olog` dispatcher, so `PORTABLE=1` still measures **zero**
+  outcome-path libm calls.)
 - **Per-function sensitivity** at ±4 ULP (the upper end of realistic libm
   disagreement): **none** flip the result.
 - **Safety margin**: the outcome only diverges once *all* transcendentals are

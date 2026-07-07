@@ -13,6 +13,14 @@
 const fs = require("fs");
 const path = require("path");
 
+// CONSENSUS RULE: this list must stay IDENTICAL to draft-host.js's FILES.
+// The engine typeof-branches on symbols from the franchise layer (e.g.
+// combineMeasurables → player weight → break-tackle physics), so two hosts
+// with different file sets sim DIFFERENT games from the same (seed, rosters,
+// tape) — a validator fork. League M4 found exactly that: h2h artifacts
+// re-simmed on the old 6-file bundle diverged from the league's 8-file
+// bundle (and from the browser, which loads everything). Identical bundles
+// are structurally immune; league-probe cross-checks the two hosts' hashes.
 const FILES = [
   "play-data.js",     // TEAMS, PERSONNEL, playbooks, _setSimRng/_clearSimRng
   "play-player.js",   // genRoster, player gen + stat helpers
@@ -20,6 +28,8 @@ const FILES = [
   "play-sim.js",      // SimPlayer, PassProSim, RunBlockSim
   "play-motion.js",   // MotionPlayback
   "play-engine.js",   // GameSimulator + the Coordinator seams
+  "play-franchise-core.js",         // combineMeasurables (outcome path!) + franchise layer (null-guarded)
+  "play-franchise-fantasydraft.js", // _fd* draft/gen kit (bundle parity with draft-host)
 ];
 
 function stripUiInit(code, file) {

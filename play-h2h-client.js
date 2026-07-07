@@ -271,6 +271,9 @@ function _h2hOnFinal(d) {
   gameResult.winner = d.result.winner;
   _h2hStatus(`Final. Match artifact hash <code>${String(d.artifactHash).slice(0, 16)}…</code>`);
   _h2hStopClock();
+  // League M4: if this match settles a league fixture, fetch the artifact and
+  // submit it for verified ingest (both players do — propose + confirm).
+  if (typeof _lgOnH2HFinal === "function") { try { _lgOnH2HFinal(); } catch (e) { console.warn("[h2h] league submit hook:", e.message); } }
   // If parked, resume so the remaining plays animate into the FINAL screen.
   if (!playing && playHead < gameResult.plays.length) {
     _ipcHidePanel();

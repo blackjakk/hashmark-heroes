@@ -37,6 +37,9 @@ let _lgSeason = null;    // M2: GET /api/league/season/:id payload (results + st
 let _lgSeasonVerify = null;  // default-roster gen verify: null | "pending" | "ok" | "mismatch"
 let _lgSeasonVerifyKey = null; // "<leagueId>|<leagueSeed>" the verdict belongs to — NEVER show a stale badge
 let _lgSeasonBuilt = null;   // cached _fdBuildDefaultLeague result (verify ⇄ start-franchise reuse)
+let _lgChallenge = null;     // M4: last h2h_challenge event {week, homeId, awayId, link, by}
+let _lgFixtureCtx = null;    // M4: the league fixture the CURRENT h2h match settles {leagueId, week, homeId, awayId, matchId, base, token}
+let _lgH2HArt = {};          // M4: fetched match artifacts by "homeIdvAwayId" (resubmit safety net)
 
 // ── session + api ───────────────────────────────────────────────────────────
 function _lgLoad() {
@@ -231,6 +234,10 @@ function renderLeagueCreate() {
               }),
             })}
           </div>
+          <div class="ds-field">
+            ${DS.checkbox({ id: "lgH2H", label: "🎮 Head-to-head fixtures — when two GMs' teams meet, they play the game LIVE instead of a sim" })}
+            <div class="ds-field__hint">The league only accepts a live result it can re-verify (fixture seed + canonical rosters + full replay), and both players must submit it. The commissioner's next advance force-sims any fixture left unplayed.</div>
+          </div>
           <div style="display:flex;justify-content:space-between;margin-top:.4rem">
             ${DS.button({ label: "← Back", variant: "outline", type: "button", attrs: { "data-step-back": true } })}
             ${DS.button({ label: "Next →", variant: "gold", type: "button", attrs: { "data-step-next": true } })}
@@ -358,14 +365,15 @@ async function frnLeagueCreateSubmit(btn, opts) {
   // DS.select puts the id on the <select> element itself.
   const teamId = Number(document.getElementById("lgTeam")?.value || TEAMS[0].id);
   const clock = Number(document.getElementById("lgClock")?.value ?? _lgCreateClock);
+  const humanGamesH2H = !!document.getElementById("lgH2H")?.checked;
   if (btn && typeof DS !== "undefined") DS.busy(btn, true);
   try {
     _lg = { base };
     const r = await _lgApi("/api/league", {
       name, adminTeamId: teamId, adminName: gm,
       settings: _lgCreateFantasy
-        ? { rosterMode: "fantasy_draft", draftRounds: _lgCreateRounds, pickClockMs: clock }
-        : { rosterMode: "default" },
+        ? { rosterMode: "fantasy_draft", draftRounds: _lgCreateRounds, pickClockMs: clock, humanGamesH2H }
+        : { rosterMode: "default", humanGamesH2H },
     });
     _lg = { base, leagueId: r.leagueId, token: r.memberToken, adminToken: r.adminToken,
             teamId: r.teamId, displayName: gm, leagueName: name, joinCode: r.joinCode };
@@ -521,8 +529,58 @@ function _lgConnectSSE() {
   // M2 shared season: the server sims the week and streams the ledger.
   _lgES.addEventListener("week_results", (e) => {
     const d = JSON.parse(e.data);
-    if (_lgSeason) { _lgSeason.results[d.week] = d.results; _lgSeason.standings = d.standings; }
+    if (_lgSeason) { _lgSeason.results[d.week] = d.results; _lgSeason.standings = d.standings; _lgSeason.pendingWeek = null; }
     if (_lgLeague) _lgLeague.standings = d.standings;
+    if (_lgScreen === "season") renderLeagueSeason();
+  });
+  // M4 humanGamesH2H: a week can stay OPEN on live fixtures. week_partial is
+  // the full open-week snapshot (AI results + waiting fixtures + proposals).
+  _lgES.addEventListener("week_partial", (e) => {
+    const d = JSON.parse(e.data);
+    if (_lgSeason) _lgSeason.pendingWeek = d;
+    if (_lgScreen === "season") renderLeagueSeason();
+  });
+  _lgES.addEventListener("h2h_challenge", (e) => {
+    const d = JSON.parse(e.data);
+    _lgChallenge = d;
+    if ((_lgNum(d.homeId) === _lg.teamId || _lgNum(d.awayId) === _lg.teamId) && typeof DS !== "undefined") {
+      DS.toast({ message: `🎮 ${d.by || "Your opponent"} opened your league fixture as a live match — join from the season screen`, kind: "info", duration: 5200 });
+    }
+    if (_lgScreen === "season") renderLeagueSeason();
+  });
+  _lgES.addEventListener("h2h_proposed", (e) => {
+    const d = JSON.parse(e.data);
+    const pw = _lgSeason?.pendingWeek;
+    if (pw) {
+      pw.proposed = pw.proposed || {};
+      pw.proposed[_lgNum(d.homeId) + "v" + _lgNum(d.awayId)] = {
+        resultHash: d.resultHash, homeScore: _lgNum(d.homeScore), awayScore: _lgNum(d.awayScore),
+        byName: d.by || null, byTeam: _lgNum(d.awaitingTeamId) === _lgNum(d.homeId) ? _lgNum(d.awayId) : _lgNum(d.homeId),
+      };
+    }
+    if (_lgNum(d.awaitingTeamId) === _lg.teamId && typeof DS !== "undefined") {
+      DS.toast({ message: "Your fixture result was verified & proposed — it enters the ledger once you confirm (auto after your FINAL)", kind: "info", duration: 5200 });
+    }
+    if (_lgScreen === "season") renderLeagueSeason();
+  });
+  _lgES.addEventListener("h2h_result", (e) => {
+    const d = JSON.parse(e.data);
+    const pw = _lgSeason?.pendingWeek;
+    if (pw && d.result) {
+      pw.results.push(d.result);
+      pw.pending = (pw.pending || []).filter(g => !(_lgNum(g.homeId) === _lgNum(d.result.homeId) && _lgNum(g.awayId) === _lgNum(d.result.awayId)));
+      if (pw.proposed) delete pw.proposed[_lgNum(d.result.homeId) + "v" + _lgNum(d.result.awayId)];
+    }
+    if (_lgScreen === "season") renderLeagueSeason();
+  });
+  _lgES.addEventListener("h2h_disputed", (e) => {
+    const d = JSON.parse(e.data);
+    const pw = _lgSeason?.pendingWeek;
+    const key = _lgNum(d.homeId) + "v" + _lgNum(d.awayId);
+    if (pw && pw.proposed && pw.proposed[key]) pw.proposed[key].disputed = true;
+    if ((_lgNum(d.homeId) === _lg.teamId || _lgNum(d.awayId) === _lg.teamId) && typeof DS !== "undefined") {
+      DS.toast({ message: "⚠ Conflicting verified artifacts on your fixture — the commissioner's deadline advance will settle it", kind: "warn", duration: 6000 });
+    }
     if (_lgScreen === "season") renderLeagueSeason();
   });
   _lgES.addEventListener("advanced", (e) => {
@@ -756,6 +814,16 @@ function renderLeagueSeason() {
     </div>`;
   };
   const results = lastWeek ? (S.results[lastWeek] || []).map(scoreRow).join("") : "";
+  // M4: the current week can be OPEN on live human fixtures.
+  const pw = S.phase === "active" && S.pendingWeek && _lgNum(S.pendingWeek.week) === _lgNum(S.week) ? S.pendingWeek : null;
+  const fixturesHtml = pw && (pw.pending || []).length
+    ? `<div class="fps-section-title">LIVE FIXTURES — WEEK ${_lgNum(pw.week)}</div>
+       <p style="text-align:center;color:var(--gray);font-size:.68rem;max-width:40rem;margin:0 auto .5rem">
+         These matchups are played head-to-head, not simmed. The league only accepts a result it can
+         re-verify (fixture seed + canonical rosters + full replay) and both players must submit it.</p>
+       <div style="display:flex;flex-direction:column;gap:.4rem;max-width:34rem;margin:0 auto 1rem">
+         ${pw.pending.map(g => _lgFixtureCardHtml(g, pw)).join("")}</div>`
+    : "";
   const upcoming = S.phase === "active" ? generateFranchiseSchedule().filter(g => g.week === _lgNum(S.week)).map(g => {
     const h = _lgTeam(g.homeId), a = _lgTeam(g.awayId);
     const mine = g.homeId === _lg.teamId || g.awayId === _lg.teamId;
@@ -804,11 +872,14 @@ function renderLeagueSeason() {
       const label = S.phase === "season_complete" ? "🏈 Seed the bracket — sim the Wild Card round"
         : S.phase === "playoffs" ? `▶ Sim the ${roundNames[_lgNum(S.playoffs?.roundIdx)] || "next round"}`
         : S.phase === "season_over" ? `🏁 Start season ${_lgNum(S.season) + 1}`
+        : pw ? `⏱ Deadline — force-sim ${(pw.pending || []).length} waiting fixture(s) & close week ${_lgNum(S.week)}`
         : `▶ Advance — sim week ${_lgNum(S.week)}`;
       return `<div style="display:flex;justify-content:center;margin-bottom:1rem">
         ${DS.button({ label, variant: "gold", on: "frnLeagueAdvanceWeek(this)",
-          title: "Sims on the server; results + hashes broadcast to every member" })}</div>`;
+          title: pw ? "Any fixture still unplayed sims as an AI game — the commissioner's deadline hammer"
+                    : "Sims on the server; results + hashes broadcast to every member" })}</div>`;
     })() : `<p style="text-align:center;color:var(--gray);font-size:.72rem;margin-bottom:1rem">The commissioner advances the league — results arrive here live.</p>`}
+    ${fixturesHtml}
     ${_lgBracketHtml(S)}
     ${lastWeek ? `
       <div class="fps-section-title">WEEK ${lastWeek} RESULTS</div>
@@ -848,6 +919,157 @@ async function frnLeagueAdvanceWeek(btn) {
     if (btn && typeof DS !== "undefined") DS.busy(btn, false);
   }
 }
+// ── M4: humanGamesH2H — play your league fixture live ───────────────────────
+// A pending fixture between two members is played on an H2H match server with
+// the CANONICAL league rosters and the league's own per-game seed; at FINAL
+// both clients fetch the artifact and submit it to the league server, which
+// re-verifies everything (seed derivation, rosters, full tape re-sim) before
+// the scores enter the week. Two-party attestation: first submission
+// proposes, the opponent's matching one confirms.
+async function _lgGameSeed(leagueSeed, season, week, homeId, awayId) {
+  const buf = await crypto.subtle.digest("SHA-256",
+    new TextEncoder().encode(`hh-league-game|${leagueSeed}|${season}|${week}|${homeId}|${awayId}`));
+  return new DataView(buf).getUint32(0, true);   // first 4 bytes, LE — the server's derivation
+}
+// Canonical rosters for THIS league's genesis — default: (leagueSeed, year)
+// gen; fantasy: the finished draft's (poolSeed + tape). Same derivations the
+// verify badges already prove against the server's published hashes.
+async function _lgCanonicalRosters() {
+  const S = _lgSeason;
+  if (S.rosterMode === "fantasy_draft") {
+    if (!_lgDraft || !_lgDraft.done) {
+      _lgDraft = await _lgApi(`/api/league/draft/${_lg.leagueId}?token=${encodeURIComponent(_lg.token)}`);
+    }
+    const built = _fdBuildPool(_lgDraft.poolSeed, _lgDraft.year);
+    built.order = _lgDraft.order;
+    return _fdApplyTape(built, _lgDraft.tape).rosters;   // tape entries are {teamId, pid}
+  }
+  if (!_lgSeasonBuilt || _lgSeasonBuilt._seed !== S.leagueSeed) {
+    _lgSeasonBuilt = _fdBuildDefaultLeague(S.leagueSeed, S.year);
+    _lgSeasonBuilt._seed = S.leagueSeed;
+  }
+  return _lgSeasonBuilt.rosters;
+}
+// HOME member hosts: create the match seed-bound to the league fixture, relay
+// the invite to the opponent over league SSE, enter the match as home.
+async function frnLgHostFixture(homeId, awayId, btn) {
+  if (btn && typeof DS !== "undefined") DS.busy(btn, true);
+  try {
+    const S = _lgSeason;
+    const rosters = await _lgCanonicalRosters();
+    const seed = await _lgGameSeed(S.leagueSeed, _lgNum(S.season), _lgNum(S.week), homeId, awayId);
+    const found = await _h2hFindServer();
+    if (!found) throw new Error("no H2H match server reachable — run one (node server/h2h-server.js) or host a friendly once to teach me the address");
+    const base = found.base;
+    const r = await _h2hPost(base, "/api/match", {
+      homeTeamId: homeId, awayTeamId: awayId,
+      homeRoster: JSON.parse(JSON.stringify(rosters[homeId])), seed });
+    if (r.error) throw new Error(r.error);
+    const link = location.origin + location.pathname + `#h2h=${r.matchId}.${r.joinCode}.${encodeURIComponent(base)}`;
+    await _lgApi("/api/league/h2h-challenge", { leagueId: _lg.leagueId, token: _lg.token, link });
+    _lgFixtureCtx = { leagueId: _lg.leagueId, week: _lgNum(S.week), homeId, awayId, matchId: r.matchId, base, token: r.token };
+    _lgLeaveScreens();
+    await _h2hEnter(base, r.matchId, r.token, "home");
+    _h2h.shareLink = link;
+    _h2hShowWaiting();
+  } catch (e) {
+    if (typeof DS !== "undefined") DS.toast({ message: "Couldn't start the fixture — " + e.message, kind: "error" });
+    if (btn && typeof DS !== "undefined") DS.busy(btn, false);
+  }
+}
+// AWAY member joins from the league-relayed challenge. The link is
+// server-relayed member data — parse strictly, join with the CANONICAL away
+// roster (never the local franchise squad; the league would reject it).
+async function frnLgJoinFixture(btn) {
+  if (btn && typeof DS !== "undefined") DS.busy(btn, true);
+  try {
+    const d = _lgChallenge;
+    if (!d) throw new Error("no live-match invite on record");
+    const m = /#h2h=([a-f0-9]+)\.([a-f0-9]+)\.([^#\s]+)$/.exec(String(d.link || ""));
+    if (!m) throw new Error("the invite link is malformed");
+    const base = decodeURIComponent(m[3]);
+    if (!/^https?:\/\//.test(base)) throw new Error("the invite link's server address is not http(s)");
+    const rosters = await _lgCanonicalRosters();
+    const awayId = _lgNum(d.awayId);
+    const r = await _h2hPost(base, "/api/join", {
+      matchId: m[1], joinCode: m[2],
+      awayTeamId: awayId, awayRoster: JSON.parse(JSON.stringify(rosters[awayId])) });
+    if (r.error) throw new Error(r.error);
+    _lgFixtureCtx = { leagueId: _lg.leagueId, week: _lgNum(d.week), homeId: _lgNum(d.homeId), awayId, matchId: m[1], base, token: r.token };
+    _lgLeaveScreens();
+    await _h2hEnter(base, m[1], r.token, r.side);
+  } catch (e) {
+    if (typeof DS !== "undefined") DS.toast({ message: "Couldn't join the fixture — " + e.message, kind: "error" });
+    if (btn && typeof DS !== "undefined") DS.busy(btn, false);
+  }
+}
+// FINAL hook (called from _h2hOnFinal): fetch the artifact and submit it to
+// the league. Both sides do this — first = propose, second = confirm.
+async function _lgOnH2HFinal() {
+  const ctx = _lgFixtureCtx;
+  if (!ctx || !_h2h || _h2h.matchId !== ctx.matchId) return;
+  try {
+    const art = await (await fetch(`${ctx.base}/api/artifact/${ctx.matchId}?token=${ctx.token}`)).json();
+    if (art.error) throw new Error(art.error);
+    _lgH2HArt[ctx.homeId + "v" + ctx.awayId] = art;
+    await _lgSubmitFixtureArtifact(ctx.homeId, ctx.awayId);
+  } catch (e) {
+    if (typeof DS !== "undefined") DS.toast({ message: "League submission failed — " + e.message + ". Resubmit from the season screen.", kind: "warn", duration: 6000 });
+  }
+}
+async function _lgSubmitFixtureArtifact(homeId, awayId, btn) {
+  if (btn && typeof DS !== "undefined") DS.busy(btn, true);
+  try {
+    const art = _lgH2HArt[homeId + "v" + awayId];
+    if (!art) throw new Error("no artifact held for that fixture (finish the match in this tab first)");
+    const r = await _lgApi("/api/league/h2h-result", { leagueId: _lg.leagueId, token: _lg.token, artifact: art });
+    if (typeof DS !== "undefined") {
+      DS.toast(r.confirmed
+        ? { message: "✓ Result confirmed & verified — it's in the league ledger", kind: "success", duration: 4200 }
+        : { message: "✓ Result verified & proposed — your opponent's submission confirms it", kind: "success", duration: 4800 });
+    }
+    if (_lgScreen === "season") { await _lgRefreshSeason(); renderLeagueSeason(); }
+  } catch (e) {
+    if (typeof DS !== "undefined") DS.toast({ message: "League rejected the submission — " + e.message, kind: "error", duration: 6000 });
+  } finally {
+    if (btn && typeof DS !== "undefined") DS.busy(btn, false);
+  }
+}
+// The season-HQ card row for one waiting fixture.
+function _lgFixtureCardHtml(g, pw) {
+  const homeId = _lgNum(g.homeId), awayId = _lgNum(g.awayId);
+  const key = homeId + "v" + awayId;
+  const h = _lgTeam(homeId), a = _lgTeam(awayId);
+  const prop = pw.proposed?.[key];
+  const iAmHome = _lg.teamId === homeId, iAmAway = _lg.teamId === awayId;
+  const mine = iAmHome || iAmAway;
+  const names = `${_escHtml((a.abbr || a.name.slice(0, 3)).toUpperCase())} @ ${_escHtml((h.abbr || h.name.slice(0, 3)).toUpperCase())}`;
+  let body;
+  if (prop?.disputed) {
+    body = `<span style="color:var(--ds-grade-neg);font-size:.68rem">⚠ disputed — conflicting verified artifacts; the commissioner's deadline advance settles it</span>`;
+  } else if (prop) {
+    const waiting = prop.byTeam === _lg.teamId ? "waiting for your opponent to confirm" : (mine ? "waiting for YOUR confirmation" : "awaiting confirmation");
+    body = `<span style="font-size:.72rem"><b>${_lgNum(prop.awayScore)}–${_lgNum(prop.homeScore)}</b> verified · ${waiting}</span>
+      ${mine && prop.byTeam !== _lg.teamId && _lgH2HArt[key]
+        ? DS.button({ label: "✓ Confirm result", variant: "gold", size: "sm", on: `_lgSubmitFixtureArtifact(${homeId},${awayId},this)` }) : ""}`;
+  } else if (iAmHome) {
+    body = DS.button({ label: "▶ Host this fixture live", variant: "gold", size: "sm", on: `frnLgHostFixture(${homeId},${awayId},this)`,
+      title: "Creates the live match with the league's canonical rosters + fixture seed and invites your opponent" });
+  } else if (iAmAway) {
+    const ch = _lgChallenge && _lgNum(_lgChallenge.homeId) === homeId && _lgNum(_lgChallenge.awayId) === awayId ? _lgChallenge : null;
+    body = ch
+      ? DS.button({ label: "🎮 Join the live match", variant: "gold", size: "sm", on: "frnLgJoinFixture(this)" })
+      : (_lgH2HArt[key]
+        ? DS.button({ label: "↻ Resubmit my result", variant: "outline", size: "sm", on: `_lgSubmitFixtureArtifact(${homeId},${awayId},this)` })
+        : `<span style="color:var(--gray);font-size:.68rem">your opponent hosts this one — their invite lands here</span>`);
+  } else {
+    const gmH = _lgMemberFor(homeId), gmA = _lgMemberFor(awayId);
+    body = `<span style="color:var(--gray);font-size:.68rem">waiting on ${_escHtml(gmA?.displayName || "?")} & ${_escHtml(gmH?.displayName || "?")}</span>`;
+  }
+  return `<div style="display:flex;align-items:center;gap:.7rem;justify-content:center;padding:.4rem .7rem;border:1px solid ${mine ? "var(--gold)" : "var(--border)"};border-radius:8px${mine ? ";background:rgba(212,175,55,.07)" : ""}">
+    <span style="font-weight:700;font-size:.74rem">${names}</span>${body}</div>`;
+}
+
 // Default-roster twin of frnLeagueStartLocalFranchise: the canonical league
 // comes straight from (leagueSeed, year); contracts sign under the derived
 // seed exactly like _fdFinish, then the standard franchise boot.

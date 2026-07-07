@@ -394,6 +394,224 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   const fdSim = probeSim(fdSeason.leagueSeed, 1, 1, fdG.homeId, fdG.awayId, fdRosters);
   check(resultHash(fdSim) === fdG.resultHash, "fantasy game re-sim from (poolSeed + tape) rosters MATCHES the server's resultHash");
 
+  // ═══ M4 — humanGamesH2H: member fixtures play LIVE; results ingest only as
+  // two-party-attested, fully re-verified artifacts ═══
+  console.log("\n[M4 — humanGamesH2H: fixtures held open for live play]");
+  const H2H_PORT = 8797;
+  process.env.H2H_DATA = path.join(require("os").tmpdir(), "hh-league-probe-h2h-" + Date.now());
+  await require("./h2h-server.js").start(H2H_PORT);
+  const m4Clone = (x) => JSON.parse(JSON.stringify(x));
+  const h2hReq = (method, p, body) => new Promise((resolve, reject) => {
+    const data = body ? JSON.stringify(body) : null;
+    const r = http.request({ host: "127.0.0.1", port: H2H_PORT, path: p, method, headers: { "Content-Type": "application/json" } }, res => {
+      let buf = ""; res.on("data", c => buf += c); res.on("end", () => { try { resolve({ status: res.statusCode, body: buf ? JSON.parse(buf) : {} }); } catch (e) { resolve({ status: res.statusCode, body: buf }); } });
+    });
+    r.on("error", reject); if (data) r.write(data); r.end();
+  });
+  // long-lived SSE with a live handle (the fixed-window sse() can't span a match)
+  const sseOpen = (port, p) => {
+    const events = [];
+    const r = http.get({ host: "127.0.0.1", port, path: p }, res => {
+      let buf = "";
+      res.on("data", c => {
+        buf += c; let i;
+        while ((i = buf.indexOf("\n\n")) >= 0) {
+          const blk = buf.slice(0, i); buf = buf.slice(i + 2);
+          const tl = blk.split("\n").find(l => l.startsWith("event: "));
+          const dl = blk.split("\n").find(l => l.startsWith("data: "));
+          if (tl) events.push({ type: tl.slice(7), data: dl ? JSON.parse(dl.slice(6)) : null });
+        }
+      });
+      res.on("error", () => {});
+    });
+    r.on("error", () => {});
+    return { events, close: () => r.destroy() };
+  };
+  const m4Seed = (leagueSeed, season, week, homeId, awayId) => crypto.createHash("sha256")
+    .update(`hh-league-game|${leagueSeed}|${season}|${week}|${homeId}|${awayId}`).digest().readUInt32LE(0);
+  // Fabricate a locally-VERIFIED artifact — the attack the two-party close
+  // exists for: seed + rosters are public, so one member CAN synthesize a
+  // whole match solo. tapePolicy(ctx) return values are recorded verbatim.
+  const m4Fab = (leagueSeed, season, week, homeId, awayId, rosters, tapePolicy) => {
+    const seed = m4Seed(leagueSeed, season, week, homeId, awayId);
+    const tape = [];
+    if (kit._setPortableMath) kit._setPortableMath(true);
+    kit._setSimRng(seed >>> 0);
+    let r;
+    try {
+      const sim = new kit.GameSimulator(kit.TEAMS.find(t => t.id === homeId), kit.TEAMS.find(t => t.id === awayId),
+        m4Clone(rosters[homeId]), m4Clone(rosters[awayId]));
+      const coord = (ctx) => { const call = tapePolicy ? tapePolicy(ctx) : null; tape.push(call); return call; };
+      sim._coordinators = { home: coord, away: coord };
+      r = sim.simulate();
+    } finally { kit._clearSimRng(); if (kit._setPortableMath) kit._setPortableMath(false); }
+    return { seed, homeTeamId: homeId, awayTeamId: awayId, math: "portable",
+      rosters: { home: rosters[homeId], away: rosters[awayId] }, tape, resultHash: resultHash(r),
+      result: { homeScore: r.homeScore, awayScore: r.awayScore } };
+  };
+  // Three member teams whose pairwise meetings give two early fixtures in
+  // DIFFERENT weeks (the schedule is a single round-robin — a pair meets once).
+  const m4Sched = kit.generateFranchiseSchedule();
+  const m4Meet = new Map();
+  for (const g of m4Sched) m4Meet.set(Math.min(g.homeId, g.awayId) + ":" + Math.max(g.homeId, g.awayId), g);
+  const m4Mtg = (a, b) => m4Meet.get(Math.min(a, b) + ":" + Math.max(a, b));
+  let m4Best = null;
+  for (let a = 1; a <= 32; a++) for (let b = a + 1; b <= 32; b++) for (let c = b + 1; c <= 32; c++) {
+    const ms = [m4Mtg(a, b), m4Mtg(a, c), m4Mtg(b, c)].filter(Boolean).sort((x, y) => x.week - y.week);
+    if (ms.length < 2 || ms[0].week === ms[1].week) continue;
+    if (ms[2] && ms[2].week <= ms[1].week) continue;   // weeks between the two fixtures must sim clean
+    if (!m4Best || ms[1].week < m4Best.ms[1].week || (ms[1].week === m4Best.ms[1].week && ms[0].week < m4Best.ms[0].week)) m4Best = { teams: [a, b, c], ms };
+  }
+  const [m4G1, m4G2] = m4Best.ms;
+  const m4c = await req("POST", "/api/league", { name: "M4 Live League", adminTeamId: m4Best.teams[0], adminName: "GM One",
+    settings: { advanceMode: "manual", humanGamesH2H: true } });
+  const m4Id = m4c.body.leagueId, m4Admin = m4c.body.adminToken;
+  const m4Tok = { [m4Best.teams[0]]: m4c.body.memberToken };
+  for (let i = 1; i < 3; i++) {
+    const j = await req("POST", "/api/league/join", { leagueId: m4Id, token: m4c.body.joinCode, teamId: m4Best.teams[i], displayName: "GM " + (i + 1) });
+    m4Tok[m4Best.teams[i]] = j.body.memberToken;
+  }
+  await req("POST", "/api/league/start", { leagueId: m4Id, adminToken: m4Admin });
+  const m4S0 = (await req("GET", `/api/league/season/${m4Id}?token=${m4Admin}`)).body;
+  const m4Rosters = kit._fdBuildDefaultLeague(m4S0.leagueSeed, m4S0.year).rosters;
+  for (let w = 1; w < m4G1.week; w++) await req("POST", "/api/league/advance", { leagueId: m4Id, adminToken: m4Admin });
+  const m4LgSse = sseOpen(PORT, `/api/league/events/${m4Id}?token=${encodeURIComponent(m4Tok[m4G2.awayId])}`);
+  const m4Adv1 = await req("POST", "/api/league/advance", { leagueId: m4Id, adminToken: m4Admin });
+  check(m4Adv1.status === 200 && (m4Adv1.body.pendingH2H || []).length === 1
+    && m4Adv1.body.pendingH2H[0].homeId === m4G1.homeId && m4Adv1.body.simmed === 15,
+    `advance holds the member-vs-member fixture open (week ${m4G1.week}, 15 AI games simmed)`);
+  const m4S1 = (await req("GET", `/api/league/season/${m4Id}?token=${m4Admin}`)).body;
+  check(m4S1.pendingWeek && m4S1.pendingWeek.week === m4G1.week && m4S1.week === m4G1.week,
+    "season endpoint exposes the open week");
+
+  console.log("\n[M4 — the league trusts NOTHING: rejection battery]");
+  const m4TokH = m4Tok[m4G1.homeId], m4TokA = m4Tok[m4G1.awayId];
+  const m4ArtNull = m4Fab(m4S0.leagueSeed, m4S0.season, m4G1.week, m4G1.homeId, m4G1.awayId, m4Rosters, null);
+  let m4r = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4TokH,
+    artifact: { ...m4ArtNull, homeTeamId: m4ArtNull.awayTeamId, awayTeamId: m4ArtNull.homeTeamId } });
+  check(m4r.status === 400 && /pending fixture/.test(m4r.body.error || ""), "reversed matchup rejected");
+  m4r = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4TokH, artifact: { ...m4ArtNull, seed: (m4ArtNull.seed + 1) >>> 0 } });
+  check(m4r.status === 400 && /seed/.test(m4r.body.error || ""), "wrong seed rejected (league re-derives it)");
+  const m4Tamp = m4Clone(m4ArtNull);
+  m4Tamp.rosters.home[0].overall = 99; m4Tamp.rosters.home[0].speed = 99;
+  m4r = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4TokH, artifact: m4Tamp });
+  check(m4r.status === 400 && /roster/.test(m4r.body.error || ""), "inflated roster rejected (canonical-roster equality)");
+  m4r = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4TokH, artifact: { ...m4ArtNull, resultHash: "0".repeat(64) } });
+  check(m4r.status === 400 && /re-sim/.test(m4r.body.error || ""), "tampered resultHash rejected by the full tape re-sim");
+  m4r = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4Admin, artifact: m4ArtNull });
+  check(m4r.status === 400 && /seat/.test(m4r.body.error || ""), "commissioner token (no team seat) rejected");
+  m4r = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: "deadbeef", artifact: m4ArtNull });
+  check(m4r.status === 403, "garbage token rejected");
+
+  console.log("\n[M4 — two-party attestation: solo fabrication cannot land a result]");
+  m4r = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4TokH, artifact: m4ArtNull });
+  check(m4r.status === 200 && m4r.body.proposed && m4r.body.awaitingConfirm,
+    "first verified artifact = PROPOSED only (a solo fabrication stalls here)");
+  const m4ArtPass = m4Fab(m4S0.leagueSeed, m4S0.season, m4G1.week, m4G1.homeId, m4G1.awayId, m4Rosters,
+    (ctx) => (ctx.kind === "playcall" ? "pass" : null));
+  check(m4ArtPass.resultHash !== m4ArtNull.resultHash, "a different tape fabricates a different (still verifying) result");
+  m4r = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4TokA, artifact: m4ArtPass });
+  check(m4r.status === 400 && /conflict/.test(m4r.body.error || ""), "opponent's CONFLICTING verified artifact → disputed, not ingested");
+  m4r = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4TokA, artifact: m4ArtNull });
+  check(m4r.status === 400 && /disputed/.test(m4r.body.error || ""), "disputed fixture refuses further submissions");
+  const m4Adv1b = await req("POST", "/api/league/advance", { leagueId: m4Id, adminToken: m4Admin });
+  check(m4Adv1b.status === 200 && m4Adv1b.body.week === m4G1.week + 1, "commissioner's deadline advance force-sims + closes the week");
+  const m4S2 = (await req("GET", `/api/league/season/${m4Id}?token=${m4Admin}`)).body;
+  const m4Forced = (m4S2.results[m4G1.week] || []).find(x => x.homeId === m4G1.homeId && x.awayId === m4G1.awayId);
+  check(!!m4Forced && m4Forced.forced === true && (m4S2.results[m4G1.week] || []).length === 16,
+    "forced entry recorded; week holds all 16 results");
+  check(!!m4Forced && m4Forced.resultHash === m4ArtNull.resultHash,
+    "force-sim ≡ null-tape replay (coordinator defer is byte-identical — cross-bundle regression detector)");
+  check(!m4S2.pendingWeek, "pendingWeek cleared after the force close");
+  m4r = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4TokH, artifact: m4ArtNull });
+  check(m4r.status === 400, "submission after week close rejected");
+
+  console.log("\n[M4 — the real flow: live match on the h2h server, verified ingest]");
+  for (let w = m4G1.week + 1; w < m4G2.week; w++) await req("POST", "/api/league/advance", { leagueId: m4Id, adminToken: m4Admin });
+  const m4Adv2 = await req("POST", "/api/league/advance", { leagueId: m4Id, adminToken: m4Admin });
+  check(m4Adv2.status === 200 && (m4Adv2.body.pendingH2H || []).length === 1, `second fixture held open (week ${m4G2.week})`);
+  const m4T2H = m4Tok[m4G2.homeId], m4T2A = m4Tok[m4G2.awayId];
+  const m4Outsider = m4Best.teams.find(t => t !== m4G2.homeId && t !== m4G2.awayId);
+  const m4FxSeed = m4Seed(m4S0.leagueSeed, m4S0.season, m4G2.week, m4G2.homeId, m4G2.awayId);
+  const m4cm = await h2hReq("POST", "/api/match", { homeTeamId: m4G2.homeId, awayTeamId: m4G2.awayId,
+    clockMs: 60000, homeRoster: m4Rosters[m4G2.homeId], seed: m4FxSeed });
+  check(m4cm.status === 200 && !!m4cm.body.matchId, "h2h match created, seed-bound to the league fixture");
+  const m4jm = await h2hReq("POST", "/api/join", { matchId: m4cm.body.matchId, joinCode: m4cm.body.joinCode,
+    awayTeamId: m4G2.awayId, awayRoster: m4Rosters[m4G2.awayId] });
+  check(m4jm.status === 200 && !!m4jm.body.token, "opponent joined with the canonical roster");
+  const m4Link = `#h2h=${m4cm.body.matchId}.${m4cm.body.joinCode}`;
+  m4r = await req("POST", "/api/league/h2h-challenge", { leagueId: m4Id, token: m4T2H, link: "javascript:alert(1)" });
+  check(m4r.status === 400, "challenge with a non-http/#h2h link rejected");
+  m4r = await req("POST", "/api/league/h2h-challenge", { leagueId: m4Id, token: m4Tok[m4Outsider], link: m4Link });
+  check(m4r.status === 400, "member with no pending fixture cannot challenge");
+  m4r = await req("POST", "/api/league/h2h-challenge", { leagueId: m4Id, token: m4T2H, link: m4Link });
+  check(m4r.status === 200, "challenge relayed");
+  await sleep(400);
+  check(m4LgSse.events.some(e => e.type === "h2h_challenge" && e.data.link === m4Link),
+    "opponent received h2h_challenge over league SSE");
+  // drive the match to FINAL — two scripted clients answering instantly
+  const m4Mid = m4cm.body.matchId, m4Tks = { home: m4cm.body.token, away: m4jm.body.token };
+  let m4Final = null;
+  const m4DoneP = {}; const m4Done = new Promise(res => { m4DoneP.res = res; });
+  const m4Policy = (side, kind, ctx) => {
+    if (kind === "defense") return side === "home" ? "C0_BLITZ" : "C3_ZONE";
+    if (kind === "fourthDown") return side === "home" ? (ctx.inFGRange ? "fg" : "punt") : null;
+    if (kind === "pat") return "kick";
+    return side === "home" ? (ctx.down <= 1 ? "run" : "pass") : "auto";
+  };
+  const m4Client = (side) => {
+    const es = sseOpen(H2H_PORT, `/api/events/${m4Mid}?token=${m4Tks[side]}`);
+    let seen = 0;
+    const pump = setInterval(async () => {
+      while (seen < es.events.length) {
+        const ev = es.events[seen++];
+        if (ev.type === "final" && !m4Final) { m4Final = ev.data; m4DoneP.res(); }
+        if (ev.type !== "decision") continue;
+        await h2hReq("POST", "/api/call", { matchId: m4Mid, token: m4Tks[side], seq: ev.data.seq, call: m4Policy(side, ev.data.kind, ev.data.ctx) });
+      }
+    }, 30);
+    return () => { clearInterval(pump); es.close(); };
+  };
+  const m4CloseH = m4Client("home"), m4CloseA = m4Client("away");
+  await Promise.race([m4Done, sleep(240000)]);
+  await sleep(500);
+  m4CloseH(); m4CloseA();
+  check(!!m4Final, "live h2h match reached FINAL");
+  const m4Art = (await h2hReq("GET", `/api/artifact/${m4Mid}?token=${m4Tks.home}`)).body;
+  check(m4Art.seed === m4FxSeed && Array.isArray(m4Art.tape), "artifact carries the bound league seed");
+  m4r = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4Tok[m4Outsider], artifact: m4Art });
+  check(m4r.status === 400 && /not part/.test(m4r.body.error || ""), "uninvolved member cannot attest the fixture");
+  m4r = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4T2H, artifact: m4Art });
+  check(m4r.status === 200 && m4r.body.proposed, "live artifact re-verified + proposed");
+  await sleep(400);
+  check(m4LgSse.events.some(e => e.type === "h2h_proposed" && e.data.resultHash === m4Art.resultHash),
+    "h2h_proposed broadcast to the league");
+
+  console.log("\n[M4 — restart with an open week + pending proposal]");
+  srv.kill("SIGKILL");
+  await sleep(300);
+  srv = spawnServer();
+  if (!await waitUp()) bad("server didn't respawn mid-open-week");
+  const m4S3 = (await req("GET", `/api/league/season/${m4Id}?token=${m4Admin}`)).body;
+  const m4Key = m4G2.homeId + "v" + m4G2.awayId;
+  check(m4S3.pendingWeek && m4S3.pendingWeek.week === m4G2.week && m4S3.pendingWeek.pending.length === 1
+    && m4S3.pendingWeek.proposed?.[m4Key]?.resultHash === m4Art.resultHash,
+    "open week + pending PROPOSAL survive the restart");
+  m4r = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4T2A, artifact: m4Art });
+  check(m4r.status === 200 && m4r.body.confirmed && m4r.body.weekClosed,
+    "opponent's matching artifact CONFIRMS → verified ingest, week closes");
+  const m4S4 = (await req("GET", `/api/league/season/${m4Id}?token=${m4Admin}`)).body;
+  const m4Ent = (m4S4.results[m4G2.week] || []).find(x => x.homeId === m4G2.homeId && x.awayId === m4G2.awayId);
+  check(!!m4Ent && m4Ent.h2h === true && m4Ent.resultHash === m4Art.resultHash
+    && m4Ent.homeScore === m4Final.result.homeScore && m4Ent.awayScore === m4Final.result.awayScore
+    && Array.isArray(m4Ent.by) && m4Ent.by.length === 2,
+    "human result in the ledger: verified hash, real score, both attesters");
+  const m4Games = Object.values(m4S4.standings).reduce((n, t) => n + t.w + t.l + t.t, 0) / 2;
+  check(m4S4.week === m4G2.week + 1 && !m4S4.pendingWeek && m4Games === 16 * m4G2.week,
+    `standings fold exactly once per game (${m4Games} = 16×${m4G2.week}); season moved on`);
+  m4LgSse.close();
+  try { fs.rmSync(process.env.H2H_DATA, { recursive: true, force: true }); } catch (_) {}
+
   srv.kill("SIGKILL");
   try { fs.rmSync(DATA, { recursive: true, force: true }); } catch (_) {}
   console.log(`\n──────────────────────────────────────\n  ${pass} passed, ${fail} failed`);

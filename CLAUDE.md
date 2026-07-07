@@ -49,6 +49,17 @@ _setSimRng alone. Run the probe when touching gen or the draft module.
   backed by `_plog/_pcos` in play-data.js. `Math.sqrt` is correctly-rounded =
   safe. Prove with `server/determinism-hazard-probe.js [PORTABLE=1]` (portable →
   ∞ ULP margin) + the outcome-neutral check in `server/determinism-probe.js`.
+- BUNDLE-PARITY RULE (found by M4, 2026-07-07): engine-host.js and
+  draft-host.js MUST load the IDENTICAL file list. The engine typeof-branches
+  on franchise-layer symbols (`combineMeasurables` → player weight → break-
+  tackle physics), so a host missing play-franchise-core.js sims a DIFFERENT
+  game from the same (seed, rosters, tape) — engine-host replays diverged from
+  draft-host/browser until the franchise files were added to it. The browser
+  loads everything, so the FULL file set is the consensus world. league-probe's
+  "force-sim ≡ null-tape replay" check is the cross-bundle regression detector.
+  Corollary: `_combineWeight`'s Math.log is on the outcome path — it now goes
+  through `_olog` (see CROSS-MACHINE RULE); any new engine dependency on a
+  franchise helper must keep that helper RNG-free and libm-clean.
 
 ## Settlement / contracts (on-chain anti-cheat — Hardhat, solc 0.8.20)
 
@@ -701,13 +712,43 @@ live via playoff_results/rollover SSE. Probes: league-probe 79 checks
 (bracket re-derived from published standings, SB re-sim hash match, rollover
 genesis/reset assertions, restart mid-dynasty), client probe 39 (two
 browsers driven to a champion + season 2).
-NEXT SLICES: `settings.humanGamesH2H` is still a stub — routing human-vs-
-human fixtures to live H2H is its own slice. Also still queued: cross-season
-player development for league rollovers, per-pick GM signatures in the draft
-artifact (fabricated-pick surface, natspec'd in DraftSettlement.sol), the
+LEAGUE M4 (humanGamesH2H) SHIPPED 2026-07-07: fixtures between two CLAIMED
+teams are not auto-simmed — `advance` publishes them as an OPEN week
+(`week-partial` record + `week_partial` SSE; standings fold ONLY at week
+close) and the members play the game live on an h2h server (match seed =
+the league's own per-game derivation, passed via createMatch's new optional
+`seed`; rosters = canonical genesis). Result ingest (`POST
+/api/league/h2h-result`) trusts NOTHING: pending-fixture match, seed
+re-derivation, canonical-roster equality (key-sorted stringify, both sides
+JSON-normalized), full tape re-sim on the draft-host kit in the artifact's
+declared math mode, resultHash match. NAMED CHEAT SURFACE + CLOSE: a
+verified artifact can't prove the opponent authorized the tape (seed+rosters
+are public → one member can fabricate a whole match solo, shopping tapes for
+a favorable outcome) — so ingest is TWO-PARTY: first verified submission
+proposes, the opponent's matching one confirms; two verified artifacts that
+DISAGREE mark the fixture disputed (named in the event log, socially
+arbitrated) and the commissioner's deadline advance FORCE-SIMS it (null-tape
+≡ force-sim byte-identically — coordinator-seam defer). Full close = per-call
+GM signatures (queued). `POST /api/league/h2h-challenge` relays the invite
+link over league SSE (validated `^https?://|#h2h=`, escaped client-side).
+`submitH2HResult` rejects during `_simming` (advance race). CLIENT: season
+HQ "LIVE FIXTURES" cards (host = create+challenge+enter; away = join from
+the SSE challenge with the CANONICAL roster — never the franchise squad),
+auto artifact fetch+submit at FINAL via the `_lgOnH2HFinal` hook in
+_h2hOnFinal (both sides → propose+confirm hands-free), deadline-labelled
+commissioner advance, create-form 🎮 checkbox. Probes: league-probe 112
+(fabricated-artifact rejection battery, dispute→force-sim, live scripted
+match → verified ingest, restart with open week + proposal), client probe 49
+(two browsers: host card → challenge SSE → join → coach-mode autoplay to
+FINAL → verified ledger entry).
+NEXT SLICES still queued: cross-season player development for league
+rollovers, per-pick GM signatures in the draft artifact (fabricated-pick
+surface, natspec'd in DraftSettlement.sol) — same surface as M4's
+fabricated-tape limit, one signature scheme should close both, the
 CROSS-MACHINE gen-determinism audit (gen path needs the same libm audit the
-sim got; probe cross-engine), and LeagueSettlement (weekly resultHashes on
-chain — the artifacts are already published + re-simmable).
+sim got; probe cross-engine), LeagueSettlement (weekly resultHashes on
+chain — the artifacts are already published + re-simmable), and playoff
+fixtures over H2H (M4 is regular-season only).
 SESSION-ENV NOTE: this environment's container resets can silently restore a
 stale checkpoint — PUSH (branch + main) immediately after EVERY commit, and
 verify expected files exist before editing.

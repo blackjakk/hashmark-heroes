@@ -137,6 +137,7 @@ function publicLeague(L) {
     standings: L.standings,
     lastResults: lastWeek ? { week: lastWeek, games: L.results[lastWeek] } : null,
     playoffs: L.playoffs, champions: L.champions || [],
+    pendingWeek: L.pendingWeek,
   };
 }
 
@@ -167,6 +168,7 @@ function newLeagueShell(h) {
     standings: null,    // teamId → {w, l, t, pf, pa} — persisted with each week-results record
     playoffs: null,     // M3 bracket state {season, roundIdx, seeds, alive, rounds, champion}
     champions: [],      // [{season, teamId}] — the trophy shelf
+    pendingWeek: null,  // M4 open week {season, week, results, pending:[{homeId,awayId}]}
   };
 }
 
@@ -692,11 +694,31 @@ async function advanceLeague(L, reason) {
   const season = L.season, week = L.week;
   const rosters = seasonRosters(L);
   if (!rosters) return { error: "no season rosters — draft not finished?" };
-  const fixtures = leagueSchedule(kit).filter(g => g.week === week);
   L._simming = true;
   try {
+    // M4: a week already OPEN on human fixtures — this advance is the
+    // commissioner's deadline hammer: force-sim what's still pending, close.
+    if (L.pendingWeek && L.pendingWeek.week === week) {
+      const pw = JSON.parse(JSON.stringify(L.pendingWeek));
+      for (const g of pw.pending) {
+        const r = simLeagueGame(kit, L, week, g.homeId, g.awayId);
+        pw.results.push({ week, homeId: g.homeId, awayId: g.awayId,
+          homeScore: r.homeScore, awayScore: r.awayScore, resultHash: resultHash(r), forced: true });
+        await new Promise(res => setImmediate(res));
+      }
+      pw.pending = [];
+      return _commitWeek(L, kit, season, week, pw.results, reason);
+    }
+    const fixtures = leagueSchedule(kit).filter(g => g.week === week);
+    // M4: with humanGamesH2H on, fixtures between two CLAIMED teams are not
+    // auto-simmed — they wait for a verified H2H artifact (or a force-sim on
+    // the commissioner's next advance). AI fixtures sim immediately.
+    const memberTeams = new Set(L.members.map(m => m.teamId));
+    const isHuman = (g) => L.settings.humanGamesH2H && memberTeams.has(g.homeId) && memberTeams.has(g.awayId);
+    const pending = fixtures.filter(isHuman).map(g => ({ homeId: g.homeId, awayId: g.awayId }));
+    const toSim = fixtures.filter(g => !isHuman(g));
     const results = [];
-    for (const g of fixtures) {
+    for (const g of toSim) {
       const r = simLeagueGame(kit, L, week, g.homeId, g.awayId);
       results.push({
         week, homeId: g.homeId, awayId: g.awayId,
@@ -707,36 +729,178 @@ async function advanceLeague(L, reason) {
       // live through a 16-game week (~2.5s total).
       await new Promise(res => setImmediate(res));
     }
-    // Fold standings into a fresh CLONE — each week's record and event must
-    // carry its own immutable snapshot. (The live object was previously
-    // aliased into the event log + jsonl, so later advances mutated replayed
-    // history — adversarial-review finding.)
-    const standings = JSON.parse(JSON.stringify(L.standings || kit.initStandings()));
-    for (const r of results) applyResult(standings, r);
-    const nextPhase = week >= seasonWeeks(L) ? "season_complete" : "active";
-    const nextWeek = nextPhase === "season_complete" ? week : week + 1;
-    // ONE atomic record per advance, persisted BEFORE memory commits. Crash
-    // mid-sim → nothing persisted, re-advance re-sims byte-identically
-    // (determinism is the recovery). Persist FAILURE → memory untouched, no
-    // memory/disk fork. And reload can never double-fold a week — the old
-    // week-results/advance record PAIR could tear between the two appends,
-    // reloading standings that already contained week W with L.week still at
-    // W (re-advance would fold W twice).
-    persistAppend(L, {
-      t: "week-results", season, week, results, standings,
-      next: { season, week: nextWeek, phase: nextPhase }, reason: reason || "manual",
-    });
-    L.results[week] = results;
-    L.standings = standings;
-    L.week = nextWeek;
-    L.phase = nextPhase;
-    if (nextPhase === "season_complete") L._seasonRosters = null; // re-derivable — release the cache
-    pushEvent(L, "week_results", { season, week, results, standings });
-    pushEvent(L, "advanced", { season: L.season, week: L.week, phase: L.phase, reason: reason || "manual" });
+    if (pending.length) {
+      // Week stays OPEN: publish the AI results + the pending fixtures, fold
+      // NOTHING yet (standings only move at week close — atomicity holds).
+      const pw = { season, week, results, pending, proposed: {} };
+      persistAppend(L, { t: "week-partial", ...pw, reason: reason || "manual" });
+      L.pendingWeek = pw;
+      pushEvent(L, "week_partial", pw);
+      return { season, week, phase: L.phase, simmed: results.length, pendingH2H: pending };
+    }
+    return _commitWeek(L, kit, season, week, results, reason);
   } finally {
     L._simming = false;
   }
-  return { season: L.season, week: L.week, phase: L.phase, simmed: L.results[week].length };
+}
+
+// The atomic week close (M2 discipline, shared by the pure-AI path, the
+// force-sim path, and the last-H2H-artifact path): fold standings into a
+// fresh clone, persist ONE record BEFORE memory commits.
+function _commitWeek(L, kit, season, week, results, reason) {
+  const standings = JSON.parse(JSON.stringify(L.standings || kit.initStandings()));
+  for (const r of results) applyResult(standings, r);
+  const nextPhase = week >= seasonWeeks(L) ? "season_complete" : "active";
+  const nextWeek = nextPhase === "season_complete" ? week : week + 1;
+  persistAppend(L, {
+    t: "week-results", season, week, results, standings,
+    next: { season, week: nextWeek, phase: nextPhase }, reason: reason || "manual",
+  });
+  L.results[week] = results;
+  L.standings = standings;
+  L.week = nextWeek;
+  L.phase = nextPhase;
+  L.pendingWeek = null;
+  if (nextPhase === "season_complete") L._seasonRosters = null; // re-derivable — release the cache
+  pushEvent(L, "week_results", { season, week, results, standings });
+  pushEvent(L, "advanced", { season: L.season, week: L.week, phase: L.phase, reason: reason || "manual" });
+  return { season: L.season, week: L.week, phase: L.phase, simmed: results.length };
+}
+
+// ── M4: verified H2H artifact ingest ─────────────────────────────────────────
+// A member whose fixture was played live submits the finished match ARTIFACT
+// (the h2h server's {seed, homeTeamId, awayTeamId, settings, math, rosters,
+// tape} + result). The league trusts NOTHING about it until it re-derives:
+//   • the fixture must be pending in the open week (exact home/away),
+//   • the seed must equal the league's own per-game derivation,
+//   • both rosters must equal the canonical league rosters (key-sorted
+//     stringify — pid lists alone would let a client inflate ratings),
+//   • the tape replays through the hosted engine in the artifact's declared
+//     math mode and the recomputed resultHash must match a full re-sim.
+// NAMED CHEAT SURFACE + CLOSE: a verified artifact proves the result FOLLOWS
+// from the inputs — it cannot prove the opponent authorized the tape's calls
+// (one member could fabricate a whole match solo: the seed and rosters are
+// public/derivable, so they can shop tapes locally for a favorable outcome).
+// Close (match-level attestation): BOTH fixture members must submit the same
+// verified artifact — first = proposal, the opponent's matching submission =
+// confirmation, and only then do the scores enter the week. Two verified
+// artifacts that DISAGREE mark the fixture disputed (both attempts are in the
+// event log, named); the commissioner's deadline advance force-sims it. A
+// sore loser can therefore convert a loss into an AI re-sim by submitting a
+// conflicting fabrication — visible to the whole league, socially arbitrated;
+// the full cryptographic close is per-call GM signatures (queued, natspec'd
+// in DraftSettlement.sol). Proven, never asserted — the same contract as
+// every auto-simmed game, extended to human play.
+function _sortedStringify(x) {
+  if (Array.isArray(x)) return "[" + x.map(_sortedStringify).join(",") + "]";
+  if (x && typeof x === "object") {
+    return "{" + Object.keys(x).sort().map(k => JSON.stringify(k) + ":" + _sortedStringify(x[k])).join(",") + "}";
+  }
+  return JSON.stringify(x);
+}
+function submitH2HResult(L, member, art) {
+  if (L.leagueSeed == null || L.phase !== "active") return { error: "no open week" };
+  if (L._simming) return { error: "week sim in progress — try again in a moment" };
+  const pw = L.pendingWeek;
+  if (!pw) return { error: "no fixtures are waiting on H2H results" };
+  if (!art || !Array.isArray(art.tape) || !art.rosters?.home || !art.rosters?.away) {
+    return { error: "malformed artifact" };
+  }
+  const homeId = Number(art.homeTeamId), awayId = Number(art.awayTeamId);
+  const fixture = pw.pending.find(g => g.homeId === homeId && g.awayId === awayId);
+  if (!fixture) return { error: "that matchup is not a pending fixture this week" };
+  if (member.teamId !== homeId && member.teamId !== awayId) {
+    return { error: "you are not part of that fixture" };
+  }
+  const expectedSeed = gameSeed(L.leagueSeed, pw.season, pw.week, homeId, awayId);
+  if ((Number(art.seed) >>> 0) !== expectedSeed) return { error: "artifact seed does not match the league fixture seed" };
+  const kit = draftKit();
+  const canonical = seasonRosters(L);
+  // JSON round-trip the canonical side before comparing: the artifact rosters
+  // already crossed HTTP (undefined-valued keys dropped, NaN → null), so the
+  // reference must be normalized the same way or honest rosters false-mismatch.
+  const norm = (x) => JSON.parse(JSON.stringify(x));
+  if (_sortedStringify(art.rosters.home) !== _sortedStringify(norm(canonical[homeId])) ||
+      _sortedStringify(art.rosters.away) !== _sortedStringify(norm(canonical[awayId]))) {
+    return { error: "artifact rosters do not match the canonical league rosters" };
+  }
+  // Full re-sim with the tape as both coordinators (the verify-artifact.js
+  // recipe, run on the draft-host kit to avoid a second engine bundle).
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const portable = art.math !== "native";
+  if (kit._setPortableMath) kit._setPortableMath(portable);
+  kit._setSimRng(expectedSeed >>> 0);
+  let replay;
+  try {
+    const sim = new kit.GameSimulator(
+      kit.TEAMS.find(t => t.id === homeId), kit.TEAMS.find(t => t.id === awayId),
+      clone(art.rosters.home), clone(art.rosters.away));
+    let di = 0;
+    const coord = () => (di < art.tape.length ? art.tape[di++] : null);
+    sim._coordinators = { home: coord, away: coord };
+    replay = sim.simulate();
+  } catch (e) {
+    return { error: "artifact did not replay: " + e.message };
+  } finally {
+    kit._clearSimRng();
+    if (kit._setPortableMath) kit._setPortableMath(false);
+  }
+  const hash = resultHash(replay);
+  if (art.resultHash && art.resultHash !== hash) {
+    return { error: "artifact resultHash does not match the re-sim — result rejected" };
+  }
+  // Two-party attestation: first verified submission = proposal; the OTHER
+  // member's matching submission = confirmation → the result enters the week.
+  const key = homeId + "v" + awayId;
+  const pwNext = JSON.parse(JSON.stringify(pw));
+  pwNext.proposed = pwNext.proposed || {};
+  const prop = pwNext.proposed[key];
+  if (prop && prop.disputed) {
+    return { error: "fixture is disputed — the commissioner's deadline advance will settle it" };
+  }
+  if (!prop || prop.byTeam === member.teamId) {
+    // First attestation (or the same member refreshing — idempotent).
+    pwNext.proposed[key] = { resultHash: hash,
+      homeScore: replay.homeScore, awayScore: replay.awayScore,
+      byTeam: member.teamId, byName: member.displayName || null };
+    persistAppend(L, { t: "week-partial", ...pwNext });
+    L.pendingWeek = pwNext;
+    pushEvent(L, "h2h_proposed", { season: pwNext.season, week: pwNext.week,
+      homeId, awayId, resultHash: hash,
+      homeScore: replay.homeScore, awayScore: replay.awayScore,
+      by: member.displayName || null,
+      awaitingTeamId: member.teamId === homeId ? awayId : homeId });
+    return { ok: true, verified: true, proposed: true, awaitingConfirm: true,
+      result: { homeScore: replay.homeScore, awayScore: replay.awayScore, resultHash: hash } };
+  }
+  if (prop.resultHash !== hash) {
+    // Two VERIFIED artifacts that disagree (different tapes). Neither is more
+    // provable than the other without per-call signatures — freeze the
+    // fixture, let the deadline force-sim settle, leave both named attempts
+    // in the public event log for the league to judge.
+    pwNext.proposed[key] = Object.assign({}, prop, { disputed: true,
+      conflict: { resultHash: hash, homeScore: replay.homeScore,
+        awayScore: replay.awayScore, byName: member.displayName || null } });
+    persistAppend(L, { t: "week-partial", ...pwNext });
+    L.pendingWeek = pwNext;
+    pushEvent(L, "h2h_disputed", { season: pwNext.season, week: pwNext.week,
+      homeId, awayId, first: prop, second: pwNext.proposed[key].conflict });
+    return { error: "your verified artifact conflicts with your opponent's — fixture disputed; the deadline advance will force-sim it" };
+  }
+  // Confirmation: the other fixture member, the same verified result.
+  const entry = { week: pw.week, homeId, awayId,
+    homeScore: replay.homeScore, awayScore: replay.awayScore,
+    resultHash: hash, h2h: true, by: [prop.byName, member.displayName || null] };
+  pwNext.results.push(entry);
+  pwNext.pending = pwNext.pending.filter(g => !(g.homeId === homeId && g.awayId === awayId));
+  delete pwNext.proposed[key];
+  persistAppend(L, { t: "week-partial", ...pwNext });
+  L.pendingWeek = pwNext;
+  pushEvent(L, "h2h_result", { season: pwNext.season, week: pwNext.week, result: entry, pendingLeft: pwNext.pending.length });
+  if (!pwNext.pending.length) {
+    _commitWeek(L, draftKit(), pwNext.season, pwNext.week, pwNext.results, "h2h-complete");
+  }
+  return { ok: true, verified: true, confirmed: true, result: entry, weekClosed: !L.pendingWeek };
 }
 
 // M3: one playoff ROUND per advance. The bracket is seeded on the first call
@@ -859,6 +1023,13 @@ function loadPersisted() {
           L.results[l.week] = l.results;
           L.standings = l.standings || L.standings;
           if (l.next) { if (l.next.season) L.season = l.next.season; if (l.next.week) L.week = l.next.week; if (l.next.phase) L.phase = l.next.phase; }
+          if (L.pendingWeek && L.pendingWeek.week === l.week) L.pendingWeek = null; // week closed
+        }
+        // M4: each partial (AI batch or verified H2H ingest) rewrites the full
+        // open-week snapshot — last record wins; the week-results close above
+        // supersedes it.
+        else if (l.t === "week-partial") {
+          L.pendingWeek = { season: l.season, week: l.week, results: l.results, pending: l.pending, proposed: l.proposed || {} };
         }
         // M3: each round record carries the full bracket snapshot (last wins);
         // a rollover record resets the season surfaces in one step.
@@ -998,6 +1169,33 @@ const server = http.createServer(async (req, res) => {
         onClockTeamId: st.pickIdx < n * kit.FD_PICKS_PER_TEAM ? kit._fdOnClock(st, st.pickIdx) : null,
       });
     }
+    // M4: a member submits the finished H2H match ARTIFACT for their pending
+    // fixture; the server verifies seed derivation + canonical rosters + a
+    // full tape re-sim before the scores enter the week (proven, not asserted).
+    if (req.method === "POST" && url.pathname === "/api/league/h2h-result") {
+      const b = await readBody(req);
+      const auth = memberAuth(b.leagueId, b.token); if (auth.error) return json(res, 403, auth);
+      if (auth.m.teamId == null) return json(res, 400, { error: "commissioner token has no team seat — use your member token" });
+      const r = submitH2HResult(auth.L, auth.m, b.artifact); if (r.error) return json(res, 400, r);
+      return json(res, 200, r);
+    }
+    // M4: relay a match invite to the fixture opponent over the league SSE —
+    // the two players may share nothing but this league. Link is data, not
+    // markup; clients must escape it (and only your own pending fixture may
+    // be challenged).
+    if (req.method === "POST" && url.pathname === "/api/league/h2h-challenge") {
+      const b = await readBody(req);
+      const auth = memberAuth(b.leagueId, b.token); if (auth.error) return json(res, 403, auth);
+      const L2 = auth.L, m = auth.m;
+      if (m.teamId == null) return json(res, 400, { error: "commissioner token has no team seat — use your member token" });
+      const pw = L2.pendingWeek;
+      const fx = pw && pw.pending.find(g => g.homeId === m.teamId || g.awayId === m.teamId);
+      if (!fx) return json(res, 400, { error: "you have no pending H2H fixture this week" });
+      const link = String(b.link || "").slice(0, 400);
+      if (!/^(https?:\/\/|#h2h=)/.test(link)) return json(res, 400, { error: "link must be an http(s) URL or #h2h= hash" });
+      pushEvent(L2, "h2h_challenge", { week: pw.week, homeId: fx.homeId, awayId: fx.awayId, link, by: m.displayName || null });
+      return json(res, 200, { ok: true });
+    }
     // M2: full season state for (re)sync — the week-by-week results ledger +
     // standings + everything a verifier needs to re-derive the season
     // (genesis seeds; the schedule is RNG-free and derived client-side).
@@ -1014,6 +1212,7 @@ const server = http.createServer(async (req, res) => {
         weeks: SEASON_WEEKS,
         results: L.results, standings: L.standings,
         playoffs: L.playoffs, champions: L.champions || [],
+        pendingWeek: L.pendingWeek,
         roundNames: PLAYOFF_ROUNDS,
       });
     }

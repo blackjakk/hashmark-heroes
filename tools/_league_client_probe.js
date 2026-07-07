@@ -275,6 +275,96 @@ async function until(fn, ms, step = 250) {
     Object.values(franchise.rosters).every(r => r.every(p => p.contract && p.contract.aav > 0)));
   ok(signed2, "every canonical-league player is signed (seeded contracts)");
 
+  // ── M4: humanGamesH2H — a member fixture played LIVE through the real UI ──
+  console.log("— M4: live league fixture — host, challenge, join, play, verified ingest —");
+  const H2H_PORT = 5218;
+  const H2H_DATA = path.join(os.tmpdir(), "hh-league-client-probe-h2h-" + Date.now());
+  fs.mkdirSync(H2H_DATA, { recursive: true });
+  children.push(spawn(process.execPath, [path.join(__dirname, "..", "server", "h2h-server.js"), String(H2H_PORT)],
+    { env: { ...process.env, H2H_DATA }, stdio: "ignore" }));
+  await sleep(900);
+  // a fixture between the two members: the RNG-free schedule's first week-1 game
+  const m4Fx = await A.page.evaluate(() => generateFranchiseSchedule().find(g => g.week === 1));
+  await A.page.evaluate((port) => {
+    localStorage.clear();
+    localStorage.setItem("h2h_last_server", `http://127.0.0.1:${port}`);   // host-side discovery
+    _lgLeaveScreens(); renderFrnStartScreen();
+    [...document.querySelectorAll(".fps-start")].find(b => /ONLINE LEAGUE/.test(b.textContent)).click();
+  }, H2H_PORT);
+  await A.page.waitForTimeout(400);
+  await A.page.evaluate(({ port, homeId }) => {
+    _lgSetCreateFantasy(false);
+    document.getElementById("lgName").value = "Live Fixture League";
+    document.getElementById("lgGm").value = "Commish";
+    document.getElementById("lgTeam").value = String(homeId);   // the fixture's HOME seat
+    document.getElementById("lgH2H").checked = true;            // 🎮 head-to-head fixtures
+    document.getElementById("lgBase").value = `http://127.0.0.1:${port}`;
+    frnLeagueCreateSubmit();
+  }, { port: PORT, homeId: m4Fx.homeId });
+  ok(!!(await until(() => A.page.evaluate(() => /LOBBY/.test(document.body.textContent) && !!document.getElementById("lgShare")), 8000)),
+    "h2h-fixtures league created (checkbox → settings)");
+  const m4Invite = await A.page.evaluate(() => document.getElementById("lgShare").value);
+  const m4AwayName = await A.page.evaluate((id) => { const t = TEAMS.find(x => x.id === id); return t.city + " " + t.name; }, m4Fx.awayId);
+  await B.page.evaluate(() => localStorage.clear());
+  await B.page.goto("about:blank");
+  await B.page.goto(m4Invite.replace(/^https?:\/\/[^/]+/, `http://127.0.0.1:${PORT}`), { waitUntil: "domcontentloaded" });
+  await B.page.waitForTimeout(1600);
+  await until(() => B.page.evaluate(() => document.querySelectorAll(".fps-start").length >= 30), 8000);
+  await B.page.evaluate((teamName) => {
+    document.getElementById("lgGm").value = "GM Rival";
+    [...document.querySelectorAll(".fps-start")].find(b => !b.disabled && b.textContent.includes(teamName)).click();
+  }, m4AwayName);
+  await until(() => B.page.evaluate(() => /LOBBY/.test(document.body.textContent)), 8000);
+  await A.page.evaluate(() => {
+    [...document.querySelectorAll("button")].find(b => /Start the league/.test(b.textContent)).click();
+  });
+  await until(() => B.page.evaluate(() => /SEASON 1 · WEEK 1/.test(document.body.textContent)), 15000);
+  await A.page.evaluate(() => {
+    [...document.querySelectorAll("button")].find(b => /Advance — sim week/.test(b.textContent)).click();
+  });
+  const m4CardA = await until(() => A.page.evaluate(() =>
+    /LIVE FIXTURES — WEEK 1/.test(document.body.textContent)
+    && [...document.querySelectorAll("button")].some(b => /Host this fixture live/.test(b.textContent))), 30000, 500);
+  ok(!!m4CardA, "advance holds the fixture: HOME member sees the host card");
+  const m4CardB = await until(() => B.page.evaluate(() =>
+    /LIVE FIXTURES — WEEK 1/.test(document.body.textContent) && /your opponent hosts/.test(document.body.textContent)), 15000, 500);
+  ok(!!m4CardB, "AWAY member sees the fixture waiting on the host (over SSE week_partial)");
+  await A.page.evaluate(() => {
+    [...document.querySelectorAll("button")].find(b => /Host this fixture live/.test(b.textContent)).click();
+  });
+  const m4HostIn = await until(() => A.page.evaluate(() =>
+    _h2h && _h2h.matchId && document.getElementById("playbackControls")?.style.display === "flex"), 20000, 500);
+  ok(!!m4HostIn, "host lands in the live-game screen (match created, seed-bound)");
+  await A.page.evaluate(() => { _ipc.coachMode = true; if (_ipc.pending) _h2hSubmitCall(null); });
+  const m4JoinBtn = await until(() => B.page.evaluate(() =>
+    [...document.querySelectorAll("button")].some(b => /Join the live match/.test(b.textContent))), 15000, 500);
+  ok(!!m4JoinBtn, "opponent's JOIN button appears over league SSE h2h_challenge");
+  await B.page.evaluate(() => {
+    [...document.querySelectorAll("button")].find(b => /Join the live match/.test(b.textContent)).click();
+  });
+  const m4JoinIn = await until(() => B.page.evaluate(() =>
+    _h2h && _h2h.matchId && document.getElementById("playbackControls")?.style.display === "flex"), 20000, 500);
+  ok(!!m4JoinIn, "opponent joins with the canonical roster and enters the match");
+  await B.page.evaluate(() => { _ipc.coachMode = true; if (_ipc.pending) _h2hSubmitCall(null); });
+  // coach mode auto-answers every prompt — the match runs to FINAL unattended
+  const m4FinA = await until(() => A.page.evaluate(() => _ipc && _ipc.status === "final"), 240000, 1000);
+  const m4FinB = await until(() => B.page.evaluate(() => _ipc && _ipc.status === "final"), 30000, 1000);
+  ok(!!m4FinA && !!m4FinB, "live match reaches FINAL in both browsers (coach-mode autoplay)");
+  // at FINAL both clients auto-fetch the artifact and submit — propose + confirm
+  const m4Closed = await until(() => A.page.evaluate(() =>
+    _lgSeason && !_lgSeason.pendingWeek && (_lgSeason.results[1] || []).length === 16), 30000, 500);
+  ok(!!m4Closed, "both submissions land (propose + confirm) → the week closes");
+  const m4Entry = await A.page.evaluate(() => (_lgSeason.results[1] || []).find(g => g.h2h === true));
+  ok(!!m4Entry && Array.isArray(m4Entry.by) && m4Entry.by.length === 2 && /^[0-9a-f]{64}$/.test(m4Entry.resultHash || ""),
+    "ledger entry is the VERIFIED human result with both attesters");
+  await A.page.evaluate(() => {
+    const fh = document.getElementById("franchiseHome"); if (fh) fh.style.display = "";
+    const pc = document.getElementById("playbackControls"); if (pc) pc.style.display = "none";
+    _lgEnterSeason();
+  });
+  const m4Season = await until(() => A.page.evaluate(() => /WEEK 1 RESULTS/.test(document.body.textContent)), 15000, 500);
+  ok(!!m4Season, "season screen shows the closed week with the live result");
+
   ok(A.errs.length === 0, A.errs.length ? "A page errors: " + A.errs.slice(0, 3).join(" | ") : "zero page errors (commissioner)");
   ok(B.errs.length === 0, B.errs.length ? "B page errors: " + B.errs.slice(0, 3).join(" | ") : "zero page errors (member)");
 
