@@ -268,6 +268,49 @@ const ok = (c, l) => { if (c) { pass++; console.log("  ✓ " + l); } else { fail
     ok(rp.exited, "frnExitReplay restores the dashboard");
   }
 
+  console.log("— 7b. replays open ON the advertised play (lead-up is opt-in) —");
+  const ra = await page.evaluate(async () => {
+    if (typeof frnExitReplay === "function") frnExitReplay();
+    await new Promise(r => setTimeout(r, 200));
+    // A PER-PLAY highlight with lead-up context — the wrong-play report class:
+    // the card advertises ONE play; playback must open on exactly that play.
+    const hl = franchise.seasonHighlights || [];
+    const idx = hl.findIndex(h => h.type !== "game" && Array.isArray(h.animCtx) && h.animCtx.length >= 2);
+    if (idx === -1) return { skip: true };
+    const h = hl[idx];
+    frnReplayHighlight(idx);
+    await new Promise(r => setTimeout(r, 400));
+    const cur = gameResult?.plays?.[Math.min(playHead, gameResult.plays.length - 1)];
+    const opensOnAdvertised = playHead === h.animCtx.length - 1 && !!cur && (cur.desc || "") === (h.desc || "");
+    const leadupChip = document.getElementById("frnReplayLeadupBtn")?.style.display === "block";
+    // Rewind: the chip replays the stored context from play 0
+    let rewound = false;
+    if (leadupChip) {
+      document.getElementById("frnReplayLeadupBtn").click();
+      await new Promise(r => setTimeout(r, 200));
+      rewound = playHead === 0 && playing === true;
+    }
+    // A recorded-motion clip (Replays tab) must open on its advertised play too
+    let clipOpens = null;
+    const clip = (franchise.replayClips || []).find(c => c.ctxPlays?.length >= 2);
+    if (clip) {
+      frnReplayClip(clip.id);
+      await new Promise(r => setTimeout(r, 300));
+      const cp = gameResult?.plays?.[Math.min(playHead, gameResult.plays.length - 1)];
+      clipOpens = playHead === clip.ctxPlays.length - 1 && !!cp && (cp.desc || "") === (clip.desc || "");
+    }
+    if (typeof frnExitReplay === "function") frnExitReplay();
+    await new Promise(r => setTimeout(r, 200));
+    return { skip: false, opensOnAdvertised, leadupChip, rewound, clipOpens, adv: (h.desc || "").slice(0, 50) };
+  });
+  if (ra.skip) ok(false, "no per-play highlight with context to test");
+  else {
+    ok(ra.opensOnAdvertised, `highlight replay OPENS on the advertised play ("${ra.adv}…")`);
+    ok(ra.leadupChip, "⏮ WATCH LEAD-UP chip offered when context exists");
+    ok(ra.rewound, "lead-up chip rewinds to the context plays");
+    ok(ra.clipOpens !== false, ra.clipOpens === null ? "no recorded clip available (skipped)" : "Replays-tab clip ALSO opens on its advertised play");
+  }
+
   ok(errors.length === 0, errors.length ? "page errors: " + errors.slice(0, 3).join(" | ") : "zero page errors");
   console.log(fail === 0 ? `\nALL-PASS (${pass} checks)` : `\n${fail} FAILURES / ${pass + fail}`);
   await browser.close();

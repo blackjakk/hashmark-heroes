@@ -10511,6 +10511,8 @@
     box-shadow: 0 4px 16px rgba(0,0,0,.5);
   }
   .frn-replay-exit-btn:hover { background: var(--gold); color: #141414; }
+  /* Lead-up rewind chip — sits under the exit chip, same styling family. */
+  .frn-replay-leadup-btn { top: 54px; }
 
   /* Holdout Center — always-on offer composer (right rail of each demand row) */
   .frn-offer-panel {

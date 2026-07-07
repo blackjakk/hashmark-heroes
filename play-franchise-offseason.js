@@ -2339,10 +2339,20 @@ function frnReplayClip(highlightId) {
 // and runs it through the REAL broadcast renderer in slow-mo. Used by
 // recorded motion clips (frnReplayClip) AND playLog reconstructions
 // (frnReplayHighlight) — every "replay" in the game is a real replay.
-function _frnPlaySynthReplay(homeId, awayId, homeScore, awayScore, synthPlays, label) {
+function _frnPlaySynthReplay(homeId, awayId, homeScore, awayScore, synthPlays, label, opts) {
   const homeTeam = getTeam(homeId);
   const awayTeam = getTeam(awayId);
   if (!homeTeam || !awayTeam) { alert("Teams missing."); return; }
+  // Start ON the advertised play. Every per-play caller stores the highlight
+  // LAST with up to 2 lead-up plays before it — but starting playback at 0
+  // buried the money play behind ~40s of slow-mo context with no on-screen
+  // cue, which users read as "the replay is showing the WRONG play"
+  // (user-reported; repro'd: 39s to reach the advertised TD). The lead-up
+  // stays in the timeline — the ⏮ WATCH LEAD-UP chip (and the scrubber)
+  // rewinds to it. Game-capsule highlights pass startAt:0 (their 2-play
+  // "finish" IS the advertised content).
+  const _lastIdx = Math.max(0, synthPlays.length - 1);
+  const _startAt = Math.max(0, Math.min(opts?.startAt ?? _lastIdx, _lastIdx));
   // Ratings + player lookup — buildAnimForPlay reads
   // gameResult.homeRatings.starters (jersey numbers, run styles) and the
   // hover tooltips read playerLookup. Built from the CURRENT franchise
@@ -2384,7 +2394,7 @@ function _frnPlaySynthReplay(homeId, awayId, homeScore, awayScore, synthPlays, l
   if (_pcEl) _pcEl.style.display = "flex";
   if (typeof gameArea !== "undefined") gameArea.classList.remove("empty");
   if (typeof renderGameLayout === "function") renderGameLayout();
-  playHead = 0;
+  playHead = _startAt;
   animState = null;
   playing = true;
   speedMul = 0.5; // slow-mo for replays
@@ -2393,6 +2403,7 @@ function _frnPlaySynthReplay(homeId, awayId, homeScore, awayScore, synthPlays, l
   if (typeof startNextPlay === "function") startNextPlay();
   // Floating exit back to wherever the user came from.
   _frnShowReplayExit();
+  _frnShowLeadupChip(_startAt > 0);
   if (label) {
     _pushNews?.({ type: "news", label: `▶ Replaying: ${label}` });
   }
@@ -2412,6 +2423,28 @@ function _frnShowReplayExit() {
   btn.textContent = "✕ EXIT REPLAY";
   btn.style.display = "block";
 }
+// The lead-up context is opt-in: replays open ON the advertised play; this
+// chip rewinds to the stored context plays for anyone who wants the setup.
+function _frnShowLeadupChip(show) {
+  let btn = document.getElementById("frnReplayLeadupBtn");
+  if (!show) { if (btn) btn.style.display = "none"; return; }
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.id = "frnReplayLeadupBtn";
+    btn.className = "frn-replay-exit-btn frn-replay-leadup-btn";
+    btn.onclick = () => {
+      // Direct assignments — top-level `let` bindings (the frnReplayLastPlay rule).
+      playHead = 0;
+      animState = null;
+      playing = true;
+      if (typeof startNextPlay === "function") startNextPlay();
+      btn.style.display = "none"; // one rewind per replay — it ends on the money play again
+    };
+    document.body.appendChild(btn);
+  }
+  btn.textContent = "⏮ WATCH LEAD-UP";
+  btn.style.display = "block";
+}
 function frnExitReplay() {
   playing = false;
   if (typeof rafId !== "undefined") cancelAnimationFrame(rafId);
@@ -2420,6 +2453,8 @@ function frnExitReplay() {
   window._replayMode = false;
   const btn = document.getElementById("frnReplayExitBtn");
   if (btn) btn.style.display = "none";
+  const lu = document.getElementById("frnReplayLeadupBtn");
+  if (lu) lu.style.display = "none";
   const bar = document.getElementById("frn-hl-reel-bar");
   if (bar) bar.remove();
   const ga = (typeof gameArea !== "undefined") ? gameArea : document.getElementById("gameArea");
@@ -2471,7 +2506,10 @@ function frnReplayHighlight(idx) {
   if (Array.isArray(h.animCtx) && h.animCtx.length) {
     _frnPlaySynthReplay(h.homeId, h.awayId,
       h.finalHome ?? h.homeScore ?? 0, h.finalAway ?? h.awayScore ?? 0,
-      h.animCtx, (h.label || "").slice(0, 80));
+      h.animCtx, (h.label || "").slice(0, 80),
+      // Game capsules ("OT THRILLER", comebacks…) advertise the FINISH — both
+      // stored plays are the content. Per-play highlights start on the play.
+      h.type === "game" ? { startAt: 0 } : undefined);
     return;
   }
   const weekNum = typeof h.week === "number" ? h.week
