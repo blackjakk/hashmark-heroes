@@ -10514,6 +10514,9 @@
   /* Lead-up rewind chip — sits under the exit chip, same styling family. */
   .frn-replay-leadup-btn { top: 54px; }
 
+  /* Analytics hub: the user's team row in league-wide tables. */
+  .frn-ana-myrow { background: rgba(200, 169, 0, .07); }
+
   /* Holdout Center — always-on offer composer (right rail of each demand row) */
   .frn-offer-panel {
     background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;

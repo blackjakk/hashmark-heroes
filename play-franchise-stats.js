@@ -3144,7 +3144,7 @@ function _anaTeamCell(teamId) {
 }
 function _anaSigned(v, digits = 1) {
   const n = +v || 0;
-  const col = n > 0 ? "var(--blgood, #7ee08a)" : n < 0 ? "var(--blbad, #ff7a6a)" : "var(--blgray)";
+  const col = n > 0 ? "var(--ds-grade-pos)" : n < 0 ? "var(--ds-grade-neg)" : "var(--blgray)";
   return `<span style="color:${col};font-weight:700">${n >= 0 ? "+" : ""}${n.toFixed(digits)}</span>`;
 }
 function _anaCard(title, inner) {
@@ -3167,7 +3167,7 @@ function _anaTeamTiers() {
       <thead><tr><th>#</th><th style="text-align:left">Team</th><th>OFF EPA/play</th><th>OFF success</th><th>DEF EPA/play allowed</th><th>DEF success allowed</th><th>NET</th></tr></thead>
       <tbody>${rows.map((r, i) => {
         const t = getTeam(r.tid);
-        return `<tr${t && r.tid === franchise.chosenTeamId ? ' style="background:rgba(200,169,0,.07)"' : ""}>
+        return `<tr${t && r.tid === franchise.chosenTeamId ? ' class="frn-ana-myrow"' : ""}>
           <td style="color:var(--gold)">${i + 1}</td>
           <td style="text-align:left;font-weight:700">${t ? teamLink(t) : "?"}</td>
           <td>${_anaSigned(r.off, 3)}</td>
@@ -3244,7 +3244,7 @@ function _anaGrades() {
         <tbody>${list.map(([n, g], i) => {
           const m = idx.get(n) || {};
           const val = Math.round(g[f.key]);
-          const col = val >= 80 ? "var(--blgood, #7ee08a)" : val >= 60 ? "var(--blgold)" : "var(--blgray)";
+          const col = val >= 80 ? "var(--ds-grade-pos)" : val >= 60 ? "var(--blgold)" : "var(--blgray)";
           return `<tr>
             <td style="color:var(--gold)">${i + 1}</td>
             <td style="text-align:left">${_playerLinkSmart(n)} <span style="color:var(--gray);font-size:.6rem">(${m.pos || "?"})</span></td>
@@ -3280,7 +3280,6 @@ function renderFrnAnalyticsHub(tab) {
   else if (tab === "plays") body = _anaSignaturePlays();
   const navHtml = tabs.map(t => `
     <button class="bspnlive-nav-item ${t.id === tab ? "active" : ""}"
-      style="background:transparent;border:0;font-family:inherit;cursor:pointer;padding:0;${t.id === tab ? "color:var(--blwhite)" : ""}"
       onclick="renderFrnAnalyticsHub('${t.id}')">[${t.label}]</button>
   `).join(" ");
   $("frnHomeContent").innerHTML = `
