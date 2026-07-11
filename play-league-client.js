@@ -74,7 +74,7 @@ function _lgHideShell() {
     const el = document.getElementById(id); if (el) el.style.display = "none";
   }
 }
-function _lgTeam(id) { return TEAMS.find(t => t.id === id) || { city: "?", name: "Team " + id, primary: "#888" }; }
+function _lgTeam(id) { return TEAMS.find(t => t.id === id) || { city: "?", name: "Team " + id, primary: "var(--ds-neutral)" }; }
 function _lgMemberFor(teamId) { return (_lgLeague?.members || []).find(m => m.teamId === teamId) || null; }
 
 // ── entry: start-screen card + deep link ────────────────────────────────────
@@ -736,7 +736,7 @@ function _lgStandingsRows(conf) {
   return rows.map(({ t, s, diff }) => {
     const gm = _lgMemberFor(t.id);
     const mine = t.id === _lg.teamId;
-    return `<tr${mine ? ' style="background:rgba(212,175,55,.08)"' : ""}>
+    return `<tr${mine ? ' style="background:var(--ds-tint-royal-08)"' : ""}>
       <td style="text-align:left;white-space:nowrap"><b style="color:${t.primary}">⬢</b> ${_escHtml(t.city)} ${_escHtml(t.name)}
         ${gm ? `<span style="color:var(--gray);font-size:.62rem"> · ${_escHtml(gm.displayName)}</span>` : ""}</td>
       <td style="font-weight:700">${s.w}-${s.l}${s.t ? "-" + s.t : ""}</td>
@@ -806,7 +806,7 @@ function renderLeagueSeason() {
     const hs = _lgNum(g.homeScore), as = _lgNum(g.awayScore);
     const mine = _lgNum(g.homeId) === _lg.teamId || _lgNum(g.awayId) === _lg.teamId;
     const hWin = hs > as, aWin = as > hs;
-    return `<div style="display:flex;align-items:center;gap:.5rem;padding:.28rem .55rem;border:1px solid var(--border);border-radius:8px${mine ? ";border-color:var(--gold);background:rgba(212,175,55,.07)" : ""}"
+    return `<div style="display:flex;align-items:center;gap:.5rem;padding:.28rem .55rem;border:1px solid var(--border);border-radius:8px${mine ? ";border-color:var(--gold);background:var(--ds-tint-royal-07)" : ""}"
       title="result hash ${_escHtml((g.resultHash || "").slice(0, 16))}…">
       <span style="flex:1;text-align:right${aWin ? ";font-weight:800" : ""}">${_escHtml((a.abbr || a.name.slice(0, 3)).toUpperCase())} ${as}</span>
       <span style="color:var(--gray);font-size:.6rem">@</span>
@@ -1066,7 +1066,7 @@ function _lgFixtureCardHtml(g, pw) {
     const gmH = _lgMemberFor(homeId), gmA = _lgMemberFor(awayId);
     body = `<span style="color:var(--gray);font-size:.68rem">waiting on ${_escHtml(gmA?.displayName || "?")} & ${_escHtml(gmH?.displayName || "?")}</span>`;
   }
-  return `<div style="display:flex;align-items:center;gap:.7rem;justify-content:center;padding:.4rem .7rem;border:1px solid ${mine ? "var(--gold)" : "var(--border)"};border-radius:8px${mine ? ";background:rgba(212,175,55,.07)" : ""}">
+  return `<div style="display:flex;align-items:center;gap:.7rem;justify-content:center;padding:.4rem .7rem;border:1px solid ${mine ? "var(--gold)" : "var(--border)"};border-radius:8px${mine ? ";background:var(--ds-tint-royal-07)" : ""}">
     <span style="font-weight:700;font-size:.74rem">${names}</span>${body}</div>`;
 }
 

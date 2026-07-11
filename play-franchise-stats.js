@@ -569,7 +569,7 @@ function _renderPSMyTab(myId, ps, alerts) {
 
   const _openSlots = PS_SLOTS - ps.length;
   const _signBtn = _openSlots > 0
-    ? `<div style="text-align:center;margin-top:.7rem"><button class="btn btn-outline" style="color:var(--gold);border-color:var(--gold)" onclick="renderFrnPracticeSquad('sign')">＋ Sign a young free agent to the PS <span style="opacity:.7">· ${_openSlots} slot${_openSlots===1?"":"s"} open</span></button></div>`
+    ? `<div style="text-align:center;margin-top:.7rem">${DS.button({labelHtml:`＋ Sign a young free agent to the PS <span style="opacity:.7">· ${_openSlots} slot${_openSlots===1?"":"s"} open</span>`,cls:"btn btn-outline",on:"renderFrnPracticeSquad('sign')",attrs:{style:"color:var(--gold);border-color:var(--gold)"}})}</div>`
     : `<div style="text-align:center;margin-top:.6rem;color:var(--gray);font-size:.64rem">Practice squad full (${PS_SLOTS}/${PS_SLOTS}) — promote or release someone to open a slot.</div>`;
   if (!ps.length) {
     return alertHtml + `<div style="color:var(--gray);font-style:italic;padding:1.2rem;text-align:center">Your practice squad is empty — stash young players (≤2 yrs exp, ≤24 yo) here to develop them, then promote when they're ready.</div>` + _signBtn;
@@ -803,7 +803,7 @@ function frnPSScout(name) {
   const myId = franchise.chosenTeamId;
   if (!_psScout(myId, name)) {
     const msg = `You're out of scout tokens. You bank +${SCOUT_VISITS_PER_WEEK} each week (up to ${SCOUT_TOKEN_CAP}) — advance a week to earn more. Overflow and any left at season's end auto-spend on top targets.`;
-    if (typeof _frnAlert === "function") _frnAlert(msg); else alert(msg);
+    if (typeof DS !== "undefined") DS.toast({ message: msg, kind: "warn" }); else if (typeof _frnAlert === "function") _frnAlert(msg); else alert(msg);
     return;
   }
   saveFranchise();
@@ -909,7 +909,7 @@ function renderFrnInjuredReserve() {
   // Open-spot helper: sign a veteran-minimum replacement at a chosen position.
   const POS = ["QB","RB","WR","TE","OL","DL","LB","CB","S","K","P"];
   const fillHtml = open > 0 ? `
-    <div style="margin-top:.7rem;padding:.5rem .6rem;background:rgba(255,255,255,.03);border-radius:4px">
+    <div style="margin-top:.7rem;padding:.5rem .6rem;background:var(--ds-tint-white-03);border-radius:4px">
       <div style="font-size:.7rem;color:var(--gold-lt);font-weight:700;margin-bottom:.3rem">${open} open roster spot${open===1?"":"s"} — sign a veteran-minimum replacement:</div>
       <div style="display:flex;gap:.3rem;flex-wrap:wrap">
         ${POS.map(pos => DS.button({label:`+ ${pos}`,on:`frnSignIrReplacement('${pos}')`,attrs:{style:"font-size:.6rem;padding:.18rem .45rem"}})).join("")}
@@ -2321,18 +2321,18 @@ function frnRequestScrimmage(otherId) {
   const allDone = (franchise.scrimmagesDone || []);
   const thisWeek = allDone.filter(s => s.season === franchise.season && s.week === franchise.week);
   if (thisWeek.length >= 1) {
-    alert("You've already run a joint practice this week. Only one per week.");
+    if (typeof DS !== "undefined") DS.toast({ message: "You've already run a joint practice this week. Only one per week.", kind: "warn" }); else alert("You've already run a joint practice this week. Only one per week.");
     renderFrnScrimmages();
     return;
   }
   if (_jpRemainingSlots(franchise.season) < JP_INTENSITIES.walkthrough.slotCost) {
-    alert(`You've used all ${JP_SEASON_CAP} joint-practice slots for the season.`);
+    if (typeof DS !== "undefined") DS.toast({ message: `You've used all ${JP_SEASON_CAP} joint-practice slots for the season.`, kind: "warn" }); else alert(`You've used all ${JP_SEASON_CAP} joint-practice slots for the season.`);
     renderFrnScrimmages();
     return;
   }
   const interest = frnScrimmageInterest(otherId);
   if (Math.random() > interest) {
-    alert("They turned down the request — schedule too tight.");
+    if (typeof DS !== "undefined") DS.toast({ message: "They turned down the request — schedule too tight.", kind: "info" }); else alert("They turned down the request — schedule too tight.");
     renderFrnScrimmages();
     return;
   }
@@ -2350,7 +2350,7 @@ function frnJpSendOffer(otherId, initiatorIntensity) {
   _jpPickerTeam = null;
   const remaining = _jpRemainingSlots(franchise.season);
   if (JP_INTENSITIES[initiatorIntensity].slotCost > remaining + 0.01) {
-    alert(`Not enough slot budget left — only ${remaining.toFixed(1)} remaining.`);
+    if (typeof DS !== "undefined") DS.toast({ message: `Not enough slot budget left — only ${remaining.toFixed(1)} remaining.`, kind: "warn" }); else alert(`Not enough slot budget left — only ${remaining.toFixed(1)} remaining.`);
     renderFrnScrimmages();
     return;
   }
@@ -2473,7 +2473,7 @@ function renderFrnPracticeReport(idx) {
   const injuries    = report.injuries    || [];
   const awrBoost    = report.awrBoost    || { my: 0, opp: 0 };
   const downgraded  = report.requestedIntensity && report.requestedIntensity !== intensityKey;
-  const deltaCol = (d) => d > 0 ? "var(--green-lt)" : d < 0 ? "#ff8a8a" : "var(--gray)";
+  const deltaCol = (d) => d > 0 ? "var(--green-lt)" : d < 0 ? "var(--ds-grade-neg)" : "var(--gray)";
 
   const intelPanel = intensity.revealsGrades
     ? `<div style="background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--gold);padding:.5rem .7rem">
@@ -2643,7 +2643,7 @@ function renderFrnScrimmages() {
     const chips = [];
     if (upcomingWk != null) {
       const wksAway = upcomingWk - franchise.week;
-      const col = wksAway <= 2 ? "#ff6b6b" : wksAway <= 4 ? "#e8a000" : "var(--gold-lt)";
+      const col = wksAway <= 2 ? "var(--ds-grade-neg-strong)" : wksAway <= 4 ? "var(--ds-grade-caution)" : "var(--gold-lt)";
       chips.push(`<span class="frn-jp-chip" style="border-color:${col};color:${col}" title="On your remaining schedule — practice here pays off Week ${upcomingWk}">▶ WK ${upcomingWk}${wksAway <= 4 ? ` (${wksAway}w)` : ""}</span>`);
     }
     if (isDivision)   chips.push(`<span class="frn-jp-chip" style="border-color:var(--gold);color:var(--gold)" title="Division foe — you'll see them again">🏟 DIVISION</span>`);
@@ -2828,7 +2828,7 @@ function _playoffClinchStatus(teamId, sorted) {
   }
   // In the hunt (late-season + within striking distance)
   if (gamesLeft <= 5 && gamesLeft > 0 && targetMax >= _minWins(bubble)) {
-    return { tag: "IN HUNT", color: "#e8a000" };
+    return { tag: "IN HUNT", color: "var(--ds-grade-caution)" };
   }
   return null;
 }
@@ -2873,7 +2873,7 @@ function renderFrnStandings() {
         <td style="color:var(--blgold);font-weight:900;width:1.5rem">${i + 1}</td>
         <td>
           <span class="bspnlive-num" style="color:${_teamInk(t.primary)};font-weight:700">${t.abbr || t.name.slice(0,3).toUpperCase()}</span>
-          <span style="color:${isMine ? "var(--blgold)" : "var(--blwhite)"};font-weight:${isMine?900:600};margin-left:.45rem;font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:1px;font-size:.95rem">${t.city} ${t.name}</span>
+          <span style="color:${isMine ? "var(--blgold)" : "var(--blwhite)"};font-weight:${isMine?900:600};margin-left:.45rem;font-family:var(--font-display);letter-spacing:1px;font-size:.95rem">${t.city} ${t.name}</span>
           ${isMine ? `<span style="color:var(--blgold);font-size:.55rem;letter-spacing:.5px;margin-left:.4rem">YOU</span>` : ""}
           ${clinchPill}
         </td>
@@ -2912,7 +2912,7 @@ function renderFrnStandings() {
       const inPlayoffs = i < (PLAYOFF_TEAMS / 2);
       const recStr = `${s.w||0}-${s.l||0}${s.t?`-${s.t}`:""}`;
       const seedTag = inPlayoffs
-        ? `<span style="color:var(--blgold);font-weight:900;font-size:.85rem;font-family:'Bebas Neue',sans-serif">#${i+1}</span>`
+        ? `<span style="color:var(--blgold);font-weight:900;font-size:.85rem;font-family:var(--font-display)">#${i+1}</span>`
         : `<span style="color:var(--blgray);font-weight:600">${i+1}</span>`;
       const clinch = _playoffClinchStatus(s.id, sorted);
       const clinchPill = clinch
@@ -2922,7 +2922,7 @@ function renderFrnStandings() {
         <td style="width:2.2rem;text-align:center">${seedTag}</td>
         <td>
           <span class="bspnlive-num" style="color:${_teamInk(s.team.primary)};font-weight:700">${s.team.abbr || s.team.name.slice(0,3).toUpperCase()}</span>
-          <span style="margin-left:.4rem;color:${isMine?"var(--blgold)":"var(--blwhite)"};font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:1px">${s.team.name}</span>
+          <span style="margin-left:.4rem;color:${isMine?"var(--blgold)":"var(--blwhite)"};font-family:var(--font-display);letter-spacing:1px">${s.team.name}</span>
           ${clinchPill}
         </td>
         <td class="bspnlive-num" style="text-align:right;font-weight:700">${recStr}</td>
@@ -2964,7 +2964,7 @@ function renderFrnStandings() {
         if (!s) return "";
         const parts = [];
         if (s.cbW)            parts.push(`<b style="color:var(--ds-grade-pos)">${s.cbW}</b> comeback win${s.cbW > 1 ? "s" : ""}`);
-        if (s.wireW)          parts.push(`<b style="color:#8ab4f8">${s.wireW}</b> wire-to-wire`);
+        if (s.wireW)          parts.push(`<b style="color:var(--ds-accent-sky)">${s.wireW}</b> wire-to-wire`);
         if (s.oscW || s.oscL) parts.push(`<b style="color:var(--gold-lt)">${s.oscW || 0}-${s.oscL || 0}</b> in one-score games`);
         if (!parts.length) return "";
         return `<div style="padding:.4rem 1.4rem;border-bottom:1px solid var(--blborder);font-size:.7rem;color:var(--blgray)">🔥 Your situational record: ${parts.join(" · ")}</div>`;
@@ -2974,11 +2974,11 @@ function renderFrnStandings() {
           ${renderConferenceOutlook("AFC")}
           ${renderConferenceOutlook("NFC")}
         </div>
-        <div style="font-family:'Bebas Neue','Anton',sans-serif;color:var(--blwhite);font-size:1.4rem;letter-spacing:2px;margin:1rem 0 .35rem 0">AFC DIVISIONS</div>
+        <div style="font-family:var(--font-display);color:var(--blwhite);font-size:1.4rem;letter-spacing:2px;margin:1rem 0 .35rem 0">AFC DIVISIONS</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">
           ${afcDivs.map(renderDivisionTable).join("")}
         </div>
-        <div style="font-family:'Bebas Neue','Anton',sans-serif;color:var(--blwhite);font-size:1.4rem;letter-spacing:2px;margin:1rem 0 .35rem 0">NFC DIVISIONS</div>
+        <div style="font-family:var(--font-display);color:var(--blwhite);font-size:1.4rem;letter-spacing:2px;margin:1rem 0 .35rem 0">NFC DIVISIONS</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.7rem">
           ${nfcDivs.map(renderDivisionTable).join("")}
         </div>
@@ -3082,13 +3082,13 @@ function renderFrnLeaders(tab) {
   const rows = top10.length ? top10.map((r, i) => {
     const isMine = r._teamId === myId;
     return `<tr ${isMine ? `style="background:rgba(245,197,66,0.08)"` : ""}>
-      <td style="color:var(--blgold);font-weight:900;width:2rem;text-align:center;font-family:'Bebas Neue','Anton',sans-serif;font-size:1.1rem">${i + 1}</td>
+      <td style="color:var(--blgold);font-weight:900;width:2rem;text-align:center;font-family:var(--font-display);font-size:1.1rem">${i + 1}</td>
       <td>
-        <span style="font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:1px;font-size:1rem;color:${isMine?"var(--blgold)":"var(--blwhite)"}">${_playerLinkSmart(r.name)}</span>
+        <span style="font-family:var(--font-display);letter-spacing:1px;font-size:1rem;color:${isMine?"var(--blgold)":"var(--blwhite)"}">${_playerLinkSmart(r.name)}</span>
         <span style="color:${_teamInk(r._team.primary)};font-weight:700;margin-left:.45rem;font-size:.7rem">${r._team.abbr || r._team.name.slice(0,3).toUpperCase()}</span>
         <span style="color:var(--blgray);font-size:.6rem;margin-left:.4rem">${r.pos}</span>
       </td>
-      <td style="text-align:right;font-family:'Anton','Teko','Impact',sans-serif;font-size:1.5rem;line-height:1;font-weight:900;color:var(--blwhite)">${cat.formatVal ? cat.formatVal(_catValue(r)) : _catValue(r)}</td>
+      <td style="text-align:right;font-family:var(--font-num);font-size:1.5rem;line-height:1;font-weight:900;color:var(--blwhite)">${cat.formatVal ? cat.formatVal(_catValue(r)) : _catValue(r)}</td>
       <td style="text-align:right;color:var(--blgray);font-size:.65rem;letter-spacing:.4px;padding-left:.7rem">${cat.extra(r)}</td>
     </tr>`;
   }).join("") : `<tr><td colspan="4" style="color:var(--blgray);font-style:italic;text-align:center;padding:1.5rem">No qualifying players yet — sim more games.</td></tr>`;
@@ -3431,7 +3431,7 @@ function _legacyHOF() {
     const klass = byClass[season];
     return `<div style="margin-bottom:1rem">
       <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.4rem;padding-bottom:.3rem;border-bottom:1px solid var(--blborder)">
-        <div style="font-family:'Bebas Neue','Anton',sans-serif;color:var(--gold);font-size:1.2rem;letter-spacing:2px">CLASS OF S${season}</div>
+        <div style="font-family:var(--font-display);color:var(--gold);font-size:1.2rem;letter-spacing:2px">CLASS OF S${season}</div>
         <div style="color:var(--gray);font-size:.6rem;letter-spacing:.5px">${klass.length} inductee${klass.length===1?"":"s"}</div>
       </div>
       ${klass.map(_renderInductee).join("")}
@@ -3446,11 +3446,11 @@ function _legacyHOF() {
       .slice(0, 12);
     if (!visible.length) return "";
     return `<div style="margin-top:1.2rem;padding-top:.6rem;border-top:1px dashed var(--blborder)">
-      <div style="font-family:'Bebas Neue','Anton',sans-serif;color:var(--gray);font-size:1rem;letter-spacing:2px;margin-bottom:.4rem">ON THE BALLOT (top 12)</div>
+      <div style="font-family:var(--font-display);color:var(--gray);font-size:1rem;letter-spacing:2px;margin-bottom:.4rem">ON THE BALLOT (top 12)</div>
       <div style="font-size:.6rem;color:var(--gray);margin-bottom:.4rem">Threshold to induct: ${_HOF_INDUCT_THRESHOLD}. Max class size: ${_HOF_MAX_CLASS}/yr. Candidates drop after ${_HOF_MAX_BALLOT_YEARS} years on ballot.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem">
         ${visible.map(({ c, voteScore }) => `
-          <div style="padding:.35rem .5rem;background:rgba(255,255,255,.03);border-left:2px solid ${voteScore >= _HOF_INDUCT_THRESHOLD ? "var(--gold)" : "var(--gray)"};font-size:.62rem">
+          <div style="padding:.35rem .5rem;background:var(--ds-tint-white-03);border-left:2px solid ${voteScore >= _HOF_INDUCT_THRESHOLD ? "var(--gold)" : "var(--gray)"};font-size:.62rem">
             <span style="font-weight:700;color:var(--blwhite)">${c.name}</span>
             <span style="color:var(--gray)"> (${c.pos}) · score ${Math.round(voteScore)} · yr ${c.yearsOnBallot || 0}</span>
           </div>
@@ -3578,7 +3578,7 @@ function _legacyRecordBook() {
     const opp = isSingleGame && entry.oppId ? getTeam(entry.oppId) : null;
     return `<tr>
       <td style="color:var(--gold);font-weight:700">${def.label}</td>
-      <td style="font-family:'Anton','Teko','Impact',sans-serif;font-size:1.3rem;color:var(--gold-lt);font-weight:900">${entry.value}</td>
+      <td style="font-family:var(--font-num);font-size:1.3rem;color:var(--gold-lt);font-weight:900">${entry.value}</td>
       <td>${_playerLinkSmart(entry.playerName)} <span style="color:var(--gray);font-size:.6rem">(${entry.pos})</span></td>
       <td style="color:var(--gray);font-size:.66rem">${t ? `${t.city} ${t.name}` : "—"}</td>
       <td style="color:var(--gray);font-size:.66rem">S${entry.season}${isSingleGame ? ` · W${entry.week}` : ""}${opp ? ` · vs ${opp.name}` : ""}${entry.isPlayoff ? " · (PO)" : ""}</td>
@@ -3979,7 +3979,7 @@ async function frnDepthSetSnapShare(slotKey) {
   // Guard against editing snap share for an empty slot — meaningless.
   const dc = franchise.depthChart?.[myId];
   if (!dc?.[slotKey]?.starter) {
-    alert(`No starter assigned to ${slotKey} yet. Set a starter first.`);
+    if (typeof DS !== "undefined") DS.toast({ message: `No starter assigned to ${slotKey} yet. Set a starter first.`, kind: "warn" }); else alert(`No starter assigned to ${slotKey} yet. Set a starter first.`);
     return;
   }
   const cur = sd.starterPct ?? 70;
@@ -4017,9 +4017,9 @@ async function frnDepthSetSnapShare(slotKey) {
   if (countMatch || touchesMatch) {
     const m = countMatch ? "count" : "touches";
     const tgt = parseInt((countMatch || touchesMatch)[1], 10);
-    if (!Number.isFinite(tgt) || tgt < 1) { alert("Target must be a positive number."); return; }
-    if (m === "count" && tgt > 80) { alert("Snap count max is 80 (one team has ~62 snaps/game)."); return; }
-    if (m === "touches" && tgt > 35) { alert("Touches max is 35 (huge workload for any player)."); return; }
+    if (!Number.isFinite(tgt) || tgt < 1) { if (typeof DS !== "undefined") DS.toast({ message: "Target must be a positive number.", kind: "error" }); else alert("Target must be a positive number."); return; }
+    if (m === "count" && tgt > 80) { if (typeof DS !== "undefined") DS.toast({ message: "Snap count max is 80 (one team has ~62 snaps/game).", kind: "error" }); else alert("Snap count max is 80 (one team has ~62 snaps/game)."); return; }
+    if (m === "touches" && tgt > 35) { if (typeof DS !== "undefined") DS.toast({ message: "Touches max is 35 (huge workload for any player).", kind: "error" }); else alert("Touches max is 35 (huge workload for any player)."); return; }
     franchise.snapShares[myId][slotKey] = {
       ...sd,
       starterPct: sd.starterPct ?? 80,  // keep a baseline for any share-mode fallback
@@ -4033,7 +4033,7 @@ async function frnDepthSetSnapShare(slotKey) {
   // Standard share % path
   const parsed = Math.round(Number(trimmed));
   if (!Number.isFinite(parsed)) {
-    alert(`Couldn't parse "${input}".\nAccepted: number, c<n>, t<n>, or "clear".`);
+    if (typeof DS !== "undefined") DS.toast({ message: `Couldn't parse "${input}".\nAccepted: number, c<n>, t<n>, or "clear".`, kind: "error" }); else alert(`Couldn't parse "${input}".\nAccepted: number, c<n>, t<n>, or "clear".`);
     return;
   }
   const newPct = Math.max(floor, Math.min(ceil, parsed));
@@ -4302,15 +4302,15 @@ async function renderFrnDepthChart() {
     // Workload plan badge — show mode for non-share plans
     let planBadge = "";
     if (plan && plan.mode === "count") {
-      planBadge = `<span class="frn-dc-plan-badge" style="position:absolute;top:2px;right:2px;background:#3a4d5f;color:#fff;font-size:.5rem;padding:.05rem .2rem;border-radius:2px;letter-spacing:.5px;font-weight:700" title="Snap count cap: ${plan.target} snaps">c${plan.target}</span>`;
+      planBadge = `<span class="frn-dc-plan-badge" style="position:absolute;top:2px;right:2px;background:#3a4d5f;color:var(--ds-pure-white);font-size:.5rem;padding:.05rem .2rem;border-radius:2px;letter-spacing:.5px;font-weight:700" title="Snap count cap: ${plan.target} snaps">c${plan.target}</span>`;
     } else if (plan && plan.mode === "touches") {
-      planBadge = `<span class="frn-dc-plan-badge" style="position:absolute;top:2px;right:2px;background:#5f3a4d;color:#fff;font-size:.5rem;padding:.05rem .2rem;border-radius:2px;letter-spacing:.5px;font-weight:700" title="Touch target: ${plan.target}">t${plan.target}</span>`;
+      planBadge = `<span class="frn-dc-plan-badge" style="position:absolute;top:2px;right:2px;background:#5f3a4d;color:var(--ds-pure-white);font-size:.5rem;padding:.05rem .2rem;border-radius:2px;letter-spacing:.5px;font-weight:700" title="Touch target: ${plan.target}">t${plan.target}</span>`;
     }
     // Auto-manage reason annotation
     let autoBadge = "";
     if (autoReason && autoReason !== "fresh") {
       const isRest = autoReason.startsWith("REST");
-      const color = isRest ? "#e6373a" : "#f0a93a";
+      const color = isRest ? "var(--ds-red-strong)" : "var(--ds-amber)";
       autoBadge = `<span style="position:absolute;bottom:18px;left:2px;color:${color};font-size:.54rem;letter-spacing:.4px;font-weight:700;text-transform:uppercase;line-height:1;pointer-events:none" title="Auto-manage: ${autoReason}">${isRest ? "REST" : "MGD"}</span>`;
     }
     const titleParts = [`${pct}% starter`];
@@ -4548,7 +4548,7 @@ async function renderFrnDepthChart() {
       return { pkg, lineup, avgOvr, archFitPct, strength: _strength(avgOvr) };
     });
 
-    const _fitColor = pct => pct >= 70 ? "#4caf82" : pct >= 45 ? "#e8a000" : "#ff6b6b";
+    const _fitColor = pct => pct >= 70 ? "#4caf82" : pct >= 45 ? "var(--ds-grade-caution)" : "var(--ds-grade-neg-strong)";
     const cards = pkgMetrics.map(({ pkg, avgOvr, archFitPct, strength }) => {
       const active = pkg.key === _dcActivePkg;
       const fitCol = _fitColor(archFitPct);
@@ -4738,7 +4738,7 @@ async function renderFrnDepthChart() {
       const policy = franchise.autoManagePolicy?.[myId] || "balanced";
       const policyChip = (key, label, tip) => {
         const on = policy === key;
-        return DS.button({label:label,on:`frnSetAutoManagePolicy('${key}')`,title:tip,attrs:{style:`padding:.26rem .55rem;font-size:.58rem;letter-spacing:.4px;${on?'background:var(--gold);color:#000;border-color:var(--gold);font-weight:700':''}`}});
+        return DS.button({label:label,on:`frnSetAutoManagePolicy('${key}')`,title:tip,attrs:{style:`padding:.26rem .55rem;font-size:.58rem;letter-spacing:.4px;${on?'background:var(--gold);color:var(--ds-pure-black);border-color:var(--gold);font-weight:700':''}`}});
       };
       const restPol = (typeof _effectiveRestPolicy === "function") ? _effectiveRestPolicy(myId) : { off: 28, def: 28 };
       const sel = (unit, val) => {
@@ -4748,13 +4748,13 @@ async function renderFrnDepthChart() {
       };
       const armed = !!(franchise.restStartersWeek && franchise.restStartersWeek[myId] === (franchise.week || 1));
       const restBtn = armed
-        ? DS.button({label:"✓ RESTING THIS WEEK · undo",on:"frnToggleRestStarters()",title:"Starters are resting for this week's game — click to undo",attrs:{style:"background:#8ab4f8;color:#06121f;border:1px solid #8ab4f8;font-weight:800;padding:.3rem .65rem;font-size:.6rem"}})
-        : DS.button({label:"😴 Rest Starters This Week",on:"frnToggleRestStarters()",title:"Bench your starters for this week's game only — your offense plays its backups (you may lose), but starters shed wear and dodge injury rolls. Reverts after the game.",attrs:{style:"color:#8ab4f8;border-color:#8ab4f8;padding:.3rem .65rem;font-size:.6rem"}});
+        ? DS.button({label:"✓ RESTING THIS WEEK · undo",on:"frnToggleRestStarters()",title:"Starters are resting for this week's game — click to undo",attrs:{style:"background:var(--ds-accent-sky);color:#06121f;border:1px solid var(--ds-accent-sky);font-weight:800;padding:.3rem .65rem;font-size:.6rem"}})
+        : DS.button({label:"😴 Rest Starters This Week",on:"frnToggleRestStarters()",title:"Bench your starters for this week's game only — your offense plays its backups (you may lose), but starters shed wear and dodge injury rolls. Reverts after the game.",attrs:{style:"color:var(--ds-accent-sky);border-color:var(--ds-accent-sky);padding:.3rem .65rem;font-size:.6rem"}});
       const lbl  = (t) => `<span style="font-size:.55rem;color:var(--gray);letter-spacing:.8px;font-weight:700;white-space:nowrap;text-align:right">${t}</span>`;
       const hint = (t) => `<span style="font-size:.55rem;color:var(--gray);opacity:.75">${t}</span>`;
-      return `<div style="margin:.5rem 0;border:1px solid var(--blborder);border-left:3px solid #8ab4f8;border-radius:5px;background:rgba(138,180,248,.035);overflow:hidden">
+      return `<div style="margin:.5rem 0;border:1px solid var(--blborder);border-left:3px solid var(--ds-accent-sky);border-radius:5px;background:rgba(138,180,248,.035);overflow:hidden">
         <div style="display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap;padding:.34rem .6rem;background:rgba(138,180,248,.09);border-bottom:1px solid var(--blborder)">
-          <span style="font-size:.66rem;color:#8ab4f8;letter-spacing:1.2px;font-weight:800">🛟 WORKLOAD &amp; REST</span>
+          <span style="font-size:.66rem;color:var(--ds-accent-sky);letter-spacing:1.2px;font-weight:800">🛟 WORKLOAD &amp; REST</span>
           <span style="font-size:.55rem;color:var(--gray)">control who plays and who sits — stay fresh, dodge injuries</span>
         </div>
         <div style="display:grid;grid-template-columns:auto 1fr;gap:.45rem .8rem;padding:.5rem .65rem;align-items:center">
@@ -5291,8 +5291,8 @@ function _bspnRenderInjuryRecap(events) {
     const part = e.bodyPart ? `<span style="color:var(--gray)"> · ${PART_NAMES[e.bodyPart] || e.bodyPart}</span>` : "";
     const mech = e.mechanism ? `<span style="color:rgba(255,255,255,.4);font-size:.58rem"> · ${mechName(e.mechanism)}</span>` : "";
     const tackler = e.tackler ? `<div style="font-size:.58rem;color:var(--gray);margin-top:.1rem">by ${e.tackler}</div>` : "";
-    const sev = e.careerEnding ? `<span style="color:#e6373a;font-weight:800;font-size:.55rem">CAREER-END</span>`
-              : e.catastrophic ? `<span style="color:#ed6a3a;font-weight:800;font-size:.55rem">CATA</span>` : "";
+    const sev = e.careerEnding ? `<span style="color:var(--ds-red-strong);font-weight:800;font-size:.55rem">CAREER-END</span>`
+              : e.catastrophic ? `<span style="color:var(--ds-orange);font-weight:800;font-size:.55rem">CATA</span>` : "";
     return `<div style="padding:.35rem .5rem;border-bottom:1px solid rgba(255,255,255,.07);font-size:.68rem">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:.4rem">
         <span style="font-weight:600">${icon} ${e.teamAbbr || "—"} · ${e.pos} ${_bspnEsc(e.name)}</span>
@@ -5336,7 +5336,7 @@ function _bspnRenderScoreNumeral(value, color, muted) {
 function _bspnRenderTeamMark(team) {
   const sz = 80;
   return `<div class="bspn-summary-team-mark" style="width:${sz}px;height:${sz}px;--team-color:${team.primaryColor}">
-    <span style='font-family:"Bebas Neue","Anton",sans-serif;font-size:.95rem;letter-spacing:2px'>${_bspnEsc(team.abbreviation)}</span>
+    <span style='font-family:var(--font-display);font-size:.95rem;letter-spacing:2px'>${_bspnEsc(team.abbreviation)}</span>
   </div>`;
 }
 function _bspnRenderSummary(s) {
@@ -5470,7 +5470,7 @@ function _bspnRenderScoring(plays, teamsById, totalPts) {
     </section>`;
   }
   const TYPE_META = {
-    TD:  { label:"TD",  color:"#f5c542", bg:"rgba(245,197,66,.13)"  },
+    TD:  { label:"TD",  color:"var(--ds-gold-accent)", bg:"rgba(245,197,66,.13)"  },
     FG:  { label:"FG",  color:"#4dbdbd", bg:"rgba(77,189,189,.12)"  },
     XP:  { label:"XP",  color:"#9aa3ad",  bg:"rgba(136,136,136,.08)" },
     "2PT":{ label:"2PT",color:"#a78bfa", bg:"rgba(167,139,250,.12)" },
@@ -5581,11 +5581,11 @@ function _bspnRenderDriveChart(drives) {
   const resultMeta = (r) => {
     const R = String(r || "").toUpperCase();
     if (/PUNT/.test(R))                 return { label: "PUNT",      col: "var(--gray)" };
-    if (/DOWNS/.test(R))                return { label: "ON DOWNS",  col: "#ff8a8a" };
-    if (/SAFETY/.test(R))               return { label: "SAFETY",    col: "#ff8a8a" };
-    if (/INT|FUMBLE|TURNOVER/.test(R))  return { label: "TURNOVER",  col: "#ff8a8a" };
-    if (/MISS/.test(R))                 return { label: "MISSED FG", col: "#e0b078" };
-    if (/\bTD\b|TOUCHDOWN|RTN-TD/.test(R)) return { label: "TD",     col: "#86e0a3" };
+    if (/DOWNS/.test(R))                return { label: "ON DOWNS",  col: "var(--ds-grade-neg)" };
+    if (/SAFETY/.test(R))               return { label: "SAFETY",    col: "var(--ds-grade-neg)" };
+    if (/INT|FUMBLE|TURNOVER/.test(R))  return { label: "TURNOVER",  col: "var(--ds-grade-neg)" };
+    if (/MISS/.test(R))                 return { label: "MISSED FG", col: "var(--ds-grade-caution-soft)" };
+    if (/\bTD\b|TOUCHDOWN|RTN-TD/.test(R)) return { label: "TD",     col: "var(--ds-grade-pos)" };
     if (/\bFG\b|FIELD GOAL/.test(R))    return { label: "FG",        col: "#cfe8a8" };
     if (/HALF|END/.test(R))             return { label: "END HALF",  col: "var(--gray)" };
     return { label: R || "—", col: "var(--gray)" };
@@ -5596,7 +5596,7 @@ function _bspnRenderDriveChart(drives) {
     const qHdr = d.qtr !== lastQ
       ? `<div style="font-size:.55rem;letter-spacing:1px;color:var(--gray);font-weight:700;margin:.35rem 0 .1rem">${d.qtr <= 4 ? "Q" + d.qtr : "OT"}</div>` : "";
     lastQ = d.qtr;
-    return `${qHdr}<div style="display:flex;align-items:baseline;gap:.4rem;padding:.16rem 0;border-top:1px solid rgba(255,255,255,.05);font-size:.62rem">
+    return `${qHdr}<div style="display:flex;align-items:baseline;gap:.4rem;padding:.16rem 0;border-top:1px solid var(--ds-tint-white-05);font-size:.62rem">
       <span style="font-weight:800;color:${m.col};min-width:2.4rem">${m.ab}</span>
       <span style="color:var(--gray);flex:1;min-width:0">${d.plays} pl · ${d.yds} yd · ${fmtTime(d.sec)}${fp(d.startYL) ? ` · ${fp(d.startYL)}` : ""}</span>
       <span style="font-weight:700;color:${rm.col};min-width:4rem;text-align:right">${rm.label}</span>
@@ -5725,7 +5725,7 @@ function frnSnapClearManual() {
     if (ss[k].manual) { ss[k].manual = false; cleared++; }
   }
   saveFranchise();
-  alert(`Cleared manual flag on ${cleared} slot${cleared===1?"":"s"} — they'll re-optimize automatically on depth-chart changes.`);
+  if (typeof DS !== "undefined") DS.toast({ message: `Cleared manual flag on ${cleared} slot${cleared===1?"":"s"} — they'll re-optimize automatically on depth-chart changes.`, kind: "success" }); else alert(`Cleared manual flag on ${cleared} slot${cleared===1?"":"s"} — they'll re-optimize automatically on depth-chart changes.`);
   renderFrnSnapShares();
 }
 
@@ -5909,7 +5909,7 @@ function renderFrnPastGame(week, homeId, awayId) {
   _frnHoverTipPgHide();
   const g = (franchise.schedule || []).find(x =>
     x.week === Number(week) && x.homeId === Number(homeId) && x.awayId === Number(awayId) && x.played);
-  if (!g) { alert("Game data not available."); return; }
+  if (!g) { if (typeof DS !== "undefined") DS.toast({ message: "Game data not available.", kind: "error" }); else alert("Game data not available."); return; }
   const data = _franchiseGameToBSPNData(g, Number(week));
   $("frnHomeContent").innerHTML = _bspnRenderPage(data);
 }
@@ -6099,7 +6099,7 @@ function _buildOpponentIntelBlock(oppId, isHome, week, nextGame) {
   const ppg = gp ? ((oppStand.pf||0) / gp).toFixed(1) : "—";
   const paPg = gp ? ((oppStand.pa||0) / gp).toFixed(1) : "—";
   const diff = (oppStand.pf||0) - (oppStand.pa||0);
-  const diffColor = diff > 0 ? "var(--green-lt)" : diff < 0 ? "#c08080" : "var(--gray)";
+  const diffColor = diff > 0 ? "var(--green-lt)" : diff < 0 ? "var(--ds-grade-neg-muted)" : "var(--gray)";
   const diffStr = `${diff > 0 ? "+" : ""}${diff}`;
   // Last 3 results
   const lastGames = (franchise.schedule || [])
@@ -6111,7 +6111,7 @@ function _buildOpponentIntelBlock(oppId, isHome, week, nextGame) {
     const them = oppIsHome ? g.awayScore : g.homeScore;
     const otherTeam = getTeam(oppIsHome ? g.awayId : g.homeId);
     const wl = my > them ? "W" : my < them ? "L" : "T";
-    const wlColor = wl === "W" ? "var(--green-lt)" : wl === "L" ? "#c08080" : "var(--gray)";
+    const wlColor = wl === "W" ? "var(--green-lt)" : wl === "L" ? "var(--ds-grade-neg-muted)" : "var(--gray)";
     return `<span class="frn-opp-form-pill" style="color:${wlColor}" title="W${g.week} ${oppIsHome?"vs":"@"} ${otherTeam?.name||"?"}">${wl} ${my}-${them}</span>`;
   }).join(" ") : `<span style="color:var(--gray);font-style:italic">No prior games</span>`;
 
@@ -6152,14 +6152,14 @@ function _buildOpponentIntelBlock(oppId, isHome, week, nextGame) {
   const oppInjured = oppRoster.filter(p => p.injury && p.injury.weeksRemaining > 0).slice(0, 4);
   const allInjuries = [
     ...myInjured.map(p => ({ side: "YOU", p, color: "#ffb0b0" })),
-    ...oppInjured.map(p => ({ side: "OPP", p, color: "#ff9090" })),
+    ...oppInjured.map(p => ({ side: "OPP", p, color: "var(--ds-grade-neg-mid)" })),
   ];
   const injuryHtml = allInjuries.length ? `
     <div class="frn-opp-intel-row">
       <div class="frn-card-title" style="margin-bottom:.3rem">🩹 INJURY REPORT</div>
       ${allInjuries.map(({ side, p, color }) => `
         <div style="font-size:.68rem;color:${color};display:flex;gap:.4rem;align-items:center;padding:.1rem 0">
-          <span style="color:${side==="YOU"?"var(--gold-lt)":"#c08080"};font-size:.55rem;font-weight:700;border:1px solid currentColor;padding:.05rem .22rem;flex-shrink:0">${side}</span>
+          <span style="color:${side==="YOU"?"var(--gold-lt)":"var(--ds-grade-neg-muted)"};font-size:.55rem;font-weight:700;border:1px solid currentColor;padding:.05rem .22rem;flex-shrink:0">${side}</span>
           ${p.position} ${playerLink(p)} — ${_bspnEsc(p.injury.label)} (${p.injury.weeksRemaining}wk)
         </div>`).join("")}
     </div>` : "";
@@ -6183,16 +6183,16 @@ function _buildOpponentIntelBlock(oppId, isHome, week, nextGame) {
     <div class="frn-opp-intel-row">
       <div class="frn-card-title" style="margin-bottom:.3rem">⚕ TRAINER'S LOAD REPORT</div>
       ${loadRisks.map(({ p, wear, stress, maxLoad }) => {
-        const tag = maxLoad >= 85 ? `<span style="color:#e6373a;font-weight:800;font-size:.55rem;letter-spacing:.5px">CRITICAL</span>`
-                  : maxLoad >= 70 ? `<span style="color:#ed6a3a;font-weight:700;font-size:.55rem;letter-spacing:.5px">HIGH</span>`
-                  : `<span style="color:#f0a93a;font-weight:700;font-size:.55rem;letter-spacing:.5px">ELEVATED</span>`;
+        const tag = maxLoad >= 85 ? `<span style="color:var(--ds-red-strong);font-weight:800;font-size:.55rem;letter-spacing:.5px">CRITICAL</span>`
+                  : maxLoad >= 70 ? `<span style="color:var(--ds-orange);font-weight:700;font-size:.55rem;letter-spacing:.5px">HIGH</span>`
+                  : `<span style="color:var(--ds-amber);font-weight:700;font-size:.55rem;letter-spacing:.5px">ELEVATED</span>`;
         const recurrence = (p.injuryHistory || []).filter(h => h.season === franchise.season).length;
         const recurrenceNote = recurrence ? ` · ${recurrence} prior injury${recurrence>1?'ies':''} this season` : "";
         const ageNote = p.age >= 33 ? ` · age ${p.age}` : "";
-        const wearBar = `<span style="display:inline-block;background:rgba(255,255,255,.08);height:5px;width:35px;vertical-align:middle;border-radius:1px;position:relative;margin:0 .2rem">
-          <span style="position:absolute;left:0;top:0;height:5px;width:${Math.min(100,wear)}%;background:${wear>=85?'#e6373a':wear>=70?'#ed6a3a':wear>=50?'#f0a93a':'#3fdf83'};border-radius:1px"></span></span>`;
-        const stressBar = `<span style="display:inline-block;background:rgba(255,255,255,.08);height:5px;width:35px;vertical-align:middle;border-radius:1px;position:relative;margin:0 .2rem">
-          <span style="position:absolute;left:0;top:0;height:5px;width:${Math.min(100,stress)}%;background:${stress>=80?'#e6373a':stress>=60?'#ed6a3a':stress>=40?'#f0a93a':'#3fdf83'};border-radius:1px"></span></span>`;
+        const wearBar = `<span style="display:inline-block;background:var(--ds-tint-white-08);height:5px;width:35px;vertical-align:middle;border-radius:1px;position:relative;margin:0 .2rem">
+          <span style="position:absolute;left:0;top:0;height:5px;width:${Math.min(100,wear)}%;background:${wear>=85?'var(--ds-red-strong)':wear>=70?'var(--ds-orange)':wear>=50?'var(--ds-amber)':'var(--ds-pos-bright)'};border-radius:1px"></span></span>`;
+        const stressBar = `<span style="display:inline-block;background:var(--ds-tint-white-08);height:5px;width:35px;vertical-align:middle;border-radius:1px;position:relative;margin:0 .2rem">
+          <span style="position:absolute;left:0;top:0;height:5px;width:${Math.min(100,stress)}%;background:${stress>=80?'var(--ds-red-strong)':stress>=60?'var(--ds-orange)':stress>=40?'var(--ds-amber)':'var(--ds-pos-bright)'};border-radius:1px"></span></span>`;
         return `<div style="font-size:.66rem;display:flex;gap:.4rem;align-items:center;padding:.15rem 0;color:rgba(255,255,255,.85)">
           ${tag}
           <span style="flex-shrink:0;color:var(--gray);min-width:32px;font-size:.6rem">${p.position}</span>
@@ -6218,7 +6218,7 @@ function _buildOpponentIntelBlock(oppId, isHome, week, nextGame) {
         const youScore = youHome ? g.homeScore : g.awayScore;
         const themScore = youHome ? g.awayScore : g.homeScore;
         const wl = youScore > themScore ? "W" : youScore < themScore ? "L" : "T";
-        const color = wl === "W" ? "var(--green-lt)" : wl === "L" ? "#c08080" : "var(--gray)";
+        const color = wl === "W" ? "var(--green-lt)" : wl === "L" ? "var(--ds-grade-neg-muted)" : "var(--gray)";
         return `<div style="font-size:.7rem">
           <span style="color:${color};font-weight:700">${wl}</span>
           ${youScore}-${themScore} (Wk ${g.week}, ${youHome?"home":"away"})
@@ -6309,7 +6309,7 @@ function _buildSchemeMatchupCard(myId, oppId) {
   const netColor = modColor(net);
   const verdict = net >= 5 ? "Schematic edge — exploit it" : net >= 2 ? "Slight scheme advantage" : net <= -5 ? "Scheme disadvantage" : net <= -2 ? "Slight scheme disadvantage" : "Even matchup scheme-wise";
 
-  return `<div style="margin:.6rem 0;padding:.6rem .8rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.10);border-radius:6px">
+  return `<div style="margin:.6rem 0;padding:.6rem .8rem;background:var(--ds-tint-white-03);border:1px solid rgba(255,255,255,.10);border-radius:6px">
     <div style="font-size:.6rem;font-weight:700;color:var(--gray);letter-spacing:.6px;text-transform:uppercase;margin-bottom:.4rem">SCHEME MATCHUP</div>
     ${row("MY OFFENSE", myOff, oppDef, offMod, false)}
     ${row("MY DEFENSE", myDef, oppOff, defMod, true)}
@@ -6337,7 +6337,7 @@ function _buildMatchupStatsStrip(myId, oppId, myStand, oppStand, myRtg, oppRtg) 
       const my = isH ? g.homeScore : g.awayScore;
       const them = isH ? g.awayScore : g.homeScore;
       const wl = my > them ? "W" : my < them ? "L" : "T";
-      const c = wl === "W" ? "var(--green-lt)" : wl === "L" ? "#c08080" : "var(--gray)";
+      const c = wl === "W" ? "var(--green-lt)" : wl === "L" ? "var(--ds-grade-neg-muted)" : "var(--gray)";
       return `<span class="frn-opp-form-pill" style="color:${c}">${wl}</span>`;
     }).join("");
   };
@@ -6362,7 +6362,7 @@ function _buildMatchupStatsStrip(myId, oppId, myStand, oppStand, myRtg, oppRtg) 
     : myWinPct < 47 ? `OPP FAV ${100 - myWinPct}%`
     : "PICK 'EM";
   const edgeColor = myWinPct > 53 ? "var(--green-lt)"
-    : myWinPct < 47 ? "#c08080"
+    : myWinPct < 47 ? "var(--ds-grade-neg-muted)"
     : "var(--gold)";
 
   return `<div class="frn-matchup-compare">
@@ -7741,15 +7741,15 @@ function _draftReportVerdict(pick, cur, seasonsSince) {
   if (!cur.found) {
     return pick.round >= 6
       ? { key: "depth", label: "OUT", icon: "—", color: "var(--gray)", note: "out of the league — a late dart that missed" }
-      : { key: "bust", label: "BUST", icon: "✗", color: "#ff8a8a", note: "washed out of the league" };
+      : { key: "bust", label: "BUST", icon: "✗", color: "var(--ds-grade-neg)", note: "washed out of the league" };
   }
   const o = cur.overall || 0;
   if ((cur.age || 25) <= 24 && seasonsSince <= 2 && o < exp) {
     return { key: "dev", label: "DEVELOPING", icon: "⏳", color: "var(--gold-lt)", note: `age ${cur.age}, ${o} OVR — still cooking` };
   }
-  if (o >= exp + 6) return { key: "steal", label: "STEAL",  icon: "💎", color: "#86e0a3", note: `${o} OVR — well above a R${pick.round} hit` };
+  if (o >= exp + 6) return { key: "steal", label: "STEAL",  icon: "💎", color: "var(--ds-grade-pos)", note: `${o} OVR — well above a R${pick.round} hit` };
   if (o >= exp - 3) return { key: "hit",   label: "HIT",    icon: "✓",  color: "var(--green-lt)", note: `${o} OVR — solid for the slot` };
-  return                { key: "bust",  label: "BUST",   icon: "✗",  color: "#ff8a8a", note: `${o} OVR — below the R${pick.round} bar` };
+  return                { key: "bust",  label: "BUST",   icon: "✗",  color: "var(--ds-grade-neg)", note: `${o} OVR — below the R${pick.round} bar` };
 }
 function renderFrnDraftReportCard() {
   const el = $("frnHomeContent");
@@ -7808,11 +7808,11 @@ function renderFrnDraftReportCard() {
     if (seasonsSince > 0) {
       const graded = steals + hits + busts + devs;
       const score = graded ? (steals * 2 + hits * 1 + devs * 0.5 - busts * 1) / graded : 0;
-      const g = score >= 1.2 ? ["A", "#f5c542"] : score >= 0.8 ? ["B", "#86e0a3"] : score >= 0.4 ? ["C", "#e0b078"] : score >= 0 ? ["D", "#ff9b9b"] : ["F", "#ff6b6b"];
-      gradeChip = `<span style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.4rem;color:${g[1]};letter-spacing:.5px">${g[0]}</span>`;
+      const g = score >= 1.2 ? ["A", "var(--ds-gold-accent)"] : score >= 0.8 ? ["B", "var(--ds-grade-pos)"] : score >= 0.4 ? ["C", "var(--ds-grade-caution-soft)"] : score >= 0 ? ["D", "var(--ds-grade-neg-soft)"] : ["F", "var(--ds-grade-neg-strong)"];
+      gradeChip = `<span style="font-family:var(--font-display);font-size:1.4rem;color:${g[1]};letter-spacing:.5px">${g[0]}</span>`;
     }
     const scoutLine = (seasonsSince > 0 && scouted > 0)
-      ? `<div style="font-size:.62rem;color:var(--gray);margin-top:.3rem">🔍 Scouting payoff: <b style="color:${scoutedHit >= Math.ceil(scouted * 0.66) ? "#86e0a3" : "#e0b078"}">${scoutedHit}/${scouted}</b> scouted picks panned out</div>`
+      ? `<div style="font-size:.62rem;color:var(--gray);margin-top:.3rem">🔍 Scouting payoff: <b style="color:${scoutedHit >= Math.ceil(scouted * 0.66) ? "var(--ds-grade-pos)" : "var(--ds-grade-caution-soft)"}">${scoutedHit}/${scouted}</b> scouted picks panned out</div>`
       : "";
     const summary = seasonsSince > 0
       ? `<span style="color:var(--ds-grade-pos)">💎 ${steals}</span> · <span style="color:var(--green-lt)">✓ ${hits}</span> · <span style="color:var(--gold-lt)">⏳ ${devs}</span> · <span style="color:var(--ds-grade-neg)">✗ ${busts}</span>`
@@ -7892,9 +7892,9 @@ function renderFrnLeagueCapMap() {
     if (_lcmColorMode === "ovr") {
       const o = x.avgOvr;
       if (o >= 82) return "#3aa84a";
-      if (o >= 78) return "#86e0a3";
-      if (o >= 74) return "#f5c542";
-      if (o >= 70) return "#ef8a4d";
+      if (o >= 78) return "var(--ds-grade-pos)";
+      if (o >= 74) return "var(--ds-gold-accent)";
+      if (o >= 70) return "var(--ds-orange-soft)";
       return "#b14b4b";
     }
     if (_lcmColorMode === "division") {
@@ -7906,10 +7906,10 @@ function renderFrnLeagueCapMap() {
     }
     // Cap used (default): red over, amber tight, gold healthy, green room
     const pct = (x.used / cap) * 100;
-    if (pct > 100) return "#ff8a8a";
-    if (pct > 95)  return "#ef8a4d";
-    if (pct > 85)  return "#f5c542";
-    if (pct > 70)  return "#86e0a3";
+    if (pct > 100) return "var(--ds-grade-neg)";
+    if (pct > 95)  return "var(--ds-orange-soft)";
+    if (pct > 85)  return "var(--ds-gold-accent)";
+    if (pct > 70)  return "var(--ds-grade-pos)";
     return "#3aa84a";
   };
 
@@ -7946,9 +7946,9 @@ function renderFrnLeagueCapMap() {
     `<button class="frn-cuts-tm-mode${_lcmColorMode===m.key?' active':''}" onclick="frnLCMSetColorMode('${m.key}')">${m.lbl}</button>`
   ).join("");
   const legendByMode = {
-    capused: [["Over (>100%)","#ff8a8a"],["Tight (>95%)","#ef8a4d"],["Healthy (>85%)","#f5c542"],["Room (>70%)","#86e0a3"],["Loose (<70%)","#3aa84a"]],
-    ovr: [["Elite ≥82","#3aa84a"],["Strong ≥78","#86e0a3"],["Mid ≥74","#f5c542"],["Weak ≥70","#ef8a4d"],["Bad <70","#b14b4b"]],
-    division: [["Color = division","#888"]],
+    capused: [["Over (>100%)","var(--ds-grade-neg)"],["Tight (>95%)","var(--ds-orange-soft)"],["Healthy (>85%)","var(--ds-gold-accent)"],["Room (>70%)","var(--ds-grade-pos)"],["Loose (<70%)","#3aa84a"]],
+    ovr: [["Elite ≥82","#3aa84a"],["Strong ≥78","var(--ds-grade-pos)"],["Mid ≥74","var(--ds-gold-accent)"],["Weak ≥70","var(--ds-orange-soft)"],["Bad <70","#b14b4b"]],
+    division: [["Color = division","var(--ds-neutral)"]],
   };
   const legend = (legendByMode[_lcmColorMode] || []).map(([k,c]) =>
     `<span class="frn-cuts-tm-legend-item"><span class="dot" style="background:${c}"></span>${k}</span>`
@@ -8054,7 +8054,7 @@ function renderFrnSeasonRecap() {
   const bestWin  = margins.filter(m => m.isWin).sort((a,b) => b.margin - a.margin)[0];
   const worstLoss = margins.filter(m => m.isLoss).sort((a,b) => a.margin - b.margin)[0];
   const formStrip = margins.slice(-6).map(m => {
-    const col = m.isWin ? "var(--green-lt)" : m.isLoss ? "#c08080" : "var(--gray)";
+    const col = m.isWin ? "var(--green-lt)" : m.isLoss ? "var(--ds-grade-neg-muted)" : "var(--gray)";
     return `<span style="color:${col};font-weight:700">${m.isWin?"W":m.isLoss?"L":"T"}</span>`;
   }).join(" ");
 
@@ -8273,7 +8273,7 @@ function renderFrnRegular() {
   const cap = effectiveSalaryCap(chosenTeamId);
   const capUsed = capUsedByTeam(chosenTeamId);
   const capPct  = Math.round(capUsed / cap * 100);
-  const capColor = capPct >= 95 ? "var(--red)" : capPct >= 85 ? "#e8a000" : "var(--green-lt)";
+  const capColor = capPct >= 95 ? "var(--red)" : capPct >= 85 ? "var(--ds-grade-caution)" : "var(--green-lt)";
   const refundsInfo = refundsForTeam(chosenTeamId);
   const refundLine = (refundsInfo.outgoingTotal || refundsInfo.incomingTotal)
     ? ` · ${refundsInfo.outgoingTotal > 0 ? `<span style="color:var(--red);font-size:.6rem">Fees −$${refundsInfo.outgoingTotal.toFixed(1)}M</span>` : ""}${refundsInfo.incomingTotal > 0 ? `<span style="color:var(--green-lt);font-size:.6rem">+$${refundsInfo.incomingTotal.toFixed(1)}M</span>` : ""}`
@@ -8534,13 +8534,13 @@ function renderFrnRegular() {
   // shows a one-line headline + a color cue so the eye picks up risk
   // patterns immediately.
   const capRemaining = cap - capUsed;
-  const capChipCol = capPct >= 95 ? "#ff8a8a" : capPct >= 85 ? "#ffc850" : "#86e0a3";
+  const capChipCol = capPct >= 95 ? "var(--ds-grade-neg)" : capPct >= 85 ? "var(--ds-grade-warn)" : "var(--ds-grade-pos)";
   const capChipNote = capPct >= 95 ? "tight" : capPct >= 85 ? "watch" : "healthy";
   const tradeDelta = TRADE_DEADLINE_WEEK - week;
   const tradeChipCol = tradeDelta < 0 ? "var(--gray)"
-                     : tradeDelta <= 1 ? "#ff8a8a"
-                     : tradeDelta <= 3 ? "#ffc850"
-                     :                   "#86e0a3";
+                     : tradeDelta <= 1 ? "var(--ds-grade-neg)"
+                     : tradeDelta <= 3 ? "var(--ds-grade-warn)"
+                     :                   "var(--ds-grade-pos)";
   const tradeChipLabel = tradeDelta < 0 ? "Closed"
                         : tradeDelta === 0 ? "TODAY"
                         : `${tradeDelta} wk${tradeDelta===1?"":"s"}`;
@@ -8556,8 +8556,8 @@ function renderFrnRegular() {
   const byeDelta = byeWeek != null ? byeWeek - week : null;
   const byeChipCol = byeDelta == null ? "var(--gray)"
                    : byeDelta < 0 ? "var(--gray)"
-                   : byeDelta === 0 ? "#86e0a3"
-                   : byeDelta <= 2 ? "#ffc850"
+                   : byeDelta === 0 ? "var(--ds-grade-pos)"
+                   : byeDelta <= 2 ? "var(--ds-grade-warn)"
                                    : "rgba(255,255,255,.55)";
   const byeChipLabel = byeWeek == null ? "—"
                      : byeDelta === 0 ? "THIS WK"
@@ -8575,7 +8575,7 @@ function renderFrnRegular() {
     if (p && !(p.injury && p.injury.weeksRemaining > 0)) starterHealthy++;
   }
   const healthPct = starterTotal ? Math.round((starterHealthy / starterTotal) * 100) : 100;
-  const healthChipCol = healthPct >= 95 ? "#86e0a3" : healthPct >= 88 ? "#ffc850" : "#ff8a8a";
+  const healthChipCol = healthPct >= 95 ? "var(--ds-grade-pos)" : healthPct >= 88 ? "var(--ds-grade-warn)" : "var(--ds-grade-neg)";
   const healthChipLabel = `${healthPct}%`;
   const healthChipSub = starterTotal
     ? `${starterHealthy}/${starterTotal} starters` : "no chart";
@@ -8587,7 +8587,7 @@ function renderFrnRegular() {
   const SCOUT_CAP = (typeof _SEASON_SCOUT_BANK_CAP !== "undefined") ? _SEASON_SCOUT_BANK_CAP : 10;
   const SCOUT_REFRESH = (typeof _SEASON_SCOUTS_PER_WEEK !== "undefined") ? _SEASON_SCOUTS_PER_WEEK : 3;
   const scoutPct = SCOUT_CAP > 0 ? Math.round((scoutBank / SCOUT_CAP) * 100) : 0;
-  const scoutChipCol = scoutBank >= 6 ? "#5ed4d4" : scoutBank >= 3 ? "#ffc850" : "#ff8a8a";
+  const scoutChipCol = scoutBank >= 6 ? "var(--ds-cyan)" : scoutBank >= 3 ? "var(--ds-grade-warn)" : "var(--ds-grade-neg)";
   const revealCount = Object.keys(franchise.seasonScoutReveals || {}).length;
   const pulseChipHtml = (label, value, sub, col, extra = "") => {
     // a11y: ellipsized chip text — carry the full label/value/sub in a title so
@@ -8625,7 +8625,7 @@ function renderFrnRegular() {
         ${pulseChipHtml("CAP", `$${capRemaining.toFixed(1)}M`, capChipNote, capChipCol)}
         ${(() => {
           const _rn = activeRosterCount(franchise.chosenTeamId), _rl = ACTIVE_ROSTER_LIMIT, _ro = _rl - _rn;
-          const _rcol = _rn > _rl ? "#ff6b6b" : _rn >= _rl ? "#ffb454" : _ro <= 1 ? "#ffd454" : "var(--green-lt)";
+          const _rcol = _rn > _rl ? "var(--ds-grade-neg-strong)" : _rn >= _rl ? "#ffb454" : _ro <= 1 ? "#ffd454" : "var(--green-lt)";
           const _rnote = _rn > _rl ? `${_rn - _rl} over limit` : _rn >= _rl ? "full" : `${_ro} open spot${_ro === 1 ? "" : "s"}`;
           return pulseChipHtml("ROSTER", `${_rn}/${_rl}`, _rnote, _rcol);
         })()}
@@ -8696,8 +8696,8 @@ function renderFrnRegular() {
     const winPct = Math.max(5, Math.min(95, Math.round(50 + diff * 1.2)));
     const wpCol = winPct >= 65 ? "var(--green-lt)"
                 : winPct >= 50 ? "var(--gold-lt)"
-                : winPct >= 35 ? "#ffc850"
-                :                "#ff8a8a";
+                : winPct >= 35 ? "var(--ds-grade-warn)"
+                :                "var(--ds-grade-neg)";
     const wpLabel = winPct >= 70 ? "HEAVY FAVORITE"
                   : winPct >= 58 ? "FAVORED"
                   : winPct >= 48 ? "COIN FLIP"
@@ -8876,7 +8876,7 @@ function renderFrnRegular() {
       const my = isHome ? g.homeScore : g.awayScore;
       const them = isHome ? g.awayScore : g.homeScore;
       const w = my > them, t = my === them;
-      const col = w ? "var(--green-lt)" : t ? "var(--gray)" : "#c08080";
+      const col = w ? "var(--green-lt)" : t ? "var(--gray)" : "var(--ds-grade-neg-muted)";
       return `<button class="frn-sched-chip past" style="border-color:${col};color:${col}"
         onclick="renderFrnPastGame(${g.week},${g.homeId},${g.awayId})"
         title="W${g.week} ${isHome?'vs':'@'} ${opp?.name} — ${my}-${them}">
@@ -8984,7 +8984,7 @@ function renderFrnRegular() {
     const xRows = fronts.map(f => {
       const me = Math.round(f.me), them = Math.round(f.them);
       const delta = me - them;
-      const advCol = delta >= 4 ? "#86e0a3" : delta <= -4 ? "#ff8a8a" : "#ffc850";
+      const advCol = delta >= 4 ? "var(--ds-grade-pos)" : delta <= -4 ? "var(--ds-grade-neg)" : "var(--ds-grade-warn)";
       const dStr = delta > 0 ? `+${delta}` : `${delta}`;
       // Bar shows the delta; center is "even". 50% baseline shifts left
       // (opp advantage) or right (your advantage).
@@ -9027,7 +9027,7 @@ function renderFrnRegular() {
           </div>`;
         }
         const tilt = plan.passProbDelta > 0 ? "+pass" : plan.passProbDelta < 0 ? "+run" : "balanced";
-        const tiltCol = plan.passProbDelta > 0 ? "#7ec8e3" : plan.passProbDelta < 0 ? "#e8a000" : "var(--gray)";
+        const tiltCol = plan.passProbDelta > 0 ? "#7ec8e3" : plan.passProbDelta < 0 ? "var(--ds-grade-caution)" : "var(--gray)";
         const bumpTag = plan.ovrBump > 0 ? ` · <span style="color:var(--gold);font-weight:700">+${plan.ovrBump} OVR</span>` : "";
         return `<div class="frn-xray-gp-side">
           <div class="frn-xray-gp-lbl">${label}</div>
@@ -9062,9 +9062,9 @@ function renderFrnRegular() {
   // Position-color palette (matches the cap-treemap so colors are
   // consistent across the whole dashboard).
   const _myPosColor = (pos) => ({
-    QB:"#f5c542", RB:"#ef8a4d", WR:"#e85c98", TE:"#ba68c8",
-    OL:"#5fb1d4", DL:"#ff6b6b", LB:"#ffb14c", CB:"#86e0a3", S:"#4dc7a8",
-    K:"#888", P:"#888",
+    QB:"var(--ds-gold-accent)", RB:"var(--ds-orange-soft)", WR:"#e85c98", TE:"#ba68c8",
+    OL:"#5fb1d4", DL:"var(--ds-grade-neg-strong)", LB:"#ffb14c", CB:"var(--ds-grade-pos)", S:"#4dc7a8",
+    K:"var(--ds-neutral)", P:"var(--ds-neutral)",
   }[pos] || "#999");
   // PPR-flavored fantasy score for skill positions, IDP-flavored for defense.
   const _ffScore = (p, st) => {
@@ -9140,7 +9140,7 @@ function renderFrnRegular() {
           const esc = (h.p.name||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
           const pid = (h.p.pid||"").replace(/'/g,"\\'").replace(/"/g, "&quot;");
           const ovr = h.p.overall || 60;
-          const ovrCol = ovr >= 88 ? "#f5c542" : ovr >= 80 ? "#86e0a3" : ovr >= 70 ? "var(--gold-lt)" : "var(--gray)";
+          const ovrCol = ovr >= 88 ? "var(--ds-gold-accent)" : ovr >= 80 ? "var(--ds-grade-pos)" : ovr >= 70 ? "var(--gold-lt)" : "var(--gray)";
           const posCol = _myPosColor(h.p.position);
           const ffPerGame = h.gp > 0 ? (h.ff / h.gp).toFixed(1) : h.ff.toFixed(1);
           // Hot-streak detector: fantasy score per game vs 1.5x league avg
@@ -9258,7 +9258,7 @@ function renderFrnRegular() {
   const gauntletCards = upcoming4.map(g => ({ week: g.week, html: _gauntletCard(g) }));
   if (_gqByeW != null && _gqByeW >= week &&
       (gauntletCards.length === 0 || _gqByeW <= gauntletCards[gauntletCards.length - 1].week)) {
-    gauntletCards.push({ week: _gqByeW, html: `<div class="frn-gauntlet-card" style="--toughCol:#9aa7b8">
+    gauntletCards.push({ week: _gqByeW, html: `<div class="frn-gauntlet-card" style="--toughCol:var(--ds-slate-blue)">
       <div class="frn-gauntlet-wk">W${_gqByeW}</div>
       <div class="frn-gauntlet-opp">😴 BYE WEEK</div>
       <div class="frn-gauntlet-rec">—</div>
@@ -9266,7 +9266,7 @@ function renderFrnRegular() {
         <span class="frn-gauntlet-rval" style="color:var(--ds-grade-pos)">REST</span>
         <span class="frn-gauntlet-rsub">wear + stress recover</span>
       </div>
-      <div class="frn-gauntlet-tag" style="background:#9aa7b822;color:#9aa7b8;border-color:#9aa7b855">RECOVERY</div>
+      <div class="frn-gauntlet-tag" style="background:#9aa7b822;color:var(--ds-slate-blue);border-color:#9aa7b855">RECOVERY</div>
     </div>` });
     gauntletCards.sort((a, b) => a.week - b.week);
   }
@@ -9370,10 +9370,10 @@ function renderFrnRegular() {
   const potwHtml = latestPotw ? `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem">
       <span style="color:var(--gray);font-size:.6rem">${potwRoundLabel(latestPotwWk)}</span>
-      ${unvotedWeek!=null?`<button class="frn-cap-btn" onclick="renderPotwVoting(${unvotedWeek})" style="background:var(--gold);color:#000;font-weight:900;border:0;font-size:.6rem" aria-label="Vote, week ${unvotedWeek}">🗳 VOTE W${unvotedWeek}</button>`:""}
+      ${unvotedWeek!=null?`<button class="frn-cap-btn" onclick="renderPotwVoting(${unvotedWeek})" style="background:var(--gold);color:var(--ds-pure-black);font-weight:900;border:0;font-size:.6rem" aria-label="Vote, week ${unvotedWeek}">🗳 VOTE W${unvotedWeek}</button>`:""}
     </div>
     ${potwRowFn("OFF",latestPotw.offense)}${potwRowFn("DEF",latestPotw.defense)}${potwRowFn("OL",latestPotw.ol)}${potwRowFn("ST",latestPotw.specialTeams)}
-  ` : unvotedWeek!=null ? `<button class="frn-cap-btn" onclick="renderPotwVoting(${unvotedWeek})" style="padding:.35rem .9rem;font-size:.7rem;background:var(--gold);color:#000;font-weight:900;border:0" aria-label="Vote, week ${unvotedWeek} ready">🗳 VOTE — WEEK ${unvotedWeek} READY</button>`
+  ` : unvotedWeek!=null ? `<button class="frn-cap-btn" onclick="renderPotwVoting(${unvotedWeek})" style="padding:.35rem .9rem;font-size:.7rem;background:var(--gold);color:var(--ds-pure-black);font-weight:900;border:0" aria-label="Vote, week ${unvotedWeek} ready">🗳 VOTE — WEEK ${unvotedWeek} READY</button>`
     : `<div style="color:var(--gray);font-size:.72rem;padding:.3rem 0">Awarded each week.</div>`;
 
   // Sidebar slimmed: dropped FULL SCHEDULE (center has schedule strip
@@ -9430,8 +9430,8 @@ function renderFrnRegular() {
     if (gamesPlayed < 3) return tags;
     if (rzAtt >= 6) {
       const pct = rzTd / rzAtt;
-      if (pct >= 0.60) tags.push({ label: `RZ KILLERS · ${Math.round(pct*100)}%`, color: "#86e0a3", title: `Red zone TD on ${rzTd} of ${rzAtt} trips` });
-      else if (pct <= 0.35) tags.push({ label: `RZ STALLS · ${Math.round(pct*100)}%`, color: "#ff8a8a", title: `Red zone TD on only ${rzTd} of ${rzAtt} trips` });
+      if (pct >= 0.60) tags.push({ label: `RZ KILLERS · ${Math.round(pct*100)}%`, color: "var(--ds-grade-pos)", title: `Red zone TD on ${rzTd} of ${rzAtt} trips` });
+      else if (pct <= 0.35) tags.push({ label: `RZ STALLS · ${Math.round(pct*100)}%`, color: "var(--ds-grade-neg)", title: `Red zone TD on only ${rzTd} of ${rzAtt} trips` });
     }
     if (puntAtt >= 6) {
       const avg = puntYds / puntAtt;
@@ -9481,7 +9481,7 @@ function renderFrnRegular() {
         <div class="frn-footer-info"${_saveLastError && !_saveLastError.startsWith("idb-only") ? ` role="alert" aria-live="assertive"` : ` role="status" aria-live="polite"`}>${(() => {
           // Player-facing — no storage-engine jargon (tooltip carries the detail).
           if (_saveLastError?.startsWith("idb-only")) return `<span title="Save is large — kept in the browser's database. Nothing lost.">✓ Auto-saved</span>`;
-          if (_saveLastError) return `<span style="color:#ff7070">⚠ Save issue — export a backup to be safe</span>`;
+          if (_saveLastError) return `<span style="color:var(--ds-grade-neg-bright)">⚠ Save issue — export a backup to be safe</span>`;
           return `✓ Auto-saved`;
         })()}</div>
         ${DS.button({label:"⬇ Export",on:"frnExportSave()",title:"Download backup .json",attrs:{style:"font-size:.62rem;color:var(--gray)"}})}
@@ -10716,7 +10716,7 @@ function mffPlayerOfGameFor(homeId, awayId, week) {
       ${ctx ? `<div style="font-size:.6rem;color:var(--gray);margin-top:.12rem">${ctx} · ⬤ marked on the chart</div>` : ""}
     </div>
     <div style="text-align:right;flex-shrink:0">
-      <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.5rem;line-height:1;color:${potg.wpa >= 0 ? "var(--green-lt)" : "#ff8a8a"}">${sign}${wpaPct}%</div>
+      <div style="font-family:var(--font-display);font-size:1.5rem;line-height:1;color:${potg.wpa >= 0 ? "var(--green-lt)" : "var(--ds-grade-neg)"}">${sign}${wpaPct}%</div>
       <div style="font-size:.52rem;letter-spacing:.8px;color:var(--gray)">WIN PROB SWING</div>
     </div>
   </div>`;
@@ -12125,7 +12125,7 @@ function _schemePreviewHtml(role, scheme, myId) {
           <span style="font-size:.63rem;color:var(--gray);text-transform:uppercase;letter-spacing:.5px">${title}</span>
           <span style="font-size:.68rem;font-weight:700;color:${c}">${avg >= 0 ? "+" : ""}${avg.toFixed(1)} avg</span>
         </div>
-        <div style="display:flex;gap:2px;height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.08)">
+        <div style="display:flex;gap:2px;height:6px;border-radius:3px;overflow:hidden;background:var(--ds-tint-white-08)">
           ${bar(favorable, "#00e676", "favorable")}
           ${bar(neutral, "rgba(255,255,255,.25)", "neutral")}
           ${bar(unfavorable, "#ef5350", "unfavorable")}
@@ -12276,7 +12276,7 @@ function frnSubmitPoachOffer() {
   if (!coord) { _frnPoachTarget = null; return; }
   const offer = { ..._frnPoachDraft };
   if (offer.aav <= 0 || offer.years <= 0) {
-    alert("Set a salary and contract length before submitting.");
+    if (typeof DS !== "undefined") DS.toast({ message: "Set a salary and contract length before submitting.", kind: "warn" }); else alert("Set a salary and contract length before submitting.");
     return;
   }
   const myId = franchise.chosenTeamId;
@@ -12406,7 +12406,7 @@ function renderFrnCoachingStaff() {
 
   const ratingColor = r => r >= 80 ? "var(--green-lt)" : r >= 65 ? "var(--gold)" : "var(--red)";
   const ratingBadge = (r) => r != null
-    ? `<span style="font-size:.7rem;font-weight:700;padding:.1rem .4rem;border-radius:3px;background:${ratingColor(r)};color:#000">${r}</span>`
+    ? `<span style="font-size:.7rem;font-weight:700;padding:.1rem .4rem;border-radius:3px;background:${ratingColor(r)};color:var(--ds-pure-black)">${r}</span>`
     : "";
 
   // ── HC Card ──
@@ -12445,10 +12445,10 @@ function renderFrnCoachingStaff() {
       ${hotSeatChip ? `<div style="margin-top:.3rem">${hotSeatChip}</div>` : ""}
       ${recentStrip}
       <div style="margin-top:.5rem;font-size:.7rem;display:flex;flex-wrap:wrap;gap:.3rem">
-        <span style="background:rgba(255,255,255,.08);padding:.15rem .5rem;border-radius:3px">Culture: <b>${hc.cultureTrait||"—"}</b></span>
-        <span style="background:rgba(255,255,255,.08);padding:.15rem .5rem;border-radius:3px">Specialty: <b>${hc.specialtyTrait||"—"}</b></span>
+        <span style="background:var(--ds-tint-white-08);padding:.15rem .5rem;border-radius:3px">Culture: <b>${hc.cultureTrait||"—"}</b></span>
+        <span style="background:var(--ds-tint-white-08);padding:.15rem .5rem;border-radius:3px">Specialty: <b>${hc.specialtyTrait||"—"}</b></span>
       </div>
-      ${hc.isFormerPlayer ? `<div style="margin-top:.3rem"><span style="font-size:.6rem;padding:.1rem .4rem;border-radius:3px;background:rgba(255,200,0,.18);color:var(--gold);border:1px solid rgba(255,200,0,.4)">🏈 Ex-${hc.formerPos||"?"}${hc.peakOvr?" · OVR "+hc.peakOvr:""}${hc.proBowls>0?" · "+hc.proBowls+"x PB":""}${hc.allPros>0?" · "+hc.allPros+"x AP":""}${hc.sbRings>0?" · "+hc.sbRings+"x SB":""}</span>${hc.careerStatLine ? `<div style="font-size:.58rem;color:var(--gray);margin-top:.2rem">${hc.careerStatLine}</div>` : ""}</div>` : ""}
+      ${hc.isFormerPlayer ? `<div style="margin-top:.3rem"><span style="font-size:.6rem;padding:.1rem .4rem;border-radius:3px;background:var(--ds-tint-amber-18);color:var(--gold);border:1px solid var(--ds-tint-amber-40)">🏈 Ex-${hc.formerPos||"?"}${hc.peakOvr?" · OVR "+hc.peakOvr:""}${hc.proBowls>0?" · "+hc.proBowls+"x PB":""}${hc.allPros>0?" · "+hc.allPros+"x AP":""}${hc.sbRings>0?" · "+hc.sbRings+"x SB":""}</span>${hc.careerStatLine ? `<div style="font-size:.58rem;color:var(--gray);margin-top:.2rem">${hc.careerStatLine}</div>` : ""}</div>` : ""}
       <div style="margin-top:.4rem;font-size:.68rem;color:var(--gray)">
         Record: ${hc.record?.w||0}–${hc.record?.l||0}${(hc.record?.championships||0)>0?" · "+hc.record.championships+" ring"+(hc.record.championships>1?"s":""):""}
       </div>
@@ -12527,7 +12527,7 @@ function renderFrnCoachingStaff() {
         <div style="font-size:.65rem;color:var(--gray);text-transform:uppercase;letter-spacing:.5px">${g}</div>
         <div style="display:flex;align-items:center;gap:.3rem;margin:.1rem 0">
           <span style="font-size:.75rem;font-weight:700;color:var(--white)">${coach.name}</span>
-          <span style="font-size:.62rem;font-weight:700;padding:.05rem .3rem;border-radius:3px;background:${tierColor(coach.tier)};color:#000">${pcRating}</span>
+          <span style="font-size:.62rem;font-weight:700;padding:.05rem .3rem;border-radius:3px;background:${tierColor(coach.tier)};color:var(--ds-pure-black)">${pcRating}</span>
         </div>
         ${isLoyal ? `<div style="font-size:.57rem;color:var(--gold)">🏠 Team loyalist</div>` : ""}
         ${coach.isFormerPlayer ? `<div style="font-size:.57rem;color:var(--gold)">🏈 Ex-${coach.formerPos||"?"} · Pk ${coach.peakOvr||"?"}${coach.proBowls>0?" · "+coach.proBowls+"xPB":""}${coach.allPros>0?" · "+coach.allPros+"xAP":""}${coach.sbRings>0?" · "+coach.sbRings+"xSB":""}</div>${coach.careerStatLine ? `<div style="font-size:.55rem;color:var(--gray)">${coach.careerStatLine}</div>` : ""}` : ""}
@@ -12608,7 +12608,7 @@ function renderFrnCoachingStaff() {
   const myOffScheme = _getTeamOffScheme(myId);
   const myDefScheme = _getTeamDefScheme(myId);
   const schemeOverviewHtml = `
-    <div class="frn-coach-card" style="background:rgba(255,255,255,.03)">
+    <div class="frn-coach-card" style="background:var(--ds-tint-white-03)">
       <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:.6rem">
         <div>
           <div style="font-size:.6rem;color:var(--gray);letter-spacing:.5px;text-transform:uppercase;margin-bottom:.2rem">Offense</div>
@@ -12627,7 +12627,7 @@ function renderFrnCoachingStaff() {
 
   // ── Coach Market ──
   const hcMarketSchemeNote = `
-    <div style="font-size:.64rem;color:var(--gray);background:rgba(255,255,255,.04);border-radius:4px;padding:.4rem .6rem;margin-bottom:.4rem">
+    <div style="font-size:.64rem;color:var(--gray);background:var(--ds-tint-white-04);border-radius:4px;padding:.4rem .6rem;margin-bottom:.4rem">
       Your current scheme: ${_schemeBadge(myOffScheme, true)} offense · ${_schemeBadge(myDefScheme, true)} defense
       <span style="opacity:.6;margin-left:.4rem">— a new HC has a 75% chance to change your OC (and thus your offense), 40% chance to change your DC</span>
     </div>`;
@@ -12660,7 +12660,7 @@ function renderFrnCoachingStaff() {
   };
   const marketHcHtml  = _filterSortMarket(market.filter(c => c.type === "hc")).map(({ c, idx: i }) => {
     const fmrBadge = c.isFormerPlayer
-      ? `<span style="font-size:.58rem;padding:.1rem .35rem;border-radius:3px;background:rgba(255,200,0,.18);color:var(--gold);border:1px solid rgba(255,200,0,.4);white-space:nowrap;margin-left:.3rem">🏈 Ex-${c.formerPos||"?"}${c.peakOvr?" OVR "+c.peakOvr:""}${c.proBowls>0?" "+c.proBowls+"xPB":""}${c.sbRings>0?" "+c.sbRings+"xSB":""}</span>`
+      ? `<span style="font-size:.58rem;padding:.1rem .35rem;border-radius:3px;background:var(--ds-tint-amber-18);color:var(--gold);border:1px solid var(--ds-tint-amber-40);white-space:nowrap;margin-left:.3rem">🏈 Ex-${c.formerPos||"?"}${c.peakOvr?" OVR "+c.peakOvr:""}${c.proBowls>0?" "+c.proBowls+"xPB":""}${c.sbRings>0?" "+c.sbRings+"xSB":""}</span>`
       : "";
     const loyalBadge = c.developedByTeamId === myId
       ? `<span style="font-size:.58rem;padding:.1rem .35rem;border-radius:3px;background:rgba(255,200,0,.12);color:var(--gold);border:1px solid rgba(255,200,0,.35);white-space:nowrap;margin-left:.3rem">🏠 Former ${myTeam?.name||""} coach</span>`
@@ -12674,7 +12674,7 @@ function renderFrnCoachingStaff() {
       const ocPreview = ocScheme ? _schemePreviewHtml("off", ocScheme, myId) : "";
       const dcPreview = dcScheme ? _schemePreviewHtml("def", dcScheme, myId) : "";
       proposedHtml = `
-        <div style="margin-top:.45rem;border-top:1px solid rgba(255,255,255,.08);padding-top:.4rem">
+        <div style="margin-top:.45rem;border-top:1px solid var(--ds-tint-white-08);padding-top:.4rem">
           <div style="font-size:.6rem;color:var(--gray);letter-spacing:.4px;text-transform:uppercase;margin-bottom:.25rem">Proposed staff (75% OC swap · 40% DC swap)</div>
           ${c.proposedOC ? `<div style="margin-bottom:.2rem;display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;font-size:.68rem">
             <span style="color:var(--gray)">OC</span>
@@ -12719,7 +12719,7 @@ function renderFrnCoachingStaff() {
     const scheme = OFF_SCHEME_MAP[c.trait];
     const preview = scheme ? _schemePreviewHtml("off", scheme, myId) : "";
     const fmrBadge = c.isFormerPlayer
-      ? `<span style="font-size:.58rem;padding:.1rem .35rem;border-radius:3px;background:rgba(255,200,0,.18);color:var(--gold);border:1px solid rgba(255,200,0,.4);white-space:nowrap">🏈 Ex-${c.formerPos||"?"}${c.peakOvr?" OVR "+c.peakOvr:""}${c.proBowls>0?" "+c.proBowls+"xPB":""}${c.sbRings>0?" "+c.sbRings+"xSB":""}</span>`
+      ? `<span style="font-size:.58rem;padding:.1rem .35rem;border-radius:3px;background:var(--ds-tint-amber-18);color:var(--gold);border:1px solid var(--ds-tint-amber-40);white-space:nowrap">🏈 Ex-${c.formerPos||"?"}${c.peakOvr?" OVR "+c.peakOvr:""}${c.proBowls>0?" "+c.proBowls+"xPB":""}${c.sbRings>0?" "+c.sbRings+"xSB":""}</span>`
       : "";
     return `
     <div class="frn-coach-market-row" style="flex-direction:column;align-items:stretch">
@@ -12746,7 +12746,7 @@ function renderFrnCoachingStaff() {
     const scheme = DEF_SCHEME_MAP[c.trait];
     const preview = scheme ? _schemePreviewHtml("def", scheme, myId) : "";
     const fmrBadge = c.isFormerPlayer
-      ? `<span style="font-size:.58rem;padding:.1rem .35rem;border-radius:3px;background:rgba(255,200,0,.18);color:var(--gold);border:1px solid rgba(255,200,0,.4);white-space:nowrap">🏈 Ex-${c.formerPos||"?"}${c.peakOvr?" OVR "+c.peakOvr:""}${c.proBowls>0?" "+c.proBowls+"xPB":""}${c.sbRings>0?" "+c.sbRings+"xSB":""}</span>`
+      ? `<span style="font-size:.58rem;padding:.1rem .35rem;border-radius:3px;background:var(--ds-tint-amber-18);color:var(--gold);border:1px solid var(--ds-tint-amber-40);white-space:nowrap">🏈 Ex-${c.formerPos||"?"}${c.peakOvr?" OVR "+c.peakOvr:""}${c.proBowls>0?" "+c.proBowls+"xPB":""}${c.sbRings>0?" "+c.sbRings+"xSB":""}</span>`
       : "";
     return `
     <div class="frn-coach-market-row" style="flex-direction:column;align-items:stretch">
@@ -12785,7 +12785,7 @@ function renderFrnCoachingStaff() {
   const bondHtml = chem.qbOcBond
     ? `<div style="margin-top:.4rem;font-size:.67rem;color:var(--gold)">🔗 QB-OC Bond active — ${chem.qbOcBond}</div>` : "";
   const chemHtml = `
-    <div class="frn-coach-card" style="border-color:${chemStatusColor};background:rgba(255,255,255,.03)">
+    <div class="frn-coach-card" style="border-color:${chemStatusColor};background:var(--ds-tint-white-03)">
       <div style="font-size:.72rem;font-weight:700;color:${chemStatusColor};letter-spacing:.5px;text-transform:uppercase;margin-bottom:.4rem">
         ${chemStatusLabel}${chemBonus.chaotic ? " · CHAOTIC" : ""}
       </div>
@@ -12917,7 +12917,7 @@ function renderFrnCoachingStaff() {
   }
   const positionMarketHtml = `<div style="color:var(--gray);font-size:.7rem;margin:.3rem 0 .5rem">Browse position-coach candidates from the My Staff → Position Staff section. Each empty slot has its own ${`<b>Hire</b>`} button that opens a focused candidate pool.</div>`;
   const marketTabHtml = market.length === 0 && !showPos
-    ? `${budgetHtml}<div style="color:var(--gray);font-size:.78rem;font-style:italic;margin:.6rem 0;padding:.7rem .9rem;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.2);border-radius:6px">No HC/OC/DC market right now — those candidates open up after the season ends. Position coaches are always available from the My Staff tab.</div>`
+    ? `${budgetHtml}<div style="color:var(--gray);font-size:.78rem;font-style:italic;margin:.6rem 0;padding:.7rem .9rem;background:var(--ds-tint-white-04);border:1px dashed rgba(255,255,255,.2);border-radius:6px">No HC/OC/DC market right now — those candidates open up after the season ends. Position coaches are always available from the My Staff tab.</div>`
     : `${budgetHtml}
        ${compareHtml}
        <div class="frn-subnav" style="margin:.5rem 0">${marketRoleNav}</div>
@@ -12944,10 +12944,10 @@ function renderFrnCoachingStaff() {
 
   $("frnHomeContent").innerHTML = `
     <style>
-      .frn-coach-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:.75rem 1rem;margin-bottom:.6rem}
+      .frn-coach-card{background:var(--ds-tint-white-05);border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:.75rem 1rem;margin-bottom:.6rem}
       .frn-coach-hc{border-color:var(--gold);background:rgba(255,200,0,.06)}
       .frn-coach-pos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.5rem;margin:.5rem 0}
-      .frn-coach-pos-slot{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:5px;padding:.5rem .75rem}
+      .frn-coach-pos-slot{background:var(--ds-tint-white-04);border:1px solid rgba(255,255,255,.10);border-radius:5px;padding:.5rem .75rem}
       .frn-coach-market-row{display:flex;align-items:stretch;gap:.75rem;padding:.55rem 0;border-bottom:1px solid rgba(255,255,255,.07)}
       .frn-coach-market-row:last-child{border-bottom:0}
     </style>
@@ -13028,7 +13028,7 @@ function renderFrnFrontOffice() {
   const market = franchise._foMarket?.candidates || {};
   const ratingColor = r => r >= 80 ? "var(--green-lt)" : r >= 65 ? "var(--gold)" : "var(--red)";
   const ratingBadge = (r) => r != null
-    ? `<span style="font-size:.7rem;font-weight:700;padding:.1rem .4rem;border-radius:3px;background:${ratingColor(r)};color:#000">${r}</span>`
+    ? `<span style="font-size:.7rem;font-weight:700;padding:.1rem .4rem;border-radius:3px;background:${ratingColor(r)};color:var(--ds-pure-black)">${r}</span>`
     : "";
   const effectFor = (role, p) => {
     if (!p) return "—";
@@ -13070,7 +13070,7 @@ function renderFrnFrontOffice() {
         <div style="margin-top:.55rem;padding:.3rem .45rem;background:rgba(0,0,0,.25);border-left:2px solid var(--gold);border-radius:2px;font-size:.62rem;color:var(--blwhite)">
           <b style="color:var(--gold);letter-spacing:.5px;font-size:.55rem">EFFECT</b><br/>${effectFor(role, p)}
         </div>
-        ${DS.button({label:`✗ Fire ($${buyout.toFixed(1)}M buyout)`,on:`frnFOFire('${role}')`,title:`Buyout: $${buyout.toFixed(1)}M`,attrs:{style:"margin-top:.55rem;color:#c08080;border-color:#c08080;font-size:.6rem;padding:.18rem .5rem"}})}
+        ${DS.button({label:`✗ Fire ($${buyout.toFixed(1)}M buyout)`,on:`frnFOFire('${role}')`,title:`Buyout: $${buyout.toFixed(1)}M`,attrs:{style:"margin-top:.55rem;color:var(--ds-grade-neg-muted);border-color:var(--ds-grade-neg-muted);font-size:.6rem;padding:.18rem .5rem"}})}
       </div>
     </div>`;
   };
@@ -13150,7 +13150,7 @@ function _renderLeagueCoachesTab(myId) {
   const tableRows = rows.map(({ t, hc, stand, games, pct, isMine, hotSeat }) => {
     const rec = games ? `${stand.w}-${stand.l}${stand.t?`-${stand.t}`:""}` : "—";
     const pctStr = games ? pct.toFixed(3).replace(/^0/, "") : ".—";
-    return `<tr class="${isMine?"frn-me":""}" style="${isMine?"background:rgba(212,175,55,.08)":""}">
+    return `<tr class="${isMine?"frn-me":""}" style="${isMine?"background:var(--ds-tint-royal-08)":""}">
       <td style="padding:.25rem .45rem;color:${t.primary?_teamInk(t.primary):"var(--gold)"};font-weight:${isMine?900:700};font-size:.7rem">${isMine?"» ":""}${t.city} ${t.name}</td>
       <td style="padding:.25rem .45rem;font-size:.7rem;color:var(--blwhite)">${hc?.name || "<i style='color:var(--gray)'>vacant</i>"}</td>
       <td style="padding:.25rem .45rem;text-align:center">${ratingChip(hc?.rating)}</td>
@@ -13167,8 +13167,8 @@ function _renderLeagueCoachesTab(myId) {
   const cotyTop = rows.filter(r => r.hc && r.games > 0).slice(0, 5);
   const cotyHtml = cotyTop.length ? `
     <div style="display:flex;flex-direction:column;gap:.25rem">
-      ${cotyTop.map((r, i) => `<div style="display:flex;align-items:center;gap:.55rem;padding:.3rem .5rem;background:${r.isMine?"rgba(212,175,55,.08)":"var(--bg2)"};border-left:3px solid ${i===0?"var(--gold)":i<3?"var(--gold-lt)":"var(--border)"}">
-        <span style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1rem;color:${i===0?"var(--gold)":"var(--blgray)"};min-width:1.5rem">#${i+1}</span>
+      ${cotyTop.map((r, i) => `<div style="display:flex;align-items:center;gap:.55rem;padding:.3rem .5rem;background:${r.isMine?"var(--ds-tint-royal-08)":"var(--bg2)"};border-left:3px solid ${i===0?"var(--gold)":i<3?"var(--gold-lt)":"var(--border)"}">
+        <span style="font-family:var(--font-display);font-size:1rem;color:${i===0?"var(--gold)":"var(--blgray)"};min-width:1.5rem">#${i+1}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:.72rem;font-weight:700;color:var(--blwhite)">${r.hc.name}</div>
           <div style="font-size:.58rem;color:var(--gray)">${r.t.city} ${r.t.name} · ${r.stand.w}-${r.stand.l} · ${r.pct.toFixed(3).replace(/^0/,"")}</div>
@@ -13270,7 +13270,7 @@ function _renderPoachForm(targetTeam, role, coord) {
   const d = _frnPoachDraft;
   const totalNew  = d.aav * d.years + (d.signingBonus || 0);
   const totalCurr = (coord.salary || 0) * (coord.contractYears || 1);
-  const deltaCol  = totalNew > totalCurr ? "var(--green-lt)" : "#ff8a8a";
+  const deltaCol  = totalNew > totalCurr ? "var(--green-lt)" : "var(--ds-grade-neg)";
   return `
     <div class="frn-poach-form">
       <div class="frn-poach-form-head">
@@ -13347,7 +13347,7 @@ function _renderPlayerDevelopmentPanel(myId, staff) {
       <span style="color:var(--gray);font-size:.58rem;width:5rem;text-align:right">age ${p.age||"?"} · OVR ${p.overall||"?"}</span>
       <div style="width:120px;display:flex;align-items:center;gap:.35rem">
         <span style="font-family:var(--font-data);font-size:.62rem;color:var(--blgray)">${awr}</span>
-        <div style="flex:1;height:5px;background:rgba(255,255,255,.08);border:1px solid var(--border)">
+        <div style="flex:1;height:5px;background:var(--ds-tint-white-08);border:1px solid var(--border)">
           <div style="height:100%;width:${pct}%;background:var(--gold-lt)"></div>
         </div>
         <span style="font-family:var(--font-data);font-size:.62rem;color:var(--gold)">${ceil}</span>
@@ -13608,7 +13608,7 @@ function _renderHcVacancyPanel() {
 
   const ratingColor = r => r >= 80 ? "var(--green-lt)" : r >= 65 ? "var(--gold)" : "var(--red)";
   const ratingBadge = r => r != null
-    ? `<span style="font-size:.7rem;font-weight:700;padding:.15rem .45rem;border-radius:3px;background:${ratingColor(r)};color:#000">${r}</span>`
+    ? `<span style="font-size:.7rem;font-weight:700;padding:.15rem .45rem;border-radius:3px;background:${ratingColor(r)};color:var(--ds-pure-black)">${r}</span>`
     : "";
   const riskNote = r =>
     r < 50 ? `<div style="font-size:.64rem;color:var(--red);margin:.25rem 0">High-risk promotion — rating only ${r}</div>`
@@ -13769,7 +13769,7 @@ function frnHirePositionCoach(group) {
   const staff = franchise.coaches?.[myId];
   if (!staff) return;
   if ((staff.positionStaff||[]).length >= 3) {
-    alert("You already have 3 position coaches. Upgrade one instead.");
+    if (typeof DS !== "undefined") DS.toast({ message: "You already have 3 position coaches. Upgrade one instead.", kind: "warn" }); else alert("You already have 3 position coaches. Upgrade one instead.");
     return;
   }
   _posCoachBrowseGroup = group;
@@ -13781,7 +13781,7 @@ function frnHirePositionCoachFromPool(group, filteredIdx) {
   const staff = franchise.coaches?.[myId];
   if (!staff) return;
   if (!staff.positionStaff) staff.positionStaff = [];
-  if (staff.positionStaff.length >= 3) { alert("Already have 3 position coaches."); return; }
+  if (staff.positionStaff.length >= 3) { if (typeof DS !== "undefined") DS.toast({ message: "Already have 3 position coaches.", kind: "warn" }); else alert("Already have 3 position coaches."); return; }
   const pool     = franchise._posCoachPool || [];
   const filtered = pool.filter(c => c.group === group);
   const candidate = filtered[filteredIdx];
@@ -13815,7 +13815,7 @@ function frnScoutRandomPositionCoach(group) {
   const staff = franchise.coaches?.[myId];
   if (!staff) return;
   if (!staff.positionStaff) staff.positionStaff = [];
-  if (staff.positionStaff.length >= 3) { alert("Already have 3 position coaches."); return; }
+  if (staff.positionStaff.length >= 3) { if (typeof DS !== "undefined") DS.toast({ message: "Already have 3 position coaches.", kind: "warn" }); else alert("Already have 3 position coaches."); return; }
   const newCoach = _rollPositionCoach(group);
   staff.positionStaff.push(newCoach);
   _pushNews({ type:"coach_hire", label: `Scouted ${group} coach ${newCoach.name} (${newCoach.tier})` });
@@ -13834,7 +13834,7 @@ async function frnUpgradePositionCoach(group) {
   const cur = staff.positionStaff[idx];
   const curTierIdx = tiers.indexOf(cur.tier);
   if (curTierIdx >= tiers.length - 1) {
-    alert(`${group} coach is already at Elite tier.`);
+    if (typeof DS !== "undefined") DS.toast({ message: `${group} coach is already at Elite tier.`, kind: "info" }); else alert(`${group} coach is already at Elite tier.`);
     return;
   }
   const nextTier = tiers[curTierIdx + 1];

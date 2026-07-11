@@ -22,8 +22,13 @@ git diff --stat
 git diff
 ```
 
-The franchise UI surfaces are `play-franchise-core.js`, `play-franchise-season.js`,
-`play-franchise-offseason.js`, `play-franchise-stats.js`, plus `play.css` / the DS files.
+The ratcheted UI surfaces (guard CONFIG.files — since the 2026-07 DS-unify pass this is
+EVERY DOM UI file, not just the original four): `play-franchise-core.js`,
+`play-franchise-season.js`, `play-franchise-offseason.js`, `play-franchise-stats.js`,
+`play-franchise-fantasydraft.js`, `play-league-client.js`, `play-h2h-client.js`, and
+`play.css` (font-family category only — its `:root` palette/type definitions are the
+tokens themselves). A NEW UI file in the diff that is not in the guard's CONFIG.files is
+itself a FAIL: coverage is part of the contract.
 
 ---
 
@@ -67,9 +72,21 @@ To spot-check for stragglers the guard might not cover in changed lines:
 git diff | grep -nE "font-family:|#[0-9a-fA-F]{3,6}\b|rgba?\(" || echo "no raw literals in diff"
 ```
 
-Each hit must be justified (e.g. a token DEFINITION in `tokens.css`, or a value byte-equal
-to an existing token that should instead reference the token). Anything styling-related and
-raw in the franchise JS is a FAIL.
+Each hit must be justified. The LEGITIMATE survivor classes (colors that CANNOT use CSS
+`var()` — leave them raw, never "migrate" them):
+
+- canvas 2D fills/strokes (`ctx.fillStyle`), PIXI tints, SVG that is serialized to a
+  `data:` URL or rasterized into canvas;
+- team-color/data objects and values parsed as colors (`startsWith("#")`, hex math);
+- fallback values inside existing `var(--x, #hex)` expressions;
+- token DEFINITIONS in `tokens.css` / `play.css :root`;
+- monospace font stacks (the `--font-mono` token is a deprecated proportional alias — a
+  swap would change the look).
+
+Everything else styling-related and raw in UI JS/CSS is a FAIL. Note the CLEAN forms the
+guard recognizes: `font-family: var(--font-…)` does not count as debt, and a JS expression
+returning `"var(--ds-…)"` strings (the tier-2 pattern for ternary/computed colors that
+land in `style="…"` interpolations) is the correct migration for computed colors.
 
 ## Step 3 — Component test
 
@@ -142,13 +159,17 @@ structure, or the listed JS files is a FAIL. The DS touches DOM chrome only.
 Verify in the diff:
 
 - **Escaping**: every interpolated user/data string is escaped via `DS.esc(...)` (or a factory
-  that escapes labels by default). Only `on`/`attrs`/raw `body` are trusted — confirm no
-  unescaped user data lands in those. Raw concatenation of player names, team names, or any
-  data field into a template string without `DS.esc` is a FAIL.
+  that escapes labels by default). The TRUSTED slots are `on`/`attrs`/raw `body`/`cells`/
+  **`labelHtml`** (DS.button's rich-label slot) — confirm no unescaped user data lands in
+  any of them. Raw concatenation of player names, team names, or any data field into a
+  template string (or into `labelHtml`) without `DS.esc` is a FAIL.
 - **Buttons** have a discernible label (text or `aria-label`); icon-only buttons set a title/label.
 - **Modals** keep `role="dialog"` + `aria-modal="true"` and the full `DS.modal` contract:
-  backdrop click = cancel, **Esc = cancel**, **Enter = confirm** (when enabled). A modal that
-  drops any of these = FAIL.
+  backdrop click = cancel (ignored <250ms after mount — the double-click guard), **Esc =
+  cancel**, **Enter = confirm** (when enabled), focus trap + restore. A modal that drops any
+  of these = FAIL. A hand-rolled modal in new code is a FAIL — delegate to `DS.modal`; legacy
+  selectors that probes/theming need ride the `cls`/`backdropCls` hooks (the
+  `_frnConfirmModal` pattern).
 
 To audit escaping quickly:
 

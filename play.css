@@ -46,7 +46,7 @@
        which is NOT loaded — so on any machine without it installed the whole
        app fell back to Courier New (the dated look). Lead with the loaded
        face; keep the rest as fallbacks. */
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     min-height: 100vh; line-height: 1.5;
     position: relative;
   }
@@ -71,7 +71,7 @@
   .recap-desc,
   .frn-replay-desc,
   .frn-rpl-desc {
-    font-family: var(--font-prose);
+    font-family:var(--font-prose);
   }
 
   /* ── Boxy container baseline ──────────────────────────────────────────
@@ -233,7 +233,7 @@
     box-shadow: 0 6px 18px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);
   }
   #playbackControls .btn {
-    font-family: 'Bebas Neue','Anton',sans-serif; letter-spacing: .8px;
+    font-family:var(--font-display); letter-spacing: .8px;
     font-size: .82rem; padding: .42rem .75rem; border-radius: 5px; line-height: 1;
     background: #18222d; color: var(--blwhite, #eaeef4);
     border: 1px solid rgba(255,255,255,.12); cursor: pointer;
@@ -260,7 +260,7 @@
     font-size: .62rem; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 700;
   }
   #playbackControls .speed-control input[type="range"] { accent-color: var(--blgold, #f5c542); }
-  #playbackControls #speedLabel { color: var(--blgold, #f5c542); font-family: var(--font-data); letter-spacing: 0; }
+  #playbackControls #speedLabel { color: var(--blgold, #f5c542); font-family:var(--font-data); letter-spacing: 0; }
 
   /* ── Consolidate the two live scoreboards into ONE ─────────────────────
         The broadcast scoreboard (#scoreboard) and the in-field score bug
@@ -378,7 +378,7 @@
   .play-entry.kickoff  { background: var(--green-dk); }
   .play-entry.drive_summary {
     background: #14181f; color: #9bb1c8; text-align: center;
-    font-family: var(--font-data); font-size: 11px;
+    font-family:var(--font-data); font-size: 11px;
     padding: .35rem .5rem; margin: .15rem 0;
     border-top: 1px solid #2a3140; border-bottom: 1px solid #2a3140;
     letter-spacing: 0.02em;
@@ -949,7 +949,7 @@
     border: 1px solid rgba(245,197,66,.5);
     border-radius: 6px;
     padding: .55rem 1rem; line-height: 1;
-    font-family: 'Bebas Neue','Anton',sans-serif;
+    font-family:var(--font-display);
     font-size: .95rem; letter-spacing: 1.2px;
     cursor: pointer; display: none;
     box-shadow: 0 6px 18px rgba(0,0,0,.45), 0 0 14px rgba(245,197,66,.18),
@@ -1069,7 +1069,7 @@
   }
   .fps-hero-badge { font-size: 2rem; line-height: 1; margin-bottom: .15rem; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
   .fps-hero-title {
-    position: relative; font-family: 'Bebas Neue','Anton',sans-serif;
+    position: relative; font-family:var(--font-display);
     font-size: 3.3rem; line-height: .95; letter-spacing: 3px; font-weight: 900;
     color: var(--blgold, #f5c542);
     text-shadow: 0 0 28px rgba(245,197,66,.35), 0 2px 6px rgba(0,0,0,.5);
@@ -1096,12 +1096,12 @@
   .fps-continue:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,.45); }
   .fps-continue-l { flex: 1; min-width: 0; }
   .fps-continue-lbl { font-size: .56rem; letter-spacing: 2.5px; color: var(--blgray, #9aa7b8); font-weight: 700; }
-  .fps-continue-team { font-family: 'Bebas Neue','Anton',sans-serif; font-size: 1.5rem; letter-spacing: .5px; color: var(--white, #f0f0f0); line-height: 1.05; }
+  .fps-continue-team { font-family:var(--font-display); font-size: 1.5rem; letter-spacing: .5px; color: var(--white, #f0f0f0); line-height: 1.05; }
   .fps-continue-meta { font-size: .7rem; color: var(--blgray, #9aa7b8); }
   .fps-continue-cta { font-size: 1.5rem; color: var(--accent); font-weight: 900; }
 
   .fps-section-title {
-    font-family: 'Bebas Neue','Anton',sans-serif; font-size: .95rem; letter-spacing: 1.5px;
+    font-family:var(--font-display); font-size: .95rem; letter-spacing: 1.5px;
     color: var(--gold-lt, #f0cc30); margin: .2rem 0 .5rem;
   }
   .fps-section-title span { color: var(--gray, #999); font-size: .8rem; }
@@ -1137,7 +1137,7 @@
     border-color: var(--blgold, #f5c542);
   }
   .fps-start-icon { font-size: 1.7rem; line-height: 1; margin-bottom: .35rem; }
-  .fps-start-name { font-family: 'Bebas Neue','Anton',sans-serif; font-size: 1.15rem; letter-spacing: 1px; color: var(--gold-lt, #f0cc30); }
+  .fps-start-name { font-family:var(--font-display); font-size: 1.15rem; letter-spacing: 1px; color: var(--gold-lt, #f0cc30); }
   .fps-start-primary .fps-start-name { color: var(--blgold, #f5c542); }
   .fps-start-desc { font-size: .66rem; color: var(--blgray, #9aa7b8); margin-top: .2rem; line-height: 1.3; }
 
@@ -1180,7 +1180,7 @@
   .frn-nav-home:hover { background: rgba(200,169,0,0.10); border-color: var(--gold); }
   .frn-nav-title { display: flex; align-items: baseline; gap: .65rem; flex-wrap: wrap; }
   .frn-nav-title-main {
-    font-family: 'Bebas Neue', 'Anton', sans-serif;
+    font-family:var(--font-display);
     font-size: 1.05rem; letter-spacing: 1px; color: var(--gold);
   }
   .frn-nav-season {
@@ -1383,7 +1383,7 @@
   }
   .frn-story-icon { font-size: 1.5rem; }
   .frn-story-title {
-    font-family: 'Bebas Neue', 'Anton', sans-serif;
+    font-family:var(--font-display);
     font-size: 1.2rem; letter-spacing: 1.5px; color: var(--gold);
   }
   .frn-story-pitch { font-size: .78rem; line-height: 1.45; color: var(--fg); margin-bottom: .5rem; }
@@ -1539,7 +1539,7 @@
   .frn-sim-panel-head {
     display: flex; align-items: baseline; gap: .55rem;
     margin-bottom: .45rem;
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     color: var(--gold); letter-spacing: 1.3px; font-size: .8rem;
   }
   .frn-sim-panel-sub {
@@ -1578,7 +1578,7 @@
     font-size: 1.05rem; color: var(--gold);
   }
   .frn-sim-opt-label {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .82rem; letter-spacing: 1.1px; color: var(--gold);
     font-weight: 900;
   }
@@ -1599,7 +1599,7 @@
     margin-left: .35rem; width: 3.2rem;
     background: var(--bg2); color: var(--gold);
     border: 1px solid var(--gold-lt); padding: .12rem .25rem;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .82rem; font-weight: 900; text-align: center;
   }
   .frn-sim-opt-go {
@@ -1724,7 +1724,7 @@
   }
   .frn-leader-stat {
     color: var(--gray); font-size: .58rem;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     letter-spacing: .2px;
     margin-top: .12rem;
     grid-column: 2 / 3; /* in 2-row mode, stat lands under name */
@@ -1747,12 +1747,12 @@
     font-weight: 700; margin-bottom: .35rem;
   }
   .frn-hl-moment-label {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.65rem; letter-spacing: 1.5px; color: var(--blwhite);
     line-height: 1.15; margin-bottom: .25rem;
   }
   .frn-hl-moment-ctx {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .65rem; color: var(--blgray); margin-bottom: .7rem;
   }
   .frn-hl-moment-actions {
@@ -1761,7 +1761,7 @@
   .frn-hl-moment-btn {
     background: transparent; color: var(--blgold);
     border: 1px solid var(--blgold);
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .85rem; letter-spacing: 1.2px; font-weight: 700;
     padding: .5rem 1.1rem; cursor: pointer; border-radius: 9px;
     transition: background .12s ease;
@@ -1789,7 +1789,7 @@
   .frn-hl-pill.active { color: var(--blgold); border-color: var(--blgold); background: rgba(212,175,55,.08); font-weight: 700; }
   .frn-hl-pill:disabled { opacity: .35; cursor: not-allowed; }
   .frn-hl-pill-count {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .58rem; color: var(--blgray);
     background: rgba(0,0,0,.25); padding: .04rem .3rem; border-radius: 2px;
   }
@@ -1818,21 +1818,21 @@
     border-radius: 2px; font-size: .68rem;
   }
   .frn-hl-honor-row .rank {
-    color: var(--blgold); font-weight: 900; font-family: "Bebas Neue","Anton",sans-serif;
+    color: var(--blgold); font-weight: 900; font-family:var(--font-display);
     text-align: center;
   }
   .frn-hl-honor-row .name { color: var(--blwhite); font-weight: 700; }
   .frn-hl-honor-row .team {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     letter-spacing: .8px; font-weight: 700;
   }
   .frn-hl-honor-row .count {
     color: var(--blgray); font-size: .6rem;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
   }
   .frn-hl-honor-row .weight {
     color: var(--blgold); font-weight: 700;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
   }
 
   /* Reel bar — overlay above replay modal */
@@ -1859,7 +1859,7 @@
   .frn-hl-reel-btn.exit { color: #c08080; border-color: #c08080; }
   .frn-hl-reel-btn.exit:hover { background: rgba(192,128,128,.12); }
   .frn-hl-reel-progress {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .65rem; color: var(--blgray); letter-spacing: 1px;
   }
 
@@ -2109,7 +2109,7 @@
     margin-bottom: .9rem;
   }
   .frn-cuts-hero-eyebrow {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .68rem; letter-spacing: 1.5px; font-weight: 800;
     color: var(--gold-lt); text-transform: uppercase;
   }
@@ -2125,7 +2125,7 @@
   }
   .frn-cuts-hero-right { text-align: right; }
   .frn-cuts-cap-num {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: 3rem; font-weight: 900; line-height: 1;
     letter-spacing: -.03em;
     text-shadow: 0 2px 8px rgba(0,0,0,.5);
@@ -2191,7 +2191,7 @@
     display: flex; flex-direction: column; align-items: center;
     justify-content: center;
     padding: .15rem .55rem;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     border: 1px solid; border-radius: 3px;
     font-size: .78rem; font-weight: 900; letter-spacing: .3px;
     min-width: 5.5rem;
@@ -2213,7 +2213,7 @@
      Optional post-cut readout sits inline when staging is active. */
   .frn-cuts-bar-axis-v2 {
     display: flex; justify-content: space-between; align-items: baseline;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .58rem; color: var(--gray);
     margin-top: .4rem;
     padding-right: 6.5rem; /* leave room for the overflow/room chip */
@@ -2310,14 +2310,14 @@
     opacity: .85;
   }
   .frn-cuts-tm-name {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .58rem; font-weight: 800;
     color: rgba(0,0,0,.92);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     letter-spacing: .1px;
   }
   .frn-cuts-tm-hit {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .54rem; font-weight: 700;
     color: rgba(0,0,0,.7);
     letter-spacing: .2px;
@@ -2327,7 +2327,7 @@
     display: flex; align-items: center; gap: .35rem;
     flex-wrap: wrap;
     margin-top: .45rem;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
   }
   .frn-cuts-tm-controls-label {
     font-size: .55rem; font-weight: 800; letter-spacing: .8px;
@@ -2404,14 +2404,14 @@
     box-shadow: 0 0 0 2px rgba(255,255,255,.55), 0 6px 14px rgba(0,0,0,.6);
   }
   .frn-tvb-name {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .58rem; font-weight: 800;
     color: rgba(0,0,0,.92);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     letter-spacing: .1px;
   }
   .frn-tvb-sub {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .54rem; font-weight: 700;
     color: rgba(0,0,0,.7);
     letter-spacing: .2px;
@@ -2453,14 +2453,14 @@
     z-index: 2;
   }
   .frn-lcm-name {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .62rem; font-weight: 800;
     color: rgba(0,0,0,.92);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     letter-spacing: .2px;
   }
   .frn-lcm-sub {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .55rem; font-weight: 700;
     color: rgba(0,0,0,.7); letter-spacing: .2px;
     align-self: flex-end;
@@ -2523,7 +2523,7 @@
     color: #ff8a8a; text-transform: uppercase;
   }
   .frn-cuts-pending-freed {
-    font-size: .68rem; font-family: var(--font-data);
+    font-size: .68rem; font-family:var(--font-data);
   }
   .frn-cuts-legal-pill {
     display: inline-block;
@@ -2558,11 +2558,11 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .frn-cuts-pending-row .frn-cuts-ovr {
-    color: var(--gold-lt); font-family: var(--font-data);
+    color: var(--gold-lt); font-family:var(--font-data);
     font-weight: 800; text-align: center;
   }
   .frn-cuts-pending-row .frn-cuts-econ {
-    color: var(--gray); font-family: var(--font-data);
+    color: var(--gray); font-family:var(--font-data);
     font-size: .6rem; letter-spacing: .2px;
   }
   .frn-cuts-undo-btn {
@@ -2625,7 +2625,7 @@
     border: 1px solid var(--border);
     border-radius: 3px;
     text-align: center;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     cursor: pointer; user-select: none;
     transition: transform .08s, background .12s, border-color .12s;
   }
@@ -2671,7 +2671,7 @@
     border: 1px solid var(--border);
     border-bottom: none;
     border-radius: 4px 4px 0 0;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
   }
   .frn-cuts-filter-label {
     font-size: .58rem; font-weight: 800; letter-spacing: .8px;
@@ -2708,7 +2708,7 @@
     color: #5ed4d4; border-color: #5ed4d4;
   }
   .frn-cuts-filter-chip .cnt {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .55rem; padding: .05rem .3rem;
     background: rgba(0,0,0,.4); border-radius: 2px;
     opacity: .7;
@@ -2742,7 +2742,7 @@
     border: 1px solid rgba(255,138,138,.45);
     border-radius: 3px;
     padding: .3rem .7rem;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .58rem; font-weight: 800; letter-spacing: .5px;
     cursor: pointer;
     transition: all .12s;
@@ -2785,7 +2785,7 @@
   .frn-cuts-table td {
     padding: .45rem .65rem;
     border-bottom: 1px solid rgba(255,255,255,.04);
-    font-family: var(--font-data);
+    font-family:var(--font-data);
   }
   .frn-cuts-table tr:last-child td { border-bottom: none; }
   .frn-cuts-table tr:hover td { background: rgba(200,169,0,.05); }
@@ -2831,7 +2831,7 @@
   .frn-cuts-tier {
     display: inline-block;
     min-width: 1.4rem; padding: .1rem .35rem;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .68rem; font-weight: 900;
     border: 1px solid; border-radius: 3px;
     background: rgba(0,0,0,.3);
@@ -2903,7 +2903,7 @@
     display: inline-block;
     margin-left: .45rem;
     padding: .08rem .35rem;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .52rem; font-weight: 800; letter-spacing: .5px;
     border: 1px solid; border-radius: 2px;
     background: rgba(0,0,0,.3); text-transform: uppercase;
@@ -2993,7 +2993,7 @@
     display: flex; align-items: center; gap: .7rem; margin-bottom: .55rem;
   }
   .frn-scout-standalone-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.05rem; letter-spacing: 1.4px; color: var(--gold);
   }
   .frn-scout-split {
@@ -3272,7 +3272,7 @@
     display: flex; align-items: baseline; justify-content: space-between;
     margin-bottom: .35rem; flex-wrap: wrap; gap: .3rem;
   }
-  .frn-capcut-used { font-family: var(--font-num); font-size: 1.35rem; color: var(--gold-lt); letter-spacing: .5px; }
+  .frn-capcut-used { font-family:var(--font-num); font-size: 1.35rem; color: var(--gold-lt); letter-spacing: .5px; }
   .frn-capcut-sub { font-size: .62rem; color: var(--gray); letter-spacing: .3px; }
   .frn-capcut-btn {
     background: var(--bg3); border: 1px solid var(--border); color: var(--white);
@@ -3353,7 +3353,7 @@
     --home-color:#888;
 
     background: var(--blbg); color: var(--blwhite);
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: 13.5px; line-height: 1.4; letter-spacing: .15px;
     padding: 0; margin: 0;
     min-height: 100vh; position: relative;
@@ -3379,7 +3379,7 @@
     gap: 1.4rem; background: var(--blbg2);
   }
   .bspnlive-logo {
-    font-family: var(--font-display);
+    font-family:var(--font-display);
     font-size: 2.8rem; font-weight: 900; color: var(--blred);
     letter-spacing: -2px; font-style: italic; transform: skewX(-10deg);
     text-shadow: 0 1px 0 rgba(0,0,0,0.15);
@@ -3395,7 +3395,7 @@
     -webkit-text-fill-color: transparent;
   }
   .bspnlive-logo-sub {
-    display: block; font-family: var(--font-mono);
+    display: block; font-family:var(--font-mono);
     font-size: var(--bspn-cap); font-style: normal; transform: skewX(7deg);
     color: var(--blgray); letter-spacing: 2.5px; font-weight: 700;
     margin-top: .15rem;
@@ -3408,7 +3408,7 @@
   .bspnlive-nav-item {
     color: var(--blgray);
     background: transparent; border: 1px solid transparent; cursor: pointer;
-    font-family: var(--font-mono); font-size: var(--bspn-lbl); font-weight: 700;
+    font-family:var(--font-mono); font-size: var(--bspn-lbl); font-weight: 700;
     letter-spacing: 1.2px; padding: .26rem .65rem; border-radius: 999px;
     transition: color .12s, border-color .12s, background .12s;
   }
@@ -3434,7 +3434,7 @@
     letter-spacing: 1px; margin-bottom: .25rem;
   }
   .bspnlive-score-name {
-    font-family: var(--font-display);
+    font-family:var(--font-display);
     font-size: 1.65rem; line-height: 1; letter-spacing: 1.5px;
     /* --team-ink-text = contrast-lifted team color (set inline per block).
        Raw --team-color stays on the mark/tints but is ~1.1:1 as text for
@@ -3455,10 +3455,10 @@
     white-space: pre; font-size: 1rem; line-height: 1; overflow: hidden;
     /* <pre> defaults to the UA's generic monospace (Courier on most
        systems) — pin the ASCII mark to the app face. */
-    font-family: var(--font-mono);
+    font-family:var(--font-mono);
   }
   .bspnlive-score-num {
-    font-family: var(--font-num);
+    font-family:var(--font-num);
     font-size: clamp(4rem, 8vw, 8rem);
     font-weight: 900; line-height: .85;
     letter-spacing: -0.06em; font-variant-numeric: tabular-nums;
@@ -3476,7 +3476,7 @@
     text-align: center;
   }
   .bspnlive-score-clock {
-    font-family: var(--font-num); font-size: 2.2rem;
+    font-family:var(--font-num); font-size: 2.2rem;
     line-height: 1; letter-spacing: -.05em; color: var(--blwhite);
     font-variant-numeric: tabular-nums;
   }
@@ -3531,7 +3531,7 @@
   .field-hud {
     position: absolute; inset: 0; pointer-events: none;
     z-index: 4;
-    font-family: 'Bebas Neue', 'Anton', sans-serif;
+    font-family:var(--font-display);
   }
   .hud-corner {
     position: absolute; padding: .5rem .8rem;
@@ -3663,7 +3663,7 @@
   }
   .bspnlive-tab {
     background: transparent; border: none; color: var(--blgray);
-    font-family: var(--font-mono); font-size: var(--bspn-lbl); letter-spacing: 1.5px;
+    font-family:var(--font-mono); font-size: var(--bspn-lbl); letter-spacing: 1.5px;
     font-weight: 700; padding: .5rem .9rem; cursor: pointer;
     border-bottom: 2px solid transparent;
     transition: color .15s, border-color .15s;
@@ -4014,7 +4014,7 @@
   .frn-week-recap-title {
     font-size: 2.2rem; font-weight: 900; letter-spacing: 3px;
     color: #fff; margin: .2rem 0;
-    font-family: 'Bebas Neue', 'Anton', sans-serif;
+    font-family:var(--font-display);
   }
   .frn-week-recap-sub { font-size: .72rem; color: var(--blgray); }
   .frn-week-recap-cards {
@@ -4031,7 +4031,7 @@
   .recap-card.mine { background: linear-gradient(90deg, rgba(255,213,77,.08), transparent); }
   .recap-rank {
     font-size: 1.4rem; font-weight: 900; color: var(--accent);
-    font-family: 'Bebas Neue', sans-serif; text-align: center;
+    font-family:var(--font-display); text-align: center;
   }
   .recap-icon { font-size: 1.7rem; text-align: center; }
   .recap-body { display: flex; flex-direction: column; gap: .1rem; }
@@ -4070,7 +4070,7 @@
   .frn-rpl-hero-title {
     font-size: 2.2rem; font-weight: 900; letter-spacing: 2px;
     color: #fff; margin: .15rem 0;
-    font-family: 'Bebas Neue', 'Anton', sans-serif;
+    font-family:var(--font-display);
   }
   .frn-rpl-hero-sub { font-size: .72rem; color: var(--blgray); }
   .frn-rpl-controls {
@@ -4119,7 +4119,7 @@
   }
   .frn-rpl-rank {
     font-size: 1.5rem; font-weight: 900; color: var(--accent);
-    font-family: 'Bebas Neue', sans-serif;
+    font-family:var(--font-display);
     text-align: center;
   }
   .frn-rpl-icon { font-size: 1.8rem; text-align: center; }
@@ -4317,7 +4317,7 @@
     text-align: center;
     /* Anton first — Impact only exists on some systems (Windows), so the
        cadence text looked different per OS. Self-hosted = same everywhere. */
-    font-family: "Anton", "Teko", Impact, "Arial Black", sans-serif;
+    font-family:var(--font-num);
     font-weight: 900;
     -webkit-text-stroke: 3px rgba(0,0,0,0.85);
     paint-order: stroke fill;
@@ -4452,7 +4452,7 @@
   }
   .hud-scrub-time {
     font-variant-numeric: tabular-nums;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     color: var(--blgold, #f5c542);
     font-size: .65rem;
     min-width: 48px;
@@ -4465,7 +4465,7 @@
     position: absolute; inset: 0; pointer-events: none;
     z-index: 8; overflow: hidden;
     animation: seg-overall 2.0s ease-out forwards;
-    font-family: 'Bebas Neue', 'Anton', sans-serif;
+    font-family:var(--font-display);
   }
   @keyframes seg-overall {
     0% { opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; }
@@ -4508,7 +4508,7 @@
     background: rgba(0,0,0,.7);
     border: 1px solid var(--accent);
     border-radius: 4px; overflow: hidden;
-    font-family: 'Bebas Neue', sans-serif;
+    font-family:var(--font-display);
     color: #fff;
   }
   .seg-qtable th, .seg-qtable td {
@@ -4573,7 +4573,7 @@
   }
   .moment-headline {
     font-size: 2rem; font-weight: 900; color: var(--accent);
-    font-family: 'Bebas Neue', 'Anton', sans-serif;
+    font-family:var(--font-display);
     letter-spacing: 3px; line-height: 1;
     text-shadow: 0 2px 8px rgba(0,0,0,.85);
   }
@@ -4759,7 +4759,7 @@
     position: absolute; inset: 0; pointer-events: none;
     overflow: hidden; z-index: 8;
     animation: td-cinema-overall 2.4s ease-out forwards;
-    font-family: 'Bebas Neue', 'Anton', sans-serif;
+    font-family:var(--font-display);
   }
   @keyframes td-cinema-overall {
     0%   { opacity: 0; }
@@ -4885,12 +4885,12 @@
   }
   .hc-name {
     font-size: 1.1rem; font-weight: 900; color: #fff;
-    font-family: 'Bebas Neue', 'Anton', sans-serif;
+    font-family:var(--font-display);
     letter-spacing: 1.5px;
   }
   .hc-decision {
     font-size: 1.5rem; font-weight: 900; color: var(--accent);
-    font-family: 'Bebas Neue', 'Anton', sans-serif;
+    font-family:var(--font-display);
     letter-spacing: 3px; line-height: 1;
     text-shadow: 0 2px 8px rgba(0,0,0,.7);
   }
@@ -4957,7 +4957,7 @@
   .bighit-force {
     font-size: 5.5rem; font-weight: 900; line-height: 0.95;
     color: #fff; text-shadow: 0 0 22px var(--glow), 0 2px 0 rgba(0,0,0,.6);
-    letter-spacing: -2px; font-family: 'Bebas Neue', 'Anton', sans-serif;
+    letter-spacing: -2px; font-family:var(--font-display);
     animation: bighit-force-pulse 0.7s ease-in-out infinite alternate;
   }
   @keyframes bighit-force-pulse {
@@ -5036,11 +5036,11 @@
   .bspnlive-progress-label {
     display: flex; justify-content: space-between; align-items: baseline;
     color: var(--blgray); font-size: .68rem; letter-spacing: 1.2px;
-    font-family: 'Bebas Neue','Anton',sans-serif;
+    font-family:var(--font-display);
   }
   .bspnlive-progress-label #quarterLabel {
     color: var(--blgold, #f5c542);
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .6rem; letter-spacing: 0;
   }
 
@@ -5063,16 +5063,16 @@
     display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap;
   }
   .ipc-badge {
-    font-family: 'Bebas Neue','Anton',sans-serif; font-size: .95rem;
+    font-family:var(--font-display); font-size: .95rem;
     letter-spacing: 1.5px; color: var(--blgold, #f5c542);
   }
   .ipc-sit {
-    font-family: var(--font-data); font-size: .72rem;
+    font-family:var(--font-data); font-size: .72rem;
     color: var(--blwhite, #eaeef4); letter-spacing: .5px;
   }
   .ipc-lean {
     margin-left: auto;
-    font-family: var(--font-data); font-size: .62rem;
+    font-family:var(--font-data); font-size: .62rem;
     color: var(--blgray, #9aa7b8); letter-spacing: .5px;
   }
   .ipc-clock {
@@ -5083,7 +5083,7 @@
   @keyframes ipc-clock-pulse { from { opacity: 1; } to { opacity: .45; } }
   .ipc-btns { display: flex; gap: .45rem; flex-wrap: wrap; }
   .ipc-btn {
-    font-family: 'Bebas Neue','Anton',sans-serif; letter-spacing: 1px;
+    font-family:var(--font-display); letter-spacing: 1px;
     font-size: .95rem; padding: .5rem 1.1rem; border-radius: 6px; line-height: 1;
     background: #18222d; color: var(--blwhite, #eaeef4);
     border: 1px solid rgba(255,255,255,.14); cursor: pointer;
@@ -5114,7 +5114,7 @@
   .ipc-sheet-tag {
     flex: 0 0 42px; display: flex; align-items: center; justify-content: flex-end;
     padding-right: .15rem;
-    font-family: var(--font-data); font-size: .58rem; font-weight: 700;
+    font-family:var(--font-data); font-size: .58rem; font-weight: 700;
     letter-spacing: .14em; color: var(--blgray, #9aa7b8);
   }
   .ipc-sheet .ipc-btn { flex: 1 1 0; padding: .48rem .45rem; font-size: .82rem; white-space: nowrap; }
@@ -5131,7 +5131,7 @@
   .ipc-card-name { font-size: .78rem; letter-spacing: 1px; line-height: 1; }
   .ipc-card-key {
     position: absolute; top: 3px; right: 5px;
-    font-family: var(--font-data); font-size: .55rem; font-weight: 700;
+    font-family:var(--font-data); font-size: .55rem; font-weight: 700;
     color: var(--blgray, #9aa7b8); opacity: .8;
   }
   .ipc-btn.ipc-card.ipc-generic { max-width: 110px; }
@@ -5240,7 +5240,7 @@
   .bspnlive-perf-title { text-align: center; }
   .bspnlive-perf-team {
     color: var(--team-color, var(--blwhite));
-    font-family: var(--font-display);
+    font-family:var(--font-display);
     font-size: 1.1rem; letter-spacing: 1.5px;
     margin: .6rem 0 .25rem 0;
     padding-bottom: .15rem; border-bottom: 1px solid var(--team-color, var(--blbordr2));
@@ -5335,7 +5335,7 @@
     padding: .8rem 1rem; border-radius: 4px;
   }
   .frn-wire-thisweek-eyebrow {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     color: var(--blgold); letter-spacing: 2.5px; font-size: .68rem;
     margin-bottom: .4rem;
   }
@@ -5390,7 +5390,7 @@
     color: var(--blwhite); font-size: .82rem; font-weight: 700; line-height: 1.3;
   }
   .frn-wire-lead.hero .frn-wire-lead-headline {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.4rem; letter-spacing: .8px; font-weight: 700;
   }
 
@@ -5400,7 +5400,7 @@
     border-radius: 4px; padding: .65rem .8rem;
   }
   .frn-wire-storylines-head {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .9rem; letter-spacing: 1.5px; color: var(--blgold);
     margin-bottom: .5rem;
   }
@@ -5428,7 +5428,7 @@
   }
   .frn-wire-storyline-head .title { text-align: left; }
   .frn-wire-storyline-head .count {
-    color: var(--blgray); font-family: var(--font-data);
+    color: var(--blgray); font-family:var(--font-data);
     font-size: .58rem; background: rgba(0,0,0,.25);
     padding: .05rem .35rem; border-radius: 2px;
   }
@@ -5767,7 +5767,7 @@
     padding: 0 .45rem;
   }
   .frn-snap-pct {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .92rem; font-weight: 900; color: var(--gold-lt);
   }
   .frn-snap-slider {
@@ -5799,7 +5799,7 @@
     border: 1px solid rgba(255,179,71,.25);
   }
   .frn-snap-iron-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .68rem; letter-spacing: 1.4px; color: #ffb347; font-weight: 900;
   }
   .frn-snap-iron-tag {
@@ -5873,7 +5873,7 @@
   }
   .frn-dc-tab-icon  { font-size: .95rem; line-height: 1; }
   .frn-dc-tab-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .82rem; letter-spacing: 1.4px; font-weight: 900;
     color: var(--unit-color, var(--gold));
     flex: 1; text-align: left;
@@ -5882,7 +5882,7 @@
   .frn-dc-tab-ovr {
     font-size: .68rem; font-weight: 900;
     color: var(--unit-color, var(--gold));
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     padding: .04rem .35rem; border: 1px solid var(--border); border-radius: 3px;
     background: rgba(0,0,0,.25);
   }
@@ -5896,7 +5896,7 @@
   .frn-dc-auto-btn {
     display: inline-flex; flex-direction: column; align-items: center; gap: .05rem;
     padding: .42rem .9rem;
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .82rem; font-weight: 900; letter-spacing: 1.6px;
     background: var(--bg3); color: var(--gray);
     border: 2px solid var(--border); border-radius: 0;
@@ -5914,7 +5914,7 @@
   }
   .frn-dc-auto-count {
     display: block; font-size: .54rem; letter-spacing: .8px; font-weight: 700;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     color: rgba(0,0,0,.7); margin-top: .05rem;
   }
   .frn-dc-auto-btn:not(.hot) .frn-dc-auto-count { color: var(--blgray); }
@@ -6122,7 +6122,7 @@
     cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px;
   }
   .frn-dc-spot-ovr {
-    font-family: 'Bebas Neue','Anton',sans-serif; line-height: 1;
+    font-family:var(--font-display); line-height: 1;
     color: var(--gold-lt); flex-shrink: 0;
   }
   .frn-dc-spot-ovr.oop { color: #ffb37a; }
@@ -6206,7 +6206,7 @@
   /* BSPN logo — block-letter parody header */
   .frn-bspn-logo {
     margin: 0; padding: 0;
-    font-family: var(--font-data); color: var(--gold);
+    font-family:var(--font-data); color: var(--gold);
     font-size: .55rem; line-height: 1; letter-spacing: 0;
     font-weight: 700; white-space: pre;
   }
@@ -6986,7 +6986,7 @@
     align-items: center; gap: 1rem;
     margin-top: .8rem; padding: .7rem 1rem;
     background: var(--bg2); border: 1px solid var(--border);
-    color: var(--green); font-family: var(--font-data);
+    color: var(--green); font-family:var(--font-data);
     font-size: .65rem; letter-spacing: .3px; line-height: 1.2;
   }
   .frn-bs-footer-side { color: var(--gray); white-space: pre; overflow: hidden; }
@@ -7011,7 +7011,7 @@
     position: relative;
   }
   .bspnlive-bracket-col-head {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.05rem; letter-spacing: 2px;
     color: var(--blwhite); padding-bottom: .35rem;
     border-bottom: 2px solid var(--blborder);
@@ -7057,7 +7057,7 @@
   }
   .frn-prg-score-side.opp { align-items: center; }
   .frn-prg-score-side .abbr {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.6rem; letter-spacing: 1.5px;
     color: var(--team-ink, var(--team-color, var(--blwhite))); font-weight: 900;
   }
@@ -7065,18 +7065,18 @@
     font-size: .58rem; letter-spacing: 1.5px; color: var(--blgray);
   }
   .frn-prg-score-side .score {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 3.4rem; line-height: 1;
     color: var(--blwhite); font-weight: 900;
   }
   .frn-prg-hero-banner.win .frn-prg-score-side.mine .score { color: var(--blgold); }
   .frn-prg-hero-banner.loss .frn-prg-score-side.opp .score { color: var(--blgold); }
   .frn-prg-score-divider {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.6rem; color: var(--blgray);
   }
   .frn-prg-status-main {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.5rem; letter-spacing: 1.8px;
   }
   .frn-prg-hero-banner.win  .frn-prg-status-main { color: var(--blgold); }
@@ -7096,7 +7096,7 @@
     border-radius: 3px; padding: .85rem 1rem;
   }
   .frn-prg-card-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .95rem; letter-spacing: 1.5px; color: var(--blgold);
     margin-bottom: .6rem;
   }
@@ -7122,7 +7122,7 @@
     margin-left: .35rem;
   }
   .frn-prg-hero-stat {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .66rem; color: var(--blgold); margin-top: .1rem;
   }
   .frn-prg-hero.opp .frn-prg-hero-stat { color: #c08080; }
@@ -7147,7 +7147,7 @@
     padding: .3rem .25rem; border-bottom: 1px solid rgba(255,255,255,.04);
   }
   .frn-prg-cmp-table td.v {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-weight: 700; width: 30%;
     color: var(--blwhite); text-align: left;
   }
@@ -7166,10 +7166,10 @@
     background: rgba(0,0,0,.18); border-radius: 2px;
   }
   .frn-prg-scoring-row .q { color: var(--blgray); font-weight: 700; font-size: .58rem; }
-  .frn-prg-scoring-row .team { font-family: "Bebas Neue","Anton",sans-serif; letter-spacing: .8px; }
+  .frn-prg-scoring-row .team { font-family:var(--font-display); letter-spacing: .8px; }
   .frn-prg-scoring-row .desc { color: var(--blwhite); }
   .frn-prg-scoring-row .score {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     color: var(--blgray); text-align: right;
   }
 
@@ -7190,7 +7190,7 @@
   }
   .frn-prg-cta-primary {
     background: var(--blgold); color: #000; border: 0;
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.4rem; letter-spacing: 2px; font-weight: 900;
     padding: .85rem 2rem; cursor: pointer; border-radius: 10px;
     transition: transform .12s ease, box-shadow .12s ease;
@@ -7226,11 +7226,11 @@
     margin-bottom: .15rem;
   }
   .frn-bt-col-head .num {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     color: var(--blgray); font-size: .85rem; line-height: 1;
   }
   .frn-bt-col-head .lbl {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     color: var(--blwhite); font-size: .82rem; letter-spacing: 1.5px; font-weight: 700;
   }
   .frn-bt-col-head .now {
@@ -7291,7 +7291,7 @@
   /* Text uses the contrast-lifted ink (set inline); border keeps raw primary. */
   .frn-bt-team .name { color: var(--team-ink-text, var(--blwhite)); font-weight: 800; }
   .frn-bt-team .score {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     text-align: right; color: var(--blwhite); font-weight: 700;
   }
   .frn-bt-team.win .name { color: var(--blgold); }
@@ -7342,7 +7342,7 @@
     font-weight: 700;
   }
   .frn-playoff-hub-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.4rem; letter-spacing: 1.5px; color: var(--blwhite);
   }
   .frn-playoff-hub-sub { font-size: .68rem; color: var(--blgray); }
@@ -7367,26 +7367,26 @@
   }
   .frn-playoff-feat-ascii { font-size: .9rem; color: var(--team-color, var(--blgold)); }
   .frn-playoff-feat-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .78rem; letter-spacing: .8px; color: var(--blwhite);
     line-height: 1.15;
   }
   .frn-playoff-feat-rec {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .68rem; color: var(--blgray);
   }
   .frn-playoff-feat-vs {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.3rem; color: var(--blgold); letter-spacing: 1.5px;
   }
   .frn-playoff-feat-vs .atstad {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .5rem; color: var(--blgray); letter-spacing: .8px; margin-top: .15rem;
   }
   .frn-playoff-feat-actions { display: flex; gap: .55rem; padding-top: .25rem; }
   .frn-playoff-hub-cta {
     background: var(--blgold); color: #000; border: 0;
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1rem; letter-spacing: 1.3px; font-weight: 900;
     padding: .55rem 1.4rem; cursor: pointer; border-radius: 10px;
     transition: transform .12s ease, box-shadow .12s ease;
@@ -7419,7 +7419,7 @@
     border-radius: 4px; padding: .65rem .85rem;
   }
   .frn-pl-otherlbl {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .75rem; letter-spacing: 1.2px; color: var(--blgold);
     margin-bottom: .45rem;
   }
@@ -7442,7 +7442,7 @@
   .frn-pl-otherchip-team .seed { color: var(--blgray); font-size: .55rem; font-weight: 700; }
   .frn-pl-otherchip-team .abbr { color: var(--team-ink, var(--team-color)); font-weight: 800; }
   .frn-pl-otherchip-team .score {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     color: var(--blwhite); font-weight: 700;
   }
   .frn-pl-otherchip-team.win .abbr { color: var(--blgold); }
@@ -7492,7 +7492,7 @@
     text-align: center; letter-spacing: .5px;
   }
   .bspnlive-bracket-team .abbr {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .95rem; letter-spacing: 1.5px; font-weight: 700;
   }
   .bspnlive-bracket-team .name {
@@ -7500,7 +7500,7 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .bspnlive-bracket-team .score {
-    font-family: "Anton","Teko","Impact",sans-serif;
+    font-family:var(--font-num);
     font-size: 1.7rem; line-height: 1; letter-spacing: -.04em;
     font-variant-numeric: tabular-nums; font-weight: 900;
   }
@@ -7533,7 +7533,7 @@
     grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   }
   .bspnlive-bracket-past-col-head {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .82rem; letter-spacing: 1.5px; color: var(--blwhite);
     border-bottom: 1px solid var(--blborder); padding-bottom: .15rem;
     margin-bottom: .25rem;
@@ -7556,7 +7556,7 @@
     border-bottom: 2px solid var(--blred);
   }
   .bspnlive-bracket-current-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.6rem; letter-spacing: 2.5px; color: var(--blwhite);
   }
   .bspnlive-bracket-current-progress {
@@ -7608,7 +7608,7 @@
     padding: .75rem 1rem; margin-bottom: 1rem;
   }
   .bspnlive-road-head {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1rem; letter-spacing: 1.5px; color: var(--blgold);
     margin-bottom: .55rem;
   }
@@ -7640,7 +7640,7 @@
     padding: .1rem .35rem;
   }
   .bspnlive-road-team .abbr {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1rem; letter-spacing: 1.5px; font-weight: 700;
   }
   .bspnlive-road-team .name {
@@ -7654,7 +7654,7 @@
   }
   .bspnlive-road-team.possible {
     align-items: center; justify-content: center; min-height: 50px;
-    font-size: .85rem; font-family: "Bebas Neue","Anton",sans-serif;
+    font-size: .85rem; font-family:var(--font-display);
     letter-spacing: 1px; padding: .6rem .4rem;
   }
   .bspnlive-road-arrow {
@@ -7686,7 +7686,7 @@
     padding: .8rem 1rem; margin-bottom: 1rem;
   }
   .bspnlive-recap-head {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.1rem; letter-spacing: 1.5px; margin-bottom: .25rem;
   }
   .bspnlive-recap-sub {
@@ -7768,7 +7768,7 @@
     letter-spacing: 2.5px; font-weight: 700;
   }
   .bspnlive-champ-team {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 2rem; letter-spacing: 1.5px;
     color: var(--team-color, #fff);
     text-shadow: 0 1px 0 rgba(0,0,0,0.6);
@@ -7780,7 +7780,7 @@
     display: flex; flex-direction: column; gap: .7rem;
   }
   .bspnlive-section-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.15rem; letter-spacing: 2px;
     color: var(--blwhite);
     border-bottom: 2px solid var(--blborder);
@@ -7808,7 +7808,7 @@
     letter-spacing: 2.5px; font-weight: 700;
   }
   .bspnlive-awards-hero-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 2.4rem; letter-spacing: 2px; line-height: 1.05;
     color: var(--champ-ink, var(--champ-color));
     text-shadow: 0 1px 0 rgba(0,0,0,0.6);
@@ -7851,7 +7851,7 @@
     letter-spacing: 2px; font-weight: 800;
   }
   .bspnlive-mvp-hero-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 2.1rem; letter-spacing: 1px; line-height: 1.05;
     color: var(--blwhite); margin: .2rem 0;
   }
@@ -7875,7 +7875,7 @@
   /* ── POTW Voting Cards ──────────────────────────────────────────────── */
   .potw-group { margin-bottom: 1.4rem; }
   .potw-group-title {
-    font-family: 'Bebas Neue','Anton',sans-serif;
+    font-family:var(--font-display);
     font-size: .95rem; letter-spacing: 2px; color: var(--blgold);
     margin-bottom: .55rem; border-bottom: 1px solid var(--blborder); padding-bottom: .2rem;
   }
@@ -7915,7 +7915,7 @@
     font-size: .7rem;
   }
   .potw-picks-summary-title {
-    font-family: 'Bebas Neue','Anton',sans-serif;
+    font-family:var(--font-display);
     font-size: .8rem; letter-spacing: 1.5px; color: var(--blgold);
   }
   .potw-picks-summary-item { color: var(--blwhite); }
@@ -7924,7 +7924,7 @@
   .potw-vote-card-rank {
     position: absolute; top:.35rem; right:.45rem;
     font-size:.62rem; color:var(--blgray); letter-spacing:1px;
-    font-family:'Bebas Neue','Anton',sans-serif;
+    font-family:var(--font-display);
   }
   .potw-vote-card-name { font-weight:900; font-size:.88rem; color:var(--blwhite); margin-bottom:.12rem; }
   .potw-vote-card-meta { font-size:.62rem; color:var(--blgray); margin-bottom:.18rem; }
@@ -7960,13 +7960,13 @@
     font-size: 1.05rem; opacity: .85;
   }
   .bspnlive-award-card-label {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .72rem; letter-spacing: 1.5px;
     color: var(--card-ink, var(--blwhite));
     font-weight: 700;
   }
   .bspnlive-award-card-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.1rem; letter-spacing: .5px; line-height: 1.1;
     color: var(--blwhite); margin-top: .15rem;
   }
@@ -8000,7 +8000,7 @@
     padding: .55rem .7rem;
   }
   .bspnlive-allpro-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .92rem; letter-spacing: 1.5px;
     color: var(--blwhite); margin-bottom: .35rem;
   }
@@ -8036,7 +8036,7 @@
     padding: .45rem .55rem;
   }
   .bspnlive-leader-cat-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .78rem; letter-spacing: 1px;
     color: var(--blgold); margin-bottom: .25rem;
   }
@@ -8051,7 +8051,7 @@
   .bspnlive-leader-tm { font-weight: 800; font-size: .62rem; letter-spacing: .3px; }
   .bspnlive-leader-name { color: var(--blwhite); }
   .bspnlive-leader-val {
-    font-family: "Anton","Teko","Impact",sans-serif;
+    font-family:var(--font-num);
     font-size: 1rem; color: var(--blwhite); font-weight: 900;
   }
   /* Season by the numbers */
@@ -8071,7 +8071,7 @@
     letter-spacing: 1.2px; font-weight: 700;
   }
   .bspnlive-number-val {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.7rem; letter-spacing: .5px; line-height: 1;
     color: var(--blwhite); margin: .15rem 0;
   }
@@ -8127,7 +8127,7 @@
   .bspnlive-hof-trophy { font-size: 1.5rem; color: var(--blgold); line-height: 1.2; }
   .bspnlive-hof-body { flex: 1; }
   .bspnlive-hof-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.05rem; letter-spacing: .5px; color: var(--blwhite);
   }
   .bspnlive-hof-meta { color: var(--blgray); font-size: .65rem; }
@@ -8158,7 +8158,7 @@
   }
   @media (max-width: 800px) { .frn-awards-hl-grid { grid-template-columns: 1fr; } }
   .frn-awards-hl-col-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .9rem; letter-spacing: 1.4px; color: var(--blgold);
     margin-bottom: .45rem;
   }
@@ -8201,12 +8201,12 @@
     color: var(--blwhite); font-weight: 700; font-size: .8rem; line-height: 1.25;
   }
   .frn-awards-hl-card.hero .frn-awards-hl-headline {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.5rem; letter-spacing: 1px; line-height: 1.2;
   }
   .frn-awards-hl-matchup {
     grid-row: 3; grid-column: 1;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .58rem; color: var(--blgray); margin-top: .15rem;
   }
   .frn-awards-hl-watch {
@@ -8262,7 +8262,7 @@
   .bspnlive-btn-gold {
     background: var(--blgold); color: #0e1117; border: 0;
     padding: .55rem 1.1rem;
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .92rem; letter-spacing: 1.5px;
     font-weight: 800; cursor: pointer;
     transition: transform .12s ease;
@@ -8272,7 +8272,7 @@
     background: transparent; border: 1px solid var(--blborder);
     color: var(--blwhite);
     padding: .5rem 1rem;
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .88rem; letter-spacing: 1.2px;
     cursor: pointer;
   }
@@ -8297,7 +8297,7 @@
     font-weight: 800; margin-bottom: .4rem;
   }
   .frn-apb-hero-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 2.2rem; letter-spacing: 2px; color: var(--blwhite);
     margin: 0 0 .35rem;
   }
@@ -8314,11 +8314,11 @@
     display: flex; align-items: baseline; gap: .6rem; margin-bottom: .55rem;
   }
   .frn-apb-yours-eyebrow {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1rem; letter-spacing: 1.4px; color: var(--blgold);
   }
   .frn-apb-yours-count {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     color: var(--blgray); font-size: .6rem;
     padding: .08rem .4rem; background: rgba(0,0,0,.3); border-radius: 2px;
   }
@@ -8338,7 +8338,7 @@
   .frn-apb-yours-row .name { color: var(--blwhite); font-weight: 700; }
   .frn-apb-yours-row .div { color: var(--blgray); font-size: .62rem; }
   .frn-apb-yours-row .stat {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     color: var(--blgold); font-size: .62rem;
   }
 
@@ -8348,7 +8348,7 @@
     border-radius: 4px; padding: .85rem 1rem;
   }
   .frn-apb-section-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1rem; letter-spacing: 1.4px; color: var(--blgold);
     margin-bottom: .55rem;
   }
@@ -8368,7 +8368,7 @@
     display: flex; align-items: baseline; gap: .35rem; margin-bottom: .4rem;
   }
   .frn-apb-team-card-head .seed {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     color: var(--blgold); font-size: .95rem;
   }
   .frn-apb-team-card-head .name {
@@ -8392,7 +8392,7 @@
     letter-spacing: .8px;
   }
   .frn-apb-team-card-roster .src {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .6rem; letter-spacing: .8px;
   }
 
@@ -8436,7 +8436,7 @@
     font-weight: 800; margin-bottom: .25rem;
   }
   .frn-apb-trophy-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 2.6rem; letter-spacing: 2.5px; color: var(--blwhite);
     margin: 0;
   }
@@ -8454,13 +8454,13 @@
     font-weight: 800; margin-bottom: .3rem;
   }
   .frn-apb-mvp-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.7rem; letter-spacing: 1.5px; color: var(--blwhite);
     margin-bottom: .25rem;
   }
   .frn-apb-mvp-meta { font-size: .68rem; color: var(--blgray); margin-bottom: .25rem; }
   .frn-apb-mvp-line {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     color: var(--blgold); font-size: .68rem;
   }
 
@@ -8485,7 +8485,7 @@
     font-weight: 800;
   }
   .frn-apb-leader-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .95rem; letter-spacing: .8px; color: var(--blwhite);
     line-height: 1.15;
   }
@@ -8495,14 +8495,14 @@
   }
   .frn-apb-leader-meta .pos { color: var(--blgold); font-weight: 700; letter-spacing: .5px; }
   .frn-apb-leader-meta .src {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .62rem; letter-spacing: .6px; font-weight: 700;
   }
   .frn-apb-leader-meta .gp {
-    color: var(--blgray); font-family: var(--font-data);
+    color: var(--blgray); font-family:var(--font-data);
   }
   .frn-apb-leader-stat {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .68rem; color: var(--blgold); font-weight: 700;
     margin-top: .15rem; line-height: 1.25;
   }
@@ -8520,7 +8520,7 @@
   }
   .frn-apb-performer-rank {
     color: var(--blgold); font-weight: 900;
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.3rem; text-align: center;
     line-height: 1.05;
   }
@@ -8534,12 +8534,12 @@
   .frn-apb-performer-head .name { color: var(--blwhite); font-weight: 700; }
   .frn-apb-performer-head .pos { color: var(--blgold); font-weight: 700; font-size: .58rem; letter-spacing: .8px; }
   .frn-apb-performer-head .src {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .62rem; letter-spacing: .8px; font-weight: 700;
   }
   .frn-apb-performer-stats {
     display: flex; gap: .65rem; align-items: baseline; flex-wrap: wrap;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .62rem; color: var(--blgold);
   }
   .frn-apb-performer-stats .line { color: var(--blgold); font-weight: 700; }
@@ -8588,15 +8588,15 @@
     font-size: .55rem; color: var(--blgray); letter-spacing: 1px; font-weight: 800;
   }
   .frn-apb-box-score-banner .abbr {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.1rem; letter-spacing: 1.5px; color: var(--blwhite);
   }
   .frn-apb-box-score-banner .score {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 2.5rem; line-height: 1; color: var(--blwhite); font-weight: 900;
   }
   .frn-apb-box-score-banner .vs {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.3rem; color: var(--blgray);
   }
   .frn-apb-box-mvp {
@@ -8612,11 +8612,11 @@
   .frn-apb-box-mvp .name { color: var(--blwhite); font-weight: 700; font-size: .8rem; }
   .frn-apb-box-mvp .pos { color: var(--blgold); font-size: .58rem; font-weight: 700; }
   .frn-apb-box-mvp .line {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .65rem; color: var(--blgold); margin-left: auto;
   }
   .frn-apb-box-section-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .85rem; letter-spacing: 1.3px; color: var(--blgold);
     margin-bottom: .35rem;
   }
@@ -8638,11 +8638,11 @@
   .frn-apb-box-perf .name { color: var(--blwhite); font-weight: 700; }
   .frn-apb-box-perf .pos { color: var(--blgold); font-weight: 700; font-size: .58rem; }
   .frn-apb-box-perf .src {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .62rem; letter-spacing: .6px; font-weight: 700;
   }
   .frn-apb-box-perf .line {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .6rem; color: var(--blgold); text-align: right;
   }
   .frn-apb-box-cmp-wrap, .frn-apb-box-scoring-wrap { margin-bottom: .85rem; }
@@ -8655,7 +8655,7 @@
     padding: .25rem .25rem; border-bottom: 1px solid rgba(255,255,255,.04);
   }
   .frn-apb-box-cmp td.v {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-weight: 700; color: var(--blwhite); width: 30%; text-align: left;
   }
   .frn-apb-box-cmp td.v.away { text-align: right; }
@@ -8672,17 +8672,17 @@
   }
   .frn-apb-box-score-row .q { color: var(--blgray); font-weight: 700; font-size: .55rem; }
   .frn-apb-box-score-row .team {
-    font-family: "Bebas Neue","Anton",sans-serif; letter-spacing: .8px; font-weight: 700;
+    font-family:var(--font-display); letter-spacing: .8px; font-weight: 700;
   }
   .frn-apb-box-score-row .desc { color: var(--blwhite); }
   .frn-apb-box-score-row .num {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     color: var(--blgray); text-align: right;
   }
 
   /* Outcome chips (Champion / Final / Semis / QF exit) */
   .outcome {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .5rem; font-weight: 800; letter-spacing: .8px;
     padding: .06rem .35rem; border-radius: 2px; border: 1px solid;
   }
@@ -8706,7 +8706,7 @@
     font-weight: 700;
   }
   .frn-apb-yourrecap-stat .val {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.4rem; letter-spacing: 1px; color: var(--blwhite);
     line-height: 1.05;
   }
@@ -8724,7 +8724,7 @@
   }
   .frn-apb-cta {
     background: var(--blgold); color: #000; border: 0;
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.3rem; letter-spacing: 1.8px; font-weight: 900;
     padding: .85rem 2rem; cursor: pointer; border-radius: 10px;
     transition: transform .12s ease, box-shadow .12s ease;
@@ -8763,7 +8763,7 @@
     letter-spacing: 2.5px; font-weight: 700;
   }
   .bspnlive-apb-hero-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 2.3rem; letter-spacing: 2px;
     color: var(--blgold); margin: .15rem 0;
   }
@@ -8783,7 +8783,7 @@
     padding-bottom: .35rem;
   }
   .bspnlive-apb-round-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.1rem; letter-spacing: 2px;
     color: var(--blwhite);
   }
@@ -8814,7 +8814,7 @@
     text-align: right;
   }
   .bspnlive-apb-team {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .95rem; letter-spacing: .5px;
     color: var(--blwhite);
   }
@@ -8823,7 +8823,7 @@
     margin-right: .35rem; vertical-align: middle;
   }
   .bspnlive-apb-score {
-    font-family: "Anton","Teko","Impact",sans-serif;
+    font-family:var(--font-num);
     font-size: 1.15rem; color: var(--blwhite); font-weight: 800;
     text-align: right;
   }
@@ -8843,7 +8843,7 @@
     color: #c9cfd6; font-size: .68rem; letter-spacing: 2px; font-weight: 700;
   }
   .bspnlive-apb-trophy-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 2rem; letter-spacing: 1.5px;
     color: var(--blgold);
   }
@@ -9086,12 +9086,12 @@
     display: flex; align-items: baseline; justify-content: space-between; gap: .4rem;
   }
   .frn-tp-team {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .9rem; letter-spacing: 1.2px; color: var(--blwhite);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .frn-tp-rec {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .65rem; color: var(--gray); flex-shrink: 0;
   }
   .frn-tp-cap {
@@ -9149,7 +9149,7 @@
     margin-bottom: .35rem;
   }
   .frn-trade-balance-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .68rem; letter-spacing: 1.5px; color: var(--gold);
   }
   .frn-trade-balance-verdict {
@@ -9176,7 +9176,7 @@
     align-items: flex-end; text-align: right;
   }
   .frn-trade-balance-num {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .72rem; font-weight: 900;
   }
   .frn-trade-balance-need {
@@ -9195,13 +9195,13 @@
     padding: .4rem .55rem; margin-bottom: .55rem;
   }
   .frn-trade-multiyr-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .62rem; letter-spacing: 1.3px; color: var(--gold);
     margin-bottom: .2rem;
   }
   .frn-trade-multiyr-tbl {
     width: 100%; border-collapse: collapse;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
   }
   .frn-trade-multiyr-tbl th, .frn-trade-multiyr-tbl td {
     padding: .12rem .25rem; font-size: .62rem;
@@ -9403,7 +9403,7 @@
   .frn-dp-name:hover { color: var(--gold-lt); text-decoration: underline; }
   .frn-dp-bottom { display: flex; align-items: center; gap: .35rem; }
   .frn-dp-meta    { font-size: .59rem; color: var(--gray); }
-  .frn-dp-combine { font-size: .59rem; color: var(--gold-lt); font-family: var(--font-data); }
+  .frn-dp-combine { font-size: .59rem; color: var(--gold-lt); font-family:var(--font-data); }
   .frn-dp-actions { display: flex; gap: .3rem; align-items: center; }
   /* 4-icon scout cluster — replaces the single 🔍 button */
   .frn-dp-cat-cluster {
@@ -9507,7 +9507,7 @@
     border-radius: 2px;
   }
   .frn-draft-scouted-header {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     color: var(--green-lt); letter-spacing: 1.4px; font-size: .68rem;
     margin-bottom: .35rem; padding-left: .2rem;
   }
@@ -9756,7 +9756,7 @@
     font-weight: 800;
   }
   .frn-udfa-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     color: var(--gold); letter-spacing: 2.5px; font-size: 1.6rem;
     margin: .15rem 0 .35rem;
   }
@@ -9765,7 +9765,7 @@
     margin: 0 auto .4rem; line-height: 1.5;
   }
   .frn-udfa-progress {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     color: var(--gold-lt); font-size: .8rem; font-weight: 700;
   }
   .frn-udfa-claimed-wrap {
@@ -9817,7 +9817,7 @@
     border-radius: 2px;
   }
   .frn-draft-watched-header {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     color: #cce7ff; letter-spacing: 1.4px; font-size: .68rem;
     margin-bottom: .35rem; padding-left: .2rem;
     display: flex; justify-content: space-between; align-items: center;
@@ -9947,7 +9947,7 @@
   .frn-jp-log-wk   { font-size: .58rem; font-weight: 900; color: var(--blgray); letter-spacing: .5px; }
   .frn-jp-log-opp  { font-size: .72rem; font-weight: 800; }
   .frn-jp-log-score{
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .68rem; color: var(--blwhite);
   }
   .frn-jp-log-meta { font-size: .55rem; color: var(--gray); }
@@ -9975,7 +9975,7 @@
   .frn-jp-int-head { display: flex; align-items: baseline; gap: .35rem; }
   .frn-jp-int-icon { font-size: .9rem; }
   .frn-jp-int-label {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .85rem; letter-spacing: 1.4px; color: var(--gold);
     font-weight: 900;
   }
@@ -10098,7 +10098,7 @@
     font-weight: 800; margin-bottom: .3rem;
   }
   .frn-resign-hero-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 2.2rem; letter-spacing: 2px; color: var(--white);
     margin: 0 0 .35rem;
   }
@@ -10131,7 +10131,7 @@
     border-radius: 4px;
   }
   .frn-off-footer-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     color: var(--gold); letter-spacing: 2px; font-size: 1.15rem;
     margin-bottom: .4rem;
   }
@@ -10166,7 +10166,7 @@
     border-radius: 3px; padding: .7rem .9rem; margin-bottom: 1rem;
   }
   .frn-resign-cap-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .9rem; letter-spacing: 1.3px; color: var(--gold);
     margin-bottom: .5rem;
   }
@@ -10231,7 +10231,7 @@
     cursor: default;
   }
   .frn-resign-cap-year .num {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .75rem; font-weight: 700;
   }
   .frn-resign-cap-note { font-size: .58rem; color: var(--gray); margin-top: .45rem; font-style: italic; }
@@ -10258,7 +10258,7 @@
     display: flex; align-items: baseline; gap: .55rem; margin-bottom: .35rem;
   }
   .frn-resign-section-head .title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1rem; letter-spacing: 1.3px; color: var(--gold);
   }
   .frn-resign-section-head .eyebrow {
@@ -10275,7 +10275,7 @@
     font-size: .65rem;
   }
   .frn-resign-rec .action {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .82rem; letter-spacing: 1.3px; font-weight: 800;
   }
   .frn-resign-rec .reason { color: var(--gray); font-size: .62rem; }
@@ -10297,7 +10297,7 @@
   }
   .frn-resign-demand .lbl { color: var(--gray); letter-spacing: .5px; font-weight: 700; font-size: .55rem; }
   .frn-resign-demand .num {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     color: var(--white); font-weight: 700;
   }
   .frn-resign-meta {
@@ -10316,7 +10316,7 @@
   .frn-resign-collapsed:hover { opacity: 1; border-color: var(--gold-lt); }
   .frn-resign-collapsed .name { color: var(--white); font-weight: 700; }
   .frn-resign-collapsed .meta { color: var(--gray); font-size: .58rem; }
-  .frn-resign-collapsed .decision { font-family: var(--font-data); font-size: .62rem; }
+  .frn-resign-collapsed .decision { font-family:var(--font-data); font-size: .62rem; }
   .frn-resign-collapsed .reopen {
     color: var(--gray); font-size: .55rem; letter-spacing: .5px; font-weight: 700;
   }
@@ -10350,7 +10350,7 @@
     font-weight: 800; text-align: center;
   }
   .frn-resign-recap-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.9rem; letter-spacing: 2px; color: var(--white);
     text-align: center; margin: .15rem 0 1rem;
   }
@@ -10368,11 +10368,11 @@
     font-size: .54rem; letter-spacing: 1.2px; color: var(--gray); font-weight: 700;
   }
   .frn-resign-recap-stat .val {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.6rem; letter-spacing: 1.2px; line-height: 1.05;
   }
   .frn-resign-recap-stat .sub {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .58rem; color: var(--gray);
   }
   .frn-resign-recap-section {
@@ -10381,7 +10381,7 @@
     border-radius: 3px; padding: .6rem .75rem;
   }
   .frn-resign-recap-section-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .85rem; letter-spacing: 1.3px; color: var(--gold);
     margin-bottom: .35rem;
   }
@@ -10558,7 +10558,7 @@
   .frn-offer-talk {
     border-left: 3px solid var(--gold); background: rgba(200,169,0,.07);
     font-size: .62rem; padding: .3rem .45rem; border-radius: 0 4px 4px 0; line-height: 1.35;
-    font-family: var(--font-prose); font-style: italic;
+    font-family:var(--font-prose); font-style: italic;
   }
   .frn-offer-talk.tone-concede { border-color: var(--green-lt); background: rgba(46,139,87,.10); }
   .frn-offer-talk.tone-harden  { border-color: var(--red); background: rgba(192,57,43,.10); }
@@ -10611,7 +10611,7 @@
       radial-gradient(ellipse at top, rgba(80,80,90,0.06), transparent 65%),
       var(--bspn-bg);
     color: var(--bspn-white);
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: 13px; line-height: 1.4; letter-spacing: 0.2px;
     margin: -1rem -1.5rem 0 -1.5rem;  /* break out of franchise main padding */
     padding: 0 0 1.5rem 0;
@@ -10632,7 +10632,7 @@
     background: linear-gradient(180deg, #0a0d12 0%, #050607 100%);
   }
   .bspn-logo {
-    font-family: var(--font-display);
+    font-family:var(--font-display);
     font-size: 2.4rem; font-weight: 900; color: var(--bspn-red);
     letter-spacing: -2px; font-style: italic; transform: skewX(-7deg);
     text-shadow: 0 0 14px rgba(255,57,57,0.45), 0 1px 0 #200;
@@ -10711,16 +10711,16 @@
     border: 1px solid var(--bspn-border-strong);
     display: flex; align-items: center; justify-content: center;
     background: var(--bspn-bg3); color: var(--team-color, var(--bspn-gold));
-    font-size: 1.8rem; line-height: 1; font-family: var(--font-data);
+    font-size: 1.8rem; line-height: 1; font-family:var(--font-data);
     white-space: pre; overflow: hidden;
   }
   .bspn-summary-team-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.6rem; line-height: 1; letter-spacing: 1.5px;
     color: var(--team-color, var(--bspn-white)); font-weight: 700;
   }
   .bspn-summary-team-city {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1rem; letter-spacing: 1.5px; color: var(--bspn-gray);
   }
   .bspn-summary-team-record {
@@ -10756,7 +10756,7 @@
 
   /* ScoreNumeral — NOT monospace. Broadcast condensed numerals. */
   .bspn-score-numeral {
-    font-family: "Anton","Teko","Impact","Arial Black",system-ui,sans-serif;
+    font-family:var(--font-num);
     font-size: clamp(4rem, 8vw, 8rem);
     font-weight: 900; line-height: 0.85;
     letter-spacing: -0.06em;
@@ -10832,7 +10832,7 @@
     border-bottom: 1px solid var(--team-color, var(--bspn-border));
   }
   .bspn-team-box-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.3rem; letter-spacing: 1.5px;
     color: var(--team-color, var(--bspn-white));
   }
@@ -10864,7 +10864,7 @@
   .bspn-sc-badge {
     font-size: .5rem; font-weight: 900; letter-spacing: .8px;
     border: 1px solid; padding: .06rem .3rem; flex-shrink: 0;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
   }
   .bspn-sc-team  { font-weight: 700; font-size: .63rem; flex-shrink: 0; }
   .bspn-sc-desc  { color: var(--bspn-white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -10895,7 +10895,7 @@
     display: flex; align-items: center; justify-content: center;
     background: var(--bspn-bg3); border: 1px solid var(--bspn-border-strong);
     color: var(--team-color, var(--bspn-white));
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .7rem; letter-spacing: 1px; line-height: 1;
   }
   .bspn-leader-meta { min-width: 0; }
@@ -10923,13 +10923,13 @@
     border-top: 1px solid var(--bspn-border-strong);
     display: grid; grid-template-columns: 1fr auto 1fr;
     align-items: center; gap: 1rem;
-    background: var(--bspn-bg2); font-family: var(--font-data);
+    background: var(--bspn-bg2); font-family:var(--font-data);
   }
   .bspn-footer.modern {
     grid-template-columns: 1fr auto 1fr; padding: .7rem 1.4rem;
   }
   .bspn-footer-brand {
-    font-family: "Bebas Neue","Anton",sans-serif; font-size: 1.05rem;
+    font-family:var(--font-display); font-size: 1.05rem;
     letter-spacing: 1px; color: var(--bspn-red); font-style: italic;
   }
   .bspn-footer-brand em { color: var(--bspn-gray); font-style: normal; letter-spacing: 2.5px; font-size: .8rem; }
@@ -10981,7 +10981,7 @@
     .frn-dashboard-rail { width: 260px; }
   }
   .frn-rail-title {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .56rem; font-weight: 900; letter-spacing: 1.5px;
     color: var(--gold); text-transform: uppercase;
     padding: .3rem .25rem .15rem;
@@ -11030,18 +11030,18 @@
   .frn-rail-card-meta {
     display: flex; gap: .35rem; align-items: center;
     flex-wrap: wrap;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .56rem; margin-top: .15rem;
   }
   .frn-rail-stats {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .6rem; color: var(--blwhite);
     letter-spacing: .15px;
     margin-top: .15rem;
     overflow-wrap: break-word;
   }
   .frn-rail-pergame {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .54rem; color: var(--gray);
     letter-spacing: .2px;
     margin-top: .05rem;
@@ -11055,7 +11055,7 @@
     border-radius: 3px;
   }
   .frn-rail-ff-val {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .9rem; font-weight: 900;
     color: var(--gold);
   }
@@ -11097,11 +11097,11 @@
     flex-shrink: 0;
   }
   .frn-shell-team-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .92rem; letter-spacing: 1.4px; color: var(--blwhite);
   }
   .frn-shell-team-meta {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .58rem; color: var(--gray); letter-spacing: .3px;
   }
   .frn-shell-tabs {
@@ -11121,7 +11121,7 @@
   }
   .frn-shell-tab-icon { font-size: .85rem; }
   .frn-shell-tab-label {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .82rem; letter-spacing: 1.2px; font-weight: 700;
   }
   .frn-shell-badge {
@@ -11146,7 +11146,7 @@
   .frn-shell-ribbon .ribbon-text { flex: 1; }
   .frn-shell-ribbon .ribbon-text b { color: var(--gold); }
   .frn-shell-ribbon .ribbon-cta {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     color: var(--gold); font-weight: 700; letter-spacing: 1px;
     border: 1px solid var(--gold); padding: .15rem .55rem; border-radius: 3px;
     background: rgba(0,0,0,.25);
@@ -11198,7 +11198,7 @@
     font-weight: 700; margin-right: .2rem;
   }
   .frn-hc-recent-game {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .58rem; padding: .1rem .35rem; border: 1px solid;
     background: rgba(0,0,0,.25); border-radius: 2px;
   }
@@ -11257,7 +11257,7 @@
     display: flex; align-items: center; gap: .5rem; margin-bottom: .4rem;
   }
   .frn-cm-compare-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .78rem; letter-spacing: 1.3px; color: var(--gold);
   }
   .frn-cm-compare-head-row .frn-cm-clear { margin-left: auto; }
@@ -11283,7 +11283,7 @@
     font-size: .6rem; padding: .08rem 0;
   }
   .frn-cm-compare-row > span { color: var(--gray); letter-spacing: .3px; }
-  .frn-cm-compare-row > b { color: var(--blwhite); font-family: var(--font-data); }
+  .frn-cm-compare-row > b { color: var(--blwhite); font-family:var(--font-data); }
 
   /* Coordinator Market (League sub-tab → poaching) */
   .frn-poach-list { display: flex; flex-direction: column; gap: .2rem; }
@@ -11297,7 +11297,7 @@
   .frn-poach-row.active { border-color: var(--gold-lt); box-shadow: 0 0 0 1px rgba(212,175,55,.18); }
   .frn-poach-meta {
     display: flex; align-items: center; gap: .35rem; flex-wrap: wrap;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
   }
   .frn-poach-name {
     font-weight: 700; color: var(--blwhite); font-size: .72rem;
@@ -11308,7 +11308,7 @@
     white-space: nowrap;
   }
   .frn-poach-stats b {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     color: var(--blwhite);
   }
   .frn-poach-action { display: flex; justify-content: flex-end; }
@@ -11333,7 +11333,7 @@
   .frn-poach-input input {
     background: var(--bg2); color: var(--blwhite);
     border: 1px solid var(--border);
-    padding: .2rem .35rem; font-family: var(--font-data);
+    padding: .2rem .35rem; font-family:var(--font-data);
     font-size: .8rem; font-weight: 700; text-align: center;
   }
   .frn-poach-summary {
@@ -11355,7 +11355,7 @@
     margin-bottom: .45rem;
   }
   .frn-coach-contract-editor-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .9rem; letter-spacing: 1.3px; color: var(--gold);
   }
   .frn-coach-contract-editor-close {
@@ -11375,7 +11375,7 @@
   .frn-coach-contract-editor-grid input {
     background: var(--bg3); color: var(--blwhite);
     border: 1px solid var(--border);
-    padding: .25rem .4rem; font-family: var(--font-data);
+    padding: .25rem .4rem; font-family:var(--font-data);
     font-size: .85rem; font-weight: 700; text-align: center;
   }
   .frn-coach-contract-editor-summary {
@@ -11421,7 +11421,7 @@
   /* Tab landing tiles (Tools / future) */
   .frn-tab-landing { padding: .8rem .2rem; }
   .frn-tab-landing-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.2rem; letter-spacing: 2px; color: var(--gold);
     margin-bottom: .8rem;
   }
@@ -11442,7 +11442,7 @@
   }
   .frn-tab-tile-icon { font-size: 1.3rem; }
   .frn-tab-tile-label {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .95rem; letter-spacing: 1.5px; color: var(--gold);
     font-weight: 900;
   }
@@ -11466,7 +11466,7 @@
     font-weight: 700; margin-bottom: .3rem;
   }
   .frn-recap-hero-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 2.2rem; letter-spacing: 3px; color: var(--blwhite);
     margin: 0 0 .35rem; line-height: 1;
   }
@@ -11491,7 +11491,7 @@
   .frn-recap-status.in .frn-recap-status-lbl { color: var(--accent-ink, var(--accent, var(--gold))); }
   .frn-recap-status.out .frn-recap-status-lbl { color: #c08080; }
   .frn-recap-status-main {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.8rem; letter-spacing: 2px; color: var(--blwhite);
     line-height: 1.05;
   }
@@ -11504,7 +11504,7 @@
     padding: .85rem 1rem;
   }
   .frn-recap-card-title {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .95rem; letter-spacing: 1.6px; color: var(--gold);
     margin-bottom: .6rem;
   }
@@ -11520,11 +11520,11 @@
     margin-bottom: .6rem; gap: 1rem;
   }
   .frn-recap-team-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.45rem; letter-spacing: 2px; color: var(--blwhite);
   }
   .frn-recap-team-rec {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: 1.7rem; font-weight: 900; color: var(--accent-ink, var(--accent, var(--gold)));
   }
   .frn-recap-team-grid {
@@ -11540,7 +11540,7 @@
     font-size: .5rem; letter-spacing: 1px; color: var(--blgray); font-weight: 700;
   }
   .frn-recap-team-grid .val {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .95rem; font-weight: 700; color: var(--blwhite);
   }
   .frn-recap-form-row {
@@ -11551,7 +11551,7 @@
     font-size: .55rem; letter-spacing: 1px; color: var(--gray); font-weight: 700;
   }
   .frn-recap-form-row .form {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     letter-spacing: .25rem; font-size: .85rem;
   }
   .frn-recap-bestworst {
@@ -11568,7 +11568,7 @@
     font-weight: 700; margin-right: .4rem;
   }
   .frn-recap-bestworst .bw .score {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-weight: 700; margin-left: .3rem;
   }
 
@@ -11603,7 +11603,7 @@
   .frn-recap-stand-table td.rec, .frn-recap-stand-table td.pct,
   .frn-recap-stand-table td.pf, .frn-recap-stand-table td.pa,
   .frn-recap-stand-table td.diff {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     text-align: right; width: 3.2rem;
   }
   .frn-recap-stand-table .seed-pill {
@@ -11634,7 +11634,7 @@
     font-size: .58rem; color: var(--gray); margin-top: .12rem;
   }
   .frn-recap-award-card .stat {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .62rem; color: var(--gold-lt); margin-top: .2rem;
   }
   .frn-recap-award-card.empty .empty-note {
@@ -11676,7 +11676,7 @@
     font-weight: 800; color: var(--accent-ink, var(--accent, var(--blwhite)));
   }
   .frn-recap-bracket-match .rec {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     color: var(--gray); font-size: .58rem;
   }
   .frn-recap-bracket-match .vs {
@@ -11692,7 +11692,7 @@
      #1-seed BYE card + the three Wild Card matchups. */
   .frn-recap-bracket-confs { display: flex; flex-direction: column; gap: .75rem; }
   .frn-recap-bracket-conf-title {
-    font-family: var(--font-display);
+    font-family:var(--font-display);
     font-size: .82rem; letter-spacing: 2px; color: var(--blgray);
     margin-bottom: .4rem; padding-bottom: .2rem;
     border-bottom: 1px solid var(--border);
@@ -11706,7 +11706,7 @@
   }
   .frn-recap-cta-btn {
     background: var(--gold); color: #000; border: 0;
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.45rem; letter-spacing: 2px; font-weight: 900;
     padding: .85rem 2.2rem; cursor: pointer; border-radius: 10px;
     display: flex; flex-direction: column; align-items: center; gap: .15rem;
@@ -11717,7 +11717,7 @@
     transform: translateY(-2px); box-shadow: 0 6px 18px rgba(212,175,55,.4);
   }
   .frn-recap-cta-btn .sub {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .58rem; letter-spacing: .8px; font-weight: 400;
     text-transform: none; color: rgba(0,0,0,.7);
   }
@@ -11730,16 +11730,16 @@
     border-left: 4px solid var(--accent, var(--gold));
   }
   .frn-overview-id-name {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.4rem; letter-spacing: 1.8px; color: var(--blwhite);
   }
   .frn-overview-id-meta { font-size: .62rem; color: var(--gray); }
   .frn-overview-cap-line {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .7rem; font-weight: 700;
   }
   .frn-overview-record {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: 1.8rem; letter-spacing: 1.5px; color: var(--gold);
     line-height: 1; text-align: right;
   }
@@ -11825,7 +11825,7 @@
     background: var(--bg3); border-bottom: 2px solid var(--border);
   }
   .frn-inbox-tab-label {
-    font-family: "Bebas Neue","Anton",sans-serif;
+    font-family:var(--font-display);
     font-size: .9rem; letter-spacing: 1.3px; color: var(--gold);
   }
   .frn-inbox-count {
@@ -11926,7 +11926,7 @@
   }
   .frn-sched-chip-wk { font-size: .5rem; letter-spacing: .5px; color: var(--blgray); font-weight: 700; }
   .frn-sched-chip-res {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .68rem; font-weight: 900; line-height: 1;
   }
   .frn-sched-chip-opp { font-size: .58rem; color: var(--blwhite); font-weight: 700; }
@@ -11973,7 +11973,7 @@
     border-left: 3px solid var(--accent, var(--gold));
     border-radius: 3px;
     margin-bottom: .6rem;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .68rem;
     color: var(--blwhite);
   }
@@ -11988,7 +11988,7 @@
     margin: -.3rem 0 .55rem; padding: 0 .8rem;
   }
   .frn-overview-tag {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .54rem; font-weight: 800; letter-spacing: .8px;
     padding: .14rem .42rem;
     border: 1px solid currentColor;
@@ -12023,7 +12023,7 @@
   }
   .frn-pulse-chip-value {
     font-size: .92rem; font-weight: 900; line-height: 1.05;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     letter-spacing: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
@@ -12137,7 +12137,7 @@
   .frn-myguy-rank {
     position: absolute; top: -.4rem; left: -.4rem;
     background: var(--gold); color: #0a0a0a;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .52rem; font-weight: 900;
     padding: .12rem .35rem;
     border-radius: 3px;
@@ -12176,7 +12176,7 @@
   .frn-myguy-meta {
     display: flex; align-items: center; gap: .35rem;
     flex-wrap: wrap;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .55rem; color: var(--gray);
   }
   .frn-myguy-pos { font-weight: 900; letter-spacing: .3px; }
@@ -12187,13 +12187,13 @@
     filter: drop-shadow(0 0 4px rgba(255,140,40,.7));
   }
   .frn-myguy-stats {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .62rem; color: var(--blwhite);
     letter-spacing: .15px;
     overflow-wrap: break-word;
   }
   .frn-myguy-pergame {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .55rem; color: var(--gray);
     letter-spacing: .2px;
     overflow-wrap: break-word;
@@ -12211,7 +12211,7 @@
     flex-shrink: 0;
   }
   .frn-myguy-ff-val {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .95rem; font-weight: 900;
     color: var(--gold);
   }
@@ -12271,7 +12271,7 @@
   .frn-xray-side { display: flex; flex-direction: column; align-items: center; gap: .05rem; }
   .frn-xray-side:nth-of-type(2n) { text-align: right; }
   .frn-xray-val {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: 1rem; font-weight: 900; line-height: 1;
     color: var(--blwhite);
   }
@@ -12298,7 +12298,7 @@
     transition: width .25s ease, left .25s ease, right .25s ease;
   }
   .frn-xray-delta {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .62rem; font-weight: 900; letter-spacing: .3px;
   }
 
@@ -12320,7 +12320,7 @@
     background: rgba(200,169,0,.08); border-color: rgba(200,169,0,.5);
   }
   .frn-hot-rank {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .62rem; font-weight: 800; color: var(--gold-lt);
     text-align: center;
   }
@@ -12333,12 +12333,12 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .frn-hot-ovr {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .72rem; font-weight: 900;
     color: var(--gold-lt); text-align: right;
   }
   .frn-hot-stats {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .58rem; color: var(--gray);
     text-align: right; letter-spacing: .2px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -12361,7 +12361,7 @@
     box-shadow: 0 1px 0 var(--border), 0 0 0 1px rgba(0,0,0,.2) inset;
   }
   .frn-gauntlet-wk {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .55rem; font-weight: 800; letter-spacing: .6px;
     color: var(--gold);
   }
@@ -12372,11 +12372,11 @@
   }
   .frn-gauntlet-rec {
     font-size: .55rem; color: var(--gray);
-    font-family: var(--font-data);
+    font-family:var(--font-data);
   }
   .frn-gauntlet-rating { margin-top: .2rem; }
   .frn-gauntlet-rval {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: 1.1rem; font-weight: 900; line-height: 1;
     letter-spacing: .3px;
   }
@@ -12405,7 +12405,7 @@
     margin-top: .55rem;
   }
   .frn-schedule-row-label {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .52rem; font-weight: 900;
     color: var(--gold); letter-spacing: 1.5px;
     text-transform: uppercase;
@@ -12449,7 +12449,7 @@
   }
   .frn-hero-eyebrow {
     display: flex; justify-content: space-between; align-items: baseline;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .58rem; letter-spacing: 1px; font-weight: 800;
     color: var(--gold-lt); text-transform: uppercase;
     padding-bottom: .5rem;
@@ -12476,16 +12476,16 @@
   .frn-hero-side.you { box-shadow: inset 3px 0 0 var(--c, var(--gold)); }
   .frn-hero-side.opp { text-align: right; box-shadow: inset -3px 0 0 var(--c, var(--gray)); }
   .frn-hero-side-name {
-    font-family: 'Bebas Neue','Anton',sans-serif; font-size: 1.55rem; letter-spacing: .5px;
+    font-family:var(--font-display); font-size: 1.55rem; letter-spacing: .5px;
     color: var(--blwhite, #eaeef4); line-height: 1;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .frn-hero-side-rec { font-size: .62rem; color: var(--blgray, #9aa7b8); letter-spacing: .5px; margin-top: .12rem; }
-  .frn-hero-side-rtgs { font-family: var(--font-data); font-size: .58rem; color: var(--gray, #999); margin-top: .25rem; }
+  .frn-hero-side-rtgs { font-family:var(--font-data); font-size: .58rem; color: var(--gray, #999); margin-top: .25rem; }
   .frn-hero-side-rtgs b { color: var(--gold-lt, #f0cc30); font-weight: 900; }
   .frn-hero-vsbadge {
     display: flex; align-items: center; justify-content: center; align-self: center;
-    font-family: 'Bebas Neue','Anton',sans-serif; font-size: .9rem; letter-spacing: 1px;
+    font-family:var(--font-display); font-size: .9rem; letter-spacing: 1px;
     color: var(--gold-lt, #f0cc30); padding: 0 .75rem; opacity: .9;
   }
   .frn-hero-wprow { display: flex; align-items: center; gap: .7rem; margin-bottom: .65rem; }
@@ -12505,7 +12505,7 @@
     border-right: 1px solid var(--border);
   }
   .frn-hero-wp-num {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: 4.2rem; font-weight: 900;
     line-height: .95; letter-spacing: -.04em;
     text-shadow: 0 2px 8px rgba(0,0,0,.5);
@@ -12544,12 +12544,12 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .frn-hero-team-rtgs {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .6rem; color: var(--gray); margin-top: .15rem;
   }
   .frn-hero-team-rtgs b { color: var(--gold-lt); font-weight: 900; }
   .frn-hero-vs {
-    font-family: var(--font-data);
+    font-family:var(--font-data);
     font-size: .65rem; font-weight: 800; color: var(--gold);
     letter-spacing: 1px;
   }
@@ -12679,7 +12679,7 @@
     background: var(--bg2); border-bottom: 1px solid var(--gold-dim, #a98a2e);
     display: flex; align-items: stretch; height: 24px;
     font-size: 10.5px; overflow: hidden;
-    font-family: var(--font-data);
+    font-family:var(--font-data);
   }
   .frn-bb-ticker-label {
     background: var(--gold); color: #0a0a0a;
@@ -12714,7 +12714,7 @@
   }
   .frn-bb-fnkey {
     background: transparent; border: none; color: #b3bdca; /* --gray was 3.6:1 on the tinted strip */
-    font-family: var(--font-data); padding: 0 .85rem;
+    font-family:var(--font-data); padding: 0 .85rem;
     display: flex; align-items: center; gap: .35rem;
     border-right: 1px solid var(--border); cursor: pointer;
     font-size: 10.5px; letter-spacing: .5px; text-transform: uppercase;
@@ -12739,7 +12739,7 @@
   }
   .frn-bb-fnkey-cmd kbd {
     background: var(--bg3); border: 1px solid var(--border); padding: 1px 4px;
-    border-radius: 2px; font-family: var(--font-data); font-size: 9px;
+    border-radius: 2px; font-family:var(--font-data); font-size: 9px;
     color: var(--blwhite);
   }
 
@@ -12754,11 +12754,11 @@
   .frn-bb-id-mark {
     width: 32px; height: 32px; border-radius: 3px;
     display: flex; align-items: center; justify-content: center;
-    color: #fff; font-family: 'Bebas Neue', sans-serif; font-size: 17px;
+    color: #fff; font-family:var(--font-display); font-size: 17px;
     letter-spacing: 1px; flex-shrink: 0;
   }
   .frn-bb-id-name {
-    font-family: 'Bebas Neue', sans-serif; font-size: 20px;
+    font-family:var(--font-display); font-size: 20px;
     letter-spacing: 1.3px; color: var(--white); line-height: 1;
   }
   .frn-bb-id-sub { font-size: 9.5px; color: var(--gray); letter-spacing: .5px; }
@@ -12766,7 +12766,7 @@
   .frn-bb-id-stat { display: flex; flex-direction: column; gap: .08rem; min-width: 0; }
   .frn-bb-id-stat-label { font-size: 8.5px; color: var(--gray); letter-spacing: 1px; text-transform: uppercase; }
   .frn-bb-id-stat-val { font-size: 13.5px; font-weight: 700; color: var(--white);
-    font-family: 'Bebas Neue', sans-serif; letter-spacing: .5px; line-height: 1; }
+    font-family:var(--font-display); letter-spacing: .5px; line-height: 1; }
   .frn-bb-id-stat-val.gold { color: var(--gold); }
   .frn-bb-id-stat-val.green { color: var(--green-lt); }
   .frn-bb-id-stat-val.red { color: var(--red); }
@@ -12786,7 +12786,7 @@
     background: #040806; border-top: 1px solid var(--border);
     padding: .3rem .85rem; display: flex; align-items: center;
     gap: 1.1rem; font-size: 9.5px; color: var(--gray);
-    letter-spacing: .3px; font-family: var(--font-data);
+    letter-spacing: .3px; font-family:var(--font-data);
     position: sticky; bottom: 0; z-index: 10;
   }
   .frn-bb-footer-item { display: flex; align-items: center; gap: .35rem; }
@@ -12866,7 +12866,7 @@
     --hh-shadow: 0 8px 24px -12px rgba(0,0,0,.7);
     --hh-inset: inset 0 1px 0 rgba(255,255,255,.05);
     --team-soft: color-mix(in srgb, var(--team) 15%, transparent);
-    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+    font-family:var(--font-data);
     -webkit-font-smoothing: antialiased;
   }
   #franchiseHome .frn-bb-id-stat-val,
@@ -12887,7 +12887,7 @@
   #franchiseHome .frn-card-box::before,
   #franchiseHome .frn-card-box::after { content: none; }
   #franchiseHome .frn-card-title {
-    font-family: 'Bricolage Grotesque', sans-serif;
+    font-family:var(--font-data);
     font-weight: 700; font-size: .72rem; letter-spacing: .6px;
     color: var(--gray); text-transform: uppercase; text-shadow: none;
     border-bottom: 1px solid var(--border);
@@ -12907,14 +12907,14 @@
   }
   #franchiseHome .frn-hero-card::before { opacity: .10; }
   #franchiseHome .frn-hero-eyebrow {
-    font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700;
+    font-family:var(--font-data); font-weight: 700;
     font-size: .64rem; letter-spacing: 1.3px; color: var(--team-accent, var(--team));
     border-bottom: 1px solid var(--border);
   }
   #franchiseHome .frn-hero-eyebrow-rec { color: var(--gray); }
   #franchiseHome .frn-hero-wp { border-right-color: var(--border); }
   #franchiseHome .frn-hero-wp-num {
-    font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800;
+    font-family:var(--font-data); font-weight: 800;
     letter-spacing: -.02em; text-shadow: none;
   }
   #franchiseHome .frn-hero-narrative { color: var(--blwhite); font-weight: 600; }
@@ -12922,7 +12922,7 @@
     background: rgba(255,255,255,.03);
     border: 1px solid var(--border); border-radius: 12px;
   }
-  #franchiseHome .frn-hero-team-name { font-family: 'Bricolage Grotesque', sans-serif; }
+  #franchiseHome .frn-hero-team-name { font-family:var(--font-data); }
   #franchiseHome .frn-hero-team-rtgs b { color: var(--team-accent, var(--team)); }
   #franchiseHome .frn-hero-vs { color: var(--gray); }
   #franchiseHome .frn-hero-play-btn {
@@ -12940,7 +12940,7 @@
   #franchiseHome .btn,
   #franchiseHome .frn-cap-btn,
   #franchiseHome .frn-sim-btn {
-    border-radius: 10px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 600;
+    border-radius: 10px; font-family:var(--font-data); font-weight: 600;
   }
   #franchiseHome .frn-cap-btn {
     background: var(--bg3); border: 1px solid var(--border); color: var(--blwhite);
@@ -12962,18 +12962,18 @@
   }
   #franchiseHome .frn-bb-id-mark {
     border-radius: 11px; width: 40px; height: 40px; font-size: 15px;
-    font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700;
+    font-family:var(--font-data); font-weight: 700;
     letter-spacing: .3px; color: var(--team-ink, #fff);
     /* Outer hairline ring so very dark team colors (e.g. navy) stay
        delineated against the near-black app background. */
     box-shadow: var(--hh-inset), 0 0 0 1px rgba(255,255,255,.16);
   }
   #franchiseHome .frn-bb-id-name {
-    font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700;
+    font-family:var(--font-data); font-weight: 700;
     font-size: 17px; letter-spacing: .3px;
   }
   #franchiseHome .frn-bb-id-stat-val {
-    font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700;
+    font-family:var(--font-data); font-weight: 700;
     letter-spacing: 0; font-size: 14px;
   }
   #franchiseHome .frn-bb-id-divider { background: var(--border); }
@@ -12985,7 +12985,7 @@
   }
   #franchiseHome .frn-bb-fnkey {
     border: none; border-right: none; border-radius: 999px;
-    font-family: 'Bricolage Grotesque', sans-serif; font-weight: 600;
+    font-family:var(--font-data); font-weight: 600;
     font-size: 12.5px; letter-spacing: .2px; text-transform: none;
     color: #b3bdca; /* --gray measured 3.6:1 on the team-tinted strip */
     padding: .42rem .85rem; gap: .3rem;
@@ -13005,7 +13005,7 @@
   /* ── Ticker + footer ─────────────────────────────────────────────────── */
   #franchiseHome .frn-bb-ticker {
     background: var(--bg2); border-bottom: 1px solid var(--border);
-    font-family: 'Bricolage Grotesque', sans-serif; height: 26px;
+    font-family:var(--font-data); height: 26px;
   }
   #franchiseHome .frn-bb-ticker-label {
     background: color-mix(in srgb, var(--team) 22%, var(--bg3)); color: var(--white);
@@ -13019,7 +13019,7 @@
   #franchiseHome .frn-bb-fnkey-num { color: color-mix(in srgb, var(--team-accent, var(--team)) 55%, var(--gray)); }
   #franchiseHome .frn-bb-footer {
     background: var(--bg2); border-top: 1px solid var(--border);
-    font-family: 'Bricolage Grotesque', sans-serif;
+    font-family:var(--font-data);
   }
 
   /* ── GM Pulse chips ──────────────────────────────────────────────────── */
@@ -13028,13 +13028,13 @@
     padding: .6rem .65rem; gap: .15rem;
   }
   #franchiseHome .frn-pulse-chip-value {
-    font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 1.05rem;
+    font-family:var(--font-data); font-weight: 800; font-size: 1.05rem;
   }
 
   /* ── Inbox + misc rounding ───────────────────────────────────────────── */
   #franchiseHome .frn-inbox-tabs { background: transparent; border-bottom: 1px solid var(--border); }
   #franchiseHome .frn-inbox-tab-label {
-    font-family: 'Bricolage Grotesque', sans-serif; color: var(--white); letter-spacing: .4px;
+    font-family:var(--font-data); color: var(--white); letter-spacing: .4px;
   }
   #franchiseHome .frn-inbox-section-title { background: transparent; color: var(--blgray); }
   #franchiseHome .frn-inbox-cta {
@@ -13056,7 +13056,7 @@
   }
   #franchiseHome .frn-subnav-btn {
     border-radius: 999px; border: 1px solid var(--border); background: var(--bg3);
-    color: var(--gray); font-family: 'Bricolage Grotesque', sans-serif; font-weight: 600;
+    color: var(--gray); font-family:var(--font-data); font-weight: 600;
     font-size: .7rem; letter-spacing: .2px; padding: .34rem .8rem; cursor: pointer;
   }
   #franchiseHome .frn-subnav-btn:hover { color: var(--white); background: rgba(255,255,255,.05); }
@@ -13066,7 +13066,7 @@
   }
 
   /* Page header + unit strength strip */
-  #franchiseHome .frn-dc-team-name { font-family: 'Bricolage Grotesque', sans-serif; }
+  #franchiseHome .frn-dc-team-name { font-family:var(--font-data); }
   #franchiseHome .frn-dc-strength-strip {
     background: var(--card); border: 1px solid var(--border); border-radius: 12px;
     padding: .45rem .55rem;
@@ -13074,7 +13074,7 @@
   #franchiseHome .frn-dc-strip-unit {
     background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 8px;
   }
-  #franchiseHome .frn-dc-strip-val { font-family: 'Bricolage Grotesque', sans-serif; }
+  #franchiseHome .frn-dc-strip-val { font-family:var(--font-data); }
 
   /* Unit tabs (Offense / Defense / Special Teams) */
   #franchiseHome .frn-dc-tab {
@@ -13087,14 +13087,14 @@
     box-shadow: none;
   }
   #franchiseHome .frn-dc-tab-title {
-    font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; letter-spacing: .4px;
+    font-family:var(--font-data); font-weight: 800; letter-spacing: .4px;
   }
-  #franchiseHome .frn-dc-tab-ovr { border-radius: 8px; font-family: 'Bricolage Grotesque', sans-serif; }
+  #franchiseHome .frn-dc-tab-ovr { border-radius: 8px; font-family:var(--font-data); }
 
   /* AUTO-SET button → team color when hot */
   #franchiseHome .frn-dc-auto-btn {
     border-radius: 10px; border: 1px solid var(--border);
-    font-family: 'Bricolage Grotesque', sans-serif; letter-spacing: .6px;
+    font-family:var(--font-data); letter-spacing: .6px;
   }
   #franchiseHome .frn-dc-auto-btn.hot {
     background: linear-gradient(180deg, var(--team), color-mix(in srgb, var(--team) 68%, #05070d));
@@ -13115,13 +13115,13 @@
     background: rgba(255,255,255,.02); border-bottom: 1px solid var(--border); padding: .45rem .7rem;
   }
   #franchiseHome .frn-dc-group-pos {
-    font-family: 'Bricolage Grotesque', sans-serif; color: var(--team-accent, var(--team));
+    font-family:var(--font-data); color: var(--team-accent, var(--team));
   }
   #franchiseHome .frn-dc-col-header {
     background: transparent; border: 0; border-bottom: 1px solid var(--border);
     border-radius: 0; margin-bottom: 0;
   }
-  #franchiseHome .frn-dc-col-hdr-label { font-family: 'Bricolage Grotesque', sans-serif; }
+  #franchiseHome .frn-dc-col-hdr-label { font-family:var(--font-data); }
 
   /* Depth rows — the card is the surface; rows go transparent with hairlines */
   #franchiseHome .frn-dc-row { background: transparent; border-bottom: 1px solid var(--border); }
@@ -13133,11 +13133,11 @@
   }
   #franchiseHome .frn-dc-rank.r1 { color: var(--team-accent, var(--team)); }
   #franchiseHome .frn-dc-slot-name { color: var(--team-accent, var(--team)); }
-  #franchiseHome .frn-dc-name { font-family: 'Bricolage Grotesque', sans-serif; }
+  #franchiseHome .frn-dc-name { font-family:var(--font-data); }
 
   /* Badges → pills; OVR badges softened */
   #franchiseHome .frn-dc-badge { border-radius: 999px; padding: .05rem .32rem; }
-  #franchiseHome .tt-ovr { border-radius: 6px; font-family: 'Bricolage Grotesque', sans-serif; }
+  #franchiseHome .tt-ovr { border-radius: 6px; font-family:var(--font-data); }
 
   /* Snap bar (center divider column) */
   #franchiseHome .frn-dc-snap-bar,
@@ -13146,7 +13146,7 @@
   /* ── HH MODERN · shared tables (Practice Squad, rosters, analytics…) ─── */
   #franchiseHome .frn-pre-roster-table th,
   #franchiseHome .frn-ana-table th {
-    font-family: 'Bricolage Grotesque', sans-serif; color: var(--gray);
+    font-family:var(--font-data); color: var(--gray);
     text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border);
   }
   #franchiseHome .frn-pre-roster-table td,
@@ -13166,11 +13166,11 @@
   #franchiseHome .frn-lr-meter-fill { border-radius: 999px; }
   #franchiseHome .frn-lr-alert { border-radius: 12px; }
   #franchiseHome .frn-lr-list-head {
-    font-family: 'Bricolage Grotesque', sans-serif; color: var(--gray);
+    font-family:var(--font-data); color: var(--gray);
   }
   #franchiseHome .frn-lr-row { border-bottom: 1px solid var(--border); }
   #franchiseHome .frn-lr-row:hover { background: color-mix(in srgb, var(--team) 6%, transparent); }
-  #franchiseHome .frn-lr-name { font-family: 'Bricolage Grotesque', sans-serif; }
+  #franchiseHome .frn-lr-name { font-family:var(--font-data); }
   #franchiseHome .frn-lr-pos { color: var(--team-accent, var(--team)); }
   #franchiseHome .frn-lr-act,
   #franchiseHome .frn-lr-promise {
@@ -13205,7 +13205,7 @@
     box-shadow: inset 2px 0 0 var(--team-accent, var(--team));
   }
   #franchiseHome .frn-fa-name,
-  #franchiseHome .frn-fa-ask { font-family: 'Bricolage Grotesque', sans-serif; }
+  #franchiseHome .frn-fa-ask { font-family:var(--font-data); }
   /* Detail panel: demand + acceptance preview */
   #franchiseHome .frn-fa-demand { background: rgba(255,255,255,.03); border-radius: 10px; }
   #franchiseHome .frn-fa-preview {
@@ -13213,7 +13213,7 @@
     border-left: 3px solid var(--team-accent, var(--team));
   }
   #franchiseHome .frn-fa-offer-form input {
-    border-radius: 8px; font-family: 'Bricolage Grotesque', sans-serif;
+    border-radius: 8px; font-family:var(--font-data);
   }
   #franchiseHome .frn-fa-offer-form input:focus { border-color: var(--team-accent, var(--team)); }
   /* Result rows + cut-list rows */
@@ -13240,7 +13240,7 @@
   /* ── HH MODERN · shared mode tabs (Trade modes, Cap Sheet, Analytics,
      Preseason…) → pills, matching the sub-nav / unit-tab active style. */
   #franchiseHome .frn-ana-tab {
-    border-radius: 999px; font-family: 'Bricolage Grotesque', sans-serif;
+    border-radius: 999px; font-family:var(--font-data);
     padding: .32rem .8rem; background: var(--bg3);
     border: 1px solid var(--border); color: var(--gray); letter-spacing: .2px;
   }
@@ -13271,18 +13271,18 @@
     background: #141a24; border: 1px solid rgba(255,255,255,.10);
     border-top: 3px solid var(--team-accent, #6d8bff);
     border-radius: 16px;
-    font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+    font-family:var(--font-data);
     box-shadow: 0 24px 70px -20px rgba(0,0,0,.85), inset 0 1px 0 rgba(255,255,255,.05);
   }
   .frn-modal.danger { border-top-color: #f0746d; }
   .frn-modal-title {
-    font-family: 'Bricolage Grotesque', sans-serif; color: var(--team-accent, #8aa2ff);
+    font-family:var(--font-data); color: var(--team-accent, #8aa2ff);
   }
   .frn-modal.danger .frn-modal-title { color: #f0746d; }
   .frn-modal-body { color: #eaeef4; }
   .frn-modal-footer { border-top-color: rgba(255,255,255,.08); }
   .frn-modal .btn {
-    border-radius: 10px !important; font-family: 'Bricolage Grotesque', sans-serif;
+    border-radius: 10px !important; font-family:var(--font-data);
   }
   .frn-modal .btn-gold {
     background: linear-gradient(180deg, var(--team, #6d8bff), color-mix(in srgb, var(--team, #6d8bff) 68%, #05070d));
@@ -13353,7 +13353,7 @@
   #franchiseHome .frn-draft-prospect:hover {
     border-color: color-mix(in srgb, var(--team) 45%, var(--border));
   }
-  #franchiseHome .frn-dp-name { font-family: 'Bricolage Grotesque', sans-serif; }
+  #franchiseHome .frn-dp-name { font-family:var(--font-data); }
   #franchiseHome .frn-draft-grade-card {
     border: 1px solid var(--border);
     border-top: 3px solid var(--team-accent, var(--team));

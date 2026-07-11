@@ -521,8 +521,8 @@ function frnRosterCountBadge(teamId, opts = {}) {
   const lim = ACTIVE_ROSTER_LIMIT;
   const open = rosterSpotsOpen(teamId);
   const over = n > lim, full = n >= lim, tight = n === lim - 1;
-  const col = over ? "#ff6b6b" : full ? "#ffb454" : tight ? "#ffd454" : "var(--gray)";
-  const bg  = over ? "rgba(255,107,107,.14)" : full ? "rgba(255,180,84,.12)" : "rgba(255,255,255,.05)";
+  const col = over ? "var(--ds-grade-neg-strong)" : full ? "#ffb454" : tight ? "#ffd454" : "var(--gray)";
+  const bg  = over ? "rgba(255,107,107,.14)" : full ? "rgba(255,180,84,.12)" : "var(--ds-tint-white-05)";
   const ring = (over || full) ? col : "var(--border)";
   const lead = opts.label === false ? "" : `<span style="opacity:.7;font-weight:600">ROSTER</span> `;
   const tip = over ? `${n - lim} over the 53-man limit — make room`
@@ -1674,7 +1674,8 @@ function _computeSharpGrade(p) {
 
 function frnFAInviteWorkout(nameOrKey) {
   if (_workoutSlotsRemaining() <= 0) {
-    alert(`No workout slots left this offseason (${WORKOUT_SLOTS_PER_FA_SEASON} total).`);
+    if (typeof DS !== "undefined") DS.toast({ message: `No workout slots left this offseason (${WORKOUT_SLOTS_PER_FA_SEASON} total).`, kind: "warn" });
+    else alert(`No workout slots left this offseason (${WORKOUT_SLOTS_PER_FA_SEASON} total).`);
     return;
   }
   const fa = (franchise.freeAgents || []).find(p => p.pid === nameOrKey || p.name === nameOrKey);
@@ -4496,126 +4497,93 @@ async function _frnSimSpinner(label, fn) {
   finally { const o = document.getElementById("frnSimSpinner"); if (o) o.style.display = "none"; }
 }
 
+// DS-unify (2026-07): thin delegation to DS.modal, which owns the whole
+// behavior contract this function used to hand-roll — Promise<boolean>,
+// backdrop/Esc = cancel, Enter = confirm (when not gated), requireType gate,
+// focus trap + restore, and the 250ms backdrop double-click guard. The legacy
+// `.frn-modal-backdrop`/`.frn-modal` classes ride along via backdropCls/cls so
+// probes (_ds_e2e, _ux_snapshot, _kb_offseason), the player-card Esc yield
+// (play-franchise-stats.js checks .frn-modal-backdrop) and the HH-modern
+// team-theming CSS in play.css keep matching. External contract unchanged:
+// { title, body, confirmLabel, cancelLabel, danger, requireTypeName }; title
+// and body stay TRUSTED HTML (frnDeleteSlot passes a pre-escaped name — DS
+// escapes titles, so we restore the raw title post-mount to avoid a double
+// escape).
 function _frnConfirmModal(opts) {
-  return new Promise((resolve) => {
-    const o = opts || {};
-    const id = "frnConfirmModal_" + Date.now();
-    const wrap = document.createElement("div");
-    wrap.className = "frn-modal-backdrop";
-    wrap.id = id;
-    // HH modern: feed the modal the chosen team's color so its confirm button
-    // + accents match the dashboard. The modal mounts on <body> (outside
-    // #franchiseHome), so it can't inherit those vars — set them locally.
-    try {
-      if (typeof franchise !== "undefined" && franchise && typeof getTeam === "function" && typeof _hhTeamThemeVars === "function") {
-        const _t = getTeam(franchise.chosenTeamId);
-        if (_t && _t.primary) {
-          const tv = _hhTeamThemeVars(_t.primary);
-          wrap.style.setProperty("--team", tv.team);
-          wrap.style.setProperty("--team-ink", tv.ink);
-          wrap.style.setProperty("--team-accent", tv.accent);
-        }
-      }
-    } catch (_e) {}
-    const safeTitle = o.title || "Confirm";
-    const safeBody  = o.body  || "";
-    const okLabel   = o.confirmLabel || "Confirm";
-    const noLabel   = o.cancelLabel  || "Cancel";
-    const danger    = !!o.danger;
-    const typeName  = o.requireTypeName || "";
-    const typeGate  = typeName
-      ? `<div class="frn-modal-type-gate">
-           <label style="font-size:.72rem;color:var(--gray);display:block;margin-bottom:.3rem">
-             Type <b style="color:var(--gold)">${typeName.replace(/</g,"&lt;")}</b> to confirm:
-           </label>
-           <input type="text" class="frn-modal-type-input" autocomplete="off" />
-         </div>`
-      : "";
-    wrap.innerHTML = `
-      <div class="frn-modal ${danger ? "danger" : ""}" role="dialog" aria-modal="true">
-        <div class="frn-modal-title">${safeTitle}</div>
-        <div class="frn-modal-body">${safeBody}</div>
-        ${typeGate}
-        <div class="frn-modal-footer">
-          <button class="btn btn-outline frn-modal-cancel">${noLabel}</button>
-          <button class="btn ${danger ? "btn-danger" : "btn-gold"} frn-modal-confirm" ${typeName ? "disabled" : ""}>${okLabel}</button>
-        </div>
-      </div>`;
-    document.body.appendChild(wrap);
-    // a11y: remember what had focus before the modal opened so we can restore it
-    // on every close path (Esc / confirm / cancel / backdrop). Mirrors DS.modal.
-    const prevFocus = (document.activeElement instanceof HTMLElement)
-      ? document.activeElement : null;
-    const dialog    = wrap.querySelector(".frn-modal") || wrap;
-    const cancelBtn = wrap.querySelector(".frn-modal-cancel");
-    const okBtn     = wrap.querySelector(".frn-modal-confirm");
-    const typeInp   = wrap.querySelector(".frn-modal-type-input");
-    // Tabbable elements currently inside the dialog (skip disabled/hidden).
-    const FOCUSABLE = 'a[href],area[href],button:not([disabled]),' +
-      'input:not([disabled]),select:not([disabled]),textarea:not([disabled]),' +
-      '[tabindex]:not([tabindex="-1"])';
-    const focusables = () => Array.prototype.filter.call(
-      dialog.querySelectorAll(FOCUSABLE),
-      (el) => el.offsetParent !== null || el === document.activeElement
-    );
-    const close = (result) => {
-      wrap.remove();
-      document.removeEventListener("keydown", onKey);
-      // Restore focus to whatever was focused before the modal opened.
-      if (prevFocus && typeof prevFocus.focus === "function") {
-        try { prevFocus.focus(); } catch (_e) { /* element gone — ignore */ }
-      }
-      resolve(result);
-    };
-    const onKey = (e) => {
-      if (e.key === "Escape") { close(false); return; }
-      // Enter to confirm only when the typing gate isn't blocking
-      if (e.key === "Enter" && !okBtn.disabled) { close(true); return; }
-      // Focus trap: cycle Tab/Shift+Tab within the dialog's focusables.
-      if (e.key === "Tab") {
-        const items = focusables();
-        if (!items.length) { e.preventDefault(); return; }
-        const first = items[0];
-        const last  = items[items.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey) {
-          if (active === first || !dialog.contains(active)) {
-            e.preventDefault();
-            last.focus();
-          }
-        } else {
-          if (active === last || !dialog.contains(active)) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }
-    };
-    cancelBtn.addEventListener("click", () => close(false));
-    okBtn.addEventListener("click", () => { if (!okBtn.disabled) close(true); });
-    // Click-backdrop to dismiss — but ignore the first ~250ms: the backdrop
-    // mounts synchronously under the pointer, so the second click of a
-    // double-click on the OPENING button (release/restructure rows) landed
-    // here and instantly self-cancelled the confirm. DOM-only timing guard,
-    // never on the sim path.
-    const _mountedAt = performance.now();
-    wrap.addEventListener("click", (e) => {
-      if (e.target === wrap && performance.now() - _mountedAt > 250) close(false);
-    });
-    if (typeInp) {
-      typeInp.addEventListener("input", () => {
-        okBtn.disabled = typeInp.value.trim() !== typeName;
-      });
-      setTimeout(() => typeInp.focus(), 30);
-    } else {
-      setTimeout(() => {
-        const items = focusables();
-        const target = cancelBtn || items[0];
-        if (target) target.focus();   // default focus on Cancel (safer)
-      }, 30);
-    }
-    document.addEventListener("keydown", onKey);
+  const o = opts || {};
+  // Headless bundles (draft-host/engine-host) load this file without the DS
+  // layer. The modal is click-handler-only UI — it never runs there — but if
+  // it ever did, refuse safely instead of crashing.
+  if (typeof DS === "undefined" || !DS || typeof DS.modal !== "function") {
+    console.warn("_frnConfirmModal: DS layer unavailable — auto-cancelling");
+    return Promise.resolve(false);
+  }
+  const danger   = !!o.danger;
+  const typeName = o.requireTypeName || "";
+  const rawTitle = o.title || "Confirm";
+  const p = DS.modal({
+    title: rawTitle,
+    body: o.body || "",
+    okLabel: o.confirmLabel || "Confirm",
+    cancelLabel: o.cancelLabel || "Cancel",
+    danger,
+    requireType: typeName,
+    cls: "frn-modal" + (danger ? " danger" : ""),
+    backdropCls: "frn-modal-backdrop",
   });
+  // Post-mount fixups — DS.modal mounts synchronously before returning its
+  // promise, so the newest matching backdrop is ours (stacked modals each fix
+  // up their own, newest-last in document order).
+  try {
+    const mounted = document.querySelectorAll(".ds-modal-backdrop.frn-modal-backdrop");
+    const wrap = mounted[mounted.length - 1];
+    if (wrap) {
+      // HH modern: feed the modal the chosen team's color so its confirm
+      // button + accents match the dashboard. The modal mounts on <body>
+      // (outside #franchiseHome), so it can't inherit those vars — set them
+      // locally on the backdrop, exactly like the old implementation.
+      try {
+        if (typeof franchise !== "undefined" && franchise && typeof getTeam === "function" && typeof _hhTeamThemeVars === "function") {
+          const _t = getTeam(franchise.chosenTeamId);
+          if (_t && _t.primary) {
+            const tv = _hhTeamThemeVars(_t.primary);
+            wrap.style.setProperty("--team", tv.team);
+            wrap.style.setProperty("--team-ink", tv.ink);
+            wrap.style.setProperty("--team-accent", tv.accent);
+          }
+        }
+      } catch (_e) {}
+      // Legacy contract: title is TRUSTED HTML (DS escaped it — put the raw
+      // string back so pre-escaped callers don't render double-escaped).
+      const titleEl = wrap.querySelector(".ds-modal__title");
+      if (titleEl) titleEl.innerHTML = rawTitle;
+      // Legacy classes on the sub-elements so every play.css rule still
+      // applies (.frn-modal-title accent, .frn-modal-footer divider,
+      // .frn-modal-confirm:disabled, HH-modern .frn-modal .btn-gold team
+      // gradient, .frn-modal-type-input skin) — byte-visual with the old
+      // hand-rolled markup.
+      const addCls = (sel, names) => {
+        const el = wrap.querySelector(sel);
+        if (el) names.split(" ").forEach((c) => el.classList.add(c));
+        return el;
+      };
+      addCls(".ds-modal__title",  "frn-modal-title");
+      addCls(".ds-modal__body",   "frn-modal-body");
+      addCls(".ds-modal__footer", "frn-modal-footer");
+      addCls(".ds-modal__cancel", "btn btn-outline frn-modal-cancel");
+      addCls(".ds-modal__confirm", "btn " + (danger ? "btn-danger" : "btn-gold") + " frn-modal-confirm");
+      addCls(".ds-modal__type-gate",  "frn-modal-type-gate");
+      addCls(".ds-modal__type-input", "frn-modal-type-input");
+      // The old type-gate label styling was inline — restore it 1:1.
+      const lbl = wrap.querySelector(".ds-modal__type-label");
+      if (lbl) {
+        lbl.style.cssText = "font-size:.72rem;color:var(--gray);display:block;margin-bottom:.3rem";
+        const b = lbl.querySelector("b");
+        if (b) b.style.color = "var(--gold)";
+      }
+    }
+  } catch (_e) {}
+  return p;
 }
 
 async function frnDeleteSlot(id) {
@@ -4665,7 +4633,11 @@ async function frnDeleteSlot(id) {
 
 // ── Export / Import save to file ─────────────────────────────────────────────
 function frnExportSave() {
-  if (!franchise) { alert("No franchise to export."); return; }
+  if (!franchise) {
+    if (typeof DS !== "undefined") DS.toast({ message: "No franchise to export.", kind: "warn" });
+    else alert("No franchise to export.");
+    return;
+  }
   const team = getTeam(franchise.chosenTeamId);
   const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
   const teamSlug = team ? `${team.city}_${team.name}`.replace(/\s+/g, "_") : "franchise";
@@ -4716,7 +4688,8 @@ async function frnImportSave() {
       const parsed = JSON.parse(text);
       const incoming = parsed.__gridironSave ? parsed.franchise : parsed;
       if (!incoming || !incoming.chosenTeamId || !incoming.rosters) {
-        alert("That doesn't look like a Hashmark Heroes save file.");
+        if (typeof DS !== "undefined") DS.toast({ message: "That doesn't look like a Hashmark Heroes save file.", kind: "error" });
+        else alert("That doesn't look like a Hashmark Heroes save file.");
         return;
       }
       if (franchise && !await _frnConfirm("Importing will replace your current active franchise. Continue?")) return;
@@ -4728,7 +4701,8 @@ async function frnImportSave() {
       _flushSaveFranchise();
       if (typeof showFranchiseDashboard === "function") showFranchiseDashboard();
     } catch (e) {
-      alert("Failed to import save: " + e.message);
+      if (typeof DS !== "undefined") DS.toast({ message: "Failed to import save: " + e.message, kind: "error" });
+      else alert("Failed to import save: " + e.message);
     }
   };
   input.click();
@@ -5216,7 +5190,7 @@ function renderFrnStartScreen() {
       <div class="fps-slot-actions">
         ${DS.button({ label: "▶ Load", variant: "gold", on: `frnSwitchSlot(${s.id})` })}
         <div class="frn-slot-menu-wrap">
-          <button class="btn btn-outline frn-slot-menu-btn" onclick="_frnToggleSlotMenu(${s.id}, event)" aria-label="More actions">⋯</button>
+          ${DS.button({ label: "⋯", variant: "outline", cls: "frn-slot-menu-btn", ariaLabel: "More actions", on: `_frnToggleSlotMenu(${s.id}, event)` })}
           <div class="frn-slot-menu" id="frnSlotMenu${s.id}">
             <button class="frn-slot-menu-item" onclick="_frnCloseSlotMenu();frnExportSlot(${s.id})">⬇ Export save file</button>
             <button class="frn-slot-menu-item" onclick="_frnCloseSlotMenu();frnRenameSlot(${s.id})">✎ Rename</button>
@@ -5466,7 +5440,7 @@ function _frnRenderCreateError(err) {
       <div class="frn-welcome-sub" style="margin-top:.5rem">Something went wrong building the league — no franchise was created. Pick a team and try again, or reload.</div>
       <div style="margin-top:1.1rem;display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
         ${DS.button({ label: "← Back to start", variant: "gold", on: "(typeof renderFrnStartScreen==='function'?renderFrnStartScreen():location.reload())" })}
-        <button class="btn" onclick="location.reload()">⟳ Reload</button>
+        ${DS.button({ label: "⟳ Reload", on: "location.reload()" })}
       </div>
       <details style="margin-top:1.1rem;text-align:left;font-size:.65rem;color:var(--gray)">
         <summary style="cursor:pointer;color:var(--gold)">Technical details</summary>

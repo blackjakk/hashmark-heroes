@@ -71,7 +71,9 @@ canvas/broadcast-layout/keyframe rules listed in "Hard rules".
 ## JS API (design-system/ds.js) — window.DS, returns HTML STRING unless noted
 - `DS.esc(s)` → escaped string (delegate to global `_escHtml` if present, else built-in).
 - `DS.attrs(obj)` → ` key="val"` string helper (escaped). `DS.cx(...names)` → class string.
-- `DS.button({label, variant='outline', size, icon, on, disabled, busy, title, type, attrs})`.
+- `DS.button({label, labelHtml, variant='outline', size, icon, on, disabled, busy, title, type, attrs})`.
+  `labelHtml` is TRUSTED raw HTML for rich multi-line labels (icon + <span> sub-caption
+  action buttons); `label` stays escaped — never route user/data strings through labelHtml.
   `on` is a JS expression string for inline onclick, e.g. `"frnSetTab('roster')"`.
   `busy` = in-flight state: spinner + `disabled` + `aria-busy="true"`, label kept.
 - `DS.card({eyebrow, title, body, onClose, hero, accent, attrs})`.
@@ -81,7 +83,11 @@ canvas/broadcast-layout/keyframe rules listed in "Hard rules".
   `DS.tabBar({tabs:[{id,label,color}], activeId, on})` where `on` is a fn-name string called
   as `on('id')` (e.g. `"frnSetTab"`). Renders `<div class="ds-tabbar">…</div>`. Interactive tabs
   are keyboard-reachable like chips; the active tab carries `aria-current="true"`.
-- `DS.modal({title, body, danger, okLabel='OK', cancelLabel='Cancel', requireType})` →
+- `DS.modal({title, body, danger, okLabel='OK', cancelLabel='Cancel', requireType, cls,
+  backdropCls})` → `cls`/`backdropCls` append LEGACY hook classes to the dialog/backdrop so a
+  hand-rolled modal can DELEGATE here without breaking probe selectors or team-theming CSS
+  (`_frnConfirmModal` keeps `.frn-modal-backdrop`/`.frn-modal`). Backdrop clicks are IGNORED
+  for 250ms after mount (double-click spill guard — the _frnConfirmModal lesson). →
   RETURNS A Promise<boolean> and MOUNTS to document.body. MUST mirror `_frnConfirmModal`'s
   contract: backdrop click = cancel, Esc = cancel, Enter = confirm (if enabled), focus trap
   optional. Also expose `DS.modalHtml(opts)` for callers that build their own string.
@@ -139,7 +145,12 @@ All factories must HTML-escape labels/text by default. `on`/`attrs`/raw `body` a
 (caller's responsibility) — document this clearly.
 
 ## GUARD (tools/_ds_guard.js) — enforce "no bypassing"
-Scan play-franchise-core/season/offseason/stats.js for bypass patterns:
+Scan EVERY UI surface — play-franchise-core/season/offseason/stats/fantasydraft.js,
+play-league-client.js, play-h2h-client.js, and play.css (font-family category only via
+CONFIG.fileCategories: its :root palette DEFINITIONS are legitimately raw and its component
+classes are the legacy look the DS mirrors) — for bypass patterns. New UI files MUST be
+added to CONFIG.files. `font-family:` declarations whose value is already `var(--font-…)`
+are the DS-clean form and do NOT count. Bypass patterns:
   (a) inline `font-family:` literals inside JS template strings,
   (b) raw hex/rgb color literals used for styling inside JS strings (`#abc`, `rgba(...)`),
   (c) hand-rolled component markup that should be a DS call: `class="btn`, `class="badge`,

@@ -184,6 +184,41 @@ const ok = (cond, label) => {
   ok(/\bds-card\b/.test(passthrough.card) && /\bfrn-hook-d\b/.test(passthrough.card),
     "DS.card({class}) merges a hook class");
 
+  // ── 1d. DS-unify additions: rich labels + modal delegation hooks ────────────
+  const unify = await page.evaluate(() => {
+    const D = window.DS;
+    return {
+      rich: D.button({ labelHtml: 'Trade<span class="sub">value</span>', on: "void 0" }),
+      richEsc: D.button({ label: "<b>x</b>" }),
+      modal: D.modalHtml({ title: "T", body: "B", cls: "frn-modal legacy-hook", backdropCls: "frn-modal-backdrop" }),
+    };
+  });
+  ok(/Trade<span class="sub">value<\/span>/.test(unify.rich),
+    "DS.button({labelHtml}) renders TRUSTED rich label markup unescaped");
+  ok(/&lt;b&gt;x&lt;\/b&gt;/.test(unify.richEsc),
+    "DS.button({label}) still escapes (labelHtml is the only trusted slot)");
+  ok(/class="ds-modal-backdrop frn-modal-backdrop"/.test(unify.modal)
+    && /class="ds-modal[^"]*\bfrn-modal\b[^"]*\blegacy-hook\b/.test(unify.modal),
+    "DS.modalHtml({cls,backdropCls}) merges legacy hook classes on dialog + backdrop");
+  // 250ms backdrop guard: an immediate backdrop click (double-click spill) must
+  // NOT self-cancel the modal; a click after the guard window must cancel.
+  const guardRes = await page.evaluate(async () => {
+    const D = window.DS;
+    let settled = null;
+    const p = D.modal({ title: "G", body: "guard" });
+    p.then((v) => { settled = v; });
+    const backdrop = document.querySelector(".ds-modal-backdrop");
+    backdrop.click();                       // immediate — inside the guard window
+    await new Promise((r) => setTimeout(r, 60));
+    const openDuringGuard = !!document.querySelector(".ds-modal-backdrop") && settled === null;
+    await new Promise((r) => setTimeout(r, 260));
+    document.querySelector(".ds-modal-backdrop").click();   // past the guard
+    await new Promise((r) => setTimeout(r, 30));
+    return { openDuringGuard, closedAfter: settled === false && !document.querySelector(".ds-modal-backdrop") };
+  });
+  ok(guardRes.openDuringGuard, "DS.modal ignores a backdrop click <250ms after mount (double-click guard)");
+  ok(guardRes.closedAfter, "DS.modal backdrop click after the guard window cancels normally");
+
   // ── 2. Mount + computed style resolves tokens ──────────────────────────────
   console.log("— 2. DS.mount + computed style resolves tokens —");
   const styles = await page.evaluate(() => {

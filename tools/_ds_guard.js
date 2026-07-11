@@ -40,9 +40,24 @@ const CONFIG = {
     "play-franchise-season.js",
     "play-franchise-offseason.js",
     "play-franchise-stats.js",
+    // DS-unify pass (2026-07): EVERY UI surface is ratcheted, not just the
+    // original four franchise files. New UI files must be added here.
+    "play-franchise-fantasydraft.js",
+    "play-league-client.js",
+    "play-h2h-client.js",
+    "play.css",
   ],
   // Category order is the report column order.
   categories: ["font-family", "color", "component"],
+  // Per-file category OPT-IN (default: all categories). play.css is the
+  // legacy stylesheet — its :root PALETTE DEFINITIONS are legitimately raw
+  // hex (they ARE the tokens) and its component classes are the legacy look
+  // the DS mirrors, so only the font-family debt is ratcheted there (inline
+  // stacks that should be var(--font-*); the token DEFINITIONS themselves
+  // sit permanently in the baseline).
+  fileCategories: {
+    "play.css": ["font-family"],
+  },
   // (c) hand-rolled component markup. A bypass is a `class="<marker>` opener
   // (covers `class="btn"`, `class="btn btn-gold"`, `class='badge ...'`).
   componentMarkers: ["btn", "badge", "frn-modal", "progress-bar"],
@@ -55,8 +70,14 @@ const CONFIG = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // (a) inline font-family literals. Matches `font-family:` as it appears in
-// inline style strings / injected <style> blocks. Counts every occurrence.
-const RE_FONT_FAMILY = /font-family\s*:/gi;
+// inline style strings / injected <style> blocks — EXCEPT declarations whose
+// value is already a token (`font-family: var(--font-…)`), which are the
+// DS-clean form and must not count as debt (else tokenizing never lowers the
+// ratchet and every clean declaration reads as a bypass). NOTE the optional
+// whitespace lives INSIDE the lookahead: a trailing `\s*` before `(?!var\()`
+// can backtrack to zero and sneak `: var(` past the guard (found during the
+// 2026-07 unify pass).
+const RE_FONT_FAMILY = /font-family\s*:(?!\s*var\()/gi;
 
 // (b) color literals used for styling.
 //   - hex: #RGB / #RRGGBB / #RRGGBBAA / #RGBA (3,4,6,8 hex digits), word-bounded
@@ -94,13 +115,15 @@ function countMatches(re, s) {
   return n;
 }
 
-function scanFile(absPath) {
+function scanFile(absPath, rel) {
   const src = fs.readFileSync(absPath, "utf8");
+  const cats = (CONFIG.fileCategories && CONFIG.fileCategories[rel]) || CONFIG.categories;
+  const on = (c) => cats.includes(c);
   return {
-    "font-family": countMatches(RE_FONT_FAMILY, src),
+    "font-family": on("font-family") ? countMatches(RE_FONT_FAMILY, src) : 0,
     // hex + rgb both count toward the single "color" category.
-    color: countMatches(RE_HEX, src) + countMatches(RE_RGB, src),
-    component: countMatches(RE_COMPONENT, src),
+    color: on("color") ? countMatches(RE_HEX, src) + countMatches(RE_RGB, src) : 0,
+    component: on("component") ? countMatches(RE_COMPONENT, src) : 0,
   };
 }
 
@@ -113,7 +136,7 @@ function scanAll() {
       counts[rel] = { "font-family": 0, color: 0, component: 0 };
       continue;
     }
-    counts[rel] = scanFile(abs);
+    counts[rel] = scanFile(abs, rel);
   }
   return counts;
 }
@@ -140,6 +163,7 @@ function writeBaseline(counts) {
     generated: new Date().toISOString().slice(0, 10),
     categories: CONFIG.categories,
     componentMarkers: CONFIG.componentMarkers,
+    fileCategories: CONFIG.fileCategories,
     counts,
   };
   fs.writeFileSync(CONFIG.baselineFile, JSON.stringify(out, null, 2) + "\n");

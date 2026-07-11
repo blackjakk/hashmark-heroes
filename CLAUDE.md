@@ -174,17 +174,36 @@ enforces it (a build gate). This is a DOM-only layer; it must stay determinism-n
   is STATIC (serves the game files) — couch multiplayer: a phone on the same Wi-Fi can tap
   the link. Regression: `node server/h2h-client-probe.js` (two browsers play to FINAL,
   now also asserts the invite banner + Advanced-folded modal).
-- Migration status: ~200 buttons routed through `DS.button` (guard component bypasses
-  235→20) and the scattered sentiment/grade color palette tokenized (color literals
-  1664→1396 via byte-identical `--ds-grade-*`/`--ds-accent-blue`/`--ds-slate`/`--ds-neutral`
-  swaps INSIDE `style="…"` only — never canvas/PIXI/SVG/data hexes, which can't use CSS
-  `var()`). Grandfathered (in the baseline, do not regress): `_frnConfirmModal` (probes +
-  team-theming depend on `.frn-modal-backdrop`), `btn-gold-big` large-CTAs, self-styled
-  buttons (`frn-resign-btn` etc.), and rich-`<span>`-label buttons (DS.button escapes labels).
+- Migration status (DS-UNIFY PASS, 2026-07-08 — the big one): guard debt 1967→829
+  (−58% under the EXPANDED scope below; the original four-file scope went 1554→721).
+  **Hand-rolled component bypasses 20→0** — nothing grandfathered anymore:
+  `_frnConfirmModal` now DELEGATES to DS.modal (legacy `.frn-modal-backdrop`/`.frn-modal`
+  + title/footer/type-input classes ride the new `cls`/`backdropCls` hooks + post-mount
+  fixups, so probes + team theming + the stats-file Esc-yield keep working; DS.modal
+  gained the 250ms backdrop double-click guard), rich-`<span>`-label buttons route
+  through `DS.button{labelHtml}` (TRUSTED slot — never pass unescaped data), self-styled
+  buttons keep their legacy classes via `cls:`. Fonts: play.css raw stacks 426→108 and
+  franchise JS inline stacks →~0 (`font-family:var(--font-…)` is the clean form — the
+  guard's lookahead excludes it; survivors are `font-family:inherit` form controls + a
+  handful of no-token stacks). Colors 1399→692 via byte-identical token swaps — tier 1
+  (lexically inside `style="…"`) AND tier 2 (ternary/const/object colors whose EVERY
+  consumer was traced to a DOM style sink; `var()` in DOM-inline SVG fill/stroke/
+  stop-color was empirically proven identical in Chromium). SURVIVOR CLASSES (legitimate,
+  in baseline): hex-alpha string-concat (`${col}55` — var() would corrupt), colors parsed
+  as hex (`_teamInk` luminance math), persisted save data, `var(--x, #hex)` fallbacks,
+  console `%c` styling, `_frnFlashToast`'s DS-less fallback palette, sub-8-occurrence
+  one-off hues, cross-file palette objects. SCOPE-STABILITY RULE (found by the pass):
+  `--blgold`/`--blgray`/`--gold` are REDEFINED by team-theming/HH-MODERN scopes — when
+  tokenizing a raw literal use the scope-stable twins `--ds-gold-accent`/`--ds-slate-blue`
+  (never redefined), not the theme-following vars; native alert()→`DS.toast` (guarded,
+  `else alert` fallback); native confirm() left (sync control flow).
   `#franchiseHome .ds-btn` parity rule keeps migrated buttons matching the legacy look.
-- GUARD RULES: `node tools/_ds_guard.js` must exit 0 (no count ABOVE baseline). Migrating
-  more LOWERS counts (fine). Run `node tools/_ds_guard.js --update-baseline` ONLY after a
-  verified migration, to lock the gain. Never raise the baseline to admit a new bypass.
+- GUARD RULES: `node tools/_ds_guard.js` must exit 0 (check the BARE exit code — never
+  pipe it). Coverage = EVERY UI file (core/season/offseason/stats/fantasydraft JS,
+  league-client, h2h-client, + play.css font-family-only via CONFIG.fileCategories); a
+  new UI file MUST be added to CONFIG.files. Migrating LOWERS counts (fine). Run
+  `--update-baseline` ONLY after a verified migration, to lock the gain. Never raise
+  the baseline to admit a new bypass.
 - Review: the `design-system-review` skill (`.claude/skills/design-system-review/`) is the
   checklist for any UI diff (guard + tokens + components + tests + determinism gates + no-go).
 

@@ -2195,7 +2195,7 @@ function _showWeekRecapIfReady() {
   const injuryRows = injuryNews.map(n =>
     `<div style="font-size:.68rem;color:var(--blgray);padding:.14rem 0">${n.label || ""}</div>`).join("");
   const cards = top.map((h, idx) => {
-    const meta = _HIGHLIGHT_LABELS[h.type] || { icon: "▶", text: h.type, accent: "#888" };
+    const meta = _HIGHLIGHT_LABELS[h.type] || { icon: "▶", text: h.type, accent: "var(--ds-neutral)" };
     const offTeam = h.poss === "home" ? getTeam(h.homeId) : getTeam(h.awayId);
     const defTeam = h.poss === "home" ? getTeam(h.awayId) : getTeam(h.homeId);
     const isUser = h.homeId === myId || h.awayId === myId;
@@ -2380,7 +2380,7 @@ const _HIGHLIGHT_LABELS = {
   INT:            { icon: "🦅", text: "INTERCEPTION",    accent: "#9bd0ff" },
   TURNOVER:       { icon: "🔄", text: "FUMBLE TURNOVER", accent: "#ff8a4a" },
   FUMBLE_REC:     { icon: "🤲", text: "FUMBLE RECOVERY", accent: "#7ee08a" },
-  BIG_HIT:        { icon: "💢", text: "BIG HIT",         accent: "#e6373a" },
+  BIG_HIT:        { icon: "💢", text: "BIG HIT",         accent: "var(--ds-red-strong)" },
   BIG_PASS:       { icon: "🎯", text: "BIG PASS",        accent: "#9bd0ff" },
   BIG_RUN:        { icon: "💨", text: "BIG RUN",         accent: "#7ee08a" },
   EJECTION:       { icon: "🚫", text: "EJECTION",        accent: "#ff3a3a" },
@@ -2428,7 +2428,7 @@ function renderFrnReplayLib() {
   // Build the cards
   const cardHtml = list.length
     ? list.map((h, idx) => {
-        const meta = _HIGHLIGHT_LABELS[h.type] || { icon: "▶", text: h.type, accent: "#888" };
+        const meta = _HIGHLIGHT_LABELS[h.type] || { icon: "▶", text: h.type, accent: "var(--ds-neutral)" };
         const offTeam = h.poss === "home" ? getTeam(h.homeId) : getTeam(h.awayId);
         const defTeam = h.poss === "home" ? getTeam(h.awayId) : getTeam(h.homeId);
         const isUser = h.homeId === myId || h.awayId === myId;
@@ -2492,7 +2492,7 @@ function frnReplayClip(highlightId) {
   // V3 clips carry the highlight play as ctxPlays[last]; legacy clips
   // may have only a standalone `play`.
   const synthPlays = h ? (h.ctxPlays?.length ? h.ctxPlays : (h.play ? [h.play] : null)) : null;
-  if (!synthPlays) { alert("Highlight not found."); return; }
+  if (!synthPlays) { if (typeof DS !== "undefined") DS.toast({ message: "Highlight not found.", kind: "error" }); else alert("Highlight not found."); return; }
   _frnPlaySynthReplay(h.homeId, h.awayId, h.homeScore, h.awayScore, synthPlays,
     `${h.type.replace(/_/g, " ")} — ${h.desc.slice(0, 80)}`);
 }
@@ -2504,7 +2504,7 @@ function frnReplayClip(highlightId) {
 function _frnPlaySynthReplay(homeId, awayId, homeScore, awayScore, synthPlays, label, opts) {
   const homeTeam = getTeam(homeId);
   const awayTeam = getTeam(awayId);
-  if (!homeTeam || !awayTeam) { alert("Teams missing."); return; }
+  if (!homeTeam || !awayTeam) { if (typeof DS !== "undefined") DS.toast({ message: "Teams missing.", kind: "error" }); else alert("Teams missing."); return; }
   // Start ON the advertised play. Every per-play caller stores the highlight
   // LAST with up to 2 lead-up plays before it — but starting playback at 0
   // buried the money play behind ~40s of slow-mo context with no on-screen
@@ -3253,11 +3253,11 @@ function _signReplacementForInjury(teamId, pos) {
 const MORALE_BASE = 62;
 function _initMorale(p) { if (typeof p.morale !== "number") p.morale = MORALE_BASE; return p.morale; }
 function _moraleTier(m) {
-  if (m >= 82) return { key: "thrilled",    label: "Thrilled",    icon: "🔥", color: "#86e0a3" };
+  if (m >= 82) return { key: "thrilled",    label: "Thrilled",    icon: "🔥", color: "var(--ds-grade-pos)" };
   if (m >= 68) return { key: "happy",       label: "Happy",       icon: "🙂", color: "var(--green-lt)" };
   if (m >= 50) return { key: "content",     label: "Content",     icon: "😐", color: "var(--gold-lt)" };
-  if (m >= 35) return { key: "frustrated",  label: "Frustrated",  icon: "😕", color: "#e8a000" };
-  return                { key: "disgruntled", label: "Disgruntled", icon: "😡", color: "#ff8a8a" };
+  if (m >= 35) return { key: "frustrated",  label: "Frustrated",  icon: "😕", color: "var(--ds-grade-caution)" };
+  return                { key: "disgruntled", label: "Disgruntled", icon: "😡", color: "var(--ds-grade-neg)" };
 }
 // Rough starter count per position — drives the role-expectation (a talented
 // player buried below this is unhappy he isn't playing).
@@ -3687,7 +3687,7 @@ function frnSimGame(homeId, awayId) {
     !g.played && g.homeId === Number(homeId) && g.awayId === Number(awayId));
   if (!target) return;
   if (target.week !== franchise.week) {
-    alert("Finish the current week before simming future games.");
+    if (typeof DS !== "undefined") DS.toast({ message: "Finish the current week before simming future games.", kind: "warn" }); else alert("Finish the current week before simming future games.");
     return;
   }
   const r = frnSimOnce(homeId, awayId);
@@ -4405,7 +4405,7 @@ function frnOpenStreetFA(posFilter) {
     <div class="frn-resign-recap-eyebrow">WEEK ${franchise.week} · STREET FREE AGENTS</div>
     <h2 class="frn-resign-recap-title">📥 ${pool.length} AVAILABLE</h2>
     <p style="color:var(--gray);text-align:center;margin:.2rem 0 .6rem;font-size:.7rem;font-family:var(--font-prose)">
-      Unsigned veterans — 1-year street deals at half market. Cap room <b style="color:${room < 3 ? "#ff8a8a" : "var(--green-lt)"}">$${room.toFixed(1)}M</b> · roster spots <b style="color:${spots <= 0 ? "#ff8a8a" : "var(--green-lt)"}">${spots}</b>${spots <= 0 ? " — cut or IR someone first" : ""}
+      Unsigned veterans — 1-year street deals at half market. Cap room <b style="color:${room < 3 ? "var(--ds-grade-neg)" : "var(--green-lt)"}">$${room.toFixed(1)}M</b> · roster spots <b style="color:${spots <= 0 ? "var(--ds-grade-neg)" : "var(--green-lt)"}">${spots}</b>${spots <= 0 ? " — cut or IR someone first" : ""}
     </p>
     <div style="display:flex;gap:.25rem;justify-content:center;flex-wrap:wrap;margin-bottom:.6rem">${chips}</div>
     <div class="frn-resign-list" style="max-height:52vh;overflow-y:auto">${rows || `<div style="color:var(--gray);text-align:center;padding:1rem;font-style:italic">Nobody left on the street${posFilter ? ` at ${posFilter}` : ""}.</div>`}</div>
@@ -4936,7 +4936,7 @@ function frnPlaycallCoachMode() {
 // Offense reads bottom→up (LOS y=48); defense reads top→down (LOS y=16,
 // zones drop toward the bottom of the card).
 const _IPA = {
-  gold: "#f5c542", white: "#dde6f2", dim: "#8b98ab", red: "#ff6b6b",
+  gold: "#f5c542", white: "#dde6f2", dim: "#8b98ab", red: "var(--ds-grade-neg-strong)",
   zoneFill: "rgba(77,189,189,.16)", zoneLine: "rgba(96,205,205,.55)",
 };
 // Polyline route with an arrowhead at the last point.
@@ -5708,7 +5708,7 @@ function _renderYourRunRecap() {
     const won = m.winnerId === myId;
     return `<button class="bspnlive-recap-row" onclick="frnOpenPlayoffBox(${ri}, ${mi})">
       <span style="color:var(--blgray);font-size:.6rem;letter-spacing:1px;min-width:6rem">${roundNames[ri] || `R${ri+1}`}</span>
-      <span style="color:${won?"var(--blgold)":"var(--blred)"};font-weight:900;font-size:1rem;font-family:'Bebas Neue','Anton',sans-serif;min-width:1rem">${won?"W":"L"}</span>
+      <span style="color:${won?"var(--blgold)":"var(--blred)"};font-weight:900;font-size:1rem;font-family:var(--font-display);min-width:1rem">${won?"W":"L"}</span>
       <span style="color:var(--blwhite);font-weight:700;font-variant-numeric:tabular-nums">${myScore}-${themScore}</span>
       <span style="color:var(--blgray)">vs</span>
       <span style="color:${_teamInk(opp?.primary)};font-weight:700">${opp?.abbr || opp?.name?.slice(0,3).toUpperCase()}</span>
@@ -5910,9 +5910,9 @@ function _renderPregamePreview(m, seeds) {
 
   // ── Recent form bars ─────────────────────────────────────────────────────────
   const formPill = r => {
-    const bg  = r.result === "W" ? "var(--green)" : r.result === "L" ? "var(--red)" : "#888";
+    const bg  = r.result === "W" ? "var(--green)" : r.result === "L" ? "var(--red)" : "var(--ds-neutral)";
     const tip = `W${r.week} ${r.result} ${r.myScore}–${r.oppScore} vs ${r.oppAbbr}`;
-    return `<span title="${tip}" style="display:inline-block;width:1.4rem;height:1.4rem;line-height:1.4rem;text-align:center;border-radius:3px;background:${bg};color:#fff;font-size:.6rem;font-weight:900;margin:0 1px">${r.result}</span>`;
+    return `<span title="${tip}" style="display:inline-block;width:1.4rem;height:1.4rem;line-height:1.4rem;text-align:center;border-radius:3px;background:${bg};color:var(--ds-pure-white);font-size:.6rem;font-weight:900;margin:0 1px">${r.result}</span>`;
   };
   const renderForm = (team, n = 4) => {
     const form = recentForm(team.id, n);
@@ -5940,7 +5940,7 @@ function _renderPregamePreview(m, seeds) {
     const lines = teamFilmStats(team.id);
     if (!lines.length) return `<div style="color:var(--blgray);font-size:.65rem;font-style:italic;padding:.25rem 0">No season data</div>`;
     return lines.map(l => `
-      <div style="display:flex;gap:.4rem;align-items:baseline;padding:.15rem 0;border-bottom:1px solid rgba(255,255,255,.04)">
+      <div style="display:flex;gap:.4rem;align-items:baseline;padding:.15rem 0;border-bottom:1px solid var(--ds-tint-white-04)">
         <span style="color:var(--blgray);font-size:.58rem;letter-spacing:.5px;min-width:3.8rem;flex-shrink:0">${l.cat}</span>
         <span style="font-size:.68rem;color:var(--blwhite)">${_playerLinkSmart(l.name)}</span>
         <span style="font-size:.62rem;color:var(--blgray);margin-left:auto;white-space:nowrap">${l.stat}</span>
@@ -6019,7 +6019,7 @@ function _renderPregamePreview(m, seeds) {
         </div>
       </div>
 
-      <div style="background:rgba(255,255,255,.04);border-left:3px solid var(--gold);padding:.35rem .6rem;border-radius:0 4px 4px 0">
+      <div style="background:var(--ds-tint-white-04);border-left:3px solid var(--gold);padding:.35rem .6rem;border-radius:0 4px 4px 0">
         <div style="font-size:.58rem;letter-spacing:.8px;color:var(--gold);margin-bottom:.2rem">KEY ANGLES</div>
         ${angles.map(a => `<div style="font-size:.68rem;color:var(--blwhite);margin-bottom:.15rem">▸ ${a}</div>`).join("")}
       </div>
@@ -6425,7 +6425,7 @@ function _renderPlayoffGameRecap() {
           const isMine = tId === myId;
           const tAbbr = t ? (t.abbr || t.name.slice(0,3).toUpperCase()) : "—";
           const arrow = ev.amount > 0 ? "↑" : "↓";
-          const col = ev.amount > 0 ? "#86e0a3" : "#ff8a8a";
+          const col = ev.amount > 0 ? "var(--ds-grade-pos)" : "var(--ds-grade-neg)";
           return `<div class="frn-prg-scoring-row">
             <span class="q" style="color:${col};font-weight:800">${arrow}${Math.abs(ev.amount).toFixed(0)}</span>
             <span class="team" style="color:${_teamInk(t?.primary)};font-weight:${isMine?700:400}">${tAbbr}</span>
@@ -6450,7 +6450,7 @@ function _renderPlayoffGameRecap() {
       const tilt = plan.passProbDelta > 0 ? "+pass"
                  : plan.passProbDelta < 0 ? "+run" : "balanced";
       const tiltCol = plan.passProbDelta > 0 ? "#7ec8e3"
-                    : plan.passProbDelta < 0 ? "#e8a000" : "var(--gray)";
+                    : plan.passProbDelta < 0 ? "var(--ds-grade-caution)" : "var(--gray)";
       return `<div class="frn-prg-scoring-row">
         <span class="q" style="color:${tiltCol};font-weight:800">${tilt}</span>
         <span class="team" style="color:${_teamInk(t?.primary)};font-weight:${tid===myId?700:400}">${tAbbr}</span>
@@ -6658,7 +6658,7 @@ function _renderPlayoffHero() {
   const qbAdj = ((myRtg.qb || 60) - (oppRtg.qb || 60)) * 0.5;
   const diff = (myPwr - oppPwr) + qbAdj + (isHome ? 3 : -3);
   const winPct = Math.max(5, Math.min(95, Math.round(50 + diff * 1.2)));
-  const wpCol = winPct >= 65 ? "var(--green-lt)" : winPct >= 50 ? "var(--gold-lt)" : winPct >= 35 ? "#ffc850" : "#ff8a8a";
+  const wpCol = winPct >= 65 ? "var(--green-lt)" : winPct >= 50 ? "var(--gold-lt)" : winPct >= 35 ? "var(--ds-grade-warn)" : "var(--ds-grade-neg)";
   const wpLabel = winPct >= 70 ? "HEAVY FAVORITE" : winPct >= 58 ? "FAVORED" : winPct >= 48 ? "COIN FLIP" : winPct >= 35 ? "UNDERDOG" : "BIG UNDERDOG";
   const isFinal = roundIdx >= pb.rounds.length - 1;
   const nextRoundName = ROUND[roundIdx + 1];
@@ -7461,7 +7461,7 @@ function renderFrnAnalytics(defaultTab) {
   const aavColor = aav => {
     const pct = aav / cap;
     if (pct >= 0.18) return "var(--red)";
-    if (pct >= 0.10) return "#e8a000";
+    if (pct >= 0.10) return "var(--ds-grade-caution)";
     return "var(--white)";
   };
 
@@ -7494,7 +7494,7 @@ function renderFrnAnalytics(defaultTab) {
             c.baseSalaries.map((base, i) => {
               const isCur = i === curYrIdx;
               const hit = Math.round((base + (c.bonusProration || 0)) * 10) / 10;
-              return `<span title="Yr${i+1}: $${base.toFixed(1)}M base + $${(c.bonusProration||0).toFixed(1)}M proration" style="font-size:.55rem;padding:.1rem .28rem;border-radius:3px;background:${isCur?"var(--gold)":"var(--bg3)"};color:${isCur?"#000":"var(--gray)"}">Yr${i+1} $${hit.toFixed(1)}M</span>`;
+              return `<span title="Yr${i+1}: $${base.toFixed(1)}M base + $${(c.bonusProration||0).toFixed(1)}M proration" style="font-size:.55rem;padding:.1rem .28rem;border-radius:3px;background:${isCur?"var(--gold)":"var(--bg3)"};color:${isCur?"var(--ds-pure-black)":"var(--gray)"}">Yr${i+1} $${hit.toFixed(1)}M</span>`;
             }).join("") + (voidYrs > 0 ? Array.from({length:voidYrs}).map((_,vi) => {
               const accel = Math.round((c.bonusProration || 0) * voidYrs * 10) / 10;
               return `<span title="Void year — phantom proration. If contract ends here, $${accel.toFixed(1)}M accelerates as dead cap." style="font-size:.55rem;padding:.1rem .28rem;border-radius:3px;background:rgba(190,80,80,.2);color:var(--ds-grade-neg-mid);border:1px dashed rgba(255,144,144,.4)">V${vi+1} ☠</span>`;
@@ -7521,13 +7521,15 @@ function renderFrnAnalytics(defaultTab) {
           const presetBtn = (pct) => {
             const newA = Math.max(0.5, Math.round(currentAav * (1 - pct) * 10) / 10);
             const chance = _payCutAcceptChance(p, pct, market);
-            const cColor = chance >= 0.55 ? "var(--green-lt)" : chance >= 0.30 ? "var(--gold)" : "#ff9090";
-            return `<button class="btn btn-outline" onclick="frnPayCutSubmit(${pct})"
-              style="font-size:.6rem;padding:.22rem .5rem;display:flex;flex-direction:column;align-items:center;line-height:1.2;min-width:90px"
-              title="Ask for a ${Math.round(pct*100)}% cut. Accept chance ${(chance*100).toFixed(0)}%.">
-              <span style="font-weight:700">−${Math.round(pct*100)}% → $${newA.toFixed(1)}M</span>
-              <span style="font-size:.5rem;color:${cColor};margin-top:.1rem">${(chance*100).toFixed(0)}% accept</span>
-            </button>`;
+            const cColor = chance >= 0.55 ? "var(--green-lt)" : chance >= 0.30 ? "var(--gold)" : "var(--ds-grade-neg-mid)";
+            return DS.button({
+              labelHtml: `<span style="font-weight:700">−${Math.round(pct*100)}% → $${newA.toFixed(1)}M</span>
+              <span style="font-size:.5rem;color:${cColor};margin-top:.1rem">${(chance*100).toFixed(0)}% accept</span>`,
+              variant: "outline",
+              on: `frnPayCutSubmit(${pct})`,
+              title: `Ask for a ${Math.round(pct*100)}% cut. Accept chance ${(chance*100).toFixed(0)}%.`,
+              attrs: { style: "font-size:.6rem;padding:.22rem .5rem;display:flex;flex-direction:column;align-items:center;line-height:1.2;min-width:90px" },
+            });
           };
           return `<tr style="background:rgba(80,160,80,.10)">
             <td style="font-weight:700;color:var(--green-lt)">${_escHtml(p.name)}</td>
@@ -7626,7 +7628,7 @@ function renderFrnAnalytics(defaultTab) {
           if (tag === "blocker") return `<div style="font-size:.52rem;color:var(--red);margin-top:.1rem">▼ TRADE BLOCKER</div>`;
           return "";
         })()}</td>
-        <td style="font-size:.6rem;color:${deadTotal>0?"#ff9090":"var(--gray)"}">
+        <td style="font-size:.6rem;color:${deadTotal>0?"var(--ds-grade-neg-mid)":"var(--gray)"}">
           ${deadTotal > 0 ? `☠ $${deadPY.toFixed(1)}M×${deadYrs}yr` : "—"}
         </td>
         <td style="color:var(--gray);font-size:.65rem">${c.remaining}yr left</td>
@@ -7654,7 +7656,7 @@ function renderFrnAnalytics(defaultTab) {
     const irHeader = irRows ? `<tr><td colspan="10" style="padding:.3rem .5rem;font-size:.6rem;letter-spacing:.5px;color:var(--ds-grade-neg-mid);background:rgba(190,80,80,.12);font-weight:700">INJURED RESERVE — ${irRoster.length} player${irRoster.length===1?"":"s"}, still on the cap</td></tr>` : "";
     return `
       <div class="frn-ana-capbar">
-        <div class="frn-ana-capbar-fill" style="width:${Math.min(100,totalUsed/cap*100).toFixed(1)}%;background:${totalUsed/cap>=0.95?"var(--red)":totalUsed/cap>=0.85?"#e8a000":"var(--green)"}"></div>
+        <div class="frn-ana-capbar-fill" style="width:${Math.min(100,totalUsed/cap*100).toFixed(1)}%;background:${totalUsed/cap>=0.95?"var(--red)":totalUsed/cap>=0.85?"var(--ds-grade-caution)":"var(--green)"}"></div>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:.72rem;margin-bottom:.8rem">
         <span>Used: <b style="color:var(--white)">$${totalUsed.toFixed(1)}M</b></span>
@@ -7682,7 +7684,7 @@ function renderFrnAnalytics(defaultTab) {
     const totalActual = rows.reduce((s, r) => s + r.actual, 0);
     const totalMarket = rows.reduce((s, r) => s + r.market, 0);
     const totalPct = totalMarket > 0 ? (totalActual / totalMarket) * 100 : 100;
-    const totalColor = totalPct < 95 ? "#86e0a3" : totalPct < 105 ? "#cce8d6" : "#e0b078";
+    const totalColor = totalPct < 95 ? "var(--ds-grade-pos)" : totalPct < 105 ? "var(--ds-grade-pos-soft)" : "var(--ds-grade-caution-soft)";
     // Headline callouts — biggest bargain + biggest overpay.
     // For BIGGEST BARGAIN, prefer non-rookie deals so the headline
     // celebrates GM negotiation skill rather than the rookie scale.
@@ -7703,24 +7705,24 @@ function renderFrnAnalytics(defaultTab) {
         : "";
       const posLabel = r._posDepth > 1 ? `${p.position}${r._depthSlot}` : p.position;
       const deltaSign = r.delta < 0 ? "−" : "+";
-      const deltaColor = r.delta < -0.5 ? "#86e0a3" : r.delta > 0.5 ? "#ff9b9b" : "#cce8d6";
+      const deltaColor = r.delta < -0.5 ? "var(--ds-grade-pos)" : r.delta > 0.5 ? "var(--ds-grade-neg-soft)" : "var(--ds-grade-pos-soft)";
       return `<tr>
         <td style="color:var(--gold);font-size:.62rem;font-weight:700">${posLabel}</td>
         <td style="font-weight:700">${_playerLinkSmart(p.name)}${rookieBadge}</td>
         <td style="color:var(--gray);font-size:.7rem">${p.age || "?"}</td>
-        <td style="font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:.5px">${p.overall}</td>
-        <td style="font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:.5px">$${r.actual.toFixed(1)}M</td>
-        <td style="color:var(--gray);font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:.5px">$${r.market.toFixed(1)}M</td>
-        <td style="color:${r.color};font-weight:700;font-family:'Bebas Neue','Anton',sans-serif">${r.pct.toFixed(0)}%</td>
+        <td style="font-family:var(--font-display);letter-spacing:.5px">${p.overall}</td>
+        <td style="font-family:var(--font-display);letter-spacing:.5px">$${r.actual.toFixed(1)}M</td>
+        <td style="color:var(--gray);font-family:var(--font-display);letter-spacing:.5px">$${r.market.toFixed(1)}M</td>
+        <td style="color:${r.color};font-weight:700;font-family:var(--font-display)">${r.pct.toFixed(0)}%</td>
         <td style="color:${deltaColor};font-weight:700">${deltaSign}$${Math.abs(r.delta).toFixed(1)}M</td>
         <td style="color:${r.color};font-size:.6rem;letter-spacing:.5px;font-weight:700">${r.verdict}</td>
       </tr>`;
     }).join("");
     return `
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.7rem">
-        <div style="padding:.55rem .65rem;background:rgba(255,255,255,.025);border-left:3px solid var(--ds-slate);border-radius:2px">
+        <div style="padding:.55rem .65rem;background:var(--ds-tint-white-025);border-left:3px solid var(--ds-slate);border-radius:2px">
           <div style="font-size:.55rem;color:var(--gray);letter-spacing:1px;margin-bottom:.15rem">TOTAL VS MARKET</div>
-          <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.5rem;color:${totalColor};line-height:1">${totalPct.toFixed(0)}%</div>
+          <div style="font-family:var(--font-display);font-size:1.5rem;color:${totalColor};line-height:1">${totalPct.toFixed(0)}%</div>
           <div style="font-size:.62rem;color:var(--gray);margin-top:.1rem">$${totalActual.toFixed(0)}M actual · $${totalMarket.toFixed(0)}M market${rookieCount > 0 ? ` · ${rookieCount} on rookie deals` : ""}</div>
         </div>
         ${(() => {
@@ -7735,15 +7737,15 @@ function renderFrnAnalytics(defaultTab) {
           const cost = isActualBargain
             ? `saves $${(-bargain.delta).toFixed(1)}M`
             : `costs $${bargain.delta.toFixed(1)}M`;
-          const accent = isActualBargain ? "#86e0a3" : "#e0b078";
-          const bg = isActualBargain ? "rgba(134,224,163,.06)" : "rgba(224,176,120,.06)";
+          const accent = isActualBargain ? "var(--ds-grade-pos)" : "var(--ds-grade-caution-soft)";
+          const bg = isActualBargain ? "var(--ds-tint-pos-06)" : "rgba(224,176,120,.06)";
           return `<div style="padding:.55rem .65rem;background:${bg};border-left:3px solid ${accent};border-radius:2px">
             <div style="font-size:.55rem;color:${accent};letter-spacing:1px;margin-bottom:.15rem">${headline}</div>
             <div style="font-weight:700;font-size:.75rem">${_playerLinkSmart(bargain.player.name)}</div>
             <div style="font-size:.62rem;color:var(--gray);margin-top:.1rem">${bargain.player.position} · ${bargain.pct.toFixed(0)}% of market · ${cost}</div>
           </div>`;
         })()}
-        <div style="padding:.55rem .65rem;background:rgba(255,155,155,.06);border-left:3px solid var(--ds-grade-neg-soft);border-radius:2px">
+        <div style="padding:.55rem .65rem;background:var(--ds-tint-neg-06);border-left:3px solid var(--ds-grade-neg-soft);border-radius:2px">
           <div style="font-size:.55rem;color:var(--ds-grade-neg-soft);letter-spacing:1px;margin-bottom:.15rem">🔴 BIGGEST OVERPAY</div>
           <div style="font-weight:700;font-size:.75rem">${_playerLinkSmart(overpay.player.name)}</div>
           <div style="font-size:.62rem;color:var(--gray);margin-top:.1rem">${overpay.player.position} · ${overpay.pct.toFixed(0)}% of market · costs $${overpay.delta.toFixed(1)}M extra</div>
@@ -7770,16 +7772,16 @@ function renderFrnAnalytics(defaultTab) {
       return `<div style="color:var(--gray);font-style:italic;padding:1.5rem;text-align:center">No contract data yet — sign players to see your cap horizon.</div>`;
     }
     const cards = projections.map((p, i) => {
-      const color = p.pct < 80 ? "#86e0a3" : p.pct < 95 ? "#cce8d6" : p.pct < 105 ? "#e0b078" : "#ff9b9b";
+      const color = p.pct < 80 ? "var(--ds-grade-pos)" : p.pct < 95 ? "var(--ds-grade-pos-soft)" : p.pct < 105 ? "var(--ds-grade-caution-soft)" : "var(--ds-grade-neg-soft)";
       const label = i === 0 ? "THIS SEASON" : i === 1 ? "NEXT SEASON" : `+${i} YEARS`;
-      const freeColor = p.free > 20 ? "#86e0a3" : p.free > 0 ? "#cce8d6" : "#ff9b9b";
-      return `<div style="padding:.7rem .9rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:3px">
+      const freeColor = p.free > 20 ? "var(--ds-grade-pos)" : p.free > 0 ? "var(--ds-grade-pos-soft)" : "var(--ds-grade-neg-soft)";
+      return `<div style="padding:.7rem .9rem;background:var(--ds-tint-white-025);border:1px solid var(--blborder);border-radius:3px">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.25rem">
           <span style="font-size:.55rem;color:var(--gray);letter-spacing:1.2px;font-weight:700">${label}</span>
           <span style="font-size:.55rem;color:var(--ds-slate)">${p.year}</span>
         </div>
         <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.4rem">
-          <span style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.7rem;color:${color};line-height:1;letter-spacing:.5px">$${p.committed.toFixed(0)}M</span>
+          <span style="font-family:var(--font-display);font-size:1.7rem;color:${color};line-height:1;letter-spacing:.5px">$${p.committed.toFixed(0)}M</span>
           <span style="color:var(--gray);font-size:.7rem">/ $${p.projCap.toFixed(0)}M cap</span>
         </div>
         <div style="height:7px;background:var(--bg3);border-radius:1px;overflow:hidden;margin-bottom:.4rem">
@@ -7819,8 +7821,8 @@ function renderFrnAnalytics(defaultTab) {
     const maxAbsDelta = Math.max(...needs.map(n => Math.abs(n.delta)), 5);
     const rows = needs.map(n => {
       const isPos = n.delta > 0;
-      const color = n.delta > 4 ? "#86e0a3" : n.delta > 1 ? "#a8d8b6"
-                  : n.delta > -1 ? "#cce8d6" : n.delta > -4 ? "#e0b078" : "#ff9b9b";
+      const color = n.delta > 4 ? "var(--ds-grade-pos)" : n.delta > 1 ? "var(--ds-grade-pos-mid)"
+                  : n.delta > -1 ? "var(--ds-grade-pos-soft)" : n.delta > -4 ? "var(--ds-grade-caution-soft)" : "var(--ds-grade-neg-soft)";
       const verdict = n.delta > 4 ? "ELITE" : n.delta > 1 ? "above avg"
                     : n.delta > -1 ? "league avg" : n.delta > -4 ? "below avg" : "NEED";
       const barPct = Math.min(100, (Math.abs(n.delta) / maxAbsDelta) * 100);
@@ -7829,8 +7831,8 @@ function renderFrnAnalytics(defaultTab) {
         : `margin-left:${50 - barPct/2}%;width:${barPct/2}%;background:${color}`;
       return `<tr>
         <td style="color:var(--gold);font-weight:700">${n.pos}</td>
-        <td style="font-family:'Bebas Neue','Anton',sans-serif">${n.myAvg.toFixed(1)}</td>
-        <td style="color:var(--gray);font-family:'Bebas Neue','Anton',sans-serif">${n.leagueAvg.toFixed(1)}</td>
+        <td style="font-family:var(--font-display)">${n.myAvg.toFixed(1)}</td>
+        <td style="color:var(--gray);font-family:var(--font-display)">${n.leagueAvg.toFixed(1)}</td>
         <td style="color:${color};font-weight:700">${n.delta > 0 ? "+" : ""}${n.delta.toFixed(1)}</td>
         <td style="padding:0 .5rem">
           <div style="height:10px;background:var(--bg3);border-radius:1px;position:relative;overflow:hidden">
@@ -7847,14 +7849,14 @@ function renderFrnAnalytics(defaultTab) {
     const strongest = needs.slice().reverse().slice(0, 3).filter(n => n.delta > 1);
     return `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.7rem">
-        <div style="padding:.55rem .65rem;background:rgba(255,155,155,.06);border-left:3px solid var(--ds-grade-neg-soft);border-radius:2px">
+        <div style="padding:.55rem .65rem;background:var(--ds-tint-neg-06);border-left:3px solid var(--ds-grade-neg-soft);border-radius:2px">
           <div style="font-size:.55rem;color:var(--ds-grade-neg-soft);letter-spacing:1px;margin-bottom:.2rem">🎯 BIGGEST NEEDS</div>
           ${weakest.length ? weakest.map(n => `<div style="display:flex;justify-content:space-between;font-size:.7rem;padding:.05rem 0">
             <span style="color:var(--white)"><b style="color:var(--gold)">${n.pos}</b> — #${n.rank} in league</span>
             <span style="color:var(--ds-grade-neg-soft);font-weight:700">${n.delta.toFixed(1)} below avg</span>
           </div>`).join("") : `<div style="color:var(--gray);font-size:.7rem;font-style:italic">No glaring weaknesses — well-rounded roster.</div>`}
         </div>
-        <div style="padding:.55rem .65rem;background:rgba(134,224,163,.06);border-left:3px solid var(--ds-grade-pos);border-radius:2px">
+        <div style="padding:.55rem .65rem;background:var(--ds-tint-pos-06);border-left:3px solid var(--ds-grade-pos);border-radius:2px">
           <div style="font-size:.55rem;color:var(--ds-grade-pos);letter-spacing:1px;margin-bottom:.2rem">💪 STRONGEST UNITS</div>
           ${strongest.length ? strongest.map(n => `<div style="display:flex;justify-content:space-between;font-size:.7rem;padding:.05rem 0">
             <span style="color:var(--white)"><b style="color:var(--gold)">${n.pos}</b> — #${n.rank} in league</span>
@@ -7885,7 +7887,7 @@ function renderFrnAnalytics(defaultTab) {
     const expiring = roster.filter(p => p.contract.remaining <= 1).length;
     const capBar = (used, label) => {
       const pct = Math.min(100, used/cap*100);
-      const color = pct>=95?"var(--red)":pct>=85?"#e8a000":"var(--green)";
+      const color = pct>=95?"var(--red)":pct>=85?"var(--ds-grade-caution)":"var(--green)";
       return `<div style="margin-bottom:.6rem">
         <div style="display:flex;justify-content:space-between;font-size:.68rem;margin-bottom:.2rem">
           <span style="color:var(--gray)">${label}</span>
@@ -8005,12 +8007,12 @@ function renderFrnAnalytics(defaultTab) {
     const rows = TEAMS.map(t => {
       const used = capUsedByTeam(t.id);
       const pct  = used / cap * 100;
-      const bar  = `<div style="width:${Math.min(100,pct).toFixed(0)}%;height:6px;background:${pct>=95?"var(--red)":pct>=85?"#e8a000":"var(--green)"};"></div>`;
+      const bar  = `<div style="width:${Math.min(100,pct).toFixed(0)}%;height:6px;background:${pct>=95?"var(--red)":pct>=85?"var(--ds-grade-caution)":"var(--green)"};"></div>`;
       const isMe = t.id === chosenTeamId;
       return `<tr style="${isMe?"background:rgba(200,169,0,0.07)":""}">
         <td style="color:${isMe?"var(--gold)":"var(--white)"};font-weight:${isMe?700:400}">${isMe?"»":""} ${t.city} ${t.name}</td>
         <td><div style="background:var(--bg3);width:100%;height:6px;">${bar}</div></td>
-        <td style="text-align:right;color:${pct>=95?"var(--red)":pct>=85?"#e8a000":"var(--white)"};font-weight:700">$${used.toFixed(0)}M</td>
+        <td style="text-align:right;color:${pct>=95?"var(--red)":pct>=85?"var(--ds-grade-caution)":"var(--white)"};font-weight:700">$${used.toFixed(0)}M</td>
         <td style="text-align:right;color:var(--gray);font-size:.65rem">${pct.toFixed(0)}%</td>
       </tr>`;
     }).sort((a, b) => {
@@ -8022,12 +8024,12 @@ function renderFrnAnalytics(defaultTab) {
       .sort((a, b) => b.used - a.used);
     const sortedRows = teams.map(({ t, used }) => {
       const pct = used / cap * 100;
-      const bar = `<div style="width:${Math.min(100,pct).toFixed(0)}%;height:6px;background:${pct>=95?"var(--red)":pct>=85?"#e8a000":"var(--green)"};"></div>`;
+      const bar = `<div style="width:${Math.min(100,pct).toFixed(0)}%;height:6px;background:${pct>=95?"var(--red)":pct>=85?"var(--ds-grade-caution)":"var(--green)"};"></div>`;
       const isMe = t.id === chosenTeamId;
       return `<tr style="${isMe?"background:rgba(200,169,0,0.07)":""}">
         <td style="color:${isMe?"var(--gold)":"var(--white)"};font-weight:${isMe?700:400}">${isMe?"»":""} ${t.city} ${t.name}</td>
         <td style="width:120px"><div style="background:var(--bg3);width:100%;height:6px;">${bar}</div></td>
-        <td style="text-align:right;color:${pct>=95?"var(--red)":pct>=85?"#e8a000":"var(--white)"};font-weight:700">$${used.toFixed(0)}M</td>
+        <td style="text-align:right;color:${pct>=95?"var(--red)":pct>=85?"var(--ds-grade-caution)":"var(--white)"};font-weight:700">$${used.toFixed(0)}M</td>
         <td style="text-align:right;color:var(--gray);font-size:.65rem">${pct.toFixed(0)}%</td>
       </tr>`;
     }).join("");
@@ -8919,7 +8921,7 @@ function frnHoldoutMidDefer(name) {
   const d = list.find(x => x.name === name);
   if (!d) return;
   if ((d.defers || 0) >= _MID_HOLDOUT_MAX_DEFERS) {
-    alert(`${name} won't accept another delay. He wants a deal or he sits.`);
+    if (typeof DS !== "undefined") DS.toast({ message: `${name} won't accept another delay. He wants a deal or he sits.`, kind: "warn" }); else alert(`${name} won't accept another delay. He wants a deal or he sits.`);
     return;
   }
   d.defers = (d.defers || 0) + 1;
@@ -8984,7 +8986,7 @@ function _renderHoldoutCenterRow(d) {
     const yearPills = bases.map((base, i) => {
       const hit = Math.round((base + bonusProration) * 10) / 10;
       const ageYr = ageAtSign + i;
-      const ageColor = ageYr >= 34 ? "#ff8a8a" : ageYr >= 31 ? "#e8a000" : "var(--gray)";
+      const ageColor = ageYr >= 34 ? "var(--ds-grade-neg)" : ageYr >= 31 ? "var(--ds-grade-caution)" : "var(--gray)";
       return `<div style="display:flex;justify-content:space-between;padding:.18rem .4rem;border-radius:4px;background:var(--bg3);font-size:.67rem;gap:.8rem">
         <span style="color:var(--gray)">Yr ${i+1} <span style="color:${ageColor};font-size:.58rem">(age ${ageYr})</span></span>
         <span>$${base.toFixed(1)}M base</span>
@@ -9023,14 +9025,14 @@ function _renderHoldoutCenterRow(d) {
 
   // Demand + accept odds
   const odds = _holdoutAcceptOdds(offer, offerYears, d.demandedAAV, d.demandedYears);
-  const oddsColor = odds >= 0.85 ? "var(--green-lt)" : odds >= 0.5 ? "#e8a000" : "#ff8a8a";
+  const oddsColor = odds >= 0.85 ? "var(--green-lt)" : odds >= 0.5 ? "var(--ds-grade-caution)" : "var(--ds-grade-neg)";
   // Premium math vs current expiring deal
   const curAav = d.currentAAV || 0;
   const curYrs = d.currentRemaining || 0;
   const aavRaise = curAav > 0 ? d.demandedAAV - curAav : 0;
   const raisePct = curAav > 0 ? Math.round((aavRaise / curAav) * 100) : 0;
-  const raiseColor = aavRaise >= curAav * 0.5 ? "#ff8a8a"
-                   : aavRaise >= curAav * 0.25 ? "#e8a000"
+  const raiseColor = aavRaise >= curAav * 0.5 ? "var(--ds-grade-neg)"
+                   : aavRaise >= curAav * 0.25 ? "var(--ds-grade-caution)"
                    : aavRaise > 0 ? "var(--gold)" : "var(--green-lt)";
   const raiseStr = curAav > 0
     ? `<span style="color:${raiseColor};font-size:.62rem;font-weight:700">${aavRaise >= 0 ? "+" : ""}$${aavRaise.toFixed(1)}M/yr (${raisePct >= 0 ? "+" : ""}${raisePct}%)</span>`
@@ -9076,7 +9078,7 @@ function _renderHoldoutCenterRow(d) {
 
   // Deadline countdown
   const wksLeft = Math.max(0, d.deadlineWeek - franchise.week);
-  const deadlineColor = wksLeft <= 1 ? "var(--red)" : wksLeft <= 2 ? "#e8a000" : "var(--gray)";
+  const deadlineColor = wksLeft <= 1 ? "var(--red)" : wksLeft <= 2 ? "var(--ds-grade-caution)" : "var(--gray)";
   const deadlineHtml = `<div style="font-size:.6rem;color:${deadlineColor};margin-top:.15rem">
     ⏰ ${wksLeft === 0 ? "Deadline this week" : `${wksLeft} week${wksLeft===1?"":"s"} until deadline`}${d.defers ? ` · deferred ${d.defers}×` : ""}
   </div>`;
@@ -9174,12 +9176,12 @@ function _renderHoldoutCenterRow(d) {
       </div>
       ${offerPanel}
       <div class="frn-resign-btns" style="flex-direction:column;justify-content:flex-start">
-        <button class="btn frn-resign-btn accept-btn" onclick="frnHoldoutMidPreview('${escName}')" title="Year-by-year cap hits before you commit">📋 Review<span style="font-size:.5rem;display:block;color:var(--green-lt)">year-by-year</span></button>
-        <button class="btn frn-resign-btn" style="border-color:var(--gold);color:var(--gold)" onclick="frnHoldoutMidTrade('${escName}')" title="Open trade screen with him pre-selected">🔀 Trade<span style="font-size:.5rem;display:block;color:var(--gold-lt)">${tradeVal}</span></button>
+        ${DS.button({ labelHtml: `📋 Review<span style="font-size:.5rem;display:block;color:var(--green-lt)">year-by-year</span>`, class: "frn-resign-btn accept-btn", on: `frnHoldoutMidPreview('${escName}')`, title: "Year-by-year cap hits before you commit" })}
+        ${DS.button({ labelHtml: `🔀 Trade<span style="font-size:.5rem;display:block;color:var(--gold-lt)">${tradeVal}</span>`, class: "frn-resign-btn", on: `frnHoldoutMidTrade('${escName}')`, title: "Open trade screen with him pre-selected", attrs: { style: "border-color:var(--gold);color:var(--gold)" } })}
         ${(d.defers || 0) < _MID_HOLDOUT_MAX_DEFERS
-          ? `<button class="btn frn-resign-btn" style="border-color:var(--blgray, #9aa7b8);color:var(--blgray, #9aa7b8)" onclick="frnHoldoutMidDefer('${escName}')" title="Push deadline +2 wks. Demand rises 3% each defer. Max ${_MID_HOLDOUT_MAX_DEFERS}×.">⏳ Defer<span style="font-size:.5rem;display:block">+2 wks · +3% AAV</span></button>`
-          : `<button class="btn frn-resign-btn" disabled title="Already deferred max times" style="opacity:.4">⏳ Defer<span style="font-size:.5rem;display:block">max reached</span></button>`}
-        <button class="btn frn-resign-btn decline-btn" onclick="frnHoldoutMidRefuse('${escName}')" title="Player sits this week and walks at expiry">✗ Refuse<span style="font-size:.5rem;display:block;color:var(--ds-grade-neg-mid)">sits 1 game</span></button>
+          ? DS.button({ labelHtml: `⏳ Defer<span style="font-size:.5rem;display:block">+2 wks · +3% AAV</span>`, class: "frn-resign-btn", on: `frnHoldoutMidDefer('${escName}')`, title: `Push deadline +2 wks. Demand rises 3% each defer. Max ${_MID_HOLDOUT_MAX_DEFERS}×.`, attrs: { style: "border-color:var(--blgray, #9aa7b8);color:var(--blgray, #9aa7b8)" } })
+          : DS.button({ labelHtml: `⏳ Defer<span style="font-size:.5rem;display:block">max reached</span>`, class: "frn-resign-btn", disabled: true, title: "Already deferred max times", attrs: { style: "opacity:.4" } })}
+        ${DS.button({ labelHtml: `✗ Refuse<span style="font-size:.5rem;display:block;color:var(--ds-grade-neg-mid)">sits 1 game</span>`, class: "frn-resign-btn decline-btn", on: `frnHoldoutMidRefuse('${escName}')`, title: "Player sits this week and walks at expiry" })}
       </div>
     </div>
   </div>`;
@@ -9465,7 +9467,7 @@ function _extensionModalInnerHtml() {
   const yearPills = bases.map((base, i) => {
     const hit = Math.round((base + bonusProration) * 10) / 10;
     const ageYr = age + i + 1;
-    const ageColor = ageYr >= 34 ? "#ff8a8a" : ageYr >= 31 ? "#e8a000" : "var(--gray)";
+    const ageColor = ageYr >= 34 ? "var(--ds-grade-neg)" : ageYr >= 31 ? "var(--ds-grade-caution)" : "var(--gray)";
     return `<div style="display:flex;justify-content:space-between;padding:.22rem .55rem;border-radius:4px;background:var(--bg3);font-size:.68rem;gap:.8rem;border:1px solid var(--blborder)">
       <span style="color:var(--gray)">Yr ${i+1} <span style="color:${ageColor};font-size:.58rem">(age ${ageYr})</span></span>
       <span>$${base.toFixed(1)}M base</span>
@@ -9511,16 +9513,16 @@ function _extensionModalInnerHtml() {
     if (i === 0) { _baseline0 = baseline; _after0 = free; }
     const pct = projCap > 0 ? (total / projCap) * 100 : 100;
     const pctClamp = Math.min(100, pct);
-    const barColor = pct < 85 ? "#86e0a3" : pct < 95 ? "#cce8d6" : pct < 100 ? "#e0b078" : "#ff8a8a";
-    const freeColor = free < 0 ? "#ff8a8a" : free > 20 ? "#86e0a3" : free > 5 ? "#cce8d6" : "#e0b078";
+    const barColor = pct < 85 ? "var(--ds-grade-pos)" : pct < 95 ? "var(--ds-grade-pos-soft)" : pct < 100 ? "var(--ds-grade-caution-soft)" : "var(--ds-grade-neg)";
+    const freeColor = free < 0 ? "var(--ds-grade-neg)" : free > 20 ? "var(--ds-grade-pos)" : free > 5 ? "var(--ds-grade-pos-soft)" : "var(--ds-grade-caution-soft)";
     return `<div style="display:grid;grid-template-columns:2.5rem 1fr 6.5rem 5rem;gap:.4rem;align-items:center;padding:.18rem 0;font-size:.62rem">
       <span style="color:var(--gray);font-weight:700">Yr ${i+1}</span>
       <div style="position:relative;height:10px;background:var(--bg3);border-radius:1px;overflow:hidden;border:1px solid var(--blborder)">
         <div style="position:absolute;top:0;left:0;height:100%;width:${pctClamp}%;background:${barColor};transition:width .12s"></div>
         ${pct > 100 ? `<div style="position:absolute;top:0;left:100%;height:100%;width:6px;background:var(--ds-grade-neg);animation:frn-extension-shake 0.6s infinite"></div>` : ""}
       </div>
-      <span style="color:var(--white);text-align:right;font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:.3px">$${total.toFixed(0)}M / $${projCap.toFixed(0)}M</span>
-      <span style="color:${freeColor};text-align:right;font-weight:700;font-family:'Bebas Neue','Anton',sans-serif">${free < 0 ? "⚠ −$" + (-free).toFixed(1) : "$" + free.toFixed(1)}M</span>
+      <span style="color:var(--white);text-align:right;font-family:var(--font-display);letter-spacing:.3px">$${total.toFixed(0)}M / $${projCap.toFixed(0)}M</span>
+      <span style="color:${freeColor};text-align:right;font-weight:700;font-family:var(--font-display)">${free < 0 ? "⚠ −$" + (-free).toFixed(1) : "$" + free.toFixed(1)}M</span>
     </div>`;
   }).join("") : "";
   // Before→after cap-room headline for THIS season — the single line that
@@ -9535,11 +9537,11 @@ function _extensionModalInnerHtml() {
     const dRoom      = roomAfter - roomBefore;
     const _money     = v => (v < 0 ? `−$${(-v).toFixed(1)}M` : `$${v.toFixed(1)}M`);
     const dStr       = Math.abs(dRoom) < 0.05 ? "no change" : (dRoom < 0 ? `−$${(-dRoom).toFixed(1)}M` : `+$${dRoom.toFixed(1)}M`);
-    const dColor     = dRoom < -0.05 ? "#e0b078" : dRoom > 0.05 ? "#86e0a3" : "var(--gray)";
-    const afterColor = roomAfter < 0 ? "#ff8a8a" : "#86e0a3";
+    const dColor     = dRoom < -0.05 ? "var(--ds-grade-caution-soft)" : dRoom > 0.05 ? "var(--ds-grade-pos)" : "var(--gray)";
+    const afterColor = roomAfter < 0 ? "var(--ds-grade-neg)" : "var(--ds-grade-pos)";
     capDeltaHtml = `<div style="display:flex;align-items:baseline;justify-content:space-between;gap:.6rem;margin-bottom:.4rem;padding-bottom:.3rem;border-bottom:1px solid var(--blborder)">
       <span style="font-size:.62rem;color:var(--gray)">Cap room this season</span>
-      <span style="font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:.4px;font-size:1rem">
+      <span style="font-family:var(--font-display);letter-spacing:.4px;font-size:1rem">
         <span style="color:var(--white)">${_money(roomBefore)}</span>
         <span style="color:var(--gray);font-size:.8rem">→</span>
         <span style="color:${afterColor}">${_money(roomAfter)}</span>
@@ -9548,7 +9550,7 @@ function _extensionModalInnerHtml() {
     </div>`;
   }
   const teamImpactHtml = teamImpactRows ? `
-    <div style="margin-top:.55rem;padding:.4rem .55rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:3px">
+    <div style="margin-top:.55rem;padding:.4rem .55rem;background:var(--ds-tint-white-025);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.25rem">
         <span style="font-size:.55rem;color:var(--ds-gold-dim);letter-spacing:1.2px;font-weight:700">📊 TEAM CAP IMPACT</span>
         <span style="color:var(--gray);font-size:.5rem">with this deal applied · cap projected +5%/yr</span>
@@ -9558,12 +9560,12 @@ function _extensionModalInnerHtml() {
     </div>` : "";
   // Offer vs market read
   const pctMkt = s.market > 0 ? (s.offer / s.market) * 100 : 100;
-  const pctColor = pctMkt < 90 ? "#86e0a3" : pctMkt < 100 ? "#a8d8b6" : pctMkt < 110 ? "var(--gold)" : "#ff8a8a";
+  const pctColor = pctMkt < 90 ? "var(--ds-grade-pos)" : pctMkt < 100 ? "var(--ds-grade-pos-mid)" : pctMkt < 110 ? "var(--gold)" : "var(--ds-grade-neg)";
   const pctLabel = pctMkt < 85 ? "MAY DECLINE" : pctMkt < 95 ? "good deal" : pctMkt < 105 ? "fair" : pctMkt < 115 ? "generous" : "OVERPAY";
   // Structure buttons
   const structOpts = ["FRONT-LOADED", "BALANCED", "BACK-LOADED"];
   const structBtns = structOpts.map(o =>
-    `<button onclick="frnExtensionSetStructure('${o}')" style="background:${o===s.structure?"var(--gold)":"transparent"};color:${o===s.structure?"#000":"var(--gray)"};border:1px solid var(--blborder);padding:.2rem .5rem;font-size:.55rem;letter-spacing:.5px;cursor:pointer;border-radius:2px;font-family:inherit">${o.replace("-"," ")}</button>`
+    `<button onclick="frnExtensionSetStructure('${o}')" style="background:${o===s.structure?"var(--gold)":"transparent"};color:${o===s.structure?"var(--ds-pure-black)":"var(--gray)"};border:1px solid var(--blborder);padding:.2rem .5rem;font-size:.55rem;letter-spacing:.5px;cursor:pointer;border-radius:2px;font-family:inherit">${o.replace("-"," ")}</button>`
   ).join("");
   // Replacement context — the new deal SUPERSEDES the old one
   // starting this season (no "tack on" semantics; same convention
@@ -9594,7 +9596,7 @@ function _extensionModalInnerHtml() {
         <div style="font-size:.55rem;color:var(--gray);letter-spacing:1.2px;margin-bottom:.4rem;font-weight:700">CONTRACT LENGTH</div>
         <div style="display:flex;align-items:center;gap:.5rem;justify-content:center">
           <button onclick="frnExtensionAdjustYears(-1)" ${s.years<=1?"disabled":""} style="background:transparent;border:1px solid var(--blborder);color:var(--gray);width:1.6rem;height:1.6rem;cursor:pointer;font-family:inherit;border-radius:2px">−</button>
-          <span style="font-family:'Bebas Neue','Anton',sans-serif;font-size:2rem;color:var(--gold);letter-spacing:1px;min-width:3rem;text-align:center">${s.years}yr</span>
+          <span style="font-family:var(--font-display);font-size:2rem;color:var(--gold);letter-spacing:1px;min-width:3rem;text-align:center">${s.years}yr</span>
           <button onclick="frnExtensionAdjustYears(1)" ${s.years>=s.posMax?"disabled":""} style="background:transparent;border:1px solid var(--blborder);color:var(--gray);width:1.6rem;height:1.6rem;cursor:pointer;font-family:inherit;border-radius:2px">+</button>
         </div>
         <div style="text-align:center;font-size:.55rem;color:var(--gray);margin-top:.3rem">max ${s.posMax}yr for ${p.position} at age ${age}</div>
@@ -9603,7 +9605,7 @@ function _extensionModalInnerHtml() {
         <div style="font-size:.55rem;color:var(--gray);letter-spacing:1.2px;margin-bottom:.4rem;font-weight:700">OFFER AAV</div>
         <div style="display:flex;align-items:center;gap:.5rem;justify-content:center">
           <button onclick="frnExtensionAdjustOffer(-0.5)" style="background:transparent;border:1px solid var(--blborder);color:var(--gray);width:1.6rem;height:1.6rem;cursor:pointer;font-family:inherit;border-radius:2px">−</button>
-          <span style="font-family:'Bebas Neue','Anton',sans-serif;font-size:2rem;color:${pctColor};letter-spacing:1px;min-width:5rem;text-align:center">$${s.offer.toFixed(1)}M</span>
+          <span style="font-family:var(--font-display);font-size:2rem;color:${pctColor};letter-spacing:1px;min-width:5rem;text-align:center">$${s.offer.toFixed(1)}M</span>
           <button onclick="frnExtensionAdjustOffer(0.5)" style="background:transparent;border:1px solid var(--blborder);color:var(--gray);width:1.6rem;height:1.6rem;cursor:pointer;font-family:inherit;border-radius:2px">+</button>
         </div>
         <div style="text-align:center;font-size:.55rem;color:${pctColor};margin-top:.3rem;letter-spacing:.5px;font-weight:700">${pctMkt.toFixed(0)}% of market · ${pctLabel}</div>
@@ -9705,7 +9707,7 @@ function _resignRecommendation(r, depth, faMkt, ageWarn, isInjuryProne, trend) {
   const tier = _resignTier(r);
   if (tier === "foundation") {
     if (ageWarn?.level === "danger" || (trend != null && trend <= -3)) {
-      return { action: "EVALUATE", color: "#e8a000",
+      return { action: "EVALUATE", color: "var(--ds-grade-caution)",
         reason: "Franchise talent, but age / decline risk on a long deal" };
     }
     return { action: "RE-SIGN", color: "var(--green-lt)",
@@ -9713,25 +9715,25 @@ function _resignRecommendation(r, depth, faMkt, ageWarn, isInjuryProne, trend) {
   }
   if (tier === "starter") {
     if (ageWarn?.level === "danger") {
-      return { action: "LET WALK", color: "#ff8a8a",
+      return { action: "LET WALK", color: "var(--ds-grade-neg)",
         reason: `Age cliff at expiry · ${depth} other ${r.pos} ≥75 available` };
     }
     if (depth >= 2 && faMkt >= 4) {
-      return { action: "EVALUATE", color: "#e8a000",
+      return { action: "EVALUATE", color: "var(--ds-grade-caution)",
         reason: `${depth} starter-grade ${r.pos} on roster · ${faMkt} on FA market` };
     }
     if (isInjuryProne) {
-      return { action: "EVALUATE", color: "#e8a000",
+      return { action: "EVALUATE", color: "var(--ds-grade-caution)",
         reason: "Injury history makes a long deal risky" };
     }
     return { action: "RE-SIGN", color: "var(--green-lt)",
       reason: depth === 0 ? "Position need — keep them" : "Solid starter, hard to replace at market" };
   }
   if (depth >= 1 || faMkt >= 3) {
-    return { action: "LET WALK", color: "#ff8a8a",
+    return { action: "LET WALK", color: "var(--ds-grade-neg)",
       reason: `Depth piece · ${depth} other ${r.pos} ≥75 OVR, ${faMkt} on FA market` };
   }
-  return { action: "EVALUATE", color: "#e8a000",
+  return { action: "EVALUATE", color: "var(--ds-grade-caution)",
     reason: "Thin at position — consider a cheap 1-2yr deal" };
 }
 
@@ -9816,14 +9818,14 @@ function _renderCounterComposer(opts) {
 
   const odds = _holdoutAcceptOdds(offer, offerYears, demandedAAV, demandedYears);
   const oddsPct = Math.round(odds * 100);
-  const oddsColor = odds >= 0.85 ? "var(--green-lt)" : odds >= 0.5 ? "#e8a000" : "#ff8a8a";
+  const oddsColor = odds >= 0.85 ? "var(--green-lt)" : odds >= 0.5 ? "var(--ds-grade-caution)" : "var(--ds-grade-neg)";
   const vsMarket = marketAAV > 0 ? offer / marketAAV : 1;
   const vsMarketStr = marketAAV > 0
     ? (vsMarket >= 1.05 ? `${Math.round((vsMarket-1)*100)}% over market`
       : vsMarket >= 0.95 ? `at market`
       : `${Math.round((1-vsMarket)*100)}% under market`)
     : "";
-  const vsMarketColor = vsMarket >= 1.10 ? "#ff8a8a" : vsMarket >= 0.95 ? "var(--gold)" : "var(--green-lt)";
+  const vsMarketColor = vsMarket >= 1.10 ? "var(--ds-grade-neg)" : vsMarket >= 0.95 ? "var(--gold)" : "var(--green-lt)";
 
   // AAV step buttons
   const aavBtn = (delta, label) =>
@@ -10154,7 +10156,7 @@ function _renderResignUI(cap, capCommitted) {
       const yearPills = bases.map((base, i) => {
         const hit = Math.round((base + bonusProration) * 10) / 10;
         const ageYr = ageAtSign + i;
-        const ageColor = ageYr >= 34 ? "#ff8a8a" : ageYr >= 31 ? "#e8a000" : "var(--gray)";
+        const ageColor = ageYr >= 34 ? "var(--ds-grade-neg)" : ageYr >= 31 ? "var(--ds-grade-caution)" : "var(--gray)";
         return `<div style="display:flex;justify-content:space-between;padding:.18rem .4rem;border-radius:4px;background:var(--bg3);font-size:.67rem;gap:.8rem">
           <span style="color:var(--gray)">Yr ${i+1} <span style="color:${ageColor};font-size:.58rem">(age ${ageYr})</span></span>
           <span>$${base.toFixed(1)}M base</span>
@@ -10215,12 +10217,12 @@ function _renderResignUI(cap, capCommitted) {
     // ── Player demand vs your offer ────────────────────────────────
     const demand = _resignPlayerDemand(livePlayer, r, r.baseMarket);
     const odds = _resignAcceptOdds(r.offer, r.offerYears, demand);
-    const oddsColor = odds >= 0.85 ? "var(--green-lt)" : odds >= 0.5 ? "#e8a000" : "#ff8a8a";
+    const oddsColor = odds >= 0.85 ? "var(--green-lt)" : odds >= 0.5 ? "var(--ds-grade-caution)" : "var(--ds-grade-neg)";
     // Premium math: how much MORE per year they're asking vs their old deal
     const aavRaise = curAav > 0 ? demand.aav - curAav : 0;
     const raisePct = curAav > 0 ? Math.round((aavRaise / curAav) * 100) : 0;
-    const raiseColor = aavRaise >= curAav * 0.5 ? "#ff8a8a"
-                     : aavRaise >= curAav * 0.25 ? "#e8a000"
+    const raiseColor = aavRaise >= curAav * 0.5 ? "var(--ds-grade-neg)"
+                     : aavRaise >= curAav * 0.25 ? "var(--ds-grade-caution)"
                      : aavRaise > 0 ? "var(--gold)" : "var(--green-lt)";
     const raiseStr = curAav > 0
       ? `<span style="color:${raiseColor};font-size:.62rem;font-weight:700">${aavRaise >= 0 ? "+" : ""}$${aavRaise.toFixed(1)}M/yr (${raisePct >= 0 ? "+" : ""}${raisePct}%)</span>`
@@ -10258,8 +10260,8 @@ function _renderResignUI(cap, capCommitted) {
     // dollar premium the user pays to keep him over replacing him.
     const surplus = _resignSurplusVsComp(r, compPick);
     const surplusHtml = surplus ? (() => {
-      const premiumColor = surplus.premium >= surplus.rookieTotal * 4 ? "#ff8a8a"
-                         : surplus.premium >= surplus.rookieTotal * 2 ? "#e8a000"
+      const premiumColor = surplus.premium >= surplus.rookieTotal * 4 ? "var(--ds-grade-neg)"
+                         : surplus.premium >= surplus.rookieTotal * 2 ? "var(--ds-grade-caution)"
                          : "var(--gold-lt)";
       const roundLabel = { 3:"3rd", 4:"4th", 5:"5th", 6:"6th", 7:"7th" }[surplus.round] || `R${surplus.round}`;
       return `<div style="font-size:.6rem;color:var(--gray);margin-top:.18rem;line-height:1.4">
@@ -10347,7 +10349,7 @@ function _renderResignUI(cap, capCommitted) {
             ${DS.button({ label: "Review & Sign", class: "frn-resign-btn accept-btn", on: `_resignPreview=${idx};_renderResignUIRefresh()` })}
             ${DS.button({ label: _resignCounterFor === idx ? '↻ Close' : '↻ Counter', class: `frn-resign-btn accept-btn ${_resignCounterFor === idx ? 'active' : ''}`, on: _resignCounterFor === idx ? 'frnResignCounterClose()' : `frnResignCounter(${idx})`, title: "Open the counter composer — tune AAV / years / snap to a preset", attrs: { style: "border-color:var(--gold-lt);color:var(--gold-lt)" } })}
             ${_franchiseTagAvailable() ? DS.button({ label: "🏷 Tag", class: "frn-resign-btn accept-btn", on: `frnResignTag(${idx})`, title: `Franchise tag: 1yr fully guaranteed at top-5 position avg ($${_franchiseTagAAV({position: r.pos, name: r.name}, cap).toFixed(1)}M)`, attrs: { style: "border-color:var(--gold);color:var(--gold)" } }) : ""}
-            <button class="btn frn-resign-btn decline-btn" onclick="frnResignDecide(${idx},'decline')" title="${compPick?compPick.label:''}">Let Walk${compPick?`<span style="font-size:.5rem;display:block;color:var(--gold-lt)">${compPick.label}</span>`:""}</button>
+            ${DS.button({ labelHtml: `Let Walk${compPick?`<span style="font-size:.5rem;display:block;color:var(--gold-lt)">${compPick.label}</span>`:""}`, class: "frn-resign-btn decline-btn", on: `frnResignDecide(${idx},'decline')`, title: compPick ? compPick.label : "" })}
           </div>
         </div>
         ${counterHtml}
@@ -10400,7 +10402,7 @@ function _renderResignUI(cap, capCommitted) {
             ? { label: "⭐ STEAL", color: "var(--green-lt)", text: `Market $${market.toFixed(1)}M beats option $${optVal.toFixed(1)}M` }
             : ratio >= 0.92
               ? { label: "≈ FAIR", color: "var(--gold)", text: `Market $${market.toFixed(1)}M ≈ option $${optVal.toFixed(1)}M` }
-              : { label: "⚠ OVERPAY", color: "#ff9090", text: `Market $${market.toFixed(1)}M < option $${optVal.toFixed(1)}M` };
+              : { label: "⚠ OVERPAY", color: "var(--ds-grade-neg-mid)", text: `Market $${market.toFixed(1)}M < option $${optVal.toFixed(1)}M` };
           const escNm = p.name.replace(/'/g, "\\'").replace(/"/g, "&quot;");
           const tag = (typeof potentialTag === "function") ? potentialTag(p, { known: true }) : "";
           const stat = _statLine(p.name);
@@ -10417,7 +10419,7 @@ function _renderResignUI(cap, capCommitted) {
             </div>
             <div style="display:flex;gap:.35rem">
               ${DS.button({ label: "✓ Pick up", variant: "gold", on: `frnTeamOptionDecide('${escNm}','${p.position}',true)`, title: `Keep him at option value $${optVal.toFixed(1)}M`, attrs: { style: "font-size:.65rem;padding:.28rem .55rem" } })}
-              ${DS.button({ label: "↗ Decline", variant: "outline", on: `frnTeamOptionDecide('${escNm}','${p.position}',false)`, title: "Player walks to FA cleanly (no dead cap)", attrs: { style: "font-size:.65rem;padding:.28rem .55rem;color:#ff9090;border-color:#552020" } })}
+              ${DS.button({ label: "↗ Decline", variant: "outline", on: `frnTeamOptionDecide('${escNm}','${p.position}',false)`, title: "Player walks to FA cleanly (no dead cap)", attrs: { style: "font-size:.65rem;padding:.28rem .55rem;color:var(--ds-grade-neg-mid);border-color:#552020" } })}
             </div>
           </div>`;
         }).join("")}
@@ -10434,7 +10436,7 @@ function _renderResignUI(cap, capCommitted) {
   const projHtml = `<div class="frn-resign-cap-timeline">
     ${proj.map((v, i) => {
       const pct = Math.min(100, (v / Math.max(1, cap)) * 100);
-      const color = v > cap ? "var(--red)" : v > cap * 0.90 ? "#e8a000" : "var(--green-lt)";
+      const color = v > cap ? "var(--red)" : v > cap * 0.90 ? "var(--ds-grade-caution)" : "var(--green-lt)";
       return `<div class="frn-resign-cap-year" data-cap-year="${i}" data-cap-used="${v}">
         <div class="lbl">Y${i+1}</div>
         <div class="bar">
@@ -10532,7 +10534,7 @@ function frnOpenResignRecap() {
 
   const projHtml = proj.map((v, i) => {
     const pct = Math.min(100, (v / Math.max(1, cap)) * 100);
-    const color = v > cap ? "var(--red)" : v > cap * 0.90 ? "#e8a000" : "var(--green-lt)";
+    const color = v > cap ? "var(--red)" : v > cap * 0.90 ? "var(--ds-grade-caution)" : "var(--green-lt)";
     return `<div class="frn-resign-cap-year" data-cap-year="${i}" data-cap-used="${v}">
       <div class="lbl">Y${i+1}</div>
       <div class="bar">
@@ -10578,7 +10580,7 @@ function frnOpenResignRecap() {
         </div>
         <div class="frn-resign-recap-stat">
           <span class="lbl">DECLINED</span>
-          <span class="val" style="color:${declined.length?"#ff8a8a":"var(--blgray)"}">${declined.length}</span>
+          <span class="val" style="color:${declined.length?"var(--ds-grade-neg)":"var(--blgray)"}">${declined.length}</span>
           <span class="sub">to free agency</span>
         </div>
       </div>
@@ -10735,7 +10737,7 @@ function frnResignSetStructure(idx, structure) {
 }
 
 async function frnResignTag(idx) {
-  if (!_franchiseTagAvailable()) { alert("You've already used your franchise tag this offseason."); return; }
+  if (!_franchiseTagAvailable()) { if (typeof DS !== "undefined") DS.toast({ message: "You've already used your franchise tag this offseason.", kind: "warn" }); else alert("You've already used your franchise tag this offseason."); return; }
   const row = franchise._resignPending?.[idx];
   if (!row || row.decision) return;
   const cap = effectiveSalaryCap(franchise.chosenTeamId);
@@ -10894,7 +10896,7 @@ function renderFrnAwards() {
   const sbAwayT = sb ? getTeam(sb.awayId) : null;
   const champRec = latest.championRecord || { w:0, l:0 };
   const championHero = champTeam ? `
-    <div class="bspnlive-awards-hero" style="--champ-color:${champTeam.primary};--champ-ink:${_teamInk(champTeam.primary)};--champ-2:${champTeam.secondary || '#fff'}">
+    <div class="bspnlive-awards-hero" style="--champ-color:${champTeam.primary};--champ-ink:${_teamInk(champTeam.primary)};--champ-2:${champTeam.secondary || 'var(--ds-pure-white)'}">
       <div class="bspnlive-awards-hero-stripe"></div>
       <div class="bspnlive-awards-hero-body">
         <div class="bspnlive-awards-hero-eyebrow">SEASON ${season} · CHAMPIONS</div>
@@ -11101,7 +11103,7 @@ function renderFrnAwards() {
       ? `<span style="color:var(--blgray);font-size:.6rem;margin-left:.4rem">${r.votePct}% of vote</span>`
       : "";
     return `
-    <div class="bspnlive-hof-row" style="border-left-color:${r.teamPrimary || "#888"}">
+    <div class="bspnlive-hof-row" style="border-left-color:${r.teamPrimary || "var(--ds-neutral)"}">
       <div class="bspnlive-hof-trophy">🏛</div>
       <div class="bspnlive-hof-body">
         <div class="bspnlive-hof-name">${link(r)} <span style="color:var(--blgray);font-size:.65rem">(${r.pos})</span>${fbTag}${voteTag}</div>
@@ -11247,7 +11249,7 @@ function renderFrnAwards() {
             <span class="bspnlive-broken-cat">${b.label}</span>
           </div>
           <div class="bspnlive-broken-new">
-            <b style="color:var(--blgold);font-size:1.1rem;font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:1px">${b["new"].value}</b>
+            <b style="color:var(--blgold);font-size:1.1rem;font-family:var(--font-display);letter-spacing:1px">${b["new"].value}</b>
             ${_playerLinkSmart(b["new"].playerName)}
             <span style="color:var(--blgray);font-size:.65rem">(${b["new"].pos}${t ? " · " + _bspnLiveAbbr(t) : ""})</span>
           </div>
@@ -11481,7 +11483,7 @@ function _buildExtensionPitch(ctx, live, cap) {
   const wpsConst = (typeof GAMES_PER_TEAM === "number" ? GAMES_PER_TEAM : 17);
   const maxGP = seasonsCompleted * wpsConst;
   const availPct = maxGP > 0 ? Math.min(100, Math.round(histGP / maxGP * 100)) : 0;
-  const availColor = availPct >= 90 ? "var(--green-lt)" : availPct >= 75 ? "var(--gold)" : "#ff8a8a";
+  const availColor = availPct >= 90 ? "var(--green-lt)" : availPct >= 75 ? "var(--gold)" : "var(--ds-grade-neg)";
   const availStr = seasonsCompleted > 0
     ? `${availPct}% (${histGP}/${maxGP} GP across ${seasonsCompleted} season${seasonsCompleted===1?"":"s"})`
     : `rookie season in progress`;
@@ -11494,10 +11496,10 @@ function _buildExtensionPitch(ctx, live, cap) {
     const yrsToDecline = declineAge - (live.age || 27);
     if (yrsToDecline > 0) {
       windowStr = `${yrsToDecline} yr${yrsToDecline===1?"":"s"} before age ${declineAge} decline${peakAge && live.age < peakAge ? ` · still ${peakAge - live.age}yr from peak` : ""}`;
-      windowColor = yrsToDecline >= 4 ? "var(--green-lt)" : yrsToDecline >= 2 ? "var(--gold)" : "#ff8a8a";
+      windowColor = yrsToDecline >= 4 ? "var(--green-lt)" : yrsToDecline >= 2 ? "var(--gold)" : "var(--ds-grade-neg)";
     } else {
       windowStr = `Past decline age (${declineAge}) — regression possible`;
-      windowColor = "#ff8a8a";
+      windowColor = "var(--ds-grade-neg)";
     }
   }
 
@@ -11511,7 +11513,7 @@ function _buildExtensionPitch(ctx, live, cap) {
   const compareToTop5 = demandedAAV >= top5Aav * 1.05 ? `above top-5 avg`
                       : demandedAAV >= top5Aav * 0.95 ? `near top-5 avg`
                       : `below top-5 avg`;
-  const compareColor = demandedAAV >= top5Aav * 1.05 ? "#ff8a8a"
+  const compareColor = demandedAAV >= top5Aav * 1.05 ? "var(--ds-grade-neg)"
                      : demandedAAV >= top5Aav * 0.95 ? "var(--gold)"
                      : "var(--green-lt)";
   const compStr = top5Aav > 0
@@ -11527,7 +11529,7 @@ function _buildExtensionPitch(ctx, live, cap) {
     const ovrDelta = (live.overall || 0) - c.signedOvr;
     const sign = ovrDelta >= 0 ? "+" : "";
     const verdict = ovrDelta >= 3 ? "delivered" : ovrDelta >= 0 ? "held the line" : ovrDelta >= -3 ? "regressed mildly" : "fell off the deal";
-    moneysWorthColor = ovrDelta >= 3 ? "var(--green-lt)" : ovrDelta >= 0 ? "var(--gold)" : "#ff8a8a";
+    moneysWorthColor = ovrDelta >= 3 ? "var(--green-lt)" : ovrDelta >= 0 ? "var(--gold)" : "var(--ds-grade-neg)";
     moneysWorthStr = `Signed at $${c.signedAav.toFixed(1)}M / ${c.signedOvr} OVR → now ${live.overall} OVR (${sign}${ovrDelta}) — ${verdict}`;
   }
 
@@ -11562,7 +11564,7 @@ function _buildExtensionPitch(ctx, live, cap) {
       aav: aav2, years: yrs,
       total: aav2 * yrs,
       note: `next cycle (×${mult2.toFixed(2)}) on +7% market`,
-      color: "#e8a000",
+      color: "var(--ds-grade-caution)",
     };
     // Walk year: leverage premium kicks in plus N years of cap growth.
     // Leverage is OVR-tier aware — mirrors _walkYearLeverage so the
@@ -11576,7 +11578,7 @@ function _buildExtensionPitch(ctx, live, cap) {
       aav: aavWalk, years: yrs,
       total: aavWalk * yrs,
       note: `walk-year leverage (×${walkLev.toFixed(2)}) in ${yrsUntilWalk}yr`,
-      color: "#ff8a8a",
+      color: "var(--ds-grade-neg)",
     } : null;
 
     const rows = [signNow, wait1, walkRow].filter(Boolean);
@@ -11612,16 +11614,16 @@ function _buildExtensionPitch(ctx, live, cap) {
   let verdict;
   if (priceGap >= 1.20) {
     verdict = pastDecline
-      ? { text: `Past decline + asking ${premiumPct}% over market — let him walk`, color: "#ff8a8a" }
+      ? { text: `Past decline + asking ${premiumPct}% over market — let him walk`, color: "var(--ds-grade-neg)" }
       : (overallTier === "elite" && youngEnough)
-        ? { text: `Elite, but asking ${premiumPct}% over market — counter hard`, color: "#e8a000" }
-        : { text: `Asking ${premiumPct}% over market — counter or walk`, color: "#ff8a8a" };
+        ? { text: `Elite, but asking ${premiumPct}% over market — counter hard`, color: "var(--ds-grade-caution)" }
+        : { text: `Asking ${premiumPct}% over market — counter or walk`, color: "var(--ds-grade-neg)" };
   } else if (priceGap >= 1.10) {
     verdict = (overallTier === "elite" && youngEnough)
       ? { text: `Pay the ${premiumPct}% premium — elite, prime, no replacement`, color: "var(--gold)" }
       : (inPrime && availPct >= 85)
         ? { text: `Modest premium (${premiumPct}%) for proven production — defensible`, color: "var(--gold-lt)" }
-        : { text: `Asking ${premiumPct}% over market — counter to fair value`, color: "#e8a000" };
+        : { text: `Asking ${premiumPct}% over market — counter to fair value`, color: "var(--ds-grade-caution)" };
   } else if (priceGap <= 0.85 && live.overall >= 78) {
     verdict = { text: `Below-market ask (-${Math.round((1-priceGap)*100)}%) — sign before he reconsiders`, color: "var(--green-lt)" };
   } else if (overallTier === "elite" && youngEnough) {
@@ -11629,7 +11631,7 @@ function _buildExtensionPitch(ctx, live, cap) {
   } else if (inPrime && availPct >= 80) {
     verdict = { text: "Pay him — peak production, availability proven", color: "var(--gold)" };
   } else if (pastDecline) {
-    verdict = { text: "Risky — production may not match dollars over deal length", color: "#ff8a8a" };
+    verdict = { text: "Risky — production may not match dollars over deal length", color: "var(--ds-grade-neg)" };
   } else {
     verdict = { text: "Solid contributor — extend at fair value, avoid premium years", color: "var(--gold-lt)" };
   }
@@ -11652,7 +11654,7 @@ function _buildExtensionPitch(ctx, live, cap) {
       ${compStr ? row("Comp $",  compStr) : ""}
     </div>
     ${costTimelineHtml}
-    <div style="margin-top:.3rem;padding:.3rem .45rem;background:rgba(255,255,255,.04);border-left:2px solid ${verdict.color};border-radius:2px;font-size:.65rem;color:${verdict.color}">
+    <div style="margin-top:.3rem;padding:.3rem .45rem;background:var(--ds-tint-white-04);border-left:2px solid ${verdict.color};border-radius:2px;font-size:.65rem;color:${verdict.color}">
       <b style="letter-spacing:.5px">VERDICT</b> · ${verdict.text}
     </div>
   </div>`;
@@ -11939,7 +11941,7 @@ function _holdoutRecommendation(h, depth, faMkt, ageWarn, isInjuryProne, trend) 
       reason: "Franchise cornerstone — extension before he gets unhappier" };
   }
   if (ageDanger || (declining && ovr >= 88)) {
-    return { action: "COUNTER", color: "#e8a000",
+    return { action: "COUNTER", color: "var(--ds-grade-caution)",
       reason: "Age / decline risk on a long deal — counter shorter and cheaper" };
   }
   if (depth >= 2 && faMkt >= 3 && ovr < 90) {
@@ -11947,11 +11949,11 @@ function _holdoutRecommendation(h, depth, faMkt, ageWarn, isInjuryProne, trend) 
       reason: `${depth} starter-grade ${h.position} on roster · flip for picks` };
   }
   if (isInjuryProne) {
-    return { action: "COUNTER", color: "#e8a000",
+    return { action: "COUNTER", color: "var(--ds-grade-caution)",
       reason: "Injury history makes long money risky" };
   }
   if (aboveMarket) {
-    return { action: "COUNTER", color: "#e8a000",
+    return { action: "COUNTER", color: "var(--ds-grade-caution)",
       reason: "Demand sits above market — counter at value" };
   }
   return { action: "PAY", color: "var(--green-lt)",
@@ -12209,7 +12211,7 @@ function frnOpenHoldoutRecap() {
 
   const projHtml = proj.map((v, i) => {
     const pct = Math.min(100, (v / Math.max(1, cap)) * 100);
-    const color = v > cap ? "var(--red)" : v > cap * 0.90 ? "#e8a000" : "var(--green-lt)";
+    const color = v > cap ? "var(--red)" : v > cap * 0.90 ? "var(--ds-grade-caution)" : "var(--green-lt)";
     return `<div class="frn-resign-cap-year" data-cap-year="${i}" data-cap-used="${v}">
       <div class="lbl">Y${i+1}</div>
       <div class="bar">
@@ -12244,7 +12246,7 @@ function frnOpenHoldoutRecap() {
         </div>
         <div class="frn-resign-recap-stat">
           <span class="lbl">IGNORED</span>
-          <span class="val" style="color:${ignored.length?"#ff8a8a":"var(--blgray)"}">${ignored.length}</span>
+          <span class="val" style="color:${ignored.length?"var(--ds-grade-neg)":"var(--blgray)"}">${ignored.length}</span>
           <span class="sub">${ignored.length?"flight risk":"—"}</span>
         </div>
       </div>
@@ -14275,7 +14277,7 @@ function frnDevReportTab(id) {
 // not a flag emitter. The "B" tier here maps to potentialTag's
 // "no tag" zone; intentional divergence, not drift.
 //
-// A tier uses cyan (#5ed4d4) instead of the room-color blue (#86c8ff)
+// A tier uses cyan (--ds-cyan) instead of the room-color blue (--ds-accent-blue)
 // to prevent the doubled-blue blur the audit flagged when a tier-A
 // player also had +5 room.
 // ── CHART HELPERS (Player Development Report) ──────────────────────
@@ -14286,8 +14288,8 @@ function frnDevReportTab(id) {
 // its own color.
 const _CHART_W = 360;
 const _CHART_H = 240;
-const _CHART_TITLE = "#a98a2e";  // gold-dim chrome
-const _CHART_STYLE = `width:100%;height:auto;max-width:560px;background:rgba(255,255,255,.02);border-radius:4px;font-family:var(--font-data)`;
+const _CHART_TITLE = "var(--ds-gold-dim)";  // gold-dim chrome
+const _CHART_STYLE = `width:100%;height:auto;max-width:560px;background:var(--ds-tint-white-02);border-radius:4px;font-family:var(--font-data)`;
 
 // Ensure a roster avg-OVR snapshot exists for the season just
 // completed. Idempotent: only pushes if no entry yet for the current
@@ -14335,7 +14337,7 @@ function _devChartPosTipEl() {
   if (el) return el;
   el = document.createElement("div");
   el.id = "frn-dev-pos-tooltip";
-  el.style.cssText = `position:fixed;z-index:9999;background:#0a1410;border:1px solid #a98a2e;border-radius:3px;padding:.5rem .65rem;box-shadow:0 4px 18px rgba(0,0,0,0.55);font-family:var(--font-data);font-size:11px;opacity:0;transition:opacity 0.14s ease-out;pointer-events:none;min-width:220px;max-width:320px;color:#cce8d6;left:0;top:0;transform:translate(-50%,-100%) translateY(-8px)`;
+  el.style.cssText = `position:fixed;z-index:9999;background:#0a1410;border:1px solid var(--ds-gold-dim);border-radius:3px;padding:.5rem .65rem;box-shadow:0 4px 18px rgba(0,0,0,0.55);font-family:var(--font-data);font-size:11px;opacity:0;transition:opacity 0.14s ease-out;pointer-events:none;min-width:220px;max-width:320px;color:var(--ds-grade-pos-soft);left:0;top:0;transform:translate(-50%,-100%) translateY(-8px)`;
   document.body.appendChild(el);
   return el;
 }
@@ -14344,20 +14346,20 @@ function _devChartPosShow(evt, pos) {
   if (!players.length) return;
   const net = players.reduce((s, p) => s + p.delta, 0);
   const netStr = net > 0 ? `+${net}` : `${net}`;
-  const netColor = net > 0 ? "#86e0a3" : net < 0 ? "#ff9b9b" : "#7a8b85";
+  const netColor = net > 0 ? "var(--ds-grade-pos)" : net < 0 ? "var(--ds-grade-neg-soft)" : "var(--ds-slate-lt)";
   const rows = players.map(p => {
-    const dColor = p.delta > 0 ? "#86e0a3" : p.delta < 0 ? "#ff9b9b" : "#7a8b85";
+    const dColor = p.delta > 0 ? "var(--ds-grade-pos)" : p.delta < 0 ? "var(--ds-grade-neg-soft)" : "var(--ds-slate-lt)";
     const dStr   = p.delta > 0 ? `+${p.delta}` : p.delta < 0 ? `${p.delta}` : "—";
     return `<div style="display:grid;grid-template-columns:1fr 2rem 3rem;gap:.4rem;align-items:baseline;padding:.1rem 0;font-size:10.5px">
       <span title="${_escHtml(p.name)}" style="color:var(--ds-grade-pos-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}<span style="color:var(--ds-slate);font-size:9px;margin-left:.3rem">${p.age || ""}</span></span>
       <span style="color:${dColor};font-weight:700;text-align:right">${dStr}</span>
-      <span style="color:#7a8b85;font-size:9.5px;text-align:right;font-family:'Bebas Neue',sans-serif;letter-spacing:.5px">${p.preOvr}→${p.postOvr}</span>
+      <span style="color:var(--ds-slate-lt);font-size:9.5px;text-align:right;font-family:var(--font-display);letter-spacing:.5px">${p.preOvr}→${p.postOvr}</span>
     </div>`;
   }).join("");
   const el = _devChartPosTipEl();
   el.innerHTML = `
     <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:.3rem;margin-bottom:.3rem;border-bottom:1px solid #2a3a32">
-      <span style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:#f5c542;letter-spacing:1.2px">${pos}</span>
+      <span style="font-family:var(--font-display);font-size:14px;color:#f5c542;letter-spacing:1.2px">${pos}</span>
       <span style="color:var(--ds-slate);font-size:9.5px">${players.length} player${players.length===1?"":"s"} · NET <b style="color:${netColor}">${netStr}</b></span>
     </div>
     ${rows}`;
@@ -14371,8 +14373,8 @@ function _devChartPosShow(evt, pos) {
   // Reset the border in case a previous tier hover set a thicker
   // tier-color left edge — Chart A always uses the default
   // gold-dim 1px border.
-  el.style.borderLeft = `1px solid #a98a2e`;
-  el.style.borderColor = "#a98a2e";
+  el.style.borderLeft = `1px solid var(--ds-gold-dim)`;
+  el.style.borderColor = "var(--ds-gold-dim)";
   el.style.opacity = "1";
 }
 function _devChartPosHide() {
@@ -14386,28 +14388,28 @@ function _devChartPosHide() {
 // hovered segment.
 const _CHART_TIER_META = {
   S: { color: "#f5c542", label: "elite ceiling" },
-  A: { color: "#5ed4d4", label: "high ceiling" },
-  B: { color: "#a8d8b6", label: "solid floor" },
-  C: { color: "#e0b078", label: "limited upside" },
-  D: { color: "#ff9b9b", label: "bust risk" },
+  A: { color: "var(--ds-cyan)", label: "high ceiling" },
+  B: { color: "var(--ds-grade-pos-mid)", label: "solid floor" },
+  C: { color: "var(--ds-grade-caution-soft)", label: "limited upside" },
+  D: { color: "var(--ds-grade-neg-soft)", label: "bust risk" },
 };
 function _devChartTierShow(evt, tier) {
   const players = (typeof window !== "undefined" && window._devChartTierData && window._devChartTierData[tier]) || [];
   if (!players.length) return;
-  const meta = _CHART_TIER_META[tier] || { color: "#7a8b85", label: "" };
+  const meta = _CHART_TIER_META[tier] || { color: "var(--ds-slate-lt)", label: "" };
   const rows = players.map(p => {
-    const dColor = p.delta > 0 ? "#86e0a3" : p.delta < 0 ? "#ff9b9b" : "#7a8b85";
+    const dColor = p.delta > 0 ? "var(--ds-grade-pos)" : p.delta < 0 ? "var(--ds-grade-neg-soft)" : "var(--ds-slate-lt)";
     const dArr = p.delta > 0 ? `▲ +${p.delta}` : p.delta < 0 ? `▼ ${p.delta}` : "━";
     return `<div style="display:grid;grid-template-columns:1fr 2.4rem 2.8rem;gap:.4rem;align-items:baseline;padding:.1rem 0;font-size:10.5px">
       <span title="${_escHtml(p.name)}" style="color:var(--ds-grade-pos-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(p.name)}<span style="color:var(--ds-slate);font-size:9px;margin-left:.3rem">${p.pos} · ${p.age || ""}</span></span>
-      <span style="color:var(--ds-grade-pos-soft);font-family:'Bebas Neue',sans-serif;font-size:13px;text-align:right;letter-spacing:.5px">${p.postOvr}</span>
+      <span style="color:var(--ds-grade-pos-soft);font-family:var(--font-display);font-size:13px;text-align:right;letter-spacing:.5px">${p.postOvr}</span>
       <span style="color:${dColor};font-weight:700;text-align:right;font-size:10px">${dArr}</span>
     </div>`;
   }).join("");
   const el = _devChartPosTipEl();
   el.innerHTML = `
     <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:.3rem;margin-bottom:.3rem;border-bottom:1px solid #2a3a32">
-      <span style="font-family:'Bebas Neue',sans-serif;font-size:15px;color:${meta.color};letter-spacing:1.5px">${tier} TIER</span>
+      <span style="font-family:var(--font-display);font-size:15px;color:${meta.color};letter-spacing:1.5px">${tier} TIER</span>
       <span style="color:var(--ds-slate);font-size:9.5px">${players.length} player${players.length===1?"":"s"} · <span style="color:${meta.color};font-style:italic">${meta.label}</span></span>
     </div>
     ${rows}`;
@@ -14415,7 +14417,7 @@ function _devChartTierShow(evt, tier) {
   // hovered segment. Reset border-color too (default is gold-dim,
   // used by Chart A's tooltip — Chart B overrides per-tier).
   el.style.borderLeft = `3px solid ${meta.color}`;
-  el.style.borderColor = `#a98a2e ${meta.color} #a98a2e #a98a2e`;
+  el.style.borderColor = `var(--ds-gold-dim) ${meta.color} var(--ds-gold-dim) var(--ds-gold-dim)`;
   const rect = evt.currentTarget.getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
   const cy = rect.top;
@@ -14442,7 +14444,7 @@ function _devChartHistoryShow(evt, kind, season) {
   const valKey = isOvr ? "avgOvr" : "avgAge";
   const label = isOvr ? "AVG OVR" : "AVG AGE";
   const unit = isOvr ? "" : "yr";
-  const color = isOvr ? "#86c8ff" : "#e0b078";
+  const color = isOvr ? "var(--ds-accent-blue)" : "var(--ds-grade-caution-soft)";
   const val = cur[valKey];
   if (val == null) return;
   const prev = idx > 0 ? data[idx - 1] : null;
@@ -14456,20 +14458,20 @@ function _devChartHistoryShow(evt, kind, season) {
     if (d == null) return `<span style="color:var(--ds-slate)">—</span>`;
     const sign = d > 0 ? "+" : "";
     const arrow = d > 0 ? "▲" : d < 0 ? "▼" : "━";
-    const goodColor = "#86e0a3", badColor = "#ff9b9b", neutral = "#7a8b85";
+    const goodColor = "var(--ds-grade-pos)", badColor = "var(--ds-grade-neg-soft)", neutral = "var(--ds-slate-lt)";
     const col = d === 0 ? neutral
-              : !isOvr ? (d > 0 ? "#e0b078" : goodColor)
+              : !isOvr ? (d > 0 ? "var(--ds-grade-caution-soft)" : goodColor)
                        : (d > 0 ? goodColor : badColor);
     return `<span style="color:${col};font-weight:700">${arrow} ${sign}${d.toFixed(1)}</span>`;
   };
   const el = _devChartPosTipEl();
   el.innerHTML = `
     <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:.3rem;margin-bottom:.25rem;border-bottom:1px solid #2a3a32">
-      <span style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:${color};letter-spacing:1.3px">SEASON ${cur.season}</span>
+      <span style="font-family:var(--font-display);font-size:14px;color:${color};letter-spacing:1.3px">SEASON ${cur.season}</span>
       <span style="color:var(--ds-slate);font-size:9.5px">${label}</span>
     </div>
     <div style="display:flex;justify-content:center;align-items:baseline;gap:.3rem;padding:.2rem 0 .4rem">
-      <span style="font-family:'Bebas Neue',sans-serif;font-size:26px;color:${color};letter-spacing:1px;line-height:1">${val.toFixed(1)}</span>
+      <span style="font-family:var(--font-display);font-size:26px;color:${color};letter-spacing:1px;line-height:1">${val.toFixed(1)}</span>
       ${unit ? `<span style="color:var(--ds-slate);font-size:10px">${unit}</span>` : ""}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;padding-top:.25rem;border-top:1px solid #2a3a32;font-size:10px">
@@ -14477,7 +14479,7 @@ function _devChartHistoryShow(evt, kind, season) {
       <div style="text-align:right"><span style="color:var(--ds-slate)">vs current</span> ${_fmtDelta(dVsCur)}</div>
     </div>`;
   el.style.borderLeft = `3px solid ${color}`;
-  el.style.borderColor = `#a98a2e ${color} #a98a2e #a98a2e`;
+  el.style.borderColor = `var(--ds-gold-dim) ${color} var(--ds-gold-dim) var(--ds-gold-dim)`;
   const rect = evt.currentTarget.getBoundingClientRect();
   el.style.left = `${rect.left + rect.width / 2}px`;
   el.style.top  = `${rect.top}px`;
@@ -14488,7 +14490,7 @@ function _chartPosDeltas(data) {
   const W = _CHART_W, H = _CHART_H, padL = 36, padR = 28, padT = 26, padB = 14;
   if (!data.length) return `<svg viewBox="0 0 ${W} ${H}" style="${_CHART_STYLE}">
     <text x="${padL}" y="14" fill="${_CHART_TITLE}" font-size="10" font-weight="700" letter-spacing="1">NET OVR Δ BY POSITION</text>
-    <text x="${W/2}" y="${H/2}" text-anchor="middle" fill="#5d6b66" font-size="10" font-style="italic">no data yet</text>
+    <text x="${W/2}" y="${H/2}" text-anchor="middle" fill="var(--ds-slate)" font-size="10" font-style="italic">no data yet</text>
   </svg>`;
   const innerW = W - padL - padR, innerH = H - padT - padB;
   const maxAbs = Math.max(...data.map(d => Math.abs(d.delta)), 4);
@@ -14502,7 +14504,7 @@ function _chartPosDeltas(data) {
       const cy = padT + rowH * (i + 0.5);
       const barLen = (Math.abs(d.delta) / maxAbs) * barW * 0.92;
       const isPos = d.delta > 0;
-      const color = d.delta > 0 ? "#86e0a3" : d.delta < 0 ? "#ff9b9b" : "rgba(255,255,255,.15)";
+      const color = d.delta > 0 ? "var(--ds-grade-pos)" : d.delta < 0 ? "var(--ds-grade-neg-soft)" : "rgba(255,255,255,.15)";
       const x = isPos ? zeroX : (zeroX - barLen);
       const barH = Math.min(rowH * 0.7, 14);
       // Full-row transparent overlay rect for the hover tooltip.
@@ -14528,7 +14530,7 @@ function _chartTierDist(data) {
   const live = data.filter(d => d.n > 0);
   if (!live.length) return `<svg viewBox="0 0 ${W} ${H}" style="${_CHART_STYLE}">
     <text x="${padL}" y="14" fill="${_CHART_TITLE}" font-size="10" font-weight="700" letter-spacing="1">CEILING TIER DISTRIBUTION</text>
-    <text x="${W/2}" y="${H/2}" text-anchor="middle" fill="#5d6b66" font-size="10" font-style="italic">no data yet</text>
+    <text x="${W/2}" y="${H/2}" text-anchor="middle" fill="var(--ds-slate)" font-size="10" font-style="italic">no data yet</text>
   </svg>`;
   const innerW = W - padL - padR;
   const total = live.reduce((s, d) => s + d.n, 0);
@@ -14555,7 +14557,7 @@ function _chartTierDist(data) {
   const rowsStartY = barY + barH + 12;
   const rowH = (H - rowsStartY - padB) / allTiers.length;
   const breakdownRows = allTiers.map((g, i) => {
-    const t = tierByGrade[g] || { n: 0, positions: [], color: "#5d6b66" };
+    const t = tierByGrade[g] || { n: 0, positions: [], color: "var(--ds-slate)" };
     const y = rowsStartY + rowH * (i + 0.5);
     const positionsLabel = (t.positions || [])
       .slice(0, 4)
@@ -14570,13 +14572,13 @@ function _chartTierDist(data) {
     return `
       <rect x="${padL}" y="${y - 5.5}" width="11" height="11" fill="${t.color}" opacity="${t.n ? 0.88 : 0.22}"/>
       <text x="${padL + 5.5}" y="${y + 3.5}" text-anchor="middle" fill="#0a1410" font-size="8" font-weight="900">${g}</text>
-      <text x="${padL + 18}" y="${y + 3}" fill="${t.n ? '#cce8d6' : '#5d6b66'}" font-size="9" font-weight="700">${t.n}</text>
-      <text x="${padL + 32}" y="${y + 3}" fill="${t.n ? '#9bbfa8' : '#5d6b66'}" font-size="8.5" font-style="${t.n ? 'normal' : 'italic'}">${positionsLabel}</text>
+      <text x="${padL + 18}" y="${y + 3}" fill="${t.n ? 'var(--ds-grade-pos-soft)' : 'var(--ds-slate)'}" font-size="9" font-weight="700">${t.n}</text>
+      <text x="${padL + 32}" y="${y + 3}" fill="${t.n ? '#9bbfa8' : 'var(--ds-slate)'}" font-size="8.5" font-style="${t.n ? 'normal' : 'italic'}">${positionsLabel}</text>
       ${hoverable}`;
   }).join("");
   return `<svg viewBox="0 0 ${W} ${H}" style="${_CHART_STYLE}">
     <text x="${padL}" y="14" fill="${_CHART_TITLE}" font-size="10" font-weight="700" letter-spacing="1">CEILING TIER DISTRIBUTION</text>
-    <text x="${W - padR}" y="14" text-anchor="end" fill="#5d6b66" font-size="9">${total} players</text>
+    <text x="${W - padR}" y="14" text-anchor="end" fill="var(--ds-slate)" font-size="9">${total} players</text>
     ${barSegs}
     ${breakdownRows}
   </svg>`;
@@ -14591,7 +14593,7 @@ function _chartOvrLine(data, projected) {
     return `<svg viewBox="0 0 ${W} ${H}" style="${_CHART_STYLE}">
       <text x="14" y="14" fill="${_CHART_TITLE}" font-size="10" font-weight="700" letter-spacing="1">ROSTER AVG OVR</text>
       <text x="${W/2}" y="${H/2 - 6}" text-anchor="middle" fill="#9bbfa8" font-size="14">📈</text>
-      <text x="${W/2}" y="${H/2 + 14}" text-anchor="middle" fill="#5d6b66" font-size="9" font-style="italic">trajectory appears after 2+ seasons</text>
+      <text x="${W/2}" y="${H/2 + 14}" text-anchor="middle" fill="var(--ds-slate)" font-size="9" font-style="italic">trajectory appears after 2+ seasons</text>
     </svg>`;
   }
   const padL = 36, padR = 22, padT = 28, padB = 28;
@@ -14624,27 +14626,27 @@ function _chartOvrLine(data, projected) {
                   .sort((a, b) => b.ovr - a.ovr)[0];
   const totalDelta = data[data.length - 1].avgOvr - data[0].avgOvr;
   const totalDeltaStr = totalDelta > 0 ? `+${totalDelta.toFixed(1)}` : totalDelta.toFixed(1);
-  const totalDeltaColor = totalDelta > 0 ? "#86e0a3" : totalDelta < 0 ? "#ff9b9b" : "#7a8b85";
+  const totalDeltaColor = totalDelta > 0 ? "var(--ds-grade-pos)" : totalDelta < 0 ? "var(--ds-grade-neg-soft)" : "var(--ds-slate-lt)";
   return `<svg viewBox="0 0 ${W} ${H}" style="${_CHART_STYLE}">
     <defs><linearGradient id="ovrFillGr" x1="0" x2="0" y1="0" y2="1">
-      <stop offset="0%" stop-color="#86c8ff" stop-opacity="0.4"/>
-      <stop offset="100%" stop-color="#86c8ff" stop-opacity="0"/>
+      <stop offset="0%" stop-color="var(--ds-accent-blue)" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="var(--ds-accent-blue)" stop-opacity="0"/>
     </linearGradient></defs>
     <text x="${padL}" y="14" fill="${_CHART_TITLE}" font-size="10" font-weight="700" letter-spacing="1">ROSTER AVG OVR · LAST ${data.length}${projFuture.length ? ` + PROJECTED ${projFuture.length}` : ""} SEASONS</text>
     ${[minOvr, Math.round((minOvr + maxOvr) / 2), maxOvr].map(v => `
       <line x1="${padL}" y1="${y(v)}" x2="${W - padR}" y2="${y(v)}" stroke="rgba(255,255,255,.06)" stroke-dasharray="2,3"/>
-      <text x="${padL - 4}" y="${y(v) + 3}" text-anchor="end" fill="#5d6b66" font-size="8">${v}</text>`).join("")}
+      <text x="${padL - 4}" y="${y(v) + 3}" text-anchor="end" fill="var(--ds-slate)" font-size="8">${v}</text>`).join("")}
     <path d="${areaPath}" fill="url(#ovrFillGr)"/>
-    ${projPath ? `<path d="${projPath}" stroke="#86c8ff" stroke-width="1.5" stroke-dasharray="3,3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>` : ""}
-    <path d="${histPath}" stroke="#86c8ff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    ${projPath ? `<path d="${projPath}" stroke="var(--ds-accent-blue)" stroke-width="1.5" stroke-dasharray="3,3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>` : ""}
+    <path d="${histPath}" stroke="var(--ds-accent-blue)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
     ${data.map((d, i) => `
-      <circle cx="${x(i)}" cy="${y(d.avgOvr)}" r="3" fill="#86c8ff" stroke="#0a1410" stroke-width="1.5"/>
-      <text x="${x(i)}" y="${H - 14}" text-anchor="middle" fill="#5d6b66" font-size="8">'${String(d.season).slice(-2)}</text>
-      <text x="${x(i)}" y="${y(d.avgOvr) - 8}" text-anchor="middle" fill="#86c8ff" font-size="8.5" font-weight="700">${d.avgOvr.toFixed(1)}</text>
+      <circle cx="${x(i)}" cy="${y(d.avgOvr)}" r="3" fill="var(--ds-accent-blue)" stroke="#0a1410" stroke-width="1.5"/>
+      <text x="${x(i)}" y="${H - 14}" text-anchor="middle" fill="var(--ds-slate)" font-size="8">'${String(d.season).slice(-2)}</text>
+      <text x="${x(i)}" y="${y(d.avgOvr) - 8}" text-anchor="middle" fill="var(--ds-accent-blue)" font-size="8.5" font-weight="700">${d.avgOvr.toFixed(1)}</text>
       <circle cx="${x(i)}" cy="${y(d.avgOvr)}" r="10" fill="transparent" style="cursor:pointer" onmouseenter="_devChartHistoryShow(event, 'ovr', ${d.season})" onmouseleave="_devChartPosHide()"/>`).join("")}
     ${projFuture.map((p, i) => `
-      <circle cx="${x(data.length + i)}" cy="${y(p.ovr)}" r="2.5" fill="#0a1410" stroke="#86c8ff" stroke-width="1.5" stroke-dasharray="2,1.5" opacity="0.85"/>
-      <text x="${x(data.length + i)}" y="${H - 14}" text-anchor="middle" fill="#5d6b66" font-size="8" font-style="italic">'${String(p.year).slice(-2)}</text>`).join("")}
+      <circle cx="${x(data.length + i)}" cy="${y(p.ovr)}" r="2.5" fill="#0a1410" stroke="var(--ds-accent-blue)" stroke-width="1.5" stroke-dasharray="2,1.5" opacity="0.85"/>
+      <text x="${x(data.length + i)}" y="${H - 14}" text-anchor="middle" fill="var(--ds-slate)" font-size="8" font-style="italic">'${String(p.year).slice(-2)}</text>`).join("")}
     ${peakAll && peakAll.isFuture ? `
       <text x="${x(peakAll.idx)}" y="${y(peakAll.ovr) - 8}" text-anchor="middle" fill="#f5c542" font-size="8.5" font-weight="700">${peakAll.ovr.toFixed(1)}</text>
       <text x="${x(peakAll.idx)}" y="${y(peakAll.ovr) - 18}" text-anchor="middle" fill="#f5c542" font-size="7" letter-spacing=".5px" font-weight="700">⭐ PEAK</text>` : ""}
@@ -14653,7 +14655,7 @@ function _chartOvrLine(data, projected) {
 }
 
 // Chart D — roster avg AGE over last N seasons. Mirror of Chart C
-// (OVR line) but for the age curve. Color: amber (#e0b078) since
+// (OVR line) but for the age curve. Color: amber (--ds-grade-caution-soft) since
 // rising age is a warning signal, falling/holding age is youth.
 function _chartAgeLine(data, projected) {
   const W = _CHART_W, H = _CHART_H;
@@ -14663,7 +14665,7 @@ function _chartAgeLine(data, projected) {
     return `<svg viewBox="0 0 ${W} ${H}" style="${_CHART_STYLE}">
       <text x="14" y="14" fill="${_CHART_TITLE}" font-size="10" font-weight="700" letter-spacing="1">ROSTER AVG AGE</text>
       <text x="${W/2}" y="${H/2 - 6}" text-anchor="middle" fill="#9bbfa8" font-size="14">📅</text>
-      <text x="${W/2}" y="${H/2 + 14}" text-anchor="middle" fill="#5d6b66" font-size="9" font-style="italic">${live.length === 1 ? "need one more season" : "trajectory appears after 2+ seasons"}</text>
+      <text x="${W/2}" y="${H/2 + 14}" text-anchor="middle" fill="var(--ds-slate)" font-size="9" font-style="italic">${live.length === 1 ? "need one more season" : "trajectory appears after 2+ seasons"}</text>
     </svg>`;
   }
   const padL = 36, padR = 22, padT = 28, padB = 28;
@@ -14690,27 +14692,27 @@ function _chartAgeLine(data, projected) {
   const totalDelta = live[live.length - 1].avgAge - live[0].avgAge;
   const totalDeltaStr = totalDelta > 0 ? `+${totalDelta.toFixed(1)}` : totalDelta.toFixed(1);
   // Aging up is yellow/amber (concern), aging down is green (youth movement)
-  const totalDeltaColor = totalDelta > 0.5 ? "#e0b078" : totalDelta < -0.5 ? "#86e0a3" : "#7a8b85";
+  const totalDeltaColor = totalDelta > 0.5 ? "var(--ds-grade-caution-soft)" : totalDelta < -0.5 ? "var(--ds-grade-pos)" : "var(--ds-slate-lt)";
   return `<svg viewBox="0 0 ${W} ${H}" style="${_CHART_STYLE}">
     <defs><linearGradient id="ageFillGr" x1="0" x2="0" y1="0" y2="1">
-      <stop offset="0%" stop-color="#e0b078" stop-opacity="0.35"/>
-      <stop offset="100%" stop-color="#e0b078" stop-opacity="0"/>
+      <stop offset="0%" stop-color="var(--ds-grade-caution-soft)" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="var(--ds-grade-caution-soft)" stop-opacity="0"/>
     </linearGradient></defs>
     <text x="${padL}" y="14" fill="${_CHART_TITLE}" font-size="10" font-weight="700" letter-spacing="1">ROSTER AVG AGE · LAST ${live.length}${projFuture.length ? ` + PROJECTED ${projFuture.length}` : ""} SEASONS</text>
     ${[minAge, Math.round((minAge + maxAge) / 2 * 10) / 10, maxAge].map(v => `
       <line x1="${padL}" y1="${y(v)}" x2="${W - padR}" y2="${y(v)}" stroke="rgba(255,255,255,.06)" stroke-dasharray="2,3"/>
-      <text x="${padL - 4}" y="${y(v) + 3}" text-anchor="end" fill="#5d6b66" font-size="8">${v}</text>`).join("")}
+      <text x="${padL - 4}" y="${y(v) + 3}" text-anchor="end" fill="var(--ds-slate)" font-size="8">${v}</text>`).join("")}
     <path d="${areaPath}" fill="url(#ageFillGr)"/>
-    ${projPath ? `<path d="${projPath}" stroke="#e0b078" stroke-width="1.5" stroke-dasharray="3,3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>` : ""}
-    <path d="${histPath}" stroke="#e0b078" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    ${projPath ? `<path d="${projPath}" stroke="var(--ds-grade-caution-soft)" stroke-width="1.5" stroke-dasharray="3,3" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>` : ""}
+    <path d="${histPath}" stroke="var(--ds-grade-caution-soft)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
     ${live.map((d, i) => `
-      <circle cx="${x(i)}" cy="${y(d.avgAge)}" r="3" fill="#e0b078" stroke="#0a1410" stroke-width="1.5"/>
-      <text x="${x(i)}" y="${H - 14}" text-anchor="middle" fill="#5d6b66" font-size="8">'${String(d.season).slice(-2)}</text>
-      <text x="${x(i)}" y="${y(d.avgAge) - 8}" text-anchor="middle" fill="#e0b078" font-size="8.5" font-weight="700">${d.avgAge.toFixed(1)}</text>
+      <circle cx="${x(i)}" cy="${y(d.avgAge)}" r="3" fill="var(--ds-grade-caution-soft)" stroke="#0a1410" stroke-width="1.5"/>
+      <text x="${x(i)}" y="${H - 14}" text-anchor="middle" fill="var(--ds-slate)" font-size="8">'${String(d.season).slice(-2)}</text>
+      <text x="${x(i)}" y="${y(d.avgAge) - 8}" text-anchor="middle" fill="var(--ds-grade-caution-soft)" font-size="8.5" font-weight="700">${d.avgAge.toFixed(1)}</text>
       <circle cx="${x(i)}" cy="${y(d.avgAge)}" r="10" fill="transparent" style="cursor:pointer" onmouseenter="_devChartHistoryShow(event, 'age', ${d.season})" onmouseleave="_devChartPosHide()"/>`).join("")}
     ${projFuture.map((p, i) => `
-      <circle cx="${x(live.length + i)}" cy="${y(p.age)}" r="2.5" fill="#0a1410" stroke="#e0b078" stroke-width="1.5" stroke-dasharray="2,1.5" opacity="0.85"/>
-      <text x="${x(live.length + i)}" y="${H - 14}" text-anchor="middle" fill="#5d6b66" font-size="8" font-style="italic">'${String(p.year).slice(-2)}</text>`).join("")}
+      <circle cx="${x(live.length + i)}" cy="${y(p.age)}" r="2.5" fill="#0a1410" stroke="var(--ds-grade-caution-soft)" stroke-width="1.5" stroke-dasharray="2,1.5" opacity="0.85"/>
+      <text x="${x(live.length + i)}" y="${H - 14}" text-anchor="middle" fill="var(--ds-slate)" font-size="8" font-style="italic">'${String(p.year).slice(-2)}</text>`).join("")}
     <text x="${W - padR}" y="${H - 4}" text-anchor="end" fill="${totalDeltaColor}" font-size="9" font-weight="700">${totalDeltaStr} yr · ${live.length-1} season${live.length>2?'s':''}</text>
   </svg>`;
 }
@@ -15023,32 +15025,32 @@ function _championshipWindow(roster) {
   let verdict, color, guidance, windowYrs;
   if (avgAge < 25.5 && avgOvr < 75) {
     verdict = "REBUILD";
-    color = "#ff9b9b";
+    color = "var(--ds-grade-neg-soft)";
     guidance = "Develop draft picks · stockpile assets · trade vets for futures";
     windowYrs = 0;
   } else if (avgAge < 26.5 && avgOvr < 78) {
     verdict = "DEVELOPING";
-    color = "#e0b078";
+    color = "var(--ds-grade-caution-soft)";
     guidance = "Build through draft · selective FA · window opens in 1-2 years";
     windowYrs = 0;
   } else if (avgAge <= 28 && avgOvr >= 78 && starsInPrime >= 3) {
     verdict = "CONTENDER";
-    color = "#86e0a3";
+    color = "var(--ds-grade-pos)";
     guidance = "Push chips in · target win-now FA · trade picks for vets";
     windowYrs = Math.max(1, Math.round(30 - avgAge));
   } else if (avgAge > 28 && avgOvr >= 76) {
     verdict = "WINDOW CLOSING";
-    color = "#e0b078";
+    color = "var(--ds-grade-caution-soft)";
     guidance = "Last shot · spend cap aggressively · extend stars before decline";
     windowYrs = Math.max(1, Math.round(31 - avgAge));
   } else if (avgAge > 28 && avgOvr < 76) {
     verdict = "RETOOL";
-    color = "#ff9b9b";
+    color = "var(--ds-grade-neg-soft)";
     guidance = "Trade vets for picks · open cap room · 2-3 year reset";
     windowYrs = 0;
   } else {
     verdict = "TRANSITION";
-    color = "#cce8d6";
+    color = "var(--ds-grade-pos-soft)";
     guidance = "Mixed signals — develop young talent + selective vet FA";
     windowYrs = 0;
   }
@@ -15150,11 +15152,11 @@ function _buildValueLedger(roster, cap) {
       : ((p.contract?.years || 0) - (p.contract?.remaining || 0));
     const isRookieDeal = (p.draftRound > 0) && yearsServed < 4;
     let color, verdict;
-    if      (pct <  80) { color = "#86e0a3"; verdict = "BARGAIN"; }
-    else if (pct <  95) { color = "#a8d8b6"; verdict = "discount"; }
-    else if (pct < 105) { color = "#cce8d6"; verdict = "fair"; }
-    else if (pct < 120) { color = "#e0b078"; verdict = "premium"; }
-    else                { color = "#ff9b9b"; verdict = "OVERPAID"; }
+    if      (pct <  80) { color = "var(--ds-grade-pos)"; verdict = "BARGAIN"; }
+    else if (pct <  95) { color = "var(--ds-grade-pos-mid)"; verdict = "discount"; }
+    else if (pct < 105) { color = "var(--ds-grade-pos-soft)"; verdict = "fair"; }
+    else if (pct < 120) { color = "var(--ds-grade-caution-soft)"; verdict = "premium"; }
+    else                { color = "var(--ds-grade-neg-soft)"; verdict = "OVERPAID"; }
     return { player: p, actual, market, pct, delta, color, verdict, isRookieDeal };
   });
 }
@@ -15170,7 +15172,7 @@ function _buildValueLedger(roster, cap) {
 //   C+ avg >= -0.1  · C  >= -0.3  · D  >= -0.6  · F  <  -0.6
 function _campScoreFor(changes) {
   if (!changes.length) {
-    return { score:0, count:0, grade:"—", color:"#5d6b66",
+    return { score:0, count:0, grade:"—", color:"var(--ds-slate)",
              breakouts:0, cliffs:0, reveals:0, rehabs:0, deltaSum:0 };
   }
   let score = 0, deltaSum = 0;
@@ -15194,23 +15196,23 @@ function _campScoreFor(changes) {
 }
 function _campGradeFor(avg) {
   if (avg >=  1.5) return { grade:"A+", color:"#f5c542" };  // gold
-  if (avg >=  1.0) return { grade:"A",  color:"#86e0a3" };
-  if (avg >=  0.5) return { grade:"B+", color:"#a8d8b6" };
-  if (avg >=  0.2) return { grade:"B",  color:"#a8d8b6" };
-  if (avg >= -0.1) return { grade:"C+", color:"#cce8d6" };
-  if (avg >= -0.3) return { grade:"C",  color:"#e0b078" };
-  if (avg >= -0.6) return { grade:"D",  color:"#ff9b9b" };
-  return                  { grade:"F",  color:"#ff6b6b" };
+  if (avg >=  1.0) return { grade:"A",  color:"var(--ds-grade-pos)" };
+  if (avg >=  0.5) return { grade:"B+", color:"var(--ds-grade-pos-mid)" };
+  if (avg >=  0.2) return { grade:"B",  color:"var(--ds-grade-pos-mid)" };
+  if (avg >= -0.1) return { grade:"C+", color:"var(--ds-grade-pos-soft)" };
+  if (avg >= -0.3) return { grade:"C",  color:"var(--ds-grade-caution-soft)" };
+  if (avg >= -0.6) return { grade:"D",  color:"var(--ds-grade-neg-soft)" };
+  return                  { grade:"F",  color:"var(--ds-grade-neg-strong)" };
 }
 
 function _ceilingTier(potential, round) {
   const expected = { 1:88, 2:81, 3:75, 4:70, 5:66, 6:63, 7:60, 0:58 }[round ?? 4] ?? 65;
   const delta = (potential || 0) - expected;
   if (delta >= 8)  return { grade: "S",  color: "#f5c542" };  // gold
-  if (delta >= 4)  return { grade: "A",  color: "#5ed4d4" };  // cyan
-  if (delta >= 0)  return { grade: "B",  color: "#a8d8b6" };  // green
-  if (delta >= -4) return { grade: "C",  color: "#e0b078" };  // amber
-  return                  { grade: "D",  color: "#ff9b9b" };  // red
+  if (delta >= 4)  return { grade: "A",  color: "var(--ds-cyan)" };  // cyan
+  if (delta >= 0)  return { grade: "B",  color: "var(--ds-grade-pos-mid)" };  // green
+  if (delta >= -4) return { grade: "C",  color: "var(--ds-grade-caution-soft)" };  // amber
+  return                  { grade: "D",  color: "var(--ds-grade-neg-soft)" };  // red
 }
 
 // CAP HORIZON STRIP — a first-class element of the offseason page (rendered
@@ -15277,8 +15279,8 @@ function _buildOffseasonCapHorizon() {
     const used      = _projUsedAt(yr);
     const room      = projCap - used;
     const pct       = projCap > 0 ? Math.min(100, Math.max(0, (used / projCap) * 100)) : 0;
-    const barColor  = pct < 85 ? "#86e0a3" : pct < 95 ? "#cce8d6" : pct < 100 ? "#e0b078" : "#ff8a8a";
-    const roomColor = room < 0 ? "#ff8a8a" : "#86e0a3";
+    const barColor  = pct < 85 ? "var(--ds-grade-pos)" : pct < 95 ? "var(--ds-grade-pos-soft)" : pct < 100 ? "var(--ds-grade-caution-soft)" : "var(--ds-grade-neg)";
+    const roomColor = room < 0 ? "var(--ds-grade-neg)" : "var(--ds-grade-pos)";
     const roomStr   = room < 0 ? `−$${(-room).toFixed(1)}M` : `$${room.toFixed(1)}M`;
     const isNow     = yr === 0;
     const label     = isNow ? "THIS YEAR" : `+${yr} YR`;
@@ -15289,26 +15291,26 @@ function _buildOffseasonCapHorizon() {
         expList.slice(0, 8).map(e => `• ${e.name} (${e.position}) $${e.hit.toFixed(1)}M`).join("\n") +
         (expN > 8 ? `\n• +${expN - 8} more` : "")
       : "";
-    _capCells.push(`<div style="padding:.42rem .55rem;background:${isNow ? "rgba(245,197,66,.06)" : "rgba(255,255,255,.02)"};border:1px solid ${isNow ? "rgba(245,197,66,.4)" : "var(--blborder)"};border-radius:3px;display:flex;flex-direction:column;gap:.24rem">
+    _capCells.push(`<div style="padding:.42rem .55rem;background:${isNow ? "rgba(245,197,66,.06)" : "var(--ds-tint-white-02)"};border:1px solid ${isNow ? "rgba(245,197,66,.4)" : "var(--blborder)"};border-radius:3px;display:flex;flex-direction:column;gap:.24rem">
       <div style="display:flex;justify-content:space-between;align-items:baseline">
         <span style="font-size:.54rem;letter-spacing:1px;font-weight:700;color:${isNow ? "var(--gold)" : "var(--gray)"}">${label}</span>
         <span style="font-size:.52rem;color:var(--gray)">S${_curSeason + yr}</span>
       </div>
-      <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.2rem;letter-spacing:.4px;line-height:1;color:${roomColor}">${roomStr}<span style="font-size:.52rem;color:var(--gray);letter-spacing:.5px"> room</span></div>
+      <div style="font-family:var(--font-display);font-size:1.2rem;letter-spacing:.4px;line-height:1;color:${roomColor}">${roomStr}<span style="font-size:.52rem;color:var(--gray);letter-spacing:.5px"> room</span></div>
       <div style="position:relative;height:7px;background:var(--bg3);border:1px solid var(--blborder);border-radius:2px;overflow:hidden">
         <div style="position:absolute;top:0;left:0;height:100%;width:${pct}%;background:${barColor};transition:width .18s"></div>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.52rem;color:var(--gray)">
         <span>$${used.toFixed(0)}M / $${projCap.toFixed(0)}M</span>
-        ${expN ? `<span style="color:#8ab4f8;cursor:help" title="${_esc(expTip)}">↘ ${expN} exp</span>` : "<span></span>"}
+        ${expN ? `<span style="color:var(--ds-accent-sky);cursor:help" title="${_esc(expTip)}">↘ ${expN} exp</span>` : "<span></span>"}
       </div>
     </div>`);
   }
-  return `<div style="margin-bottom:.6rem;padding:.5rem .6rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:4px">
+  return `<div style="margin-bottom:.6rem;padding:.5rem .6rem;background:var(--ds-tint-white-025);border:1px solid var(--blborder);border-radius:4px">
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:.5rem;margin-bottom:.4rem">
       <span style="font-size:.52rem;color:var(--ds-gold-dim);letter-spacing:1.2px;font-weight:700">💰 CAP HORIZON <span style="color:var(--gray);font-weight:400;letter-spacing:.3px">· room as deals roll off · cap +5%/yr</span></span>
       <div style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap">
-        ${_signedN ? `<span style="font-size:.52rem;color:var(--gray)">✍ Signed this offseason: <b style="color:#8ab4f8">${_signedN} deal${_signedN > 1 ? "s" : ""} · $${_signedAav.toFixed(1)}M/yr</b></span>` : ""}
+        ${_signedN ? `<span style="font-size:.52rem;color:var(--gray)">✍ Signed this offseason: <b style="color:var(--ds-accent-sky)">${_signedN} deal${_signedN > 1 ? "s" : ""} · $${_signedAav.toFixed(1)}M/yr</b></span>` : ""}
         <button class="frn-cap-btn" onclick="renderFrnAnalytics('horizon')" style="font-size:.52rem" title="Open the full multi-year Cap Horizon — per-year detail + which players expire">📅 Full Horizon →</button>
       </div>
     </div>
@@ -15359,9 +15361,9 @@ function _buildOffseasonGainsSheet() {
     const safePos  = (pos  || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/"/g, "&quot;");
     const live = pid ? _liveByPid[pid] : null;
     if (live?.onTradeBlock) {
-      return `<button onclick="frnTradeAwayPlayer('${safeName}','${safePos}')" style="font-size:.5rem;letter-spacing:.4px;padding:.18rem .45rem;border-radius:2px;border:1px solid #8ab4f8;background:rgba(138,180,248,.12);color:#8ab4f8;cursor:pointer;font-family:inherit;font-weight:700" title="On the block — click to open the trade builder">🔄 ON BLOCK</button>`;
+      return `<button onclick="frnTradeAwayPlayer('${safeName}','${safePos}')" style="font-size:.5rem;letter-spacing:.4px;padding:.18rem .45rem;border-radius:2px;border:1px solid var(--ds-accent-sky);background:rgba(138,180,248,.12);color:var(--ds-accent-sky);cursor:pointer;font-family:inherit;font-weight:700" title="On the block — click to open the trade builder">🔄 ON BLOCK</button>`;
     }
-    return `<button onclick="frnTradeAwayPlayer('${safeName}','${safePos}')" style="font-size:.55rem;letter-spacing:.5px;padding:.15rem .45rem;border-radius:2px;border:1px solid var(--blborder);background:transparent;color:#8ab4f8;cursor:pointer;font-family:inherit" title="Shop this player — open the trade builder with them on the block">🔄 TRADE</button>`;
+    return `<button onclick="frnTradeAwayPlayer('${safeName}','${safePos}')" style="font-size:.55rem;letter-spacing:.5px;padding:.15rem .45rem;border-radius:2px;border:1px solid var(--blborder);background:transparent;color:var(--ds-accent-sky);cursor:pointer;font-family:inherit" title="Shop this player — open the trade builder with them on the block">🔄 TRADE</button>`;
   };
   // Position filter state — chips at the top let the user narrow down.
   const POS_GROUPS = [
@@ -15459,7 +15461,7 @@ function _buildOffseasonGainsSheet() {
     ${visibleReasons.map(rg => {
       const isActive = rg.key === _frnGainsFilterReason;
       const count = rg.key === "ALL" ? "" : ` ${rg.key === "RESIGN" ? resignCount : reasonCounts[rg.key]}`;
-      return `<button onclick="frnGainsFilterReasonSet('${rg.key}')" style="font-size:.55rem;letter-spacing:.3px;padding:.18rem .45rem;border-radius:2px;border:1px solid ${isActive?"#86c8ff":"var(--blborder)"};background:${isActive?"rgba(134,200,255,.10)":"transparent"};color:${isActive?"#86c8ff":"var(--gray)"};cursor:pointer;font-family:inherit">${rg.label}${count}</button>`;
+      return `<button onclick="frnGainsFilterReasonSet('${rg.key}')" style="font-size:.55rem;letter-spacing:.3px;padding:.18rem .45rem;border-radius:2px;border:1px solid ${isActive?"var(--ds-accent-blue)":"var(--blborder)"};background:${isActive?"rgba(134,200,255,.10)":"transparent"};color:${isActive?"var(--ds-accent-blue)":"var(--gray)"};cursor:pointer;font-family:inherit">${rg.label}${count}</button>`;
     }).join("")}
   </div>` : "";
   const chipsHtml = posChipsHtml + reasonChipsHtml;
@@ -15497,7 +15499,7 @@ function _buildOffseasonGainsSheet() {
     .map(p => ({ pos: p, delta: posDeltaMap[p], players: posBreakdown[p] || [] }));
   // B: ceiling tier distribution + per-tier position breakdown
   const tierCounts = { S:0, A:0, B:0, C:0, D:0 };
-  const tierColors = { S:"#f5c542", A:"#5ed4d4", B:"#a8d8b6", C:"#e0b078", D:"#ff9b9b" };
+  const tierColors = { S:"#f5c542", A:"var(--ds-cyan)", B:"var(--ds-grade-pos-mid)", C:"var(--ds-grade-caution-soft)", D:"var(--ds-grade-neg-soft)" };
   const tierPositions = { S:{}, A:{}, B:{}, C:{}, D:{} };
   // Per-tier player breakdown — drives the hover tooltip on Chart B.
   // Sort by postOvr desc so the headliners surface first ("who are
@@ -15564,7 +15566,7 @@ function _buildOffseasonGainsSheet() {
       ? `<div style="font-size:.55rem;color:var(--gray);letter-spacing:.5px;margin:.25rem 0 .1rem">MENTORSHIPS · +${Math.round((MENTOR_DEV_BOOST - 1) * 100)}% dev</div>`
         + lr.pairs.map(pr => `<div style="font-size:.6rem;margin-bottom:.12rem"><span style="color:var(--gold)">${esc(pr.mentor.name)}</span> <span style="color:var(--gray)">→ mentoring</span> <span style="color:var(--ds-grade-pos);font-weight:700">${esc(pr.mentee.name)}</span> <span style="color:var(--gray)">(${pr.pos})</span></div>`).join("")
       : `<div style="font-size:.58rem;color:var(--gray);font-style:italic">No active mentorships — pair a veteran leader with a young player at his position.</div>`;
-    return `<div style="margin-bottom:.6rem;padding:.55rem .7rem;background:rgba(255,255,255,.02);border:1px solid var(--blborder);border-left:2px solid var(--gold);border-radius:3px">
+    return `<div style="margin-bottom:.6rem;padding:.55rem .7rem;background:var(--ds-tint-white-02);border:1px solid var(--blborder);border-left:2px solid var(--gold);border-radius:3px">
       <div style="font-size:.55rem;color:var(--gold);letter-spacing:1.2px;font-weight:700;margin-bottom:.35rem">🛋 LOCKER ROOM</div>
       ${capLine}${canLine}${pairLines}
     </div>`;
@@ -15590,7 +15592,7 @@ function _buildOffseasonGainsSheet() {
     const vet    = roster.filter(p => (p.age || 0) >= 30).length;
     const injured = roster.filter(p => p.injury && p.injury.weeksRemaining > 0).length;
     // Unit color/grade
-    const _unitColor = (ovr) => ovr >= 82 ? "#86e0a3" : ovr >= 76 ? "#a8d8b6" : ovr >= 70 ? "#e0b078" : "#ff9b9b";
+    const _unitColor = (ovr) => ovr >= 82 ? "var(--ds-grade-pos)" : ovr >= 76 ? "var(--ds-grade-pos-mid)" : ovr >= 70 ? "var(--ds-grade-caution-soft)" : "var(--ds-grade-neg-soft)";
     const _unitGrade = (ovr) => ovr >= 88 ? "S" : ovr >= 82 ? "A" : ovr >= 76 ? "B" : ovr >= 70 ? "C" : "D";
     const _unitBar = (label, ovr) => {
       const color = _unitColor(ovr);
@@ -15600,7 +15602,7 @@ function _buildOffseasonGainsSheet() {
         <div style="flex:1;min-width:140px">
           <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:.15rem">
             <span style="font-size:.55rem;color:var(--gray);letter-spacing:1px;font-weight:700">${label}</span>
-            <span style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.25rem;color:${color};letter-spacing:.5px">${ovr.toFixed(1)}</span>
+            <span style="font-family:var(--font-display);font-size:1.25rem;color:${color};letter-spacing:.5px">${ovr.toFixed(1)}</span>
             <span style="font-size:.7rem;font-weight:900;color:${color};margin-left:.3rem">${grade}</span>
           </div>
           <div style="height:5px;background:rgba(255,255,255,.06);border-radius:1px;overflow:hidden">
@@ -15609,7 +15611,7 @@ function _buildOffseasonGainsSheet() {
         </div>`;
     };
     return `
-    <div style="margin-bottom:.6rem;padding:.55rem .7rem;background:rgba(255,255,255,.02);border:1px solid var(--blborder);border-radius:3px">
+    <div style="margin-bottom:.6rem;padding:.55rem .7rem;background:var(--ds-tint-white-02);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.45rem">
         <span style="font-size:.55rem;color:var(--ds-gold-dim);letter-spacing:1.5px;font-weight:700">📊 TEAM STATUS</span>
         <span style="color:var(--gray);font-size:.6rem">— how the roster's looking right now</span>
@@ -15620,8 +15622,8 @@ function _buildOffseasonGainsSheet() {
         ${_unitBar("SPECIAL", stOvr)}
         <div style="flex:1;min-width:140px;display:flex;flex-direction:column;justify-content:center;gap:.18rem">
           <div style="display:flex;justify-content:space-between;font-size:.6rem"><span style="color:var(--gray)">Avg age</span><span style="color:var(--white);font-weight:700">${avgAge.toFixed(1)}</span></div>
-          <div style="display:flex;justify-content:space-between;font-size:.6rem"><span style="color:var(--gray)">Youth ≤24</span><span style="color:${young>=12?"#86e0a3":"var(--gray)"};font-weight:700">${young}</span></div>
-          <div style="display:flex;justify-content:space-between;font-size:.6rem"><span style="color:var(--gray)">Vets ≥30</span><span style="color:${vet>=8?"#e0b078":"var(--gray)"};font-weight:700">${vet}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:.6rem"><span style="color:var(--gray)">Youth ≤24</span><span style="color:${young>=12?"var(--ds-grade-pos)":"var(--gray)"};font-weight:700">${young}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:.6rem"><span style="color:var(--gray)">Vets ≥30</span><span style="color:${vet>=8?"var(--ds-grade-caution-soft)":"var(--gray)"};font-weight:700">${vet}</span></div>
           ${injured ? `<div style="display:flex;justify-content:space-between;font-size:.6rem"><span style="color:var(--gray)">Injured</span><span style="color:var(--red);font-weight:700">${injured}</span></div>` : ""}
         </div>
       </div>
@@ -15681,7 +15683,7 @@ function _buildOffseasonGainsSheet() {
       // Trajectory icon — combines this-offseason delta with age-curve hint
       const peakAge = p.peakAge || 27;
       const trajArrow = delta > 1 ? "▲" : delta < -1 ? "▼" : "━";
-      const trajColor = delta > 1 ? "#86e0a3" : delta < -1 ? "#ff9b9b" : "#7a8b85";
+      const trajColor = delta > 1 ? "var(--ds-grade-pos)" : delta < -1 ? "var(--ds-grade-neg-soft)" : "var(--ds-slate-lt)";
       // Status flags (chip badges)
       const flags = [];
       if (p.injury && p.injury.weeksRemaining > 0) {
@@ -15697,23 +15699,23 @@ function _buildOffseasonGainsSheet() {
       const ageStage = (p.age || 0) >= peakAge + 3 ? `<span style="color:var(--ds-grade-neg-soft)">declining</span>`
                      : (p.age || 0) > peakAge        ? `<span style="color:var(--ds-grade-caution-soft)">post-peak</span>`
                      : (p.age || 0) >= 25            ? `<span style="color:var(--ds-grade-pos)">in prime</span>`
-                     : (p.age || 0) >= 23            ? `<span style="color:#5ed4d4">ascending</span>`
-                     :                                  `<span style="color:#a8d8b6">young</span>`;
+                     : (p.age || 0) >= 23            ? `<span style="color:var(--ds-cyan)">ascending</span>`
+                     :                                  `<span style="color:var(--ds-grade-pos-mid)">young</span>`;
       const deltaStr = delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : "—";
       // vs market badge — green if under, amber if over, gray if even
       const aav = p.contract?.aav || 0;
       const market = (typeof computeMarketValue === "function") ? computeMarketValue(p, cap) : 0;
       const vsMktHtml = (aav > 0 && market > 0) ? (() => {
         const pct = Math.round((aav / market) * 100);
-        const col = pct < 90 ? "#86e0a3" : pct < 105 ? "#cce8d6" : pct < 120 ? "#e0b078" : "#ff8a8a";
+        const col = pct < 90 ? "var(--ds-grade-pos)" : pct < 105 ? "var(--ds-grade-pos-soft)" : pct < 120 ? "var(--ds-grade-caution-soft)" : "var(--ds-grade-neg)";
         const lbl = pct < 90 ? "bargain" : pct < 105 ? "fair" : pct < 120 ? "premium" : "OVERPAY";
         return `<span style="font-size:.55rem;color:${col};letter-spacing:.5px" title="$${aav.toFixed(1)}M actual vs $${market.toFixed(1)}M market"><b>${pct}%</b> mkt · ${lbl}</span>`;
       })() : "";
       const keyStat = _keyStat(p);
       const portrait = (typeof _playerPortrait === "function") ? _playerPortrait(p, 38) : "";
       return `
-        <div style="display:grid;grid-template-columns:1.4rem 38px 1fr auto auto;gap:.5rem;align-items:center;padding:.4rem .5rem;background:rgba(255,255,255,.025);border-radius:2px;border-left:3px solid ${tier.color}">
-          <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.2rem;color:${tier.color};text-align:center;font-weight:900">${tier.grade}</div>
+        <div style="display:grid;grid-template-columns:1.4rem 38px 1fr auto auto;gap:.5rem;align-items:center;padding:.4rem .5rem;background:var(--ds-tint-white-025);border-radius:2px;border-left:3px solid ${tier.color}">
+          <div style="font-family:var(--font-display);font-size:1.2rem;color:${tier.color};text-align:center;font-weight:900">${tier.grade}</div>
           <div style="width:38px;height:43px;overflow:hidden;border-radius:3px;background:var(--bg3);display:flex;align-items:center;justify-content:center">${portrait}</div>
           <div style="min-width:0">
             <div style="display:flex;align-items:baseline;gap:.4rem;flex-wrap:wrap">
@@ -15731,11 +15733,11 @@ function _buildOffseasonGainsSheet() {
             ${keyStat ? `<div style="color:var(--gray);font-size:.6rem;margin-top:.12rem;font-style:italic">📊 ${keyStat}</div>` : ""}
           </div>
           <div style="text-align:right">
-            <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.35rem;color:var(--white);line-height:1">${ovr}</div>
+            <div style="font-family:var(--font-display);font-size:1.35rem;color:var(--white);line-height:1">${ovr}</div>
             <div style="font-size:.56rem;color:var(--gray);letter-spacing:.5px">OVR</div>
           </div>
           <div style="text-align:right;min-width:2.5rem">
-            <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.2rem;color:${trajColor};line-height:1">${trajArrow}${deltaStr !== "—" ? ` ${deltaStr}` : ""}</div>
+            <div style="font-family:var(--font-display);font-size:1.2rem;color:${trajColor};line-height:1">${trajArrow}${deltaStr !== "—" ? ` ${deltaStr}` : ""}</div>
             <div style="font-size:.56rem;color:var(--gray);letter-spacing:.5px">YoY</div>
           </div>
         </div>`;
@@ -15766,7 +15768,7 @@ function _buildOffseasonGainsSheet() {
       const p = r.player;
       const rookieMark = r.isRookieDeal ? `<span style="color:var(--gold);font-size:.5rem;margin-left:.2rem">R</span>` : "";
       const deltaSign = r.delta < 0 ? "−" : "+";
-      const dCol = r.delta < 0 ? "#86e0a3" : "#ff9b9b";
+      const dCol = r.delta < 0 ? "var(--ds-grade-pos)" : "var(--ds-grade-neg-soft)";
       return `<div style="display:grid;grid-template-columns:1.8rem 1fr 2.4rem 2.4rem;gap:.3rem;align-items:baseline;padding:.12rem 0;font-size:.65rem">
         <span style="color:var(--gold);font-size:.6rem;font-weight:700">${p.position}</span>
         <span style="color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_playerLinkSmart(p.name)}${rookieMark}</span>
@@ -15775,7 +15777,7 @@ function _buildOffseasonGainsSheet() {
       </div>`;
     };
     return `
-    <div style="margin-bottom:.6rem;padding:.5rem .65rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:3px">
+    <div style="margin-bottom:.6rem;padding:.5rem .65rem;background:var(--ds-tint-white-025);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem">
         <span style="font-size:.55rem;color:var(--ds-gold-dim);letter-spacing:1.5px;font-weight:700">💰 VALUE SPOTLIGHT</span>
         <span role="button" tabindex="0" style="color:var(--gray);font-size:.55rem;margin-left:auto;cursor:pointer" onclick="renderFrnAnalytics('value')" onkeydown="_frnRowKey(event)">full ledger →</span>
@@ -15804,7 +15806,7 @@ function _buildOffseasonGainsSheet() {
     if (!watch.length) return "";
     const _row = (w) => {
       const p = w.player;
-      const urg = w.cliffIn === 0 ? "#ff9b9b" : w.cliffIn === 1 ? "#e0b078" : "#cce8d6";
+      const urg = w.cliffIn === 0 ? "var(--ds-grade-neg-soft)" : w.cliffIn === 1 ? "var(--ds-grade-caution-soft)" : "var(--ds-grade-pos-soft)";
       const urgLabel = w.cliffIn === 0 ? "AT CLIFF" : w.cliffIn === 1 ? `${w.cliffIn} yr` : `${w.cliffIn} yrs`;
       return `<div style="display:grid;grid-template-columns:1.8rem 1fr 2.4rem 2.6rem;gap:.3rem;align-items:baseline;padding:.12rem 0;font-size:.65rem">
         <span style="color:var(--gold);font-size:.6rem;font-weight:700">${p.position}</span>
@@ -15841,14 +15843,14 @@ function _buildOffseasonGainsSheet() {
       return `<div style="display:grid;grid-template-columns:1.8rem 1fr 2.4rem 5rem;gap:.3rem;align-items:baseline;padding:.12rem 0;font-size:.65rem">
         <span style="color:var(--gold);font-size:.6rem;font-weight:700">${p.position}</span>
         <span style="color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_playerLinkSmart(p.name)}</span>
-        <span style="color:var(--white);font-family:'Bebas Neue','Anton',sans-serif;text-align:right;letter-spacing:.5px">${p.overall}</span>
+        <span style="color:var(--white);font-family:var(--font-display);text-align:right;letter-spacing:.5px">${p.overall}</span>
         <span style="font-size:.58rem;text-align:right">${ageStage}</span>
       </div>`;
     };
     return `
     <div style="margin-bottom:.6rem;padding:.5rem .65rem;background:rgba(94,212,212,.05);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem">
-        <span style="font-size:.55rem;color:#5ed4d4;letter-spacing:1.5px;font-weight:700">📈 SELL-HIGH CANDIDATES</span>
+        <span style="font-size:.55rem;color:var(--ds-cyan);letter-spacing:1.5px;font-weight:700">📈 SELL-HIGH CANDIDATES</span>
         <span style="color:var(--gray);font-size:.55rem;margin-left:auto">peak value · trade chips</span>
       </div>
       ${candidates.map(_row).join("")}
@@ -15864,10 +15866,10 @@ function _buildOffseasonGainsSheet() {
     const weakest = needs.slice(0, 3).filter(n => n.delta < -1);
     if (!weakest.length) return "";
     const _row = (n) => {
-      const color = n.delta > -2 ? "#e0b078" : n.delta > -5 ? "#ff9b9b" : "#ff6b6b";
+      const color = n.delta > -2 ? "var(--ds-grade-caution-soft)" : n.delta > -5 ? "var(--ds-grade-neg-soft)" : "var(--ds-grade-neg-strong)";
       return `<div style="display:grid;grid-template-columns:1.8rem 1fr 2rem 3.6rem;gap:.3rem;align-items:baseline;padding:.12rem 0;font-size:.65rem">
         <span style="color:var(--gold);font-size:.6rem;font-weight:700">${n.pos}</span>
-        <span style="color:var(--white);font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:.3px">${n.myAvg.toFixed(1)}</span>
+        <span style="color:var(--white);font-family:var(--font-display);letter-spacing:.3px">${n.myAvg.toFixed(1)}</span>
         <span style="color:var(--gray);text-align:right;font-size:.6rem">#${n.rank}</span>
         <span style="color:${color};font-weight:700;text-align:right;font-size:.6rem">${n.delta.toFixed(1)} below</span>
       </div>`;
@@ -15891,7 +15893,7 @@ function _buildOffseasonGainsSheet() {
     const notes = _campNotes();
     if (!notes.length) return "";
     return `
-    <div style="margin-bottom:.6rem;padding:.55rem .7rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-radius:3px">
+    <div style="margin-bottom:.6rem;padding:.55rem .7rem;background:var(--ds-tint-white-025);border:1px solid var(--blborder);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">
         <span style="font-size:.55rem;color:var(--ds-gold-dim);letter-spacing:1.5px;font-weight:700">📝 INTERNAL CAMP NOTES</span>
         <span style="color:var(--gray);font-size:.6rem;font-style:italic">— from the building, off the record</span>
@@ -15948,13 +15950,13 @@ function _buildOffseasonGainsSheet() {
                       : c.contractYearsLeft === 1 ? `<span style="color:var(--ds-grade-caution-soft);font-size:.55rem;font-weight:700">1yr</span>`
                       : c.contractYearsLeft != null ? `<span style="color:var(--gray);font-size:.55rem">${c.contractYearsLeft}yr</span>` : "";
     const dStr = c.delta > 0 ? `+${c.delta}` : c.delta < 0 ? `${c.delta}` : "—";
-    const dColor = c.delta > 0 ? "#86e0a3" : c.delta < 0 ? "#ff9b9b" : "var(--gray)";
-    return `<tr style="border-top:1px solid rgba(255,255,255,.04)">
+    const dColor = c.delta > 0 ? "var(--ds-grade-pos)" : c.delta < 0 ? "var(--ds-grade-neg-soft)" : "var(--gray)";
+    return `<tr style="border-top:1px solid var(--ds-tint-white-04)">
       <td style="padding:.18rem .5rem;color:var(--gray);font-size:.55rem;width:1.5rem">${i+1}</td>
       <td style="padding:.18rem .5rem;font-weight:700;white-space:nowrap">${_playerLinkSmart(c.name)} ${_extendCellHtml(c.name, c.pid)}</td>
       <td style="padding:.18rem .5rem;color:var(--gray);font-size:.65rem">${c.pos}</td>
       <td style="padding:.18rem .5rem;color:var(--gray);font-size:.65rem">${c.ageNow}</td>
-      <td style="padding:.18rem .5rem;font-family:'Bebas Neue','Anton',sans-serif;font-size:1rem;color:var(--white)">${c.postOvr}</td>
+      <td style="padding:.18rem .5rem;font-family:var(--font-display);font-size:1rem;color:var(--white)">${c.postOvr}</td>
       <td style="padding:.18rem .5rem;color:${dColor};font-size:.65rem">${dStr}</td>
       <td style="padding:.18rem .5rem;font-size:.6rem"><b style="color:${tier.color}">${tier.grade}</b></td>
       <td style="padding:.18rem .5rem">${contractFlag}</td>
@@ -15986,7 +15988,7 @@ function _buildOffseasonGainsSheet() {
   const top5Gainers = myChg.filter(c => c.delta > 0)
     .sort((a, b) => b.delta - a.delta).slice(0, 5);
   const top5Movers = top5Gainers.length ? `
-    <div style="margin-bottom:.55rem;padding:.4rem .55rem;background:rgba(134,224,163,.06);border-left:3px solid var(--ds-grade-pos);border-radius:3px">
+    <div style="margin-bottom:.55rem;padding:.4rem .55rem;background:var(--ds-tint-pos-06);border-left:3px solid var(--ds-grade-pos);border-radius:3px">
       <div style="font-size:.55rem;color:var(--ds-grade-pos);letter-spacing:1.5px;margin-bottom:.2rem">🚀 TOP 5 GAINERS</div>
       ${top5Gainers.map((c, i) => `
         <div style="display:flex;align-items:center;gap:.4rem;padding:.12rem 0;font-size:.65rem">
@@ -15999,8 +16001,8 @@ function _buildOffseasonGainsSheet() {
 
   // Summary header card
   const _stat = (n, label, color) => `
-    <div style="text-align:center;padding:.45rem .6rem;background:rgba(255,255,255,.04);border-radius:3px;min-width:88px">
-      <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.5rem;color:${color};line-height:1">${n}</div>
+    <div style="text-align:center;padding:.45rem .6rem;background:var(--ds-tint-white-04);border-radius:3px;min-width:88px">
+      <div style="font-family:var(--font-display);font-size:1.5rem;color:${color};line-height:1">${n}</div>
       <div style="font-size:.55rem;color:var(--gray);letter-spacing:1px;text-transform:uppercase">${label}</div>
     </div>`;
   const _signed = n => (n > 0 ? `+${n}` : `${n}`);
@@ -16013,7 +16015,7 @@ function _buildOffseasonGainsSheet() {
     <div style="margin-bottom:.6rem;padding:.55rem .7rem;background:linear-gradient(90deg,rgba(134,200,255,.12),rgba(134,200,255,.02));border-left:3px solid var(--ds-accent-blue);border-radius:3px">
       <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.3rem">
         <span style="font-size:1.15rem">💎</span>
-        <span style="font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:1.5px;color:var(--ds-accent-blue);font-size:.85rem">HIDDEN GEM REVEAL${ceilingReveals.length===1?"":"S"}</span>
+        <span style="font-family:var(--font-display);letter-spacing:1.5px;color:var(--ds-accent-blue);font-size:.85rem">HIDDEN GEM REVEAL${ceilingReveals.length===1?"":"S"}</span>
         <span style="color:var(--gray);font-size:.6rem;margin-left:auto">ceiling raised — they can keep growing past their old cap</span>
       </div>
       ${ceilingReveals.map(c => {
@@ -16053,31 +16055,31 @@ function _buildOffseasonGainsSheet() {
   // "where am I" stats already shown.
   const champExtras = _championshipExtras(myId);
   const champExtrasHtml = champExtras ? (() => {
-    const capColor = champExtras.capFree > 20 ? "#86e0a3"
+    const capColor = champExtras.capFree > 20 ? "var(--ds-grade-pos)"
                    : champExtras.capFree > 5  ? "var(--gold)"
-                   : "#ff9b9b";
-    const pickColor = champExtras.earlyPicks >= 3 ? "#86e0a3"
+                   : "var(--ds-grade-neg-soft)";
+    const pickColor = champExtras.earlyPicks >= 3 ? "var(--ds-grade-pos)"
                     : champExtras.earlyPicks >= 2 ? "var(--gold)"
-                    : "#7a8b85";
-    const concColor = champExtras.top5Pct < 35 ? "#86e0a3"
+                    : "var(--ds-slate-lt)";
+    const concColor = champExtras.top5Pct < 35 ? "var(--ds-grade-pos)"
                     : champExtras.top5Pct < 50 ? "var(--gold)"
-                    : "#ff9b9b";
-    const rankColor = champExtras.myRank <= 10 ? "#86e0a3"
+                    : "var(--ds-grade-neg-soft)";
+    const rankColor = champExtras.myRank <= 10 ? "var(--ds-grade-pos)"
                     : champExtras.myRank <= 20 ? "var(--gold)"
-                    : "#ff9b9b";
-    const pipeColor = champExtras.pipeline >= 8 ? "#86e0a3"
+                    : "var(--ds-grade-neg-soft)";
+    const pipeColor = champExtras.pipeline >= 8 ? "var(--ds-grade-pos)"
                     : champExtras.pipeline >= 4 ? "var(--gold)"
-                    : "#7a8b85";
+                    : "var(--ds-slate-lt)";
     const holdoutChip = champExtras.holdouts > 0
       ? `<span title="Active extension demands"><span style="color:var(--ds-grade-neg-soft)">🗣 <b>${champExtras.holdouts}</b> holdout${champExtras.holdouts>1?"s":""}</span></span>`
       : "";
     return `
-      <div style="display:flex;gap:.55rem;flex-wrap:wrap;font-size:.6rem;color:var(--gray);padding:.3rem .4rem;background:rgba(255,255,255,.02);border-radius:2px;border:1px solid var(--blborder)">
-        <span title="Cap room available after current contracts">💰 <b style="color:${capColor};font-family:'Bebas Neue','Anton',sans-serif;font-size:.78rem">$${champExtras.capFree.toFixed(0)}M</b> cap free</span>
-        <span title="R1+R2 picks owned for next 2 drafts">🎯 <b style="color:${pickColor};font-family:'Bebas Neue','Anton',sans-serif;font-size:.78rem">${champExtras.earlyPicks}</b> R1/R2 picks</span>
-        <span title="% of cap in your top-5 paid contracts (top-heavy = risk)">⚡ <b style="color:${concColor};font-family:'Bebas Neue','Anton',sans-serif;font-size:.78rem">${champExtras.top5Pct.toFixed(0)}%</b> top-5</span>
-        <span title="League rank by avg OVR">🏟 <b style="color:${rankColor};font-family:'Bebas Neue','Anton',sans-serif;font-size:.78rem">${champExtras.myRank > 0 ? `#${champExtras.myRank}/${champExtras.totalTeams}` : "—"}</b> league</span>
-        <span title="Players ≤24 with B-tier or better ceiling">🌱 <b style="color:${pipeColor};font-family:'Bebas Neue','Anton',sans-serif;font-size:.78rem">${champExtras.pipeline}</b> young upside</span>
+      <div style="display:flex;gap:.55rem;flex-wrap:wrap;font-size:.6rem;color:var(--gray);padding:.3rem .4rem;background:var(--ds-tint-white-02);border-radius:2px;border:1px solid var(--blborder)">
+        <span title="Cap room available after current contracts">💰 <b style="color:${capColor};font-family:var(--font-display);font-size:.78rem">$${champExtras.capFree.toFixed(0)}M</b> cap free</span>
+        <span title="R1+R2 picks owned for next 2 drafts">🎯 <b style="color:${pickColor};font-family:var(--font-display);font-size:.78rem">${champExtras.earlyPicks}</b> R1/R2 picks</span>
+        <span title="% of cap in your top-5 paid contracts (top-heavy = risk)">⚡ <b style="color:${concColor};font-family:var(--font-display);font-size:.78rem">${champExtras.top5Pct.toFixed(0)}%</b> top-5</span>
+        <span title="League rank by avg OVR">🏟 <b style="color:${rankColor};font-family:var(--font-display);font-size:.78rem">${champExtras.myRank > 0 ? `#${champExtras.myRank}/${champExtras.totalTeams}` : "—"}</b> league</span>
+        <span title="Players ≤24 with B-tier or better ceiling">🌱 <b style="color:${pipeColor};font-family:var(--font-display);font-size:.78rem">${champExtras.pipeline}</b> young upside</span>
         ${holdoutChip}
       </div>`;
   })() : "";
@@ -16099,19 +16101,19 @@ function _buildOffseasonGainsSheet() {
     <div style="padding:.7rem .85rem;background:linear-gradient(180deg, rgba(134,200,255,.05), rgba(255,255,255,.015));border:1px solid var(--blborder);border-radius:4px">
       <div style="display:grid;grid-template-columns:auto 1fr;gap:1.1rem;align-items:center">
         <div style="text-align:center;padding:0 .5rem;border-right:1px solid var(--blborder);min-width:80px">
-          <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.6rem;color:${champWindow.color};letter-spacing:1px;line-height:1">${champWindow.verdict}</div>
+          <div style="font-family:var(--font-display);font-size:1.6rem;color:${champWindow.color};letter-spacing:1px;line-height:1">${champWindow.verdict}</div>
           ${champWindow.windowYrs > 0 ? `<div style="font-size:.55rem;color:var(--gray);letter-spacing:.8px;margin-top:.15rem">~${champWindow.windowYrs} yr window</div>` : ""}
           <div style="font-size:.5rem;color:var(--ds-slate);margin-top:.1rem">🏆 CHAMPIONSHIP</div>
         </div>
         <div style="min-width:0">
           <div style="display:flex;gap:.6rem;flex-wrap:wrap;font-size:.65rem;color:var(--gray);margin-bottom:.4rem">
-            <span><b style="color:var(--white);font-family:'Bebas Neue','Anton',sans-serif;font-size:.85rem">${champWindow.avgOvr.toFixed(1)}</b> avg OVR</span>
-            <span><b style="color:var(--white);font-family:'Bebas Neue','Anton',sans-serif;font-size:.85rem">${champWindow.avgAge.toFixed(1)}</b> avg age</span>
-            <span><b style="color:${champWindow.color};font-family:'Bebas Neue','Anton',sans-serif;font-size:.85rem">${champWindow.starsInPrime}</b> stars in prime</span>
+            <span><b style="color:var(--white);font-family:var(--font-display);font-size:.85rem">${champWindow.avgOvr.toFixed(1)}</b> avg OVR</span>
+            <span><b style="color:var(--white);font-family:var(--font-display);font-size:.85rem">${champWindow.avgAge.toFixed(1)}</b> avg age</span>
+            <span><b style="color:${champWindow.color};font-family:var(--font-display);font-size:.85rem">${champWindow.starsInPrime}</b> stars in prime</span>
           </div>
           ${champExtrasHtml ? `<div style="margin-bottom:.35rem">${champExtrasHtml}</div>` : ""}
           ${peakHtml ? `<div style="font-size:.65rem;padding:.18rem 0;margin-bottom:.3rem;border-top:1px dashed var(--blborder);padding-top:.3rem">${peakHtml}</div>` : ""}
-          <div style="font-size:.65rem;color:var(--ds-grade-pos-soft);font-style:italic;line-height:1.4;padding:.25rem .4rem;background:rgba(255,255,255,.025);border-left:2px solid ${champWindow.color};border-radius:1px">
+          <div style="font-size:.65rem;color:var(--ds-grade-pos-soft);font-style:italic;line-height:1.4;padding:.25rem .4rem;background:var(--ds-tint-white-025);border-left:2px solid ${champWindow.color};border-radius:1px">
             ${champWindow.guidance}
           </div>
         </div>
@@ -16133,34 +16135,34 @@ function _buildOffseasonGainsSheet() {
     }).filter(p => p.count > 0);
     const dSum = overall.deltaSum;
     const dStr = dSum > 0 ? `+${dSum}` : `${dSum}`;
-    const dCol = dSum > 0 ? "#86e0a3" : dSum < 0 ? "#ff9b9b" : "#7a8b85";
+    const dCol = dSum > 0 ? "var(--ds-grade-pos)" : dSum < 0 ? "var(--ds-grade-neg-soft)" : "var(--ds-slate-lt)";
     const eventChips = [
       overall.breakouts ? `<span style="color:var(--ds-grade-pos)">▲ ${overall.breakouts} breakout${overall.breakouts===1?"":"s"}</span>` : "",
       overall.reveals   ? `<span style="color:var(--ds-accent-blue)">💎 ${overall.reveals} ceiling reveal${overall.reveals===1?"":"s"}</span>` : "",
-      overall.rehabs    ? `<span style="color:#a8d8b6">🏥 ${overall.rehabs} rehab${overall.rehabs===1?"":"s"}</span>` : "",
+      overall.rehabs    ? `<span style="color:var(--ds-grade-pos-mid)">🏥 ${overall.rehabs} rehab${overall.rehabs===1?"":"s"}</span>` : "",
       overall.cliffs    ? `<span style="color:var(--ds-grade-caution-soft)">⏳ ${overall.cliffs} cliff hit${overall.cliffs===1?"":"s"}</span>` : "",
     ].filter(Boolean).join(`<span style="color:var(--ds-slate)"> · </span>`);
     return `
     <div style="margin-bottom:.6rem;padding:.7rem .85rem;background:linear-gradient(180deg, rgba(245,197,66,.05), rgba(255,255,255,.015));border:1px solid var(--blborder);border-radius:4px">
       <div style="display:grid;grid-template-columns:auto 1fr;gap:1.1rem;align-items:center">
         <div style="text-align:center;padding:0 .5rem;border-right:1px solid var(--blborder)">
-          <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:3.4rem;color:${overall.color};letter-spacing:1px;line-height:.95">${overall.grade}</div>
+          <div style="font-family:var(--font-display);font-size:3.4rem;color:${overall.color};letter-spacing:1px;line-height:.95">${overall.grade}</div>
           <div style="font-size:.55rem;color:var(--gray);letter-spacing:1.5px;margin-top:.1rem">CAMP REPORT</div>
           <div style="font-size:.5rem;color:var(--ds-slate);margin-top:.05rem">${overall.count} players</div>
         </div>
         <div style="min-width:0">
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:baseline;margin-bottom:.5rem;font-size:.7rem">
-            <span style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.3rem;color:${dCol};letter-spacing:.5px;line-height:1">${dStr} OVR</span>
+            <span style="font-family:var(--font-display);font-size:1.3rem;color:${dCol};letter-spacing:.5px;line-height:1">${dStr} OVR</span>
             <span style="color:var(--ds-slate);font-size:.55rem;letter-spacing:1px">NET ${dSum > 0 ? "GAIN" : dSum < 0 ? "LOSS" : "FLAT"}</span>
             ${eventChips ? `<span style="color:var(--ds-slate)"> · </span>${eventChips}` : ""}
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(58px,1fr));gap:.3rem">
             ${byPos.map(p => {
               const ds = p.deltaSum > 0 ? `+${p.deltaSum}` : p.deltaSum < 0 ? `${p.deltaSum}` : "—";
-              const dc = p.deltaSum > 0 ? "#86e0a3" : p.deltaSum < 0 ? "#ff9b9b" : "#5d6b66";
-              return `<div style="text-align:center;padding:.2rem .3rem;background:rgba(255,255,255,.025);border-bottom:2px solid ${p.color};border-radius:1px">
+              const dc = p.deltaSum > 0 ? "var(--ds-grade-pos)" : p.deltaSum < 0 ? "var(--ds-grade-neg-soft)" : "var(--ds-slate)";
+              return `<div style="text-align:center;padding:.2rem .3rem;background:var(--ds-tint-white-025);border-bottom:2px solid ${p.color};border-radius:1px">
                 <div style="font-size:.55rem;color:var(--gray);letter-spacing:.5px;font-weight:700">${p.pos}</div>
-                <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:1.2rem;color:${p.color};letter-spacing:.3px;line-height:1.15">${p.grade}</div>
+                <div style="font-family:var(--font-display);font-size:1.2rem;color:${p.color};letter-spacing:.3px;line-height:1.15">${p.grade}</div>
                 <div style="font-size:.5rem;color:${dc};margin-top:.05rem">${ds}</div>
               </div>`;
             }).join("")}
@@ -16172,13 +16174,13 @@ function _buildOffseasonGainsSheet() {
 
   const summaryHtml = `
     <div style="display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:.6rem">
-      ${_stat(_signed(netDelta), "Net OVR", netDelta > 0 ? "#86e0a3" : netDelta < 0 ? "#ff9b9b" : "var(--white)")}
-      ${_stat(allMyChg.filter(c => c.delta > 0).length, "Gained",  "#86e0a3")}
+      ${_stat(_signed(netDelta), "Net OVR", netDelta > 0 ? "var(--ds-grade-pos)" : netDelta < 0 ? "var(--ds-grade-neg-soft)" : "var(--white)")}
+      ${_stat(allMyChg.filter(c => c.delta > 0).length, "Gained",  "var(--ds-grade-pos)")}
       ${_stat(allMyChg.filter(c => c.delta === 0).length, "Steady", "var(--gray)")}
-      ${_stat(allMyChg.filter(c => c.delta < 0).length, "Declined", "#ff9b9b")}
-      ${_stat(cliffs.length,    "Hit Cliff",  "#e0b078")}
-      ${_stat(ceilings.length,  "Ceiling Up", "#86c8ff")}
-      ${_stat(rehabs.length,    "Rehab",      "#e0b078")}
+      ${_stat(allMyChg.filter(c => c.delta < 0).length, "Declined", "var(--ds-grade-neg-soft)")}
+      ${_stat(cliffs.length,    "Hit Cliff",  "var(--ds-grade-caution-soft)")}
+      ${_stat(ceilings.length,  "Ceiling Up", "var(--ds-accent-blue)")}
+      ${_stat(rehabs.length,    "Rehab",      "var(--ds-grade-caution-soft)")}
     </div>
     ${(biggestUp && biggestUp.delta > 0) || (biggestDn && biggestDn.delta < 0) ? `
       <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem;font-size:.7rem">
@@ -16206,7 +16208,7 @@ function _buildOffseasonGainsSheet() {
   const _statChips = (sd) => {
     if (!sd || !sd.length) return "";
     return sd.map(s => {
-      const color = s.delta > 0 ? "#86e0a3" : "#ff9b9b";
+      const color = s.delta > 0 ? "var(--ds-grade-pos)" : "var(--ds-grade-neg-soft)";
       const sign  = s.delta > 0 ? "+" : "";
       return `<span style="font-size:.55rem;color:${color};margin-right:.3rem;letter-spacing:.3px">${s.key} ${sign}${s.delta}</span>`;
     }).join("");
@@ -16251,7 +16253,7 @@ function _buildOffseasonGainsSheet() {
       const roomLabel = room >= 7 ? "lots of room"
                       : room >= 3 ? "solid room"
                       : "a little room";
-      const roomColor = room >= 7 ? "#86c8ff" : room >= 3 ? "#a8d8b6" : "var(--gray)";
+      const roomColor = room >= 7 ? "var(--ds-accent-blue)" : room >= 3 ? "var(--ds-grade-pos-mid)" : "var(--gray)";
       return `<span style="color:var(--gray);font-size:.62rem">📋 <b style="color:${t.color}">${t.grade}</b> · <span style="color:${roomColor}">${roomLabel}</span></span>`;
     }
     // Newly known OR unknown — qualitative band only, no numeric
@@ -16344,14 +16346,14 @@ function _buildOffseasonGainsSheet() {
   // initiate a contract talk for anyone in the report, not just the
   // re-sign emergencies the priority block highlights.
   const _row = (c) => {
-    const dColor = c.delta > 0 ? "#86e0a3" : c.delta < 0 ? "#ff9b9b" : "var(--gray)";
+    const dColor = c.delta > 0 ? "var(--ds-grade-pos)" : c.delta < 0 ? "var(--ds-grade-neg-soft)" : "var(--gray)";
     const dStr   = c.delta > 0 ? `+${c.delta}` : `${c.delta}`;
-    return `<tr style="border-top:1px solid rgba(255,255,255,.04)">
+    return `<tr style="border-top:1px solid var(--ds-tint-white-04)">
       <td style="padding:.3rem .5rem;font-weight:700;white-space:nowrap">${_playerLinkSmart(c.name)} ${_extendCellHtml(c.name, c.pid)} ${_tradeCellHtml(c.name, c.pos, c.pid)}</td>
       <td style="padding:.3rem .5rem;color:var(--gray);font-size:.7rem">${c.pos}</td>
-      <td style="padding:.3rem .5rem;color:var(--gray);font-size:.7rem;font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:.5px">${c.ageBefore} → ${c.ageNow}</td>
-      <td style="padding:.3rem .5rem;font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:.5px;white-space:nowrap">${c.preOvr} → <span style="color:${dColor}">${c.postOvr}</span></td>
-      <td style="padding:.3rem .5rem;color:${dColor};font-weight:900;font-family:'Bebas Neue','Anton',sans-serif;font-size:1.1rem">${dStr}</td>
+      <td style="padding:.3rem .5rem;color:var(--gray);font-size:.7rem;font-family:var(--font-display);letter-spacing:.5px">${c.ageBefore} → ${c.ageNow}</td>
+      <td style="padding:.3rem .5rem;font-family:var(--font-display);letter-spacing:.5px;white-space:nowrap">${c.preOvr} → <span style="color:${dColor}">${c.postOvr}</span></td>
+      <td style="padding:.3rem .5rem;color:${dColor};font-weight:900;font-family:var(--font-display);font-size:1.1rem">${dStr}</td>
       <td style="padding:.3rem .5rem;font-size:.6rem">${_statChips(c.statDeltas)}${_renderOffReasonChips(c.reasons)}</td>
       <td style="padding:.3rem .5rem;white-space:nowrap">${_ceilingCell(c)}</td>
       <td style="padding:.3rem .5rem;white-space:nowrap">${_contractCell(c)}</td>
@@ -16380,12 +16382,12 @@ function _buildOffseasonGainsSheet() {
     if (!rows.length) return "";
     if (opts.collapsed) {
       return `<details style="margin-top:.6rem">
-        <summary style="cursor:pointer;font-family:'Bebas Neue','Anton',sans-serif;font-size:.85rem;color:${accent};letter-spacing:1.5px;margin-bottom:.2rem;list-style:none">${title} (${rows.length}) <span style="font-size:.6rem;color:var(--gray);letter-spacing:.5px">— click to expand</span></summary>
+        <summary style="cursor:pointer;font-family:var(--font-display);font-size:.85rem;color:${accent};letter-spacing:1.5px;margin-bottom:.2rem;list-style:none">${title} (${rows.length}) <span style="font-size:.6rem;color:var(--gray);letter-spacing:.5px">— click to expand</span></summary>
         ${_tableInner(rows)}
       </details>`;
     }
     return `<div style="margin-top:.6rem">
-      <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:.85rem;color:${accent};letter-spacing:1.5px;margin-bottom:.2rem">${title} (${rows.length})</div>
+      <div style="font-family:var(--font-display);font-size:.85rem;color:${accent};letter-spacing:1.5px;margin-bottom:.2rem">${title} (${rows.length})</div>
       ${_tableInner(rows)}
     </div>`;
   };
@@ -16400,16 +16402,16 @@ function _buildOffseasonGainsSheet() {
     .slice(0, 6);
   let onBlockBlock = "";
   if (_blockCands.length) {
-    const rows = _blockCands.map(c => `<div style="display:flex;align-items:center;gap:.5rem;justify-content:space-between;padding:.26rem 0;border-top:1px solid rgba(255,255,255,.05)">
+    const rows = _blockCands.map(c => `<div style="display:flex;align-items:center;gap:.5rem;justify-content:space-between;padding:.26rem 0;border-top:1px solid var(--ds-tint-white-05)">
         <div style="min-width:0;font-size:.7rem">
           <span style="font-weight:700">${_playerLinkSmart(c.name)}</span>
           <span style="color:var(--gray);font-size:.58rem"> ${c.pos} · ${c.postOvr} OVR · age ${c.ageNow}</span>
-          <span style="color:var(--ds-grade-neg-soft);font-weight:900;font-family:'Bebas Neue','Anton',sans-serif;font-size:.95rem;margin-left:.2rem">${c.delta}</span>
+          <span style="color:var(--ds-grade-neg-soft);font-weight:900;font-family:var(--font-display);font-size:.95rem;margin-left:.2rem">${c.delta}</span>
         </div>
         ${_tradeCellHtml(c.name, c.pos, c.pid)}
       </div>`).join("");
-    onBlockBlock = `<div style="margin-bottom:.6rem;padding:.45rem .6rem;background:rgba(255,255,255,.025);border:1px solid var(--blborder);border-left:3px solid #8ab4f8;border-radius:3px">
-      <div style="font-size:.55rem;color:#8ab4f8;letter-spacing:1.2px;font-weight:700;margin-bottom:.15rem">🔄 ON THE BLOCK</div>
+    onBlockBlock = `<div style="margin-bottom:.6rem;padding:.45rem .6rem;background:var(--ds-tint-white-025);border:1px solid var(--blborder);border-left:3px solid var(--ds-accent-sky);border-radius:3px">
+      <div style="font-size:.55rem;color:var(--ds-accent-sky);letter-spacing:1.2px;font-weight:700;margin-bottom:.15rem">🔄 ON THE BLOCK</div>
       <div style="font-size:.5rem;color:var(--gray);margin-bottom:.1rem">Slipped in camp — shop them while the value holds.</div>
       ${rows}
     </div>`;
@@ -16433,7 +16435,7 @@ function _buildOffseasonGainsSheet() {
   // existing .frn-dev-synth-row responsive collapse.
   const _t = (typeof _frnDevReportTab === "string") ? _frnDevReportTab : "overview";
   const _hide = (id) => _t === id ? "" : ' style="display:none"';
-  return `<div style="margin-top:.8rem;padding:.7rem .8rem;background:rgba(255,255,255,.02);border:1px solid var(--blborder);border-radius:4px">
+  return `<div style="margin-top:.8rem;padding:.7rem .8rem;background:var(--ds-tint-white-02);border:1px solid var(--blborder);border-radius:4px">
     <div class="frn-sec-title" style="margin-bottom:.5rem">📊 PLAYER DEVELOPMENT REPORT</div>
     <div class="frn-subnav">
       <button class="frn-subnav-btn${_t==="overview"?" active":""}" data-devtabbtn="overview" onclick="frnDevReportTab('overview')" aria-label="Overview">📊 Overview</button>
@@ -16455,7 +16457,7 @@ function _buildOffseasonGainsSheet() {
     </div>
 
     <div data-devtab="players"${_hide("players")}>
-      <div style="margin-bottom:.6rem;padding:.4rem .5rem;background:rgba(255,255,255,.02);border:1px solid var(--blborder);border-radius:3px">
+      <div style="margin-bottom:.6rem;padding:.4rem .5rem;background:var(--ds-tint-white-02);border:1px solid var(--blborder);border-radius:3px">
         <div style="font-size:.5rem;color:var(--ds-gold-dim);letter-spacing:1.2px;font-weight:700;margin-bottom:.25rem">🔍 FILTER PLAYER DRILL-DOWN</div>
         ${chipsHtml}
       </div>
@@ -16463,9 +16465,9 @@ function _buildOffseasonGainsSheet() {
       ${starWatchBlock}
       ${top5Movers}
       ${topOverallsBlock}
-      ${_section("GAINERS",   gainers,   "#86e0a3")}
+      ${_section("GAINERS",   gainers,   "var(--ds-grade-pos)")}
       ${_section("HOLDING",   steady,    "var(--gray)", { collapsed: true })}
-      ${_section("DECLINERS", decliners, "#ff9b9b")}
+      ${_section("DECLINERS", decliners, "var(--ds-grade-neg-soft)")}
     </div>
 
     <div data-devtab="strategy"${_hide("strategy")}>
@@ -16636,7 +16638,7 @@ function _renderHoldoutsBlock() {
       const yearPills = bases.map((base, i) => {
         const hit = Math.round((base + bonusProration) * 10) / 10;
         const ageYr = ageAtSign + i;
-        const ageColor = ageYr >= 34 ? "#ff8a8a" : ageYr >= 31 ? "#e8a000" : "var(--gray)";
+        const ageColor = ageYr >= 34 ? "var(--ds-grade-neg)" : ageYr >= 31 ? "var(--ds-grade-caution)" : "var(--gray)";
         return `<div style="display:flex;justify-content:space-between;padding:.18rem .4rem;border-radius:4px;background:var(--bg3);font-size:.67rem;gap:.8rem">
           <span style="color:var(--gray)">Yr ${i+1} <span style="color:${ageColor};font-size:.58rem">(age ${ageYr})</span></span>
           <span>$${base.toFixed(1)}M base</span>
@@ -16685,13 +16687,13 @@ function _renderHoldoutsBlock() {
 
     // ── Demand line + accept odds (with raise/premium math) ────────
     const odds = _holdoutAcceptOdds(offer, offerYears, h.demandedAAV, h.demandedYears);
-    const oddsColor = odds >= 0.85 ? "var(--green-lt)" : odds >= 0.5 ? "#e8a000" : "#ff8a8a";
+    const oddsColor = odds >= 0.85 ? "var(--green-lt)" : odds >= 0.5 ? "var(--ds-grade-caution)" : "var(--ds-grade-neg)";
     const curAav  = h.currentAAV || 0;
     const curRem  = h.currentRemaining || 0;
     const aavRaise = curAav > 0 ? h.demandedAAV - curAav : 0;
     const raisePct = curAav > 0 ? Math.round((aavRaise / curAav) * 100) : 0;
-    const raiseColor = aavRaise >= curAav * 0.5 ? "#ff8a8a"
-                     : aavRaise >= curAav * 0.25 ? "#e8a000"
+    const raiseColor = aavRaise >= curAav * 0.5 ? "var(--ds-grade-neg)"
+                     : aavRaise >= curAav * 0.25 ? "var(--ds-grade-caution)"
                      : aavRaise > 0 ? "var(--gold)" : "var(--green-lt)";
     const raiseStr = curAav > 0
       ? `<span style="color:${raiseColor};font-size:.62rem;font-weight:700">${aavRaise >= 0 ? "+" : ""}$${aavRaise.toFixed(1)}M/yr (${raisePct >= 0 ? "+" : ""}${raisePct}%)</span>`
@@ -16709,8 +16711,8 @@ function _renderHoldoutsBlock() {
     const marketAav = h.marketAAV || h.demandedAAV;
     const underpayGap = curAav > 0 ? marketAav - curAav : 0;
     const underpayPct = curAav > 0 ? Math.round((underpayGap / marketAav) * 100) : 0;
-    const underpayColor = underpayPct >= 50 ? "#ff8a8a"
-                       : underpayPct >= 30 ? "#e8a000"
+    const underpayColor = underpayPct >= 50 ? "var(--ds-grade-neg)"
+                       : underpayPct >= 30 ? "var(--ds-grade-caution)"
                        : "var(--gold-lt)";
     const underpayStr = (curAav > 0 && underpayGap > 0)
       ? `<span style="color:${underpayColor};font-size:.6rem;font-weight:700">⚠ underpaid $${underpayGap.toFixed(1)}M/yr (${underpayPct}% below market)</span>`
@@ -16810,8 +16812,8 @@ function _renderHoldoutsBlock() {
         <div class="frn-resign-btns">
           ${DS.button({ label: "Review & Extend", class: "frn-resign-btn accept-btn", on: `frnHoldoutPreview('${escName}')` })}
           ${DS.button({ label: _holdoutCounterFor === h.name ? '↻ Close' : '↻ Counter', class: `frn-resign-btn accept-btn ${_holdoutCounterFor === h.name ? 'active' : ''}`, on: _holdoutCounterFor === h.name ? 'frnHoldoutCounterClose()' : `frnHoldoutCounter('${escName}')`, title: "Open the counter composer — tune AAV / years / snap to a preset", attrs: { style: "border-color:var(--gold-lt);color:var(--gold-lt)" } })}
-          <button class="btn frn-resign-btn" style="border-color:var(--gold);color:var(--gold)" onclick="frnHoldoutTrade('${escName}')" title="Flip him for assets">🔀 Trade<span style="font-size:.5rem;display:block;color:var(--gold-lt)">${tradeVal}</span></button>
-          <button class="btn frn-resign-btn decline-btn" onclick="frnHoldoutIgnore('${escName}')" title="Locker-room fallout: -2 OVR immediately · dev frozen next offseason · 40% chance of formal trade request · low re-sign odds at expiry">✗ Ignore<span style="font-size:.5rem;display:block;color:var(--ds-grade-neg-mid)">-2 OVR · dev freeze · flight</span></button>
+          ${DS.button({ labelHtml: `🔀 Trade<span style="font-size:.5rem;display:block;color:var(--gold-lt)">${tradeVal}</span>`, class: "frn-resign-btn", on: `frnHoldoutTrade('${escName}')`, title: "Flip him for assets", attrs: { style: "border-color:var(--gold);color:var(--gold)" } })}
+          ${DS.button({ labelHtml: `✗ Ignore<span style="font-size:.5rem;display:block;color:var(--ds-grade-neg-mid)">-2 OVR · dev freeze · flight</span>`, class: "frn-resign-btn decline-btn", on: `frnHoldoutIgnore('${escName}')`, title: "Locker-room fallout: -2 OVR immediately · dev frozen next offseason · 40% chance of formal trade request · low re-sign odds at expiry" })}
         </div>
       </div>
       ${counterHtml}
@@ -16854,7 +16856,7 @@ function _renderHoldoutsBlock() {
       const totalPct  = Math.min(100, (v / Math.max(1, cap)) * 100);
       const basePct   = Math.min(totalPct, (baselineV / Math.max(1, cap)) * 100);
       const signedPct = Math.max(0, totalPct - basePct);
-      const color = v > cap ? "var(--red)" : v > cap * 0.90 ? "#e8a000" : "var(--green-lt)";
+      const color = v > cap ? "var(--red)" : v > cap * 0.90 ? "var(--ds-grade-caution)" : "var(--green-lt)";
       const signedColor = "#f5c542"; // gold — pops on top of the baseline color
       const signedTag = signedV > 0
         ? `<span style="color:${signedColor};font-size:.55rem;font-weight:700;margin-left:.3rem">+$${signedV.toFixed(1)}M ext</span>`
@@ -17696,7 +17698,7 @@ function frnSubmitAsk() {
   const totalPicks = Object.values(ad.askedPicks || {}).reduce((s,n) => s + n, 0);
   const cashTotal = (ad.refundAmount || 0) * (ad.refundYears || 0);
   if (totalPicks === 0 && cashTotal === 0 && !ad.minPlayerGrade) {
-    alert("Set an asking price: picks, cash, or a player-grade minimum.");
+    if (typeof DS !== "undefined") DS.toast({ message: "Set an asking price: picks, cash, or a player-grade minimum.", kind: "warn" }); else alert("Set an asking price: picks, cash, or a player-grade minimum.");
     return;
   }
   const player = franchise.rosters[franchise.chosenTeamId].find(p => p.name === tp.editAsk);
@@ -17715,7 +17717,7 @@ function frnSubmitAsk() {
   delete tp.editAsk;
   delete tp.askDraft;
   saveFranchise();
-  alert(`✓ Listed ${player.name} on the trade block. Interested teams will respond next week.`);
+  if (typeof DS !== "undefined") DS.toast({ message: `✓ Listed ${player.name} on the trade block. Interested teams will respond next week.`, kind: "success" }); else alert(`✓ Listed ${player.name} on the trade block. Interested teams will respond next week.`);
   renderFrnTrade();
 }
 
@@ -18573,7 +18575,7 @@ function frnAutoFillAbsorption() {
 function frnSuggestShopPackage() {
   const tp = franchise._tradeProp;
   if (!tp?.targetTeamId || !tp?.youReceive?.length) {
-    alert("Pick a partner and a player to acquire first.");
+    if (typeof DS !== "undefined") DS.toast({ message: "Pick a partner and a player to acquire first.", kind: "warn" }); else alert("Pick a partner and a player to acquire first.");
     return;
   }
   const myId = franchise.chosenTeamId;
@@ -18583,12 +18585,12 @@ function frnSuggestShopPackage() {
 
   const recvPlayers = tp.youReceive
     .map(n => theirRoster.find(p => p.name === n)).filter(Boolean);
-  if (!recvPlayers.length) { alert("Target player not found on their roster."); return; }
+  if (!recvPlayers.length) { if (typeof DS !== "undefined") DS.toast({ message: "Target player not found on their roster.", kind: "error" }); else alert("Target player not found on their roster."); return; }
 
   // Untouchable short-circuit
   const accRule = _aiAcceptanceRatio(otherId, recvPlayers);
   if (accRule && accRule.reject) {
-    alert(`Off-limits — ${getTeam(otherId)?.name} won't move ${accRule.untouchables.map(p => p.name).join(", ")}.`);
+    if (typeof DS !== "undefined") DS.toast({ message: `Off-limits — ${getTeam(otherId)?.name} won't move ${accRule.untouchables.map(p => p.name).join(", ")}.`, kind: "warn" }); else alert(`Off-limits — ${getTeam(otherId)?.name} won't move ${accRule.untouchables.map(p => p.name).join(", ")}.`);
     return;
   }
   const recvValue = recvPlayers.reduce((s, p) => s + _playerTradeValue(p), 0);
@@ -18701,12 +18703,12 @@ function frnSubmitTrade() {
   const tp = franchise._tradeProp;
   if (!tp) return;
   if (_tradeIsEmpty(tp)) {
-    alert("Add something on each side — players, picks, or cash.");
+    if (typeof DS !== "undefined") DS.toast({ message: "Add something on each side — players, picks, or cash.", kind: "warn" }); else alert("Add something on each side — players, picks, or cash.");
     return;
   }
   const myId = franchise.chosenTeamId;
   const otherId = tp.targetTeamId;
-  if (!otherId) { alert("Choose a trade partner first."); return; }
+  if (!otherId) { if (typeof DS !== "undefined") DS.toast({ message: "Choose a trade partner first.", kind: "warn" }); else alert("Choose a trade partner first."); return; }
   const myRoster = franchise.rosters[myId];
   const theirRoster = franchise.rosters[otherId];
 
@@ -19110,7 +19112,7 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
       ${(() => {
         const myDC = _outstandingDeadCap(franchise.chosenTeamId);
         return myDC.totalDollars >= 0.5
-          ? DS.button({ label: `💸 Recoup $${myDC.totalDollars.toFixed(1)}M dead`, variant: "outline", on: "frnAutoFillAbsorption()", title: `Request partner absorbs your $${myDC.totalDollars.toFixed(1)}M in dead cap`, attrs: { style: "color:#ff9090;border-color:#ff9090;font-size:.6rem;padding:.15rem .45rem" } })
+          ? DS.button({ label: `💸 Recoup $${myDC.totalDollars.toFixed(1)}M dead`, variant: "outline", on: "frnAutoFillAbsorption()", title: `Request partner absorbs your $${myDC.totalDollars.toFixed(1)}M in dead cap`, attrs: { style: "color:var(--ds-grade-neg-mid);border-color:var(--ds-grade-neg-mid);font-size:.6rem;padding:.15rem .45rem" } })
           : "";
       })()}
     </div>
@@ -19161,7 +19163,7 @@ function _renderTradeProposeTab(tp, sortBy, myRoster, cap, myCapUsed) {
       const _bar    = tp._suggestedTarget;
       const _st = _offer >= _bar        ? { t: "✓ Clears their bar", c: "var(--green-lt)" }
                 : _offer >= _bar * 0.93 ? { t: "≈ Right at the line", c: "var(--gold-lt)" }
-                :                         { t: "Still a bit short",   c: "#ff9090" };
+                :                         { t: "Still a bit short",   c: "var(--ds-grade-neg-mid)" };
       return `<div class="frn-suggest-summary">
         <span class="frn-suggest-lbl">💡 PACKAGE BUILT</span>
         <span class="frn-suggest-stat" title="Value needed to clear their acceptance threshold">their bar <b>${_bar}</b></span>
@@ -19217,10 +19219,10 @@ function _renderTradePartnerPicker(myId, myCap, myCapUsed) {
       </div>
       <div class="frn-tp-cap">
         <span style="color:var(--gray)">Cap room</span>
-        <b style="color:${c.overCap?"var(--red)":c.room < 5 ? "#e8a000" : "var(--green-lt)"}">${c.overCap?"OVER":`$${c.room.toFixed(1)}M`}</b>
+        <b style="color:${c.overCap?"var(--red)":c.room < 5 ? "var(--ds-grade-caution)" : "var(--green-lt)"}">${c.overCap?"OVER":`$${c.room.toFixed(1)}M`}</b>
       </div>
       <div class="frn-tp-units">
-        <div class="frn-tp-unit-row"><span class="frn-tp-unit-lbl">NEEDS</span>${c.profile.needs.map(u => unitCell(u, "#c08080")).join("")}</div>
+        <div class="frn-tp-unit-row"><span class="frn-tp-unit-lbl">NEEDS</span>${c.profile.needs.map(u => unitCell(u, "var(--ds-grade-neg-muted)")).join("")}</div>
         <div class="frn-tp-unit-row"><span class="frn-tp-unit-lbl">DEPTH</span>${c.profile.strengths.map(u => unitCell(u, "var(--green-lt)")).join("")}</div>
       </div>
       <div class="frn-tp-foot">
@@ -19338,8 +19340,8 @@ function _renderMultiYearCapImpact(myId, partnerId, sendPlayers, recvPlayers, yo
     }
     return { yr, myNet, theirNet };
   });
-  const myRows  = impact().map(r => `<td style="text-align:center;color:${r.myNet > 0 ? "#ff8a8a" : r.myNet < 0 ? "var(--green-lt)" : "var(--gray)"}">${r.myNet === 0 ? "—" : (r.myNet > 0 ? "+" : "") + "$" + r.myNet.toFixed(1) + "M"}</td>`).join("");
-  const theirRows = impact().map(r => `<td style="text-align:center;color:${r.theirNet > 0 ? "#ff8a8a" : r.theirNet < 0 ? "var(--green-lt)" : "var(--gray)"}">${r.theirNet === 0 ? "—" : (r.theirNet > 0 ? "+" : "") + "$" + r.theirNet.toFixed(1) + "M"}</td>`).join("");
+  const myRows  = impact().map(r => `<td style="text-align:center;color:${r.myNet > 0 ? "var(--ds-grade-neg)" : r.myNet < 0 ? "var(--green-lt)" : "var(--gray)"}">${r.myNet === 0 ? "—" : (r.myNet > 0 ? "+" : "") + "$" + r.myNet.toFixed(1) + "M"}</td>`).join("");
+  const theirRows = impact().map(r => `<td style="text-align:center;color:${r.theirNet > 0 ? "var(--ds-grade-neg)" : r.theirNet < 0 ? "var(--green-lt)" : "var(--gray)"}">${r.theirNet === 0 ? "—" : (r.theirNet > 0 ? "+" : "") + "$" + r.theirNet.toFixed(1) + "M"}</td>`).join("");
   const myTeam = getTeam(myId), partnerTeam = getTeam(partnerId);
   return `<div class="frn-trade-multiyr">
     <div class="frn-trade-multiyr-title">MULTI-YEAR CAP IMPACT</div>
@@ -19519,15 +19521,15 @@ function _renderTradeValueBoard(myRoster) {
     if (colorMode === "contract") {
       const yrs = p.contract?.remaining ?? p.contract?.years ?? 1;
       if (yrs >= 4) return "#3aa84a";   // long control — premium
-      if (yrs === 3) return "#86e0a3";  // 3yr
+      if (yrs === 3) return "var(--ds-grade-pos)";  // 3yr
       if (yrs === 2) return "#f5c542";  // 2yr
-      if (yrs === 1) return "#ef8a4d";  // expiring
+      if (yrs === 1) return "var(--ds-orange-soft)";  // expiring
       return "#b14b4b";
     }
     if (typeof _faTreemapColor === "function") {
       return _faTreemapColor(p, colorMode, null, null).fill;
     }
-    return "#888";
+    return "var(--ds-neutral)";
   };
 
   const renderedTiles = tiles.map(t => {
@@ -19563,11 +19565,11 @@ function _renderTradeValueBoard(myRoster) {
     `<button class="frn-cuts-tm-mode${colorMode===m.key?' active':''}" onclick="frnTVBSetColorMode('${m.key}')">${m.lbl}</button>`
   ).join("");
   const legendByMode = {
-    position: [["QB","#f5c542"],["RB","#ef8a4d"],["WR","#e85c98"],["TE","#ba68c8"],["OL","#5fb1d4"],["DL","#ff6b6b"],["LB","#ffb14c"],["DB","#86e0a3"],["K/P","#888"]],
-    age: [["≤23","#5ed4d4"],["24–26","#86e0a3"],["27–29","#f5c542"],["30–32","#ef8a4d"],["33+","#b14b4b"]],
-    ceiling: [["S","#f5c542"],["A","#5ed4d4"],["B","#86e0a3"],["C","#c08070"],["D","#7a5050"]],
-    agePot: [["Cornerstone","#3aa84a"],["Keeper","#86e0a3"],["Judgment","#c79f3a"],["Fading","#c87050"],["Cut bait","#7a3030"]],
-    contract: [["4+ yrs","#3aa84a"],["3 yrs","#86e0a3"],["2 yrs","#f5c542"],["1 yr","#ef8a4d"]],
+    position: [["QB","#f5c542"],["RB","var(--ds-orange-soft)"],["WR","#e85c98"],["TE","#ba68c8"],["OL","#5fb1d4"],["DL","var(--ds-grade-neg-strong)"],["LB","#ffb14c"],["DB","var(--ds-grade-pos)"],["K/P","var(--ds-neutral)"]],
+    age: [["≤23","var(--ds-cyan)"],["24–26","var(--ds-grade-pos)"],["27–29","#f5c542"],["30–32","var(--ds-orange-soft)"],["33+","#b14b4b"]],
+    ceiling: [["S","#f5c542"],["A","var(--ds-cyan)"],["B","var(--ds-grade-pos)"],["C","#c08070"],["D","#7a5050"]],
+    agePot: [["Cornerstone","#3aa84a"],["Keeper","var(--ds-grade-pos)"],["Judgment","#c79f3a"],["Fading","#c87050"],["Cut bait","#7a3030"]],
+    contract: [["4+ yrs","#3aa84a"],["3 yrs","var(--ds-grade-pos)"],["2 yrs","#f5c542"],["1 yr","var(--ds-orange-soft)"]],
   };
   const legend = (legendByMode[colorMode] || []).map(([k,c]) =>
     `<span class="frn-cuts-tm-legend-item"><span class="dot" style="background:${c}"></span>${k}</span>`
@@ -19647,7 +19649,7 @@ function _renderTradeBlockTab(myRoster, sortBy) {
         <div style="color:var(--ds-grade-neg-mid);font-weight:900;font-size:.75rem">☠ DEAD CAP: $${myDeadCap.totalDollars.toFixed(1)}M outstanding</div>
         <div style="color:var(--gray);font-size:.62rem;margin-top:.15rem">From traded / released players. Demand cash in a trade proposal to offset it.</div>
       </div>
-      ${DS.button({ label: "💸 Request Salary Absorption to Recoup", variant: "outline", on: "frnRecoupDeadCapMode()", attrs: { style: "color:#ff9090;border-color:#ff9090;white-space:nowrap;margin-left:auto" } })}
+      ${DS.button({ label: "💸 Request Salary Absorption to Recoup", variant: "outline", on: "frnRecoupDeadCapMode()", attrs: { style: "color:var(--ds-grade-neg-mid);border-color:var(--ds-grade-neg-mid);white-space:nowrap;margin-left:auto" } })}
     </div>` : "";
 
   return `
@@ -20096,7 +20098,7 @@ function _renderTradeOffersTab() {
     const giveVal = theyWant.reduce((s, p) => s + _playerTradeValue(p), 0);
     const ratio   = giveVal > 0 ? getVal / giveVal : (getVal > 0 ? 2 : 1);
     const verdict = ratio >= 1.15 ? { t:"YOU WIN",   c:"var(--green-lt)", bg:"rgba(80,200,120,.14)" }
-                  : ratio <= 0.85 ? { t:"THEY WIN",  c:"#ff9090",         bg:"rgba(255,100,100,.12)" }
+                  : ratio <= 0.85 ? { t:"THEY WIN",  c:"var(--ds-grade-neg-mid)",         bg:"rgba(255,100,100,.12)" }
                   :                 { t:"FAIR DEAL",  c:"var(--gold-lt)",  bg:"rgba(212,175,55,.12)" };
     const capChange = theyGive.reduce((s,p)=>s+(p.contract?.aav||0),0) - theyWant.reduce((s,p)=>s+(p.contract?.aav||0),0);
     const capStr = `${capChange>=0?"+":"−"}$${Math.abs(capChange).toFixed(1)}M/yr`;
@@ -20136,7 +20138,7 @@ function _renderTradeOffersTab() {
           DS.button({ label: p.label, variant: "outline", on: `frnCounterOffer('${o.id}','${k}')`, title: `Ask them to add ${p.label}. They'll accept if they have headroom, refuse if not.`, attrs: { style: "font-size:.58rem;padding:.18rem .4rem;margin:.1rem .15rem .1rem 0" } })
         ).join("");
         const lastResult = o.counterResult
-          ? `<div style="font-size:.62rem;color:${o.counterResult.startsWith("accepted")?"var(--green-lt)":"#ff9090"};margin-top:.25rem">${o.counterResult.startsWith("accepted")?"↑":"✗"} ${o.counterResult}</div>`
+          ? `<div style="font-size:.62rem;color:${o.counterResult.startsWith("accepted")?"var(--green-lt)":"var(--ds-grade-neg-mid)"};margin-top:.25rem">${o.counterResult.startsWith("accepted")?"↑":"✗"} ${o.counterResult}</div>`
           : "";
         return `<div class="frn-offer-actions">
           ${DS.button({ label: "✓ Accept", variant: "gold", on: `frnAcceptOffer('${o.id}')` })}
@@ -21130,8 +21132,8 @@ function _mockPickReasons(entry, classProspects) {
   const c = entry.components || {};
   // Scout grade signal
   const sg = (typeof scoutGrade === "function") ? scoutGrade(p) : (p.overall || 70);
-  if (sg >= 82) reasons.push({ icon: "🎯", text: "elite scout grade", color: "#86e0a3" });
-  else if (sg >= 75) reasons.push({ icon: "🎯", text: "high scout grade", color: "#a8d8b6" });
+  if (sg >= 82) reasons.push({ icon: "🎯", text: "elite scout grade", color: "var(--ds-grade-pos)" });
+  else if (sg >= 75) reasons.push({ icon: "🎯", text: "high scout grade", color: "var(--ds-grade-pos-mid)" });
   // Position rank in class
   const samePos = classProspects.filter(x => x.position === p.position && x._generatedRound !== 0);
   const sorted = samePos.slice().sort((a, b) => {
@@ -21143,18 +21145,18 @@ function _mockPickReasons(entry, classProspects) {
   if (posIdx === 0) reasons.push({ icon: "🥇", text: `#1 ${p.position} in class`, color: "#f5c542" });
   else if (posIdx >= 0 && posIdx < 3) reasons.push({ icon: "🏅", text: `#${posIdx+1} ${p.position} in class`, color: "var(--gold-lt)" });
   // Team need
-  if (c.needBonus >= 15) reasons.push({ icon: "🎯", text: `filling ${p.position} hole`, color: "#ff9b9b" });
+  if (c.needBonus >= 15) reasons.push({ icon: "🎯", text: `filling ${p.position} hole`, color: "var(--ds-grade-neg-soft)" });
   else if (c.needBonus >= 8) reasons.push({ icon: "📍", text: `team need at ${p.position}`, color: "var(--gold-lt)" });
   // Position premium — lowered threshold from 6 to 4 so the chip
   // fires for OL/DL/CB (premium in NFL reality) not just QB.
   // _DRAFT_POS_PREMIUM table tops out at QB:8, OL:5, DL:4, CB:4.
-  if (c.posPrem >= 4) reasons.push({ icon: "💎", text: "premium position", color: "#86c8ff" });
+  if (c.posPrem >= 4) reasons.push({ icon: "💎", text: "premium position", color: "var(--ds-accent-blue)" });
   // Scheme fit bonus
-  if (c.scheme >= 4) reasons.push({ icon: "🔧", text: "scheme fit", color: "#5ed4d4" });
+  if (c.scheme >= 4) reasons.push({ icon: "🔧", text: "scheme fit", color: "var(--ds-cyan)" });
   // Elite combine numbers
   if (typeof _combineCompositeScore === "function") {
     const cs = _combineCompositeScore(p);
-    if (cs >= 1.8) reasons.push({ icon: "💨", text: "elite combine", color: "#86e0a3" });
+    if (cs >= 1.8) reasons.push({ icon: "💨", text: "elite combine", color: "var(--ds-grade-pos)" });
   }
   // Cap at 3 — UX audit found 4-chip rows × 32 picks felt like a
   // wall of micro-text. With 3 the highest-signal reasons (already
@@ -21215,12 +21217,12 @@ function _combineCompositeScore(p) {
 // stays consistent across the dev report and combine screen.
 function _combineLetterGrade(score) {
   if (score >= 2.0)  return { grade: "A+", color: "#f5c542", label: "elite" };
-  if (score >= 1.2)  return { grade: "A",  color: "#86e0a3", label: "excellent" };
-  if (score >= 0.5)  return { grade: "B+", color: "#a8d8b6", label: "good" };
-  if (score >= -0.2) return { grade: "B",  color: "#cce8d6", label: "solid" };
-  if (score >= -0.8) return { grade: "C+", color: "#e0b078", label: "average" };
-  if (score >= -1.5) return { grade: "C",  color: "#e0b078", label: "below avg" };
-  return                     { grade: "D",  color: "#ff9b9b", label: "weak" };
+  if (score >= 1.2)  return { grade: "A",  color: "var(--ds-grade-pos)", label: "excellent" };
+  if (score >= 0.5)  return { grade: "B+", color: "var(--ds-grade-pos-mid)", label: "good" };
+  if (score >= -0.2) return { grade: "B",  color: "var(--ds-grade-pos-soft)", label: "solid" };
+  if (score >= -0.8) return { grade: "C+", color: "var(--ds-grade-caution-soft)", label: "average" };
+  if (score >= -1.5) return { grade: "C",  color: "var(--ds-grade-caution-soft)", label: "below avg" };
+  return                     { grade: "D",  color: "var(--ds-grade-neg-soft)", label: "weak" };
 }
 
 // Returns { warriors, disappointments } — top-N "surprising"
@@ -21425,7 +21427,7 @@ function _renderDraftFloor() {
     const isMostRecent = i === 0;
     const teamLabel = team ? `${team.city} ${team.name}` : "?";
     // Border priority: target (red) > watched (blue) > recent (gold) > transparent
-    const borderColor = isTarget ? "#ff8a8a"
+    const borderColor = isTarget ? "var(--ds-grade-neg)"
                       : isWatched ? "#6cc6ff"
                       : isMostRecent ? "var(--gold)" : "transparent";
     const esc = (pk.prospectName||"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g, "&quot;");
@@ -21524,7 +21526,7 @@ function _renderDraftFloor() {
           </div>
         </div>
         <div style="display:flex;gap:.4rem;align-items:center">
-          ${canTradeUp && !d._tradeUpOpen ? DS.button({ label: "📈 Trade Up", variant: "outline", on: "frnDraftOpenTradeUp()", title: "Jump ahead to grab a sliding target — pauses the draft", attrs: { style: "font-size:.6rem;padding:.4rem .7rem;white-space:nowrap;color:#86e0a3;border-color:#86e0a3" } }) : ""}
+          ${canTradeUp && !d._tradeUpOpen ? DS.button({ label: "📈 Trade Up", variant: "outline", on: "frnDraftOpenTradeUp()", title: "Jump ahead to grab a sliding target — pauses the draft", attrs: { style: "font-size:.6rem;padding:.4rem .7rem;white-space:nowrap;color:var(--ds-grade-pos);border-color:var(--ds-grade-pos)" } }) : ""}
           ${DS.button({ label: "⏩ Skip to my pick", variant: "gold", on: "frnSkipDraftFloor()", attrs: { style: "font-size:.7rem;padding:.4rem .9rem;white-space:nowrap" } })}
         </div>
       </div>
@@ -21603,7 +21605,7 @@ function renderFrnDraftPreshow() {
   const myTeam = getTeam(franchise.chosenTeamId);
 
   const themeChips = (d.classThemes?.chips || []).map(c =>
-    `<span style="display:inline-block;padding:.3rem .65rem;border-radius:3px;background:rgba(255,255,255,.05);border:1px solid var(--border);color:${c.color};font-size:.7rem;font-weight:700;letter-spacing:.5px;margin-right:.4rem">${c.text}</span>`
+    `<span style="display:inline-block;padding:.3rem .65rem;border-radius:3px;background:var(--ds-tint-white-05);border:1px solid var(--border);color:${c.color};font-size:.7rem;font-weight:700;letter-spacing:.5px;margin-right:.4rem">${c.text}</span>`
   ).join("");
 
   // Mock first round — with WHY reasoning per pick. Reasons explain
@@ -21618,9 +21620,9 @@ function renderFrnDraftPreshow() {
     const sgColor = sg >= 82 ? "var(--green-lt)" : sg >= 70 ? "var(--gold)" : sg >= 60 ? "var(--gold-lt)" : "var(--gray)";
     const reasons = (typeof _mockPickReasons === "function") ? _mockPickReasons(entry, d.class) : [];
     const reasonChips = reasons.length
-      ? `<div style="grid-column:3 / -1;display:flex;flex-wrap:wrap;gap:.2rem;margin-top:.18rem">${reasons.map(r => `<span style="display:inline-flex;align-items:baseline;gap:.18rem;padding:.06rem .3rem;border-radius:1px;background:rgba(255,255,255,.04);color:${r.color};font-size:.5rem;letter-spacing:.3px"><span style="font-size:.55rem">${r.icon}</span>${r.text}</span>`).join("")}</div>`
+      ? `<div style="grid-column:3 / -1;display:flex;flex-wrap:wrap;gap:.2rem;margin-top:.18rem">${reasons.map(r => `<span style="display:inline-flex;align-items:baseline;gap:.18rem;padding:.06rem .3rem;border-radius:1px;background:var(--ds-tint-white-04);color:${r.color};font-size:.5rem;letter-spacing:.3px"><span style="font-size:.55rem">${r.icon}</span>${r.text}</span>`).join("")}</div>`
       : "";
-    return `<div style="display:grid;grid-template-columns:2.2rem 7rem 1fr 2.4rem 2.3rem;gap:.5rem;padding:.3rem .55rem;background:${isMine ? "rgba(200,169,0,.10)" : i % 2 === 0 ? "rgba(255,255,255,.02)" : "transparent"};font-size:.66rem;align-items:baseline;border-left:${isMine ? "3px solid var(--gold)" : "3px solid transparent"}">
+    return `<div style="display:grid;grid-template-columns:2.2rem 7rem 1fr 2.4rem 2.3rem;gap:.5rem;padding:.3rem .55rem;background:${isMine ? "rgba(200,169,0,.10)" : i % 2 === 0 ? "var(--ds-tint-white-02)" : "transparent"};font-size:.66rem;align-items:baseline;border-left:${isMine ? "3px solid var(--gold)" : "3px solid transparent"}">
       <span style="color:var(--gray);font-weight:700">${i+1}.</span>
       <span style="color:${isMine ? "var(--gold)" : "var(--blwhite)"};font-weight:${isMine ? "900" : "700"};font-size:.62rem">${team?.city || "?"} ${team?.name || ""}</span>
       <span style="color:var(--white)">${entry.prospect.name}</span>
@@ -21675,7 +21677,7 @@ function renderFrnDraftPreshow() {
     const g = cg?.grades?.[testKey];
     if (!g) return "";
     const col = g === "A+" ? "var(--green-lt)" : g === "A" ? "var(--green-lt)"
-              : g === "B" ? "var(--gold)" : g === "C" ? "#e8a000" : "#c08080";
+              : g === "B" ? "var(--gold)" : g === "C" ? "var(--ds-grade-caution)" : "var(--ds-grade-neg-muted)";
     return `<span style="font-size:.5rem;font-weight:800;padding:.02rem .22rem;border-radius:2px;background:rgba(0,0,0,.35);color:${col};margin-left:.2rem">${g}</span>`;
   };
   // Riser/faller badge — pulled from the combine event's _combineResult.
@@ -21698,7 +21700,7 @@ function renderFrnDraftPreshow() {
         <span style="color:${isTop?"var(--gold)":"var(--gray)"};font-weight:700;text-align:center">${rankIcon}</span>
         <span>${_nameWithStar(p)}${_riserBadge(p)}</span>
         <span style="color:var(--gold-lt);font-size:.55rem;font-weight:700">${p.position}</span>
-        <span style="color:${isTop?"var(--gold)":"var(--white)"};font-weight:${isTop?"900":"700"};text-align:right;font-family:'Bebas Neue','Anton',sans-serif;letter-spacing:.3px">${val}${units}${testKey ? _testGradeChip(p, testKey) : ""}</span>
+        <span style="color:${isTop?"var(--gold)":"var(--white)"};font-weight:${isTop?"900":"700"};text-align:right;font-family:var(--font-display);letter-spacing:.3px">${val}${units}${testKey ? _testGradeChip(p, testKey) : ""}</span>
       </div>`;
     }).join("") : `<div style="color:var(--gray);font-style:italic;font-size:.6rem;padding:1rem .25rem;text-align:center">no prospects at ${_combineFilterPos}</div>`;
     return `<div style="background:var(--bg2);border:1px solid var(--border);padding:.55rem .6rem;border-radius:3px;display:flex;flex-direction:column">
@@ -21792,7 +21794,7 @@ function renderFrnDraftPreshow() {
         const m = combineMeasurables(p);
         const sg = (typeof scoutGrade === "function") ? scoutGrade(p) : (p.overall || 70);
         const sgLabel = (typeof gradeLabel === "function") ? gradeLabel(sg) : sg.toFixed(0);
-        const sgColor = sg >= 82 ? "#86e0a3" : sg >= 75 ? "#a8d8b6" : sg >= 68 ? "var(--gold-lt)" : sg >= 60 ? "#e0b078" : "#ff9b9b";
+        const sgColor = sg >= 82 ? "var(--ds-grade-pos)" : sg >= 75 ? "var(--ds-grade-pos-mid)" : sg >= 68 ? "var(--gold-lt)" : sg >= 60 ? "var(--ds-grade-caution-soft)" : "var(--ds-grade-neg-soft)";
         const composite = _combineCompositeScore(p);
         const cg = _combineLetterGrade(composite);
         const portrait = (typeof _playerPortrait === "function") ? _playerPortrait(p, 28) : "";
@@ -21813,14 +21815,14 @@ function renderFrnDraftPreshow() {
           const isElite = posRank <= 3;
           const titleText = `#${posRank} ${p.position} in class · #${overallRank} of ${totalClass} overall`;
           return `<div title="${titleText}" style="text-align:center;cursor:help;line-height:1.1">
-            <span style="font-family:'Bebas Neue','Anton',sans-serif;font-size:.92rem;color:${isElite ? "#86e0a3" : "var(--white)"};letter-spacing:.3px">${val}${units}</span>
+            <span style="font-family:var(--font-display);font-size:.92rem;color:${isElite ? "var(--ds-grade-pos)" : "var(--white)"};letter-spacing:.3px">${val}${units}</span>
             <span style="display:block;font-size:.54rem;color:var(--gray);margin-top:.05rem">#${posRank}${p.position} · #${overallRank}</span>
           </div>`;
         };
         // Sub-line content (archetype + comp + knock) — only render
         // if any of them have content so empty subs don't add height.
         const subBits = [
-          archetype ? `<span style="color:#5ed4d4">${archetype}</span>` : "",
+          archetype ? `<span style="color:var(--ds-cyan)">${archetype}</span>` : "",
           comp ? `<span style="color:var(--ds-accent-blue);font-style:italic">comp: ${comp}</span>` : "",
           knock ? `<span style="color:var(--ds-grade-caution-soft)">⚠ ${knock}</span>` : "",
         ].filter(Boolean);
@@ -21828,7 +21830,7 @@ function renderFrnDraftPreshow() {
           ? `<div style="font-size:.5rem;color:var(--gray);margin-top:.08rem;display:flex;gap:.5rem;flex-wrap:wrap">${subBits.join("")}</div>`
           : "";
         return `
-          <div style="display:grid;grid-template-columns:28px 1fr 2.2rem 2.2rem 3.4rem 3.4rem 3.4rem 3.4rem;gap:.4rem;align-items:center;padding:.32rem .25rem;border-bottom:1px solid rgba(255,255,255,.03);border-left:3px solid ${cg.color}">
+          <div style="display:grid;grid-template-columns:28px 1fr 2.2rem 2.2rem 3.4rem 3.4rem 3.4rem 3.4rem;gap:.4rem;align-items:center;padding:.32rem .25rem;border-bottom:1px solid var(--ds-tint-white-03);border-left:3px solid ${cg.color}">
             <div style="width:28px;height:32px;overflow:hidden;border-radius:2px;background:var(--bg3);display:flex;align-items:center;justify-content:center">${portrait}</div>
             <div style="min-width:0">
               <div style="display:flex;align-items:baseline;gap:.35rem;flex-wrap:wrap;line-height:1.1">
@@ -21838,8 +21840,8 @@ function renderFrnDraftPreshow() {
               </div>
               ${subLine}
             </div>
-            <div title="Composite combine grade · ${cg.label}" style="text-align:center;font-family:'Bebas Neue','Anton',sans-serif;font-size:1rem;color:${cg.color};font-weight:900;cursor:help;line-height:1">${cg.grade}</div>
-            <div title="Scout grade ${sg.toFixed(0)}/100" style="text-align:center;font-family:'Bebas Neue','Anton',sans-serif;font-size:1rem;color:${sgColor};font-weight:900;cursor:help;line-height:1">${sgLabel}</div>
+            <div title="Composite combine grade · ${cg.label}" style="text-align:center;font-family:var(--font-display);font-size:1rem;color:${cg.color};font-weight:900;cursor:help;line-height:1">${cg.grade}</div>
+            <div title="Scout grade ${sg.toFixed(0)}/100" style="text-align:center;font-family:var(--font-display);font-size:1rem;color:${sgColor};font-weight:900;cursor:help;line-height:1">${sgLabel}</div>
             ${_cell(m.fortyTime,  "",   fPosRk, fRank)}
             ${_cell(m.benchReps,  "",   bPosRk, bRank)}
             ${_cell(m.coneTime,   "",   cPosRk, cRank)}
@@ -21857,22 +21859,22 @@ function renderFrnDraftPreshow() {
     const m = combineMeasurables(e.p);
     const sg = e.sg;
     const grade = (typeof gradeLabel === "function") ? gradeLabel(sg) : sg.toFixed(0);
-    const color = kind === "warrior" ? "#86e0a3" : "#ff9b9b";
-    return `<div style="display:grid;grid-template-columns:1fr 2rem 2.2rem 5.6rem;gap:.35rem;padding:.22rem .35rem;font-size:.6rem;align-items:baseline;border-top:1px solid rgba(255,255,255,.04)">
+    const color = kind === "warrior" ? "var(--ds-grade-pos)" : "var(--ds-grade-neg-soft)";
+    return `<div style="display:grid;grid-template-columns:1fr 2rem 2.2rem 5.6rem;gap:.35rem;padding:.22rem .35rem;font-size:.6rem;align-items:baseline;border-top:1px solid var(--ds-tint-white-04)">
       ${_nameWithStar(e.p)}
       <span style="color:var(--gold-lt);font-weight:700">${e.p.position}</span>
       <span style="color:${color};font-weight:700">${grade}</span>
-      <span style="color:var(--gray);text-align:right;font-family:'Bebas Neue','Anton',sans-serif">${m.fortyTime} · ${m.benchReps}r · ${m.verticalIn}"</span>
+      <span style="color:var(--gray);text-align:right;font-family:var(--font-display)">${m.fortyTime} · ${m.benchReps}r · ${m.verticalIn}"</span>
     </div>`;
   };
   const surprisesHtml = (surprises.warriors.length || surprises.disappointments.length) ? `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
-      <div style="background:rgba(134,224,163,.06);border:1px solid var(--ds-grade-pos);border-radius:3px;padding:.5rem .65rem">
+      <div style="background:var(--ds-tint-pos-06);border:1px solid var(--ds-grade-pos);border-radius:3px;padding:.5rem .65rem">
         <div style="font-size:.6rem;color:var(--ds-grade-pos);letter-spacing:1.2px;font-weight:700;margin-bottom:.25rem">🚀 WORKOUT WARRIORS</div>
         <div style="color:var(--gray);font-size:.5rem;margin-bottom:.3rem;font-style:italic">elite combine · low-to-mid scout grade · potential sleepers</div>
         ${surprises.warriors.length ? surprises.warriors.map(e => _surpriseRow(e, "warrior")).join("") : `<div style="color:var(--gray);font-size:.6rem;font-style:italic;padding:.3rem">no big sleepers this class</div>`}
       </div>
-      <div style="background:rgba(255,155,155,.06);border:1px solid var(--ds-grade-neg-soft);border-radius:3px;padding:.5rem .65rem">
+      <div style="background:var(--ds-tint-neg-06);border:1px solid var(--ds-grade-neg-soft);border-radius:3px;padding:.5rem .65rem">
         <div style="font-size:.6rem;color:var(--ds-grade-neg-soft);letter-spacing:1.2px;font-weight:700;margin-bottom:.25rem">⚠ WORKOUT DISAPPOINTMENTS</div>
         <div style="color:var(--gray);font-size:.5rem;margin-bottom:.3rem;font-style:italic">high scout grade · weak combine · re-evaluate before draft</div>
         ${surprises.disappointments.length ? surprises.disappointments.map(e => _surpriseRow(e, "disappointment")).join("") : `<div style="color:var(--gray);font-size:.6rem;font-style:italic;padding:.3rem">no notable red flags</div>`}
@@ -21893,7 +21895,7 @@ function renderFrnDraftPreshow() {
     const story = p.collegeProfile?.line || "";
     const knock = p.collegeProfile?.knock || "";
     const meta = [arch, comp].filter(Boolean).join(" · ");
-    return `<div style="display:grid;grid-template-columns:1.8rem 1fr 2.4rem;gap:.45rem;padding:.4rem .55rem;background:rgba(255,255,255,.025);border-left:2px solid ${sgColor};font-size:.65rem;align-items:start;margin-bottom:.3rem">
+    return `<div style="display:grid;grid-template-columns:1.8rem 1fr 2.4rem;gap:.45rem;padding:.4rem .55rem;background:var(--ds-tint-white-025);border-left:2px solid ${sgColor};font-size:.65rem;align-items:start;margin-bottom:.3rem">
       <span style="color:${sgColor};font-weight:900;font-size:.7rem">${pos}</span>
       <div>
         <div style="display:flex;gap:.4rem;align-items:baseline">
@@ -21927,7 +21929,7 @@ function renderFrnDraftPreshow() {
   const draftedSlots = d.pickOrder?.length || 224;
   const willFall = Math.max(0, totalPool - draftedSlots);
   const teamMark = myTeam ? `
-    <span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:3px;background:${myTeam.primary || "var(--gold)"};color:#fff;font-family:'Bebas Neue','Anton',sans-serif;font-size:14px;letter-spacing:.5px;font-weight:900">${(myTeam.abbrev || myTeam.name?.slice(0,3) || "???").toUpperCase().slice(0,3)}</span>` : "";
+    <span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:3px;background:${myTeam.primary || "var(--gold)"};color:var(--ds-pure-white);font-family:var(--font-display);font-size:14px;letter-spacing:.5px;font-weight:900">${(myTeam.abbrev || myTeam.name?.slice(0,3) || "???").toUpperCase().slice(0,3)}</span>` : "";
 
   $("frnHomeContent").innerHTML = `
     <div style="max-width:1240px;margin:0 auto;padding-bottom:1.5rem">
@@ -21937,7 +21939,7 @@ function renderFrnDraftPreshow() {
       <div style="text-align:center;padding:1.2rem 0 1rem;background:radial-gradient(ellipse at center top, rgba(245,197,66,.07), transparent 65%);margin-bottom:.5rem;position:relative">
         <a href="javascript:void(0)" onclick="frnBeginDraftActual()" style="position:absolute;top:.6rem;right:.8rem;color:var(--gold);text-decoration:none;font-size:.6rem;letter-spacing:1px;font-weight:700;border:1px solid var(--blborder);padding:.25rem .55rem;border-radius:2px;cursor:pointer" title="Skip the pre-show and start drafting now">SKIP TO DRAFT →</a>
         <div style="font-size:.65rem;color:var(--gold-dim, var(--ds-gold-dim));letter-spacing:4px;font-weight:700">🏟  COMBINE WEEK · PRE-DRAFT REPORT  🏟</div>
-        <div style="font-family:'Bebas Neue','Anton',sans-serif;font-size:2.4rem;font-weight:900;color:var(--gold-lt);letter-spacing:2px;margin:.3rem 0 .1rem;line-height:1">DRAFT CLASS · SEASON ${seasonNum}</div>
+        <div style="font-family:var(--font-display);font-size:2.4rem;font-weight:900;color:var(--gold-lt);letter-spacing:2px;margin:.3rem 0 .1rem;line-height:1">DRAFT CLASS · SEASON ${seasonNum}</div>
         <div style="display:inline-flex;align-items:center;gap:.7rem;color:var(--blgray);font-size:.7rem;margin-top:.45rem">
           ${teamMark}
           <span style="color:var(--white);font-weight:700;letter-spacing:.5px">${(myTeam?.city || "").toUpperCase()} ${(myTeam?.name || "").toUpperCase()}</span>
@@ -21959,7 +21961,7 @@ function renderFrnDraftPreshow() {
         ${_sectionHeader("⭐", "MY WATCHLIST", `${watchPlayers.length} prospect${watchPlayers.length===1?"":"s"} bookmarked · hover any measurable for class rank · click ★ to remove`)}
         ${watchlistHtml}` : `
         ${_sectionHeader("⭐", "MY WATCHLIST", "empty — bookmark prospects below to build your list")}
-        <div style="background:rgba(255,255,255,.02);border:1px dashed var(--blborder);border-radius:3px;padding:.8rem 1rem;text-align:center;color:var(--gray);font-size:.65rem;font-style:italic">
+        <div style="background:var(--ds-tint-white-02);border:1px dashed var(--blborder);border-radius:3px;padding:.8rem 1rem;text-align:center;color:var(--gray);font-size:.65rem;font-style:italic">
           Click any ☆ next to a player's name (combine standouts, surprising results, headliners) to add them to your watchlist.
           They'll show here with full combine line + class rank tooltips.
         </div>`}
@@ -23527,8 +23529,8 @@ function _renderClassStrengthSummary(eligibleByPos) {
     else if (elite >= 5)                     { label = "DEEP";   color = "#ffd700"; }
     else if (elite >= 3)                     { label = "STRONG"; color = "#4caf82"; }
     else if (elite >= 1 || good >= 5)        { label = "SOLID";  color = "#7ac8e8"; }
-    else if (good >= 2)                      { label = "AVG";    color = "#e8a000"; }
-    else                                     { label = "THIN";   color = "#ff6b6b"; }
+    else if (good >= 2)                      { label = "AVG";    color = "var(--ds-grade-caution)"; }
+    else                                     { label = "THIN";   color = "var(--ds-grade-neg-strong)"; }
     const eliteTag = elite > 0 ? `<span class="frn-scout-strength-elite">${elite}E</span>` : "";
     return `<button class="frn-scout-strength-card${list.length===0?" empty":""}"
         onclick="frnScoutBoardSetPos('${pos}')"
@@ -23851,9 +23853,9 @@ function renderFrnScoutingBoard() {
           const chips = (byRound[r] || []).slice(0, 4).map(p => {
             const need = needPos.has(p.position);
             return `<span role="button" tabindex="0" onclick="frnOpenPlayerCard('${_jsStr(p.name)}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s player card" title="${_esc(p.name)} · proj R${r}${need ? " · fills a need" : ""}"
-              style="cursor:pointer;font-size:.62rem;padding:.1rem .4rem;border-radius:3px;border:1px solid ${need ? "var(--gold)" : "var(--blborder)"};background:${need ? "rgba(245,197,66,.08)" : "rgba(255,255,255,.03)"};white-space:nowrap">${need ? "🎯 " : ""}<b style="color:var(--gold-lt)">${_esc(p.position)}</b> ${_esc(p.name)}</span>`;
+              style="cursor:pointer;font-size:.62rem;padding:.1rem .4rem;border-radius:3px;border:1px solid ${need ? "var(--gold)" : "var(--blborder)"};background:${need ? "rgba(245,197,66,.08)" : "var(--ds-tint-white-03)"};white-space:nowrap">${need ? "🎯 " : ""}<b style="color:var(--gold-lt)">${_esc(p.position)}</b> ${_esc(p.name)}</span>`;
           }).join("");
-          return `<div style="display:flex;align-items:flex-start;gap:.55rem;padding:.3rem 0;border-top:1px solid rgba(255,255,255,.05)">
+          return `<div style="display:flex;align-items:flex-start;gap:.55rem;padding:.3rem 0;border-top:1px solid var(--ds-tint-white-05)">
             <span style="min-width:6.2rem;font-weight:800;color:var(--gold)">R${r}${cnt > 1 ? ` ×${cnt}` : ""}<span style="color:var(--gray);font-weight:400;font-size:.62rem">${overall ? ` · proj #${overall}` : ""}</span></span>
             <span style="display:flex;gap:.35rem;flex-wrap:wrap;flex:1">${chips || `<span style="color:var(--gray);font-style:italic;font-size:.62rem">— no scouted prospects projected to round ${r} yet —</span>`}</span>
           </div>`;
@@ -24747,7 +24749,7 @@ function renderFrnDraft() {
                  :            "var(--gray)";
     const posTotal = posCountMap.get(pos) || 0;
     const lvl = needLevels[pos];
-    const lvlColor = lvl === 2 ? "#ff9090" : "var(--gold)";
+    const lvlColor = lvl === 2 ? "var(--ds-grade-neg-mid)" : "var(--gold)";
     return `<div class="frn-draft-best-row" role="button" tabindex="0" aria-label="Filter to ${pos}, ${posTotal} ${pos}s left" onclick="frnDraftSetFilter('${pos}')" onkeydown="_frnRowKey(event)" title="Filter to ${pos} · ${posTotal} ${pos}s left">
       <span style="font-weight:700;font-size:.64rem;min-width:2rem;color:${lvlColor}">${pos}</span>
       <span title="${_escHtml(best.name)}" style="font-size:.62rem;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${best.name}</span>
@@ -24878,7 +24880,7 @@ function renderFrnDraft() {
           <div style="display:flex;flex-direction:column;gap:.2rem;align-items:flex-end">
             ${DS.button({ label: "🤖 Auto-Pick", variant: "gold", on: "frnAutoPickThisSlot()", title: "Pick for me — uses AI scoring, prefers your targets", attrs: { style: "font-size:.6rem;padding:.22rem .55rem;white-space:nowrap" } })}
             ${DS.button({ label: `⏭ Sim Rest of R${round}`, variant: "outline", on: "frnSimRound()", attrs: { style: "font-size:.55rem;padding:.18rem .5rem;white-space:nowrap" } })}
-            ${DS.button({ label: "⏩ Auto-Draft Rest", variant: "outline", on: "frnAutoDraftRemaining()", title: "Skip to UDFA — autopick every remaining slot", attrs: { style: "font-size:.55rem;padding:.18rem .5rem;white-space:nowrap;color:#e8a000;border-color:#e8a000" } })}
+            ${DS.button({ label: "⏩ Auto-Draft Rest", variant: "outline", on: "frnAutoDraftRemaining()", title: "Skip to UDFA — autopick every remaining slot", attrs: { style: "font-size:.55rem;padding:.18rem .5rem;white-space:nowrap;color:var(--ds-grade-caution);border-color:var(--ds-grade-caution)" } })}
           </div>
         </div>
         ${tradePanelHtml}
@@ -25065,8 +25067,8 @@ function _draftScoutMedicalRisk(prospect) {
   let score = (h % 100);            // 0-99
   if (isMed) score += 30;            // medical knock = much more likely high
   if (age >= 23) score += 10;
-  if (score >= 75) return { level: "high", label: "HIGH",  color: "#ff8a8a" };
-  if (score >= 45) return { level: "med",  label: "MED",   color: "#e8a000" };
+  if (score >= 75) return { level: "high", label: "HIGH",  color: "var(--ds-grade-neg)" };
+  if (score >= 45) return { level: "med",  label: "MED",   color: "var(--ds-grade-caution)" };
   return                   { level: "low",  label: "LOW",   color: "var(--green-lt)" };
 }
 
@@ -25080,7 +25082,7 @@ function _draftScoutSchemeFit(prospect) {
   const score = h % 100;
   if (score >= 70) return { fit: "good",    label: "✓ GOOD",    color: "var(--green-lt)" };
   if (score >= 30) return { fit: "neutral", label: "— NEUTRAL", color: "var(--gray)" };
-  return                   { fit: "poor",    label: "✗ POOR",    color: "#ff8a8a" };
+  return                   { fit: "poor",    label: "✗ POOR",    color: "var(--ds-grade-neg)" };
 }
 
 // Workout reveal — sharpens combine measurables by un-fuzzing the listed
@@ -25093,7 +25095,7 @@ function _draftScoutWorkoutLine(prospect) {
   const [spd=50, str=50, agi=50] = stats;
   const ath = Math.round((spd * 0.5 + agi * 0.35 + str * 0.15));
   const ag = ath >= 85 ? "★ ELITE" : ath >= 78 ? "↗ STRONG" : ath >= 68 ? "— SOLID" : "▾ BELOW AVG";
-  const agColor = ath >= 85 ? "var(--gold-lt)" : ath >= 78 ? "var(--green-lt)" : ath >= 68 ? "var(--gray)" : "#e8a000";
+  const agColor = ath >= 85 ? "var(--gold-lt)" : ath >= 78 ? "var(--green-lt)" : ath >= 68 ? "var(--gray)" : "var(--ds-grade-caution)";
   return `40-yd <b>${fortyTime}</b>s · Athleticism <b style="color:${agColor}">${ag}</b>`;
 }
 
@@ -25784,7 +25786,7 @@ function _renderPostDraftGrade(myPicks) {
   const avg = valid.length ? valid.reduce((s, p) => s + p.sg, 0) / valid.length : 60;
   const [letter, col] = avg>=82?["A+","#ffe066"]:avg>=77?["A","#ffe066"]:avg>=72?["A-","#ffcc44"]
     :avg>=68?["B+","#aaffaa"]:avg>=63?["B","#aaffaa"]:avg>=58?["B-","#aaffaa"]
-    :avg>=53?["C+","#aaaaff"]:avg>=48?["C","#aaaaff"]:avg>=43?["D","#ffaaaa"]:["F","#ff7070"];
+    :avg>=53?["C+","#aaaaff"]:avg>=48?["C","#aaaaff"]:avg>=43?["D","#ffaaaa"]:["F","var(--ds-grade-neg-bright)"];
   const quotes = {
     "A+":["A dominant class — every pick fills a need at above-market value.","This front office absolutely crushed it. Best haul in the league."],
     "A": ["Strong class top to bottom — smart picks and good value throughout.","Hard to find a real miss here. Solid first-round value."],
@@ -26597,7 +26599,7 @@ function frnDraftClaimUDFA(name) {
   d.udfaUserClaims = d.udfaUserClaims || [];
   if (d.udfaUserClaims.includes(name)) return;
   if (d.udfaUserClaims.length >= UDFA_USER_CLAIM_CAP) {
-    alert(`You can claim at most ${UDFA_USER_CLAIM_CAP} UDFAs.`);
+    if (typeof DS !== "undefined") DS.toast({ message: `You can claim at most ${UDFA_USER_CLAIM_CAP} UDFAs.`, kind: "warn" }); else alert(`You can claim at most ${UDFA_USER_CLAIM_CAP} UDFAs.`);
     return;
   }
   d.udfaUserClaims.push(name);

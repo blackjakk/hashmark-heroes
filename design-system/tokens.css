@@ -98,6 +98,52 @@
   --ds-slate: #5d6b66;
   --ds-neutral: #888;
 
+  /* ── Sentiment / accent aliases, second wave (2026-07 DS-unify pass) ────
+     Same contract as the grade palette above: every value is BYTE-IDENTICAL
+     to the raw literal it replaces (zero-visual-change adoption). Names by
+     observed role in the franchise UI. */
+  --ds-grade-pos-mid: #a8d8b6;      /* mild-positive step between pos and pos-soft */
+  --ds-pos-bright: #3fdf83;         /* vivid success green (confirmations, big wins) */
+  --ds-grade-neg-bright: #ff7070;   /* loud negative (cap overage, hard warnings) */
+  --ds-red-strong: #e6373a;         /* saturated alarm red (records, elimination) */
+  --ds-orange: #ed6a3a;             /* hot orange (position badges, heat) */
+  --ds-orange-soft: #ef8a4d;        /* softened orange (expiring, 1-yr deals) */
+  --ds-amber: #f0a93a;              /* amber (wear/fatigue mid band) */
+  --ds-cyan: #5ed4d4;               /* tier-A cyan (grades, tier chips) */
+  --ds-accent-sky: #8ab4f8;         /* sky-blue info accent (expiring contracts, analytics) */
+  --ds-slate-lt: #7a8b85;           /* muted slate for zero/neutral deltas */
+  --ds-pure-white: #fff;            /* true white (not the warm --white) */
+  --ds-pure-black: #000;            /* true black */
+  /* SCOPE-STABLE twins of --blgold/--blgray: play.css REDEFINES those two
+     inside team-theming (.bspnlive-root → var(--team-accent)) and HH-MODERN
+     scopes, so migrating a raw literal to them would silently theme a color
+     that was fixed. These aliases hold the raw values at :root and are never
+     redefined — use THEM when tokenizing a literal #f5c542/#9aa7b8; use
+     --blgold/--blgray only when theme-following is the intent. */
+  --ds-gold-accent: #f5c542;        /* fixed bspn gold (never team-themed) */
+  --ds-slate-blue: #9aa7b8;         /* fixed slate-blue (never HH-MODERN-shifted) */
+
+  /* ── Alpha tints / shades (row washes, hover films, soft fills) ────────
+     The recurring rgba() literals, captured verbatim. white-NN = white at
+     .NN alpha (surface lift); shade-NN = black at .NN (dimming); the
+     amber/gold/neg/pos tints are the sentiment washes behind chips & rows. */
+  --ds-tint-white-02: rgba(255,255,255,.02);
+  --ds-tint-white-025: rgba(255,255,255,.025);
+  --ds-tint-white-03: rgba(255,255,255,.03);
+  --ds-tint-white-04: rgba(255,255,255,.04);
+  --ds-tint-white-05: rgba(255,255,255,.05);
+  --ds-tint-white-08: rgba(255,255,255,.08);
+  --ds-shade-15: rgba(0,0,0,.15);
+  --ds-shade-20: rgba(0,0,0,.2);
+  --ds-tint-amber-18: rgba(255,200,0,.18);
+  --ds-tint-amber-40: rgba(255,200,0,.4);
+  --ds-tint-gold-10: rgba(245,197,66,.1);
+  --ds-tint-royal-07: rgba(212,175,55,.07);
+  --ds-tint-royal-08: rgba(212,175,55,.08);
+  --ds-tint-neg-18: rgba(255,70,70,.18);
+  --ds-tint-neg-06: rgba(255,155,155,.06);
+  --ds-tint-pos-06: rgba(134,224,163,.06);
+
   /* ── Loading-state surfaces ────────────────────────────────────────────
      Skeleton shimmer: a resting bar on the lifted surface with a faint
      moving sheen. The sheen is a low-alpha white wash (same family as

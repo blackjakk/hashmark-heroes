@@ -542,7 +542,7 @@ function _showInjuryRepairBanner() {
     const detail = f.kind === "capped" ? ` ${f.from}w → ${f.to}w`
                  : f.kind === "cleared-prior" && f.seasonsAgo ? ` (${f.seasonsAgo}+ seasons stale)`
                  : "";
-    return `<div style="display:flex;justify-content:space-between;gap:.6rem;padding:.18rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.62rem">
+    return `<div style="display:flex;justify-content:space-between;gap:.6rem;padding:.18rem 0;border-bottom:1px solid var(--ds-tint-white-05);font-size:.62rem">
       <span><b style="color:var(--white)">${f.pos} ${f.name}</b> <span style="color:var(--gray)">· ${f.label}</span></span>
       <span style="color:var(--gold);font-size:.58rem">${KIND_LABEL[f.kind] || f.kind}${detail}</span>
     </div>`;
@@ -552,7 +552,7 @@ function _showInjuryRepairBanner() {
   el.id = "frn-injury-repair-toast";
   el.setAttribute("role", "status");
   el.setAttribute("aria-live", "polite");
-  el.style.cssText = "position:fixed;right:1rem;bottom:1rem;width:min(420px,90vw);max-height:60vh;background:var(--bg2);border:2px solid var(--gold);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.5);z-index:9000;font-family:inherit;overflow:hidden;display:flex;flex-direction:column";
+  el.style.cssText = "position:fixed;right:1rem;bottom:1rem;width:min(420px,90vw);max-height:60vh;background:var(--bg2);border:2px solid var(--gold);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.5);z-index:9000;font-family:var(--font-data);overflow:hidden;display:flex;flex-direction:column";
   el.innerHTML = `
     <div style="background:rgba(200,169,0,.16);padding:.55rem .7rem;border-bottom:1px solid var(--gold);display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
       <div>
@@ -560,7 +560,7 @@ function _showInjuryRepairBanner() {
         <div style="font-size:.6rem;color:var(--gray);margin-top:.1rem">Cleaned ${rep.total} stale injury record${rep.total===1?"":"s"} from before the engine fix.</div>
       </div>
       <button onclick="frnDismissInjuryRepair()"
-        style="background:var(--gold);color:#000;border:none;border-radius:3px;padding:.25rem .55rem;font-weight:700;font-size:.65rem;cursor:pointer;font-family:inherit">
+        style="background:var(--gold);color:var(--ds-pure-black);border:none;border-radius:3px;padding:.25rem .55rem;font-weight:700;font-size:.65rem;cursor:pointer;font-family:var(--font-data)">
         Got it
       </button>
     </div>
@@ -676,7 +676,7 @@ function renderFrnTeamPicker() {
         <div class="frn-team-btn-right">
           <div class="frn-team-colors">
             <span class="frn-color-swatch" style="background:${t.primary}" title="${t.primary}"></span>
-            <span class="frn-color-swatch" style="background:${t.secondary||'#fff'}" title="${t.secondary||''}"></span>
+            <span class="frn-color-swatch" style="background:${t.secondary||'var(--ds-pure-white)'}" title="${t.secondary||''}"></span>
           </div>
           <span class="frn-team-tier tier-${tier}">${tier[0].toUpperCase()}</span>
         </div>
@@ -794,7 +794,7 @@ function renderFrnTeamDetail(teamId) {
   const pb      = (typeof getPlaybook === "function") ? getPlaybook(team) : null;
   const pbLabel = pb?.name || team.playbook?.replace(/_/g," ") || "Balanced";
   const tierDesc = { powerhouse:"Turn-Key Contender", contender:"Solid Foundation", average:"Development Mode", rebuilding:"Full Rebuild" }[summary.tier] || "";
-  const diffColor = { powerhouse:"#7dff97", contender:"#aaffaa", average:"var(--gold)", rebuilding:"#ff9090" }[summary.tier] || "var(--gray)";
+  const diffColor = { powerhouse:"#7dff97", contender:"#aaffaa", average:"var(--gold)", rebuilding:"var(--ds-grade-neg-mid)" }[summary.tier] || "var(--gray)";
 
   // Position depth counts
   const posCounts = {};
@@ -818,7 +818,7 @@ function renderFrnTeamDetail(teamId) {
         <div class="frn-banner-sub">${team.conference} ${team.division} · <span style="color:var(--gold-lt)">${TIER_LABEL[summary.tier]}</span> · OFF ${Math.round(ratings.offense)} · DEF ${Math.round(ratings.defense)}</div>
         <div class="frn-color-bar" style="max-width:120px">
           <div class="frn-color-bar-seg" style="background:${team.primary}"></div>
-          <div class="frn-color-bar-seg" style="background:${team.secondary||'#fff'}"></div>
+          <div class="frn-color-bar-seg" style="background:${team.secondary||'var(--ds-pure-white)'}"></div>
         </div>
       </div>
     </div>
@@ -843,7 +843,7 @@ function renderFrnTeamDetail(teamId) {
         <span class="frn-vital-label">COLORS</span>
         <span class="frn-vital-value" style="display:flex;align-items:center;gap:.3rem">
           <span style="background:${team.primary};width:1.1rem;height:1.1rem;display:inline-block;border-radius:2px;border:1px solid rgba(255,255,255,0.15)"></span>
-          <span style="background:${team.secondary||'#fff'};width:1.1rem;height:1.1rem;display:inline-block;border-radius:2px;border:1px solid rgba(255,255,255,0.15)"></span>
+          <span style="background:${team.secondary||'var(--ds-pure-white)'};width:1.1rem;height:1.1rem;display:inline-block;border-radius:2px;border:1px solid rgba(255,255,255,0.15)"></span>
         </span>
         <span class="frn-vital-sub">${pbLabel}</span>
       </div>
@@ -955,7 +955,7 @@ function renderFrnPreseason(tab, scoutId, scoutView, selName) {
           Season ${season} · Pre-Season Camp · OFF ${myRtg.off} · DEF ${myRtg.def}
           ${tierLabel ? ` · <span style="color:var(--gold-lt)">${tierLabel}</span>` : ""}
         </div>
-        <div class="frn-banner-cap" style="color:${overCap?"var(--red)":capUsed/cap>=0.95?"#e8a000":"var(--green-lt)"}">
+        <div class="frn-banner-cap" style="color:${overCap?"var(--red)":capUsed/cap>=0.95?"var(--ds-grade-caution)":"var(--green-lt)"}">
           CAP $${capUsed.toFixed(1)}M / $${cap.toFixed(0)}M
           <span style="color:var(--gray);font-weight:400"> · Room $${capLeft.toFixed(1)}M</span>
           <button class="frn-cap-btn" onclick="renderFrnAnalytics('mysheet')" aria-label="Cap sheet">📊 Cap Sheet</button>
@@ -1016,7 +1016,7 @@ function renderFrnPreseason(tab, scoutId, scoutView, selName) {
         <td style="color:var(--gray);font-size:.68rem">${p.position}</td>
         <td>${gradeBadge(p)}</td>
         <td style="color:var(--red);font-weight:700">$${hit.toFixed(1)}M</td>
-        <td style="color:${isFree?"var(--gray)":"#ff9090"};font-size:.65rem">${isFree ? "No dead cap" : `☠ $${deadPY.toFixed(1)}M×${deadYrs}yr`}</td>
+        <td style="color:${isFree?"var(--gray)":"var(--ds-grade-neg-mid)"};font-size:.65rem">${isFree ? "No dead cap" : `☠ $${deadPY.toFixed(1)}M×${deadYrs}yr`}</td>
         <td style="color:var(--green-lt);font-weight:700">+$${netSave.toFixed(1)}M</td>
         <td style="color:var(--gray);font-size:.65rem">${p.contract.remaining}yr</td>
         <td>${frnBtn({ label: "✗ Cut", variant: "outline", on: `frnReleasePlayer('${escN}','${p.position}')`, attrs: { style: "font-size:.6rem;padding:.15rem .4rem;color:var(--red)" } })}</td>
@@ -1085,7 +1085,7 @@ function _buildPSTab(myId) {
         <b style="color:var(--red);font-size:.78rem">${a.position} ${a.playerName}</b>
         <span style="font-size:.62rem;color:var(--gray)">being scouted by ${getTeam(a.suitorTeamId)?.name||"rival"} — promote by end of Wk ${a.deadlineWeek}</span>
         <button onclick="frnPreseasonPSPromote('${ep}')"
-          style="margin-left:auto;background:rgba(245,197,66,.15);border:1px solid var(--gold);color:var(--gold-lt);font-size:.63rem;padding:.18rem .55rem;border-radius:3px;cursor:pointer;font-family:inherit;font-weight:700">
+          style="margin-left:auto;background:rgba(245,197,66,.15);border:1px solid var(--gold);color:var(--gold-lt);font-size:.63rem;padding:.18rem .55rem;border-radius:3px;cursor:pointer;font-family:var(--font-data);font-weight:700">
           ⬆ PROMOTE NOW
         </button>
       </div>
@@ -1112,7 +1112,7 @@ function _buildPSTab(myId) {
       <span style="font-size:.6rem;color:var(--gray)">Age ${p.age||"?"}</span>
       ${flashBadge}
       <button onclick="frnPreseasonPSPromote('${ep}')"
-        style="background:rgba(245,197,66,.1);border:1px solid var(--gold);color:var(--gold-lt);font-size:.58rem;padding:.12rem .38rem;border-radius:3px;cursor:pointer;font-family:inherit;flex-shrink:0">
+        style="background:var(--ds-tint-gold-10);border:1px solid var(--gold);color:var(--gold-lt);font-size:.58rem;padding:.12rem .38rem;border-radius:3px;cursor:pointer;font-family:var(--font-data);flex-shrink:0">
         ⬆ Promote
       </button>
     </div>`;
@@ -1129,7 +1129,7 @@ function _buildPSTab(myId) {
       ${gradeBadge(p)}
       <span style="font-size:.6rem;color:var(--gray)">Age ${p.age||"?"}</span>
       <button onclick="frnPSStash('${ep}')" ${slotsLeft<=0?"disabled":""}
-        style="background:rgba(100,100,255,.1);border:1px solid #8888ff;color:#aaaaff;font-size:.58rem;padding:.12rem .38rem;border-radius:3px;cursor:${slotsLeft<=0?"not-allowed":"pointer"};font-family:inherit;flex-shrink:0">
+        style="background:rgba(100,100,255,.1);border:1px solid #8888ff;color:#aaaaff;font-size:.58rem;padding:.12rem .38rem;border-radius:3px;cursor:${slotsLeft<=0?"not-allowed":"pointer"};font-family:var(--font-data);flex-shrink:0">
         ↓ Stash
       </button>
     </div>`;
@@ -1174,7 +1174,11 @@ function frnPSStash(playerName) {
   const myId = franchise.chosenTeamId;
   const myPS = franchise.practiceSquads?.[myId];
   if (!myPS) return;
-  if (myPS.length >= PS_SLOTS) { alert(`Practice squad is full (${PS_SLOTS} slots).`); return; }
+  if (myPS.length >= PS_SLOTS) {
+    const msg = `Practice squad is full (${PS_SLOTS} slots).`;
+    if (typeof DS !== "undefined") DS.toast({ message: msg, kind: "warn" }); else alert(msg);
+    return;
+  }
   const roster = franchise.rosters[myId] || [];
   const idx = roster.findIndex(p => p.name === playerName);
   if (idx === -1) return;
@@ -1213,7 +1217,7 @@ function _preseasonRosterTab(roster, selName) {
 
   // Header strip: cap meter + post-June 1 counter — top-of-page context.
   const capPct = Math.min(100, capUsed / cap * 100);
-  const capColor = capUsed >= cap * 0.97 ? "var(--red)" : capUsed >= cap * 0.88 ? "#e8a000" : "var(--green-lt)";
+  const capColor = capUsed >= cap * 0.97 ? "var(--red)" : capUsed >= cap * 0.88 ? "var(--ds-grade-caution)" : "var(--green-lt)";
   const headerHtml = `
     <div style="display:flex;align-items:center;gap:.8rem;padding:.5rem .7rem;background:var(--bg3);border:1px solid var(--border);border-radius:5px;margin-bottom:.65rem;flex-wrap:wrap">
       <div style="flex:1;min-width:280px">
@@ -1232,7 +1236,7 @@ function _preseasonRosterTab(roster, selName) {
       <div style="display:flex;flex-direction:column;align-items:flex-start;padding:.25rem .55rem;background:var(--bg2);border:1px solid var(--border);border-radius:4px;min-width:130px"
            title="Post-June 1 designations: 2 per team per offseason. Use to defer most dead-cap on a release to next year.">
         <span style="font-size:.55rem;letter-spacing:.5px;color:var(--gray)">📅 POST-JUN 1</span>
-        <span style="font-size:.95rem;font-weight:700;color:${j1Left===0?"#888":"var(--gold)"}">${j1Used} / ${JUNE1_DESIGNATIONS_PER_TEAM}</span>
+        <span style="font-size:.95rem;font-weight:700;color:${j1Left===0?"var(--ds-neutral)":"var(--gold)"}">${j1Used} / ${JUNE1_DESIGNATIONS_PER_TEAM}</span>
         <span style="font-size:.55rem;color:var(--gray)">${j1Left} remaining</span>
       </div>
     </div>`;
@@ -1272,18 +1276,18 @@ function _preseasonRosterTab(roster, selName) {
               ? `<span title="${tag}" style="font-size:.56rem;padding:.08rem .3rem;border-radius:3px;background:${
                   tag.includes("HIGH CEILING") ? "rgba(255,215,0,.18);color:#ffd700"
                   : tag.includes("Late bloomer") ? "rgba(120,255,120,.15);color:#9af0a3"
-                  : tag.includes("Bust") ? "rgba(255,100,100,.18);color:#ff9090"
-                  : tag.includes("Capped") || tag.includes("Fell short") ? "rgba(200,100,100,.13);color:#ff9090"
+                  : tag.includes("Bust") ? "rgba(255,100,100,.18);color:var(--ds-grade-neg-mid)"
+                  : tag.includes("Capped") || tag.includes("Fell short") ? "rgba(200,100,100,.13);color:var(--ds-grade-neg-mid)"
                   : tag.includes("Hit ceiling") || tag.includes("At ceiling") ? "rgba(150,150,150,.18);color:var(--gray)"
                   : "rgba(160,160,160,.15);color:var(--gray)"
                 }">${tag.replace(/^[📋⭐↗▾⚠✓≈↘]\s*/,"").replace(/\s*$/,"").slice(0,12)}</span>`
               : `<span style="color:#555;font-size:.6rem">—</span>`;
-            const ageColor = (p.age||0) >= 33 ? "#ff9090" : (p.age||0) >= 30 ? "#e8a000" : "var(--gray)";
+            const ageColor = (p.age||0) >= 33 ? "var(--ds-grade-neg-mid)" : (p.age||0) >= 30 ? "var(--ds-grade-caution)" : "var(--gray)";
             const saveColor = thisYearSave >= 5 ? "var(--green-lt)" : thisYearSave > 0 ? "#9af0a3" : thisYearSave < 0 ? "var(--red)" : "var(--gray)";
-            const deadColor = deadTotal === 0 ? "var(--green-lt)" : deadTotal >= 10 ? "var(--red)" : "#ff9090";
+            const deadColor = deadTotal === 0 ? "var(--green-lt)" : deadTotal >= 10 ? "var(--red)" : "var(--ds-grade-neg-mid)";
             const rowBg = isPendingRelease ? "rgba(220,50,50,.18)" : "";
             const cutBtn = isPendingRelease
-              ? `<button class="frn-pre-cut" onclick="event.stopPropagation();frnReleasePlayerCancel()" title="Cancel release" style="background:var(--red);color:#fff">✗</button>`
+              ? `<button class="frn-pre-cut" onclick="event.stopPropagation();frnReleasePlayerCancel()" title="Cancel release" style="background:var(--red);color:var(--ds-pure-white)">✗</button>`
               : `<button class="frn-pre-cut" onclick="event.stopPropagation();frnReleasePlayer('${escNm}','${p.position}')" title="Release — opens decision panel">✗</button>`;
             return `<tr class="frn-scout-row ${isSel?"selected":""}" style="background:${rowBg}" role="button" tabindex="0" aria-label="Select ${_escHtml(p.name)}" onclick="renderFrnPreseason('roster',null,null,'${escName}')" onkeydown="_frnRowKey(event)">
               <td class="frn-scout-slot">${isStarter?"★":"#"+(i+1)}</td>
@@ -1333,7 +1337,7 @@ function _buildReleaseDecisionPanel(roster) {
     const accent = isJ1 ? "var(--gold)" : "var(--red)";
     const title = isJ1 ? "POST-JUNE 1 CUT" : "STANDARD CUT";
     const subtitle = isJ1
-      ? `<span style="font-size:.55rem;color:${j1Left()===0?"#888":"var(--green-lt)"};letter-spacing:.5px">${j1Left()} / ${JUNE1_DESIGNATIONS_PER_TEAM} LEFT</span>`
+      ? `<span style="font-size:.55rem;color:${j1Left()===0?"var(--ds-neutral)":"var(--green-lt)"};letter-spacing:.5px">${j1Left()} / ${JUNE1_DESIGNATIONS_PER_TEAM} LEFT</span>`
       : `<span style="font-size:.55rem;color:var(--gray);letter-spacing:.5px">ALWAYS AVAILABLE</span>`;
     const y1Save = isJ1 ? j1SaveY1 : standardSaveY1;
     const y1Dead = isJ1 ? j1Year1 : deadPerYr;
@@ -1347,7 +1351,7 @@ function _buildReleaseDecisionPanel(roster) {
           ${deadYrs < 2 ? "Needs ≥2yr dead to defer" : `0 / ${JUNE1_DESIGNATIONS_PER_TEAM} designations left`}
         </div>`
       : `<button onclick="frnReleasePlayer('${escNm}','${p.position}',${isJ1});frnReleasePlayerConfirm()"
-           style="display:block;width:100%;padding:.4rem;background:${accent};color:${isJ1?"#000":"#fff"};font-weight:700;border:none;border-radius:4px;cursor:pointer;font-size:.7rem;letter-spacing:.5px">
+           style="display:block;width:100%;padding:.4rem;background:${accent};color:${isJ1?"var(--ds-pure-black)":"var(--ds-pure-white)"};font-weight:700;border:none;border-radius:4px;cursor:pointer;font-size:.7rem;letter-spacing:.5px">
            ✓ ${isJ1 ? "CONFIRM POST-JUN 1" : "CONFIRM STANDARD"}
          </button>`;
     const dim = (isJ1 && !j1Eligible) ? .55 : 1;
@@ -1447,9 +1451,9 @@ function _scoutGradeBadge(p, scouted) {
   const g  = scoutGrade(p);
   const gL = gradeLabel(g);
   const gc = gradeClass(g);
-  const bg  = gc === "elite" ? "#f0cc30" : gc === "good" ? "#9be09b" : gc === "average" ? "#c0c0c0" : "#c08080";
-  const col = gc === "poor" ? "#200" : "#000";
-  const base = `display:inline-block;background:${bg};color:${col};font-weight:800;padding:.1rem .35rem;border-radius:3px;font-size:.68rem;font-family:inherit;letter-spacing:.2px;white-space:nowrap`;
+  const bg  = gc === "elite" ? "#f0cc30" : gc === "good" ? "#9be09b" : gc === "average" ? "#c0c0c0" : "var(--ds-grade-neg-muted)";
+  const col = gc === "poor" ? "#200" : "var(--ds-pure-black)";
+  const base = `display:inline-block;background:${bg};color:${col};font-weight:800;padding:.1rem .35rem;border-radius:3px;font-size:.68rem;font-family:var(--font-data);letter-spacing:.2px;white-space:nowrap`;
   return scouted
     ? `<span style="${base}">${gL}</span>`
     : `<span style="${base};opacity:.8;outline:1px dashed ${bg}">~${gL}</span>`;
@@ -1480,7 +1484,7 @@ function _buildScoutPlayerPanel(p, scouted) {
   if (p.proBowls) accolades.push(`🌟 ${p.proBowls}× Pro Bowl`);
   const accoladeHtml = accolades.length
     ? `<div style="display:flex;flex-wrap:wrap;gap:.28rem;margin-top:.3rem">
-        ${accolades.map(a=>`<span style="font-size:.58rem;background:rgba(245,197,66,.1);border:1px solid rgba(245,197,66,.3);padding:.08rem .32rem;border-radius:3px;color:var(--gold-lt)">${a}</span>`).join("")}
+        ${accolades.map(a=>`<span style="font-size:.58rem;background:var(--ds-tint-gold-10);border:1px solid rgba(245,197,66,.3);padding:.08rem .32rem;border-radius:3px;color:var(--gold-lt)">${a}</span>`).join("")}
        </div>` : "";
 
   // Potential tag (always fuzzy for opponents)
@@ -1516,7 +1520,7 @@ function _buildScoutPlayerPanel(p, scouted) {
         <tbody>${recentSeasons.map(s=>{
           const ovrCol = s.ovr>=88?"var(--gold)":s.ovr>=75?"var(--green-lt)":"var(--gray)";
           const lastWord = (s.teamName||"—").split(" ").slice(-1)[0];
-          return `<tr style="border-top:1px solid rgba(255,255,255,.05)">
+          return `<tr style="border-top:1px solid var(--ds-tint-white-05)">
             <td style="padding:.12rem .2rem;color:var(--gray)">'${String(s.season||s.year||"").slice(-2)}</td>
             <td style="padding:.12rem .2rem;color:var(--blgray)">${lastWord}</td>
             <td style="padding:.12rem .2rem;text-align:center;font-weight:700;color:${ovrCol}">${s.ovr||"—"}</td>
@@ -1584,7 +1588,7 @@ function _buildScoutPlayerPanel(p, scouted) {
         <div style="display:flex;align-items:flex-start;gap:.4rem;flex-wrap:wrap">
           <span style="font-size:.98rem;font-weight:900;flex:1">${_escHtml(p.name)}</span>
           <button onclick="frnOpenPlayerCard('${escN}','${escPid}')"
-            style="background:none;border:1px solid var(--border);color:var(--blgray);font-size:.54rem;padding:.12rem .32rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0"
+            style="background:none;border:1px solid var(--border);color:var(--blgray);font-size:.54rem;padding:.12rem .32rem;border-radius:3px;cursor:pointer;font-family:var(--font-data);white-space:nowrap;flex-shrink:0"
             onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'"
             onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--blgray)'">📋 Full Card</button>
         </div>
@@ -1611,7 +1615,7 @@ function _buildScoutPlayerPanel(p, scouted) {
     ${archBlock?`<div style="margin-bottom:.4rem">${archBlock}</div>`:""}
 
     <!-- ④ Career totals -->
-    ${careerStatLine?`<div style="font-size:.62rem;color:var(--blgray);padding:.26rem .42rem;background:rgba(255,255,255,.03);border-radius:3px;margin-bottom:.4rem"><span class="frn-meta-label">CAREER TOTALS</span> ${careerStatLine}</div>`:""}
+    ${careerStatLine?`<div style="font-size:.62rem;color:var(--blgray);padding:.26rem .42rem;background:var(--ds-tint-white-03);border-radius:3px;margin-bottom:.4rem"><span class="frn-meta-label">CAREER TOTALS</span> ${careerStatLine}</div>`:""}
 
     <!-- ⑤ Recent seasons -->
     ${recentHtml}
@@ -1638,7 +1642,7 @@ function _scoutNeedsBar(myId) {
     return `<span style="font-size:.52rem;font-weight:700;color:${col};background:rgba(0,0,0,.25);border:1px solid ${col}55;padding:.06rem .3rem;border-radius:3px;white-space:nowrap">${pos} <span style="opacity:.75">${label}</span></span>`;
   }).filter(Boolean);
   if (!pills.length) return "";
-  return `<div style="display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;margin-bottom:.55rem;padding:.3rem .4rem;background:rgba(0,0,0,.2);border-radius:4px;border:1px solid var(--border)">
+  return `<div style="display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;margin-bottom:.55rem;padding:.3rem .4rem;background:var(--ds-shade-20);border-radius:4px;border:1px solid var(--border)">
     <span style="font-size:.5rem;letter-spacing:.6px;color:var(--blgray);flex-shrink:0">MY NEEDS</span>
     ${pills.join("")}
   </div>`;
@@ -2091,7 +2095,7 @@ function _buildCareerCard(p) {
         <td style="color:var(--white);padding:.12rem 0;font-size:.6rem;font-weight:700">${seniorStats}</td>
       </tr>` : "";
     const collBlock = (collLine || career.length) ? `
-      <div style="margin:.35rem 0 .1rem;padding:.4rem .55rem;background:rgba(255,255,255,.04);border-left:2px solid var(--gray);border-radius:2px">
+      <div style="margin:.35rem 0 .1rem;padding:.4rem .55rem;background:var(--ds-tint-white-04);border-left:2px solid var(--gray);border-radius:2px">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.25rem">
           <div style="font-size:.57rem;color:var(--gray);letter-spacing:.4px">COLLEGE${school ? ` · ${school.toUpperCase()}` : ""}</div>
           ${level ? `<div style="font-size:.54rem;color:var(--ds-grade-caution);letter-spacing:.4px;font-weight:700">${level}</div>` : ""}
@@ -3600,11 +3604,11 @@ function _vitalsColor(wearVal) {
   // 0-30: green (healthy), 30-60: yellow (managed), 60-85: orange,
   // 85+: red (immediate concern). Smooth gradient.
   if (wearVal < 5)  return "#1ec96b";   // fresh green
-  if (wearVal < 30) return "#3fdf83";
+  if (wearVal < 30) return "var(--ds-pos-bright)";
   if (wearVal < 50) return "#d4dc5a";   // yellow
-  if (wearVal < 70) return "#f0a93a";   // orange
-  if (wearVal < 85) return "#ed6a3a";   // dark orange
-  return                  "#e6373a";    // red
+  if (wearVal < 70) return "var(--ds-amber)";   // orange
+  if (wearVal < 85) return "var(--ds-orange)";   // dark orange
+  return                  "var(--ds-red-strong)";    // red
 }
 function _vitalsLabel(wearVal) {
   if (wearVal < 30) return "Healthy";
@@ -3695,7 +3699,7 @@ function _buildVitalsBodyDiagram(p) {
       </radialGradient>
       <linearGradient id="vit-legend-${uid}" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0%" stop-color="#1ec96b"/><stop offset="40%" stop-color="#d4dc5a"/>
-        <stop offset="70%" stop-color="#f0a93a"/><stop offset="100%" stop-color="#e6373a"/>
+        <stop offset="70%" stop-color="var(--ds-amber)"/><stop offset="100%" stop-color="var(--ds-red-strong)"/>
       </linearGradient>
       <filter id="vit-glow-${uid}" x="-80%" y="-80%" width="260%" height="260%">
         <feGaussianBlur stdDeviation="5"/>
@@ -3717,7 +3721,7 @@ function _buildVitalsBodyDiagram(p) {
   // ── Wear glows — translucent heat halos on the worn parts ────────
   const glowFor = (k, v, isActive) => {
     const [x, y] = A[k];
-    const color = isActive ? "#e6373a" : _vitalsColor(v);
+    const color = isActive ? "var(--ds-red-strong)" : _vitalsColor(v);
     const r = 11 + Math.min(100, isActive ? Math.max(v, 55) : v) / 8;
     const op = isActive ? 0.55 : v < 30 ? 0.30 : v < 60 ? 0.42 : 0.55;
     return `<circle cx="${x}" cy="${y}" r="${r.toFixed(1)}" fill="${color}" opacity="${op}" filter="url(#vit-glow-${uid})"/>`;
@@ -3742,10 +3746,10 @@ function _buildVitalsBodyDiagram(p) {
     .filter(([k, n]) => n >= 2 && A[k])
     .map(([k, n]) => {
       const [x, y] = A[k];
-      const fill = n >= 4 ? "#e6373a" : n >= 3 ? "#ed6a3a" : "#f0a93a";
+      const fill = n >= 4 ? "var(--ds-red-strong)" : n >= 3 ? "var(--ds-orange)" : "var(--ds-amber)";
       return `<g>
         <circle cx="${x}" cy="${y}" r="6" fill="${fill}" stroke="rgba(0,0,0,.6)" stroke-width="0.8"/>
-        <text x="${x}" y="${y + 2.5}" fill="#fff" font-size="8" font-weight="800" font-family="'Bricolage Grotesque',system-ui,sans-serif" text-anchor="middle">${n}</text>
+        <text x="${x}" y="${y + 2.5}" fill="var(--ds-pure-white)" font-size="8" font-weight="800" font-family="'Bricolage Grotesque',system-ui,sans-serif" text-anchor="middle">${n}</text>
       </g>`;
     }).join("");
 
@@ -3856,14 +3860,14 @@ const _VITALS_PART_NAMES = {
 // CSS-section header for the clinical panel
 function _vSectionTitle(label, badge) {
   const b = badge ? `<span style="color:var(--gray);font-weight:500">${badge}</span>` : "";
-  return `<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.6rem;letter-spacing:1.2px;color:var(--gray);margin:.55rem 0 .25rem;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:.15rem">
+  return `<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.6rem;letter-spacing:1.2px;color:var(--gray);margin:.55rem 0 .25rem;text-transform:uppercase;border-bottom:1px solid var(--ds-tint-white-08);padding-bottom:.15rem">
     <span style="font-weight:700">${label}</span>${b}
   </div>`;
 }
 // ACTIVE INJURY block — if currently hurt, render a full status card
 function _buildVitalsActiveInjury(p) {
   if (!p.injury || !p.injury.weeksRemaining) {
-    return `<div style="display:flex;align-items:center;gap:.4rem;font-size:.66rem;color:#3fdf83;font-weight:600">
+    return `<div style="display:flex;align-items:center;gap:.4rem;font-size:.66rem;color:var(--ds-pos-bright);font-weight:600">
       <span style="font-size:.8rem">●</span> ACTIVE — cleared to play
     </div>`;
   }
@@ -3871,8 +3875,8 @@ function _buildVitalsActiveInjury(p) {
   const sev = inj._careerEnding ? "CAREER-ENDING"
             : inj._catastrophic ? "CATASTROPHIC"
             : "QUESTIONABLE";
-  const sevColor = inj._careerEnding ? "#e6373a"
-                 : inj._catastrophic ? "#ed6a3a" : "#f0a93a";
+  const sevColor = inj._careerEnding ? "var(--ds-red-strong)"
+                 : inj._catastrophic ? "var(--ds-orange)" : "var(--ds-amber)";
   const onset = (typeof _currentInjuryOnset === "function") ? _currentInjuryOnset(p) : null;
   const causeText = inj._nonContact ? "non-contact" : inj._bigHit ? "big hit" : "contact";
   const ovrTag = inj._ovrPenalty ? ` · −${inj._ovrPenalty} OVR on return` : "";
@@ -3892,14 +3896,14 @@ function _buildVitalsConcerns(p) {
   const entries = Object.entries(bw).filter(([, v]) => v >= 20)
     .sort((a, b) => b[1] - a[1]).slice(0, 4);
   if (!entries.length) {
-    return `<div style="color:#3fdf83;font-size:.66rem;font-weight:600;padding:.3rem 0">⊕ No active concerns</div>`;
+    return `<div style="color:var(--ds-pos-bright);font-size:.66rem;font-weight:600;padding:.3rem 0">⊕ No active concerns</div>`;
   }
   return entries.map(([k, v]) => {
     const color = _vitalsColor(v);
     const lbl = _vitalsLabel(v);
     // Injury risk multiplier (matches wearMul in _rollGameInjuries)
     const riskTag = v >= 85 ? "+60% risk" : v >= 70 ? "+35% risk" : v >= 50 ? "+15% risk" : "monitor";
-    return `<div style="display:flex;align-items:center;gap:.4rem;font-size:.66rem;padding:.18rem 0;border-bottom:1px dashed rgba(255,255,255,.05)">
+    return `<div style="display:flex;align-items:center;gap:.4rem;font-size:.66rem;padding:.18rem 0;border-bottom:1px dashed var(--ds-tint-white-05)">
       <span style="color:${color};font-weight:700;font-size:.85rem">●</span>
       <span style="flex:1;font-weight:500">${_VITALS_PART_NAMES[k] || k}</span>
       <span style="color:${color};font-weight:700;min-width:24px;text-align:right">${v.toFixed(0)}</span>
@@ -3915,8 +3919,8 @@ function _buildVitalsInjuryTimeline(p) {
   const rows = hist.map(h => {
     const part = h.bodyPart ? (_VITALS_PART_NAMES[h.bodyPart] || h.bodyPart) : "";
     const wks = h.weeks ?? h.duration ?? "?";
-    const sevTag = h.careerEnding ? `<span style="color:#e6373a;font-weight:700;font-size:.55rem">CAREER-END</span>`
-                : h.catastrophic ? `<span style="color:#ed6a3a;font-weight:700;font-size:.55rem">CATA</span>`
+    const sevTag = h.careerEnding ? `<span style="color:var(--ds-red-strong);font-weight:700;font-size:.55rem">CAREER-END</span>`
+                : h.catastrophic ? `<span style="color:var(--ds-orange);font-weight:700;font-size:.55rem">CATA</span>`
                 : "";
     const causeChip = h.cause === "non_contact"
       ? `<span style="background:rgba(80,140,200,.15);color:#90c4ec;padding:.05rem .3rem;border-radius:2px;font-size:.55rem;letter-spacing:.3px">N-C</span>`
@@ -3934,7 +3938,7 @@ function _buildVitalsInjuryTimeline(p) {
     ) : "";
     const tacklerNote = h.tackler ? ` · by ${h.tackler}` : "";
     const mechTooltip = mech ? ` title="Mechanism: ${mech}${tacklerNote}"` : (h.tackler ? ` title="${tacklerNote.slice(3)}"` : "");
-    return `<div${mechTooltip} style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;font-size:.63rem;padding:.22rem 0;border-bottom:1px solid rgba(255,255,255,.05)">
+    return `<div${mechTooltip} style="display:flex;justify-content:space-between;align-items:center;gap:.4rem;font-size:.63rem;padding:.22rem 0;border-bottom:1px solid var(--ds-tint-white-05)">
       <span style="color:var(--gray);min-width:50px">S${h.season} W${h.week}</span>
       <span style="flex:1;font-weight:500">${h.label}${part ? `<span style="color:var(--gray);font-weight:400"> · ${part}</span>` : ""}${mech ? `<span style="color:rgba(255,255,255,.4);font-weight:400;font-size:.58rem"> · ${mech}</span>` : ""}</span>
       ${causeChip}
@@ -3950,7 +3954,7 @@ function _buildVitalsRiskFactors(p) {
   // Concussions
   const lifetime = (p._concussionsLifetime || 0) + (p._concussionsThisSeason || 0);
   if (lifetime > 0) {
-    const color = lifetime >= 6 ? "#e6373a" : lifetime >= 4 ? "#ed6a3a" : lifetime >= 2 ? "#f0a93a" : "rgba(255,255,255,.7)";
+    const color = lifetime >= 6 ? "var(--ds-red-strong)" : lifetime >= 4 ? "var(--ds-orange)" : lifetime >= 2 ? "var(--ds-amber)" : "rgba(255,255,255,.7)";
     const note = lifetime >= 6 ? "CTE risk 30%/concussion"
               : lifetime >= 4 ? "CTE risk 15%/concussion"
               : lifetime >= 2 ? "watchlist" : "";
@@ -3960,7 +3964,7 @@ function _buildVitalsRiskFactors(p) {
   if (p.position === "RB") {
     const t = p._careerTouches || 0;
     if (t > 0) {
-      const color = t >= 3000 ? "#e6373a" : t >= 2500 ? "#ed6a3a" : t >= 2000 ? "#f0a93a" : "rgba(255,255,255,.7)";
+      const color = t >= 3000 ? "var(--ds-red-strong)" : t >= 2500 ? "var(--ds-orange)" : t >= 2000 ? "var(--ds-amber)" : "rgba(255,255,255,.7)";
       const note = t >= 3000 ? "+3yr retire offset"
                 : t >= 2500 ? "+2yr retire offset"
                 : t >= 2000 ? "+1yr retire offset" : "below burnout threshold";
@@ -3971,14 +3975,14 @@ function _buildVitalsRiskFactors(p) {
   const priorCount = (p.injuryHistory || []).length;
   if (priorCount > 0) {
     const isProne = priorCount >= 3;
-    const color = isProne ? "#ed6a3a" : priorCount >= 2 ? "#f0a93a" : "rgba(255,255,255,.7)";
+    const color = isProne ? "var(--ds-orange)" : priorCount >= 2 ? "var(--ds-amber)" : "rgba(255,255,255,.7)";
     const note = isProne ? "INJURY-PRONE · +40% recurrence" : priorCount >= 2 ? "1 from injury-prone" : "";
     items.push({ color, label: "Prior injuries", value: `${priorCount}`, note });
   }
   // Career ejections — repeat-offender flag for hits
   const ej = p.ejections || 0;
   if (ej > 0) {
-    const color = ej >= 3 ? "#e6373a" : ej >= 2 ? "#ed6a3a" : "#f0a93a";
+    const color = ej >= 3 ? "var(--ds-red-strong)" : ej >= 2 ? "var(--ds-orange)" : "var(--ds-amber)";
     const note = ej >= 3 ? "REPEAT OFFENDER · suspension risk"
               : ej >= 2 ? "watchlist"
               :           "career ejections";
@@ -3987,7 +3991,7 @@ function _buildVitalsRiskFactors(p) {
   // Age cliff
   const age = p.age || 25;
   if (age >= 30) {
-    const color = age >= 35 ? "#ed6a3a" : age >= 33 ? "#f0a93a" : "rgba(255,255,255,.7)";
+    const color = age >= 35 ? "var(--ds-orange)" : age >= 33 ? "var(--ds-amber)" : "rgba(255,255,255,.7)";
     const note = age >= 35 ? "1.65× injury rate · slow recovery"
               : age >= 33 ? "1.45× injury rate"
               : age >= 32 ? "1.25× injury rate"
@@ -4019,8 +4023,8 @@ function _buildVitalsGuidance(p) {
   }
   const lifetime = (p._concussionsLifetime || 0) + (p._concussionsThisSeason || 0);
   if (lifetime >= 4) recs.push({ icon: "🧠", text: `CTE watchlist — flag concussion symptoms aggressively`, urgent: lifetime >= 6 });
-  if (!recs.length) return `<div style="color:#3fdf83;font-size:.66rem;font-weight:500;padding:.3rem 0">⊕ Cleared for full participation</div>`;
-  return recs.map(r => `<div style="display:flex;align-items:flex-start;gap:.4rem;font-size:.64rem;padding:.2rem 0;color:${r.urgent ? '#f0a93a' : 'rgba(255,255,255,.75)'}">
+  if (!recs.length) return `<div style="color:var(--ds-pos-bright);font-size:.66rem;font-weight:500;padding:.3rem 0">⊕ Cleared for full participation</div>`;
+  return recs.map(r => `<div style="display:flex;align-items:flex-start;gap:.4rem;font-size:.64rem;padding:.2rem 0;color:${r.urgent ? 'var(--ds-amber)' : 'rgba(255,255,255,.75)'}">
     <span style="font-size:.75rem">${r.icon}</span>
     <span style="flex:1;line-height:1.35">${r.text}</span>
   </div>`).join("");
@@ -4054,7 +4058,7 @@ function _buildVitalsBlock(p) {
                 : overallScore >= 30 ? "Stressed"
                 :                       "Critical";
   }
-  const overallColor = isInjured ? "#e6373a" : _vitalsColor(100 - overallScore);
+  const overallColor = isInjured ? "var(--ds-red-strong)" : _vitalsColor(100 - overallScore);
   return `<div class="frn-pcard-section">
     <div class="frn-card-title" style="display:flex;justify-content:space-between;align-items:baseline">
       <span>VITALS</span>
@@ -4065,7 +4069,7 @@ function _buildVitalsBlock(p) {
         ${_buildVitalsBodyDiagram(p)}
       </div>
       <div style="flex:1;min-width:0">
-        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:.5rem .6rem;border-radius:4px;margin-bottom:.3rem">
+        <div style="background:var(--ds-tint-white-04);border:1px solid var(--ds-tint-white-08);padding:.5rem .6rem;border-radius:4px;margin-bottom:.3rem">
           <div style="display:flex;justify-content:space-between;align-items:baseline">
             <span style="font-size:.62rem;letter-spacing:1.2px;color:var(--gray)">OVERALL HEALTH</span>
             <span style="display:flex;align-items:baseline;gap:.5rem">
@@ -4579,11 +4583,11 @@ function _buildGameLogBlock(p) {
       const myScore = myHome ? g.homeScore : g.awayScore;
       const themScore = myHome ? g.awayScore : g.homeScore;
       const res = myScore > themScore ? "W" : myScore < themScore ? "L" : "T";
-      const resColor = res === "W" ? "var(--green-lt)" : res === "L" ? "#c08080" : "var(--gray)";
+      const resColor = res === "W" ? "var(--green-lt)" : res === "L" ? "var(--ds-grade-neg-muted)" : "var(--gray)";
       const cmp = +line.pass_comp || 0, att = +line.pass_att || 0;
       const fpts = _fantasyPPR(line, pos);
       return `<tr>
-        <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:#ff7070" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
+        <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:var(--ds-grade-neg-bright)" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
         ${tmCell(teamId)}
         <td>${myHome ? "vs" : "@"} <span style="color:${_teamInk(opp?.primary)}">${(opp?.name||"").slice(0,4)}</span></td>
         <td style="color:${resColor};font-weight:700">${res} ${myScore}-${themScore}</td>
@@ -4614,12 +4618,12 @@ function _buildGameLogBlock(p) {
       const myScore = myHome ? g.homeScore : g.awayScore;
       const themScore = myHome ? g.awayScore : g.homeScore;
       const res = myScore > themScore ? "W" : myScore < themScore ? "L" : "T";
-      const resColor = res === "W" ? "var(--green-lt)" : res === "L" ? "#c08080" : "var(--gray)";
+      const resColor = res === "W" ? "var(--green-lt)" : res === "L" ? "var(--ds-grade-neg-muted)" : "var(--gray)";
       const car = +line.rush_att || 0, yds = +line.rush_yds || 0;
       const bt = line.broken_tackles || 0;
       const fpts = _fantasyPPR(line, pos);
       return `<tr>
-        <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:#ff7070" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
+        <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:var(--ds-grade-neg-bright)" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
         ${tmCell(teamId)}
         <td>${myHome ? "vs" : "@"} <span style="color:${_teamInk(opp?.primary)}">${(opp?.name||"").slice(0,4)}</span></td>
         <td style="color:${resColor};font-weight:700">${res} ${myScore}-${themScore}</td>
@@ -4645,11 +4649,11 @@ function _buildGameLogBlock(p) {
       const myScore = myHome ? g.homeScore : g.awayScore;
       const themScore = myHome ? g.awayScore : g.homeScore;
       const res = myScore > themScore ? "W" : myScore < themScore ? "L" : "T";
-      const resColor = res === "W" ? "var(--green-lt)" : res === "L" ? "#c08080" : "var(--gray)";
+      const resColor = res === "W" ? "var(--green-lt)" : res === "L" ? "var(--ds-grade-neg-muted)" : "var(--gray)";
       const rec = +line.rec || 0, yds = +line.rec_yds || 0;
       const fpts = _fantasyPPR(line, pos);
       return `<tr>
-        <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:#ff7070" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
+        <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:var(--ds-grade-neg-bright)" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
         ${tmCell(teamId)}
         <td>${myHome ? "vs" : "@"} <span style="color:${_teamInk(opp?.primary)}">${(opp?.name||"").slice(0,4)}</span></td>
         <td style="color:${resColor};font-weight:700">${res} ${myScore}-${themScore}</td>
@@ -4674,16 +4678,16 @@ function _buildGameLogBlock(p) {
       const myScore = myHome ? g.homeScore : g.awayScore;
       const themScore = myHome ? g.awayScore : g.homeScore;
       const res = myScore > themScore ? "W" : myScore < themScore ? "L" : "T";
-      const resColor = res === "W" ? "var(--green-lt)" : res === "L" ? "#c08080" : "var(--gray)";
+      const resColor = res === "W" ? "var(--green-lt)" : res === "L" ? "var(--ds-grade-neg-muted)" : "var(--gray)";
       const fpts = _fantasyPPR(line, pos);
       const miss = line.missed_tkl || 0;
       return `<tr>
-        <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:#ff7070" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
+        <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:var(--ds-grade-neg-bright)" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
         ${tmCell(teamId)}
         <td>${myHome ? "vs" : "@"} <span style="color:${_teamInk(opp?.primary)}">${(opp?.name||"").slice(0,4)}</span></td>
         <td style="color:${resColor};font-weight:700">${res} ${myScore}-${themScore}</td>
         <td>${line.tkl||0}</td>
-        <td style="color:${miss > 0 ? "#c08080" : "var(--gray)"}">${miss}</td>
+        <td style="color:${miss > 0 ? "var(--ds-grade-neg-muted)" : "var(--gray)"}">${miss}</td>
         <td>${line.sk||0}</td>
         <td>${line.int_made||0}</td>
         <td>${line.pd||0}</td>
@@ -4700,10 +4704,10 @@ function _buildGameLogBlock(p) {
       const myScore = myHome ? g.homeScore : g.awayScore;
       const themScore = myHome ? g.awayScore : g.homeScore;
       const res = myScore > themScore ? "W" : myScore < themScore ? "L" : "T";
-      const resColor = res === "W" ? "var(--green-lt)" : res === "L" ? "#c08080" : "var(--gray)";
+      const resColor = res === "W" ? "var(--green-lt)" : res === "L" ? "var(--ds-grade-neg-muted)" : "var(--gray)";
       const fpts = _fantasyPPR(line, pos);
       return `<tr>
-        <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:#ff7070" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
+        <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:var(--ds-grade-neg-bright)" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
         ${tmCell(teamId)}
         <td>${myHome ? "vs" : "@"} <span style="color:${_teamInk(opp?.primary)}">${(opp?.name||"").slice(0,4)}</span></td>
         <td style="color:${resColor};font-weight:700">${res} ${myScore}-${themScore}</td>
@@ -4721,14 +4725,14 @@ function _buildGameLogBlock(p) {
       const myScore = myHome ? g.homeScore : g.awayScore;
       const themScore = myHome ? g.awayScore : g.homeScore;
       const res = myScore > themScore ? "W" : myScore < themScore ? "L" : "T";
-      const resColor = res === "W" ? "var(--green-lt)" : res === "L" ? "#c08080" : "var(--gray)";
+      const resColor = res === "W" ? "var(--green-lt)" : res === "L" ? "var(--ds-grade-neg-muted)" : "var(--gray)";
       return `<tr>
-        <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:#ff7070" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
+        <td${isPlayoff?' style="color:var(--gold);font-weight:800"':""}>${isPlayoff?(roundLabel||"PO"):`W${g.week}`}${injuryByWeek[g.week] ? ` <span style="color:var(--ds-grade-neg-bright)" title="${injuryByWeek[g.week].label} suffered in this game${injuryByWeek[g.week].catastrophic?" (season-ending)":""} — stats above are pre-injury">${injuryByWeek[g.week].catastrophic?"🚑":"🩹"}</span>` : ""}</td>
         ${tmCell(teamId)}
         <td>${myHome ? "vs" : "@"} <span style="color:${_teamInk(opp?.primary)}">${(opp?.name||"").slice(0,4)}</span></td>
         <td style="color:${resColor};font-weight:700">${res} ${myScore}-${themScore}</td>
         <td>${line.pancakes||0}</td>
-        <td style="color:${(line.sacks_allowed||0)>0?"#c08080":"inherit"}">${line.sacks_allowed||0}</td>
+        <td style="color:${(line.sacks_allowed||0)>0?"var(--ds-grade-neg-muted)":"inherit"}">${line.sacks_allowed||0}</td>
         <td>${line.penalties||0}</td>
       </tr>`;
     });
@@ -4772,18 +4776,18 @@ function _buildRecentFormStrip(p) {
     if (avgFpts > 0) {
       if (fpts >= avgFpts * 1.2) color = "var(--green-lt)";
       else if (fpts >= avgFpts * 0.8) color = "var(--gold)";
-      else color = "#c08080";
+      else color = "var(--ds-grade-neg-muted)";
     } else {
       if (fpts >= 15) color = "var(--green-lt)";
       else if (fpts >= 8) color = "var(--gold)";
-      else color = "#c08080";
+      else color = "var(--ds-grade-neg-muted)";
     }
     let secondary = "";
     if (pos === "QB") {
       const rating = _passerRating(+line.pass_comp||0, +line.pass_att||0, +line.pass_yds||0, +line.pass_td||0, +line.pass_int||0);
       secondary = ` · RTG ${rating}`;
     }
-    return `<div style="display:inline-flex;align-items:center;gap:.3rem;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:.3rem;padding:.15rem .45rem;font-size:.62rem;white-space:nowrap">
+    return `<div style="display:inline-flex;align-items:center;gap:.3rem;background:var(--ds-tint-white-05);border:1px solid var(--border);border-radius:.3rem;padding:.15rem .45rem;font-size:.62rem;white-space:nowrap">
       <span style="color:var(--gray)">W${week} vs ${oppAbbr}</span>
       <span style="color:${color};font-weight:700">${fpts.toFixed(1)} pts${secondary}</span>
     </div>`;
@@ -4806,7 +4810,7 @@ function _buildContractBreakdownBlock(p) {
   const structLabel = c.structure === "FRONTLOADED" ? "⬆ Front-loaded" :
                       c.structure === "BACKLOADED"  ? "⬇ Back-loaded"  : "— Balanced";
   const structColor = c.structure === "FRONTLOADED" ? "var(--green-lt)" :
-                      c.structure === "BACKLOADED"  ? "#ff9090"         : "var(--gray)";
+                      c.structure === "BACKLOADED"  ? "var(--ds-grade-neg-mid)"         : "var(--gray)";
 
   // Build year rows
   const rows = bases.map((base, i) => {
@@ -4823,7 +4827,7 @@ function _buildContractBreakdownBlock(p) {
     const prorationRemaining = Math.max(0, prorationYears - i);
     const deadIfCut = Math.round(proration * prorationRemaining * 10) / 10;
 
-    const rowBg = isCur ? "rgba(200,169,0,.12)" : isPast ? "rgba(255,255,255,.02)" : "";
+    const rowBg = isCur ? "rgba(200,169,0,.12)" : isPast ? "var(--ds-tint-white-02)" : "";
     const textColor = isPast ? "var(--gray)" : isCur ? "var(--white)" : "rgba(255,255,255,.85)";
     const hitColor = isCur ? "var(--gold)" : isPast ? "var(--gray)" : "rgba(255,255,255,.85)";
     return `<tr style="background:${rowBg}">
@@ -4838,7 +4842,7 @@ function _buildContractBreakdownBlock(p) {
       <td style="color:${hitColor};font-weight:${isCur?"700":"400"};font-size:.64rem;text-align:right">
         $${capHit.toFixed(1)}M
       </td>
-      <td style="color:${deadIfCut > 0 ? "#ff9090" : "var(--gray)"};font-size:.62rem;text-align:right">
+      <td style="color:${deadIfCut > 0 ? "var(--ds-grade-neg-mid)" : "var(--gray)"};font-size:.62rem;text-align:right">
         ${deadIfCut > 0.05 ? `☠ $${deadIfCut.toFixed(1)}M` : "—"}
       </td>
     </tr>`;
@@ -4962,7 +4966,7 @@ function _buildPlayerDetailPanel(p) {
   const isKicker = p.position === "K" || p.position === "P";
   const cg = (typeof combineGrade === "function") ? combineGrade(p) : null;
   const gradeColor = (g) => g === "A+" ? "var(--green-lt)" : g === "A" ? "var(--green-lt)"
-                    : g === "B" ? "var(--gold)" : g === "C" ? "#e8a000" : "#c08080";
+                    : g === "B" ? "var(--gold)" : g === "C" ? "var(--ds-grade-caution)" : "var(--ds-grade-neg-muted)";
   const gradeChip = (g) => g ? `<span style="font-size:.55rem;font-weight:800;padding:.05rem .25rem;border-radius:2px;background:rgba(0,0,0,.3);color:${gradeColor(g)};margin-left:.25rem">${g}</span>` : "";
   const ftIn = `${Math.floor(cmb.heightIn/12)}'${cmb.heightIn%12}"`;
   const combineHtml = isKicker
@@ -5082,9 +5086,9 @@ function _buildPlayerDetailPanel(p) {
             // Owned players show the exact OVR — staff knows their guys.
             // Letter grade follows underneath as a quick tier read.
             const ovr = p.overall || 0;
-            const ovrColor = ovr >= 90 ? "#f5c542" : ovr >= 85 ? "#e8a000" : ovr >= 78 ? "#c8c8c8" : ovr >= 70 ? "#9b9b9b" : "#7a7a7a";
+            const ovrColor = ovr >= 90 ? "var(--ds-gold-accent)" : ovr >= 85 ? "var(--ds-grade-caution)" : ovr >= 78 ? "#c8c8c8" : ovr >= 70 ? "#9b9b9b" : "#7a7a7a";
             return `<div style="color:var(--gray);font-size:.55rem;letter-spacing:.5px">OVR</div>
-              <div style="font-size:1.9rem;font-weight:900;color:${ovrColor};line-height:1;font-family:'Bebas Neue','Anton',sans-serif"
+              <div style="font-size:1.9rem;font-weight:900;color:${ovrColor};line-height:1;font-family:var(--font-display)"
                 title="Real OVR — your staff knows your roster precisely">${ovr}</div>
               <div style="color:var(--gray);font-size:.6rem;margin-top:.1rem">${gL}</div>`;
           }
@@ -5172,7 +5176,8 @@ function frnStartSeason() {
   const cap = franchise.salaryCap || SALARY_CAP_BASE;
   const used = capUsedByTeam(franchise.chosenTeamId);
   if (used > cap) {
-    alert(`Still over the cap by $${(used-cap).toFixed(1)}M. Cut players first.`);
+    const msg = `Still over the cap by $${(used-cap).toFixed(1)}M. Cut players first.`;
+    if (typeof DS !== "undefined") DS.toast({ message: msg, kind: "error" }); else alert(msg);
     return;
   }
   // First action of every season: free agency. Generate a fresh pool.
@@ -5493,7 +5498,7 @@ function _faCompareCardHtml(fa, chosenTeamId, currentSelKey) {
 function _faCapTimelineHtml(proj, titleSuffix, hoverNote) {
   const yearsHtml = proj.map(p => {
     const pct = Math.min(100, (p.usage / Math.max(1, p.cap)) * 100);
-    const color = p.usage > p.cap ? "var(--red)" : p.usage > p.cap * 0.90 ? "#e8a000" : "var(--green-lt)";
+    const color = p.usage > p.cap ? "var(--red)" : p.usage > p.cap * 0.90 ? "var(--ds-grade-caution)" : "var(--green-lt)";
     return `<div class="frn-resign-cap-year" data-cap-year="${p.year}" data-cap-used="${p.usage}">
       <div class="lbl">Y${p.year+1}</div>
       <div class="bar">
@@ -5749,7 +5754,10 @@ function _ensureFADemand(p) {
 // Includes combine measurables, scout grade, contract demands, and story.
 function frnFAExportCSV() {
   const fas = franchise.freeAgents || [];
-  if (!fas.length) { alert("No free agents to export."); return; }
+  if (!fas.length) {
+    if (typeof DS !== "undefined") DS.toast({ message: "No free agents to export.", kind: "info" }); else alert("No free agents to export.");
+    return;
+  }
   const headers = [
     "Name", "Pos", "Age", "Height", "Weight (lbs)", "Scout Grade",
     "40-yd (s)", "Bench (reps)", "3-Cone (s)", "Vertical (in)", "Leg/KPW",
@@ -5812,9 +5820,9 @@ function _faNeedsSnippet(teamId, highlightPos) {
     const top = (franchise.rosters[teamId]||[]).filter(p=>p.position===pos).sort((a,b)=>scoutGrade(b)-scoutGrade(a))[0];
     const lvl = _draftNeedLevel(teamId, pos);
     const hl = pos === highlightPos;
-    const col = lvl === 2 ? "#ff9090" : lvl === 1 ? "#e8a000" : "var(--gray)";
+    const col = lvl === 2 ? "var(--ds-grade-neg-mid)" : lvl === 1 ? "var(--ds-grade-caution)" : "var(--gray)";
     const badge = lvl === 2 ? "NEED" : lvl === 1 ? "THIN" : "OK";
-    return `<div style="display:flex;align-items:center;gap:.35rem;padding:.1rem ${hl?".35rem":0};${hl?"background:rgba(245,197,66,.1);margin:0 -.35rem;border-radius:3px":""}">
+    return `<div style="display:flex;align-items:center;gap:.35rem;padding:.1rem ${hl?".35rem":0};${hl?"background:var(--ds-tint-gold-10);margin:0 -.35rem;border-radius:3px":""}">
       <span style="font-size:.58rem;font-weight:700;color:${hl?"var(--gold)":"var(--blgray)"};min-width:1.8rem">${pos}</span>
       <span style="font-size:.58rem;color:var(--blgray);flex:1">${top ? gradeLabel(scoutGrade(top)) : "—"}</span>
       <span style="font-size:.52rem;font-weight:700;color:${col}">${badge}</span>
@@ -5875,7 +5883,7 @@ function renderFrnFA(selectedKey) {
   if (!selected) selected = filtered[0] || freeAgents[0];
 
   // Filter chip helper
-  const chip = (active, label, onclick, color) => `<button onclick="${onclick}" style="padding:.18rem .45rem;font-size:.6rem;letter-spacing:.5px;border:1px solid ${active?"var(--gold)":"var(--border)"};background:${active?"rgba(245,197,66,.15)":"transparent"};color:${active?"var(--gold-lt)":(color||"var(--blgray)")};border-radius:3px;font-family:inherit;cursor:pointer;font-weight:${active?700:400}">${label}</button>`;
+  const chip = (active, label, onclick, color) => `<button onclick="${onclick}" style="padding:.18rem .45rem;font-size:.6rem;letter-spacing:.5px;border:1px solid ${active?"var(--gold)":"var(--border)"};background:${active?"rgba(245,197,66,.15)":"transparent"};color:${active?"var(--gold-lt)":(color||"var(--blgray)")};border-radius:3px;font-family:var(--font-data);cursor:pointer;font-weight:${active?700:400}">${label}</button>`;
 
   const POS_LIST = ["ALL","QB","RB","WR","TE","OL","DL","LB","CB","S","K","P"];
   const posChips = POS_LIST.map(pos =>
@@ -5896,7 +5904,7 @@ function renderFrnFA(selectedKey) {
       <span style="color:var(--blgray);font-size:.55rem;letter-spacing:.5px;margin:0 .15rem 0 .4rem">SORT</span>${sortChips}
       <input type="text" placeholder="Search name…" value="${(filters.search || "").replace(/"/g,'&quot;')}"
         oninput="frnFASetFilter('search', this.value)"
-        style="flex:1;min-width:6rem;background:var(--bg3);color:var(--white);border:1px solid var(--border);padding:.18rem .35rem;font-family:inherit;font-size:.65rem;border-radius:3px">
+        style="flex:1;min-width:6rem;background:var(--bg3);color:var(--white);border:1px solid var(--border);padding:.18rem .35rem;font-family:var(--font-data);font-size:.65rem;border-radius:3px">
     </div>`;
 
   // FA list (left column)
@@ -5925,7 +5933,7 @@ function renderFrnFA(selectedKey) {
     const rowSuitors = (hot || warm)
       ? TEAMS.filter(t => t.id !== chosenTeamId && _faAIInterest(t.id, p) >= 0.1).length : 0;
     const suitorBit = rowSuitors >= 3
-      ? `<span style="font-size:.52rem;color:${rowSuitors>=6?"var(--red)":"#e8a000"};flex-shrink:0">${rowSuitors} teams</span>` : "";
+      ? `<span style="font-size:.52rem;color:${rowSuitors>=6?"var(--red)":"var(--ds-grade-caution)"};flex-shrink:0">${rowSuitors} teams</span>` : "";
     // Hover preview on the cap timeline below:
     //   · OFFERED FAs already contribute to the bars → use highlight
     //     mode to show which slice of each year's fill is theirs.
@@ -5993,7 +6001,7 @@ function renderFrnFA(selectedKey) {
     const _motivMult = _faTeamDemandMult(selected, chosenTeamId);
     const score = (offer.aav / (dAavSafe * _motivMult)) * Math.min(offer.years / dYrsSafe, 1);
     const likelihood = score >= 1.05 ? "Very likely" : score >= 1.00 ? "Likely" : score >= 0.90 ? "Toss-up" : score >= 0.80 ? "Unlikely" : "Will reject";
-    const lkColor = score >= 1.00 ? "var(--green-lt)" : score >= 0.90 ? "#e8a000" : "var(--red)";
+    const lkColor = score >= 1.00 ? "var(--green-lt)" : score >= 0.90 ? "var(--ds-grade-caution)" : "var(--red)";
     // Continuous accept-odds percentage for the bar visualization.
     // Score 0.5 → 0%, 1.0 → 80%, 1.2+ → 100%. Smooth fill instead of
     // discrete labels so the user can see odds nudge as they tune AAV.
@@ -6017,7 +6025,7 @@ function renderFrnFA(selectedKey) {
     const threatLine = (threatGM && threatGM.faAgg >= 1.05)
       ? `<div style="font-size:.57rem;color:var(--ds-grade-caution);margin-top:.14rem">⚠ ${_threat.t.name}'s GM is a <b>${threatGM.icon} ${threatGM.label}</b> — ${threatGM.blurb}</div>`
       : "";
-    const heatColor = suitors >= 6 ? "var(--red)" : suitors >= 3 ? "#e8a000" : heatGrade >= 80 ? "#e8a000" : "var(--border)";
+    const heatColor = suitors >= 6 ? "var(--red)" : suitors >= 3 ? "var(--ds-grade-caution)" : heatGrade >= 80 ? "var(--ds-grade-caution)" : "var(--border)";
     const ageStage = selected.age <= 25 ? "🌱 Ascending" : selected.age <= 27 ? "⬆ Young Prime"
                    : selected.age <= 30 ? "★ Prime" : selected.age <= 32 ? "⬇ Late Prime" : "↘ Declining";
 
@@ -6026,7 +6034,7 @@ function renderFrnFA(selectedKey) {
     const slotsLeft = _workoutSlotsRemaining();
     let workoutHtml = "";
     if (wr) {
-      const rCol = { standout:"var(--gold)", solid:"var(--green-lt)", mixed:"#e8a000", bombed:"var(--red)" }[wr.result];
+      const rCol = { standout:"var(--gold)", solid:"var(--green-lt)", mixed:"var(--ds-grade-caution)", bombed:"var(--red)" }[wr.result];
       const rLbl = { standout:"⭐ STANDOUT", solid:"✅ SOLID", mixed:"〰️ MIXED", bombed:"❌ BOMBED" }[wr.result];
       const rGrade = gradeLabel(sGrade), sLabel = gradeLabel(wr.sharpGrade);
       const gradeChanged = rGrade !== sLabel;
@@ -6056,7 +6064,7 @@ function renderFrnFA(selectedKey) {
     const fit = _faRosterFit(selected, chosenTeamId);
     const needLvl = _draftNeedLevel(chosenTeamId, selected.position);
     const fitIcon = fit.upgrade ? "⬆" : fit.compete ? "⟺" : needLvl === 2 ? "❗" : needLvl === 1 ? "⚠" : "→";
-    const fitColor = fit.upgrade ? "var(--green-lt)" : fit.compete ? "var(--gold-lt)" : needLvl === 2 ? "#ff9090" : needLvl === 1 ? "#e8a000" : "var(--blgray)";
+    const fitColor = fit.upgrade ? "var(--green-lt)" : fit.compete ? "var(--gold-lt)" : needLvl === 2 ? "var(--ds-grade-neg-mid)" : needLvl === 1 ? "var(--ds-grade-caution)" : "var(--blgray)";
 
     // Market context
     const posAavs = [];
@@ -6070,7 +6078,7 @@ function renderFrnFA(selectedKey) {
       const top1    = posAavs[0] || 0;
       const vGap    = offer.aav - top5Avg;
       const vTag    = vGap < -2 ? "BARGAIN" : vGap < 2 ? "FAIR" : vGap < 6 ? "PREMIUM" : "OVERPRICED";
-      const vCol    = vTag === "BARGAIN" ? "var(--green-lt)" : vTag === "FAIR" ? "var(--gold-lt)" : vTag === "PREMIUM" ? "#e8a000" : "var(--red)";
+      const vCol    = vTag === "BARGAIN" ? "var(--green-lt)" : vTag === "FAIR" ? "var(--gold-lt)" : vTag === "PREMIUM" ? "var(--ds-grade-caution)" : "var(--red)";
       mktHtml = `<div style="padding:.38rem .5rem;background:var(--bg3);border-radius:4px;border:1px solid var(--border);margin-top:.45rem">
         <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;font-size:.63rem">
           <span style="font-size:.53rem;letter-spacing:.6px;color:var(--blgray)">MARKET CTX</span>
@@ -6106,7 +6114,7 @@ function renderFrnFA(selectedKey) {
       const yourSituation = mv.driver === "money"
         ? `He'll take the highest bid — fit doesn't move him.`
         : `Your situation: <span style="color:${fitCol};font-weight:700">${fitIco} ${mf.label}</span> · ${adj}`;
-      motivHtml = `<div style="padding:.4rem .5rem;background:rgba(0,0,0,.15);border:1px solid var(--border);border-left:3px solid ${fitCol};border-radius:4px;margin-bottom:.45rem">
+      motivHtml = `<div style="padding:.4rem .5rem;background:var(--ds-shade-15);border:1px solid var(--border);border-left:3px solid ${fitCol};border-radius:4px;margin-bottom:.45rem">
         <div style="font-size:.53rem;letter-spacing:.7px;color:var(--blgray);margin-bottom:.18rem">MOTIVATION</div>
         <div style="font-size:.72rem;font-weight:700">${mv.icon} Wants ${mv.want}</div>
         <div style="font-size:.63rem;color:var(--gray);margin-top:.18rem">${yourSituation}</div>
@@ -6126,10 +6134,10 @@ function renderFrnFA(selectedKey) {
             ${_posPillHtml(selected.position)}
             ${gradeBadge(selected)}
             ${!wr ? `<button onclick="frnFAInviteWorkout('${escSelName}')" ${slotsLeft<=0?"disabled":""}
-              style="background:rgba(245,197,66,.1);border:1px solid var(--gold);color:var(--gold-lt);font-size:.6rem;padding:.14rem .4rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;${slotsLeft<=0?"opacity:.4;cursor:not-allowed;":""}">🏋 WORKOUT${slotsLeft<=0?" (0 left)":` (${slotsLeft} left)`}</button>` : ""}
+              style="background:var(--ds-tint-gold-10);border:1px solid var(--gold);color:var(--gold-lt);font-size:.6rem;padding:.14rem .4rem;border-radius:3px;cursor:pointer;font-family:var(--font-data);white-space:nowrap;flex-shrink:0;${slotsLeft<=0?"opacity:.4;cursor:not-allowed;":""}">🏋 WORKOUT${slotsLeft<=0?" (0 left)":` (${slotsLeft} left)`}</button>` : ""}
             ${(franchise._faComparePin === selFaKey || franchise._faComparePin === selected.name)
-              ? `<button onclick="frnFAUnpinCompare()" style="background:rgba(245,197,66,.2);border:1px solid var(--gold);color:var(--gold);font-size:.6rem;padding:.14rem .4rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">📌 PINNED</button>`
-              : `<button onclick="frnFAPinCompare('${escSelName}')" style="background:transparent;border:1px solid var(--border);color:var(--gray);font-size:.6rem;padding:.14rem .4rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0" title="Pin this FA to compare side-by-side with another">📌 Pin to compare</button>`}
+              ? `<button onclick="frnFAUnpinCompare()" style="background:rgba(245,197,66,.2);border:1px solid var(--gold);color:var(--gold);font-size:.6rem;padding:.14rem .4rem;border-radius:3px;cursor:pointer;font-family:var(--font-data);white-space:nowrap;flex-shrink:0">📌 PINNED</button>`
+              : `<button onclick="frnFAPinCompare('${escSelName}')" style="background:transparent;border:1px solid var(--border);color:var(--gray);font-size:.6rem;padding:.14rem .4rem;border-radius:3px;cursor:pointer;font-family:var(--font-data);white-space:nowrap;flex-shrink:0" title="Pin this FA to compare side-by-side with another">📌 Pin to compare</button>`}
             <span style="font-size:.6rem;color:var(--blgray);margin-left:auto">${ageStage} · age ${selected.age}</span>
           </div>
           <div style="color:var(--gray);font-size:.64rem">${_archetypeLabel(selected)||"—"} · ${draftStr(selected)} · ${careerEarningsStr(selected)}</div>
@@ -6139,7 +6147,7 @@ function renderFrnFA(selectedKey) {
       </div>
 
       <!-- ② Market Pulse -->
-      <div style="padding:.45rem .55rem;background:rgba(0,0,0,.2);border-left:3px solid ${heatColor};border-radius:0 4px 4px 0;margin-bottom:.45rem">
+      <div style="padding:.45rem .55rem;background:var(--ds-shade-20);border-left:3px solid ${heatColor};border-radius:0 4px 4px 0;margin-bottom:.45rem">
         <div style="font-size:.53rem;letter-spacing:.7px;color:var(--blgray);margin-bottom:.22rem">MARKET PULSE</div>
         <div style="font-size:.82rem;font-weight:700">$${selected.demandedAAV.toFixed(1)}M / yr × ${selected.demandedYears} yr</div>
         ${suitors > 0
@@ -6149,7 +6157,7 @@ function renderFrnFA(selectedKey) {
       </div>
 
       <!-- ③ Roster Fit -->
-      <div style="padding:.38rem .5rem;background:rgba(0,0,0,.15);border:1px solid var(--border);border-radius:4px;margin-bottom:.45rem">
+      <div style="padding:.38rem .5rem;background:var(--ds-shade-15);border:1px solid var(--border);border-radius:4px;margin-bottom:.45rem">
         <div style="font-size:.53rem;letter-spacing:.7px;color:var(--blgray);margin-bottom:.18rem">ROSTER FIT</div>
         <div style="font-size:.7rem;color:${fitColor};font-weight:${fit.upgrade||fit.compete?700:400}">${fitIcon} ${fit.label}</div>
       </div>
@@ -6166,7 +6174,7 @@ function renderFrnFA(selectedKey) {
         ).join("") : "";
         const combineStr = _draftCombineStr(selected);
         if (!lastSzn && !combineStr) return "";
-        return `<div style="padding:.38rem .5rem;background:rgba(0,0,0,.15);border:1px solid var(--border);border-radius:4px;margin-bottom:.45rem">
+        return `<div style="padding:.38rem .5rem;background:var(--ds-shade-15);border:1px solid var(--border);border-radius:4px;margin-bottom:.45rem">
           ${lastSzn ? `<div style="font-size:.53rem;letter-spacing:.7px;color:var(--blgray);margin-bottom:.22rem">LAST SEASON · ${lastSzn.gp||0} GP · age ${lastSzn.age||"?"}</div>
           <div style="display:flex;gap:.65rem;flex-wrap:wrap;margin-bottom:.25rem">${statCells}</div>` : ""}
           <div style="font-size:.6rem;color:var(--gray)">📐 ${combineStr}</div>
@@ -6251,7 +6259,7 @@ function renderFrnFA(selectedKey) {
         if (suitors === 0)     { lowMult=0.95; highMult=1.00; label="Quiet market";       color="var(--green-lt)"; }
         else if (suitors === 1) { lowMult=1.00; highMult=1.10; label="One competitor";    color="var(--gold-lt)"; }
         else if (suitors === 2) { lowMult=1.05; highMult=1.20; label="Light competition"; color="var(--gold)"; }
-        else if (suitors <= 4)  { lowMult=1.10; highMult=1.30; label="Heated";            color="#e8a000"; }
+        else if (suitors <= 4)  { lowMult=1.10; highMult=1.30; label="Heated";            color="var(--ds-grade-caution)"; }
         else                    { lowMult=1.20; highMult=1.40; label="KNOCKOUT TERRITORY"; color="var(--red)"; }
         const lowAAV  = (dAAV * lowMult).toFixed(1);
         const highAAV = (dAAV * highMult).toFixed(1);
@@ -6308,7 +6316,7 @@ function renderFrnFA(selectedKey) {
           const moveTag = moved
             ? `<span style="font-size:.55rem;color:var(--ds-grade-caution);margin-left:.3rem">← from ${rolesByIdx[wasIdx] || `#${wasIdx+1}`}</span>`
             : "";
-          return `<div style="display:grid;grid-template-columns:4rem 1fr 2.5rem 1.4rem;gap:.4rem;padding:.2rem .35rem;background:${p.isYou?"rgba(0,180,0,.10)":i % 2 === 0 ? "rgba(255,255,255,.025)":"transparent"};font-size:.62rem;align-items:baseline;border-left:${p.isYou?"3px solid var(--green-lt)":"3px solid transparent"};margin-bottom:.1rem">
+          return `<div style="display:grid;grid-template-columns:4rem 1fr 2.5rem 1.4rem;gap:.4rem;padding:.2rem .35rem;background:${p.isYou?"rgba(0,180,0,.10)":i % 2 === 0 ? "var(--ds-tint-white-025)":"transparent"};font-size:.62rem;align-items:baseline;border-left:${p.isYou?"3px solid var(--green-lt)":"3px solid transparent"};margin-bottom:.1rem">
             <span style="color:${p.isYou?"var(--green-lt)":"var(--gray)"};font-weight:700;font-size:.55rem">${role}</span>
             <span style="color:${p.isYou?"var(--green-lt)":"var(--white)"};font-weight:${p.isYou?700:400}">${p.isYou?"+ ":""}${p.name}${moveTag}</span>
             <span style="color:var(--gold-lt);text-align:right;font-weight:700">${p.isYou?"~"+faOvr:p.ovr}</span>
@@ -6369,15 +6377,15 @@ function renderFrnFA(selectedKey) {
     const hasDead = dYrs > 0 && dPY > 0;
     const isStarter = !!(p.pid && dcStarters.has(p.pid));
     const rowStyle = isQueued
-      ? "background:rgba(255,70,70,.1);border-left:3px solid #ff6b6b;padding:.32rem .35rem .32rem .45rem;margin-bottom:.2rem;border-radius:0 3px 3px 0;display:flex;align-items:center;gap:.3rem"
-      : "display:flex;align-items:center;gap:.3rem;padding:.22rem .05rem;border-bottom:1px solid rgba(255,255,255,.04)";
+      ? "background:rgba(255,70,70,.1);border-left:3px solid var(--ds-grade-neg-strong);padding:.32rem .35rem .32rem .45rem;margin-bottom:.2rem;border-radius:0 3px 3px 0;display:flex;align-items:center;gap:.3rem"
+      : "display:flex;align-items:center;gap:.3rem;padding:.22rem .05rem;border-bottom:1px solid var(--ds-tint-white-04)";
     const actionBtn = selected ? (isQueued
       ? `<button onclick="frnFAToggleCut('${escForSel}','${ep}',false)" title="Undo — keep this player"
-          style="background:rgba(255,70,70,.18);border:1px solid var(--ds-grade-neg-strong);color:var(--ds-grade-neg-mid);font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0"
-          onmouseover="this.style.background='rgba(255,70,70,.35)'" onmouseout="this.style.background='rgba(255,70,70,.18)'">× UNDO</button>`
+          style="background:var(--ds-tint-neg-18);border:1px solid var(--ds-grade-neg-strong);color:var(--ds-grade-neg-mid);font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:var(--font-data);white-space:nowrap;flex-shrink:0"
+          onmouseover="this.style.background='rgba(255,70,70,.35)'" onmouseout="this.style.background='var(--ds-tint-neg-18)'">× UNDO</button>`
       : `<button onclick="frnFAToggleCut('${escForSel}','${ep}',true)" title="Flag for cut"
-          style="background:none;border:1px solid var(--border);color:var(--gray);font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0"
-          onmouseover="this.style.borderColor='#ff9090';this.style.color='#ff9090'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--gray)'">✂ CUT</button>`
+          style="background:none;border:1px solid var(--border);color:var(--gray);font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:var(--font-data);white-space:nowrap;flex-shrink:0"
+          onmouseover="this.style.borderColor='var(--ds-grade-neg-mid)';this.style.color='var(--ds-grade-neg-mid)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--gray)'">✂ CUT</button>`
     ) : "";
     return `<div style="${rowStyle}">
       <span style="font-size:.57rem;color:var(--blgray);font-weight:700;min-width:1.5rem">${p.position}</span>
@@ -6408,8 +6416,8 @@ function renderFrnFA(selectedKey) {
         <span style="font-size:.62rem;color:var(--green-lt);font-weight:700;flex-shrink:0">+$${aav.toFixed(1)}M</span>
       </div>
       <button onclick="frnFAToggleCut('${escForSel}','${ep}',false)"
-        style="width:100%;background:rgba(255,70,70,.22);border:1px solid var(--ds-grade-neg-strong);color:#ffaaaa;font-size:.66rem;font-weight:700;padding:.28rem .4rem;border-radius:3px;cursor:pointer;font-family:inherit;letter-spacing:.4px;text-align:center"
-        onmouseover="this.style.background='rgba(255,70,70,.38)';this.style.color='#fff'"
+        style="width:100%;background:rgba(255,70,70,.22);border:1px solid var(--ds-grade-neg-strong);color:#ffaaaa;font-size:.66rem;font-weight:700;padding:.28rem .4rem;border-radius:3px;cursor:pointer;font-family:var(--font-data);letter-spacing:.4px;text-align:center"
+        onmouseover="this.style.background='rgba(255,70,70,.38)';this.style.color='var(--ds-pure-white)'"
         onmouseout="this.style.background='rgba(255,70,70,.22)';this.style.color='#ffaaaa'">
         × UNDO CUT — Keep ${p.name}
       </button>
@@ -6426,7 +6434,7 @@ function renderFrnFA(selectedKey) {
   const deadSection = _cutDead.length
     ? `<div style="margin-top:.5rem">
         <button onclick="window._faCutShowDeadCap=!window._faCutShowDeadCap;renderFrnFA('${escForSel}')"
-          style="background:none;border:none;color:var(--blgray);font-size:.57rem;cursor:pointer;font-family:inherit;padding:.08rem 0;display:flex;align-items:center;gap:.25rem">
+          style="background:none;border:none;color:var(--blgray);font-size:.57rem;cursor:pointer;font-family:var(--font-data);padding:.08rem 0;display:flex;align-items:center;gap:.25rem">
           <span style="color:var(--red)">⚠</span> ${_showDeadCap ? "▾" : "▸"} ${_cutDead.length} player${_cutDead.length!==1?"s":""} with dead cap ${_showDeadCap ? "" : "— show anyway"}
         </button>
         ${_showDeadCap ? `<div style="margin-top:.25rem;padding:.25rem .3rem;background:rgba(255,70,70,.04);border-left:2px solid rgba(255,70,70,.4);border-radius:0 3px 3px 0">${_cutDead.map(p => _buildCutRow(p, false)).join("")}</div>` : ""}
@@ -6481,11 +6489,11 @@ function renderFrnFA(selectedKey) {
             const dead = s.deadTotal >= 0.5
               ? `<span style="color:var(--ds-grade-neg-mid);font-size:.5rem">☠$${s.deadTotal.toFixed(1)}M</span>`
               : `<span style="color:var(--green-lt);font-size:.5rem">clean</span>`;
-            return `<div style="display:grid;grid-template-columns:1.5rem 1fr 2.3rem 1.3rem;gap:.3rem;padding:.22rem .3rem;background:rgba(255,255,255,.02);font-size:.6rem;align-items:baseline;margin-bottom:.12rem;border-radius:3px">
+            return `<div style="display:grid;grid-template-columns:1.5rem 1fr 2.3rem 1.3rem;gap:.3rem;padding:.22rem .3rem;background:var(--ds-tint-white-02);font-size:.6rem;align-items:baseline;margin-bottom:.12rem;border-radius:3px">
               <span style="color:var(--blgray);font-weight:700;font-size:.55rem">${s.player.position}</span>
               <span role="button" tabindex="0" onclick="frnOpenPlayerCard('${escName}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(s.player.name)}'s player card" title="${_escHtml(s.player.name)} — view player card" style="font-size:.66rem;color:var(--blwhite);cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.player.name}</span>
               <span style="color:var(--green-lt);font-weight:700;text-align:right;font-size:.6rem">+$${s.netSavings.toFixed(1)}M</span>
-              <button onclick="frnFAToggleCut('${sel.replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${escName}',true)" style="background:rgba(255,70,70,.18);border:1px solid var(--ds-grade-neg-strong);color:#ffaaaa;font-size:.52rem;padding:.1rem .25rem;border-radius:3px;cursor:pointer;font-family:inherit;font-weight:700">CUT</button>
+              <button onclick="frnFAToggleCut('${sel.replace(/'/g,"\\'").replace(/"/g, "&quot;")}','${escName}',true)" style="background:var(--ds-tint-neg-18);border:1px solid var(--ds-grade-neg-strong);color:#ffaaaa;font-size:.52rem;padding:.1rem .25rem;border-radius:3px;cursor:pointer;font-family:var(--font-data);font-weight:700">CUT</button>
               <span style="grid-column:2/4;color:var(--gray);font-size:.5rem;padding-left:0">${dead} · ${s.player.age}yr · OVR ${s.player.overall} · <i style="color:var(--ds-grade-caution)">${s.reason}</i></span>
             </div>`;
           }).join("");
@@ -6569,7 +6577,7 @@ function frnFACapLiveUpdate(newAavForSelected) {
       const score = (newAavForSelected / safeDemandAAV) * Math.min(offerYears / demandYears, 1);
       const acceptPct = Math.round(Math.max(0, Math.min(100, ((isFinite(score) ? score : 1) - 0.5) * 160)));
       const likelihood = score >= 1.05 ? "Very likely" : score >= 1.00 ? "Likely" : score >= 0.90 ? "Toss-up" : score >= 0.80 ? "Unlikely" : "Will reject";
-      const lkColor = score >= 1.00 ? "var(--green-lt)" : score >= 0.90 ? "#e8a000" : "var(--red)";
+      const lkColor = score >= 1.00 ? "var(--green-lt)" : score >= 0.90 ? "var(--ds-grade-caution)" : "var(--red)";
       const barEl = document.getElementById("fa-accept-bar");
       const lblEl = document.getElementById("fa-accept-label");
       const pctEl = document.getElementById("fa-accept-pct");
@@ -7386,13 +7394,13 @@ function renderFrnFANegotiations(selectedName) {
   const mktTop1   = posAavs[0] || 0;
   const valueGap  = top5Avg ? fa.demandedAAV - top5Avg : 0;
   const valueTag  = valueGap < -2 ? "BARGAIN" : valueGap < 2 ? "FAIR" : valueGap < 6 ? "PREMIUM" : "OVERPRICED";
-  const vCol      = valueTag==="BARGAIN"?"var(--green-lt)":valueTag==="FAIR"?"var(--gold-lt)":valueTag==="PREMIUM"?"#e8a000":"var(--red)";
+  const vCol      = valueTag==="BARGAIN"?"var(--green-lt)":valueTag==="FAIR"?"var(--gold-lt)":valueTag==="PREMIUM"?"var(--ds-grade-caution)":"var(--red)";
   const recMul    = _injuryRecurrenceMul(fa);
 
   const fit = _faRosterFit(fa, myId);
   const needLvl = _draftNeedLevel(myId, fa.position);
   const fitIcon  = fit.upgrade?"⬆":fit.compete?"⟺":needLvl===2?"❗":needLvl===1?"⚠":"→";
-  const fitColor = fit.upgrade?"var(--green-lt)":fit.compete?"var(--gold-lt)":needLvl===2?"#ff9090":needLvl===1?"#e8a000":"var(--blgray)";
+  const fitColor = fit.upgrade?"var(--green-lt)":fit.compete?"var(--gold-lt)":needLvl===2?"var(--ds-grade-neg-mid)":needLvl===1?"var(--ds-grade-caution)":"var(--blgray)";
 
   const lastSzn = (fa.careerHistory||[]).slice(-1)[0];
   const cols = _careerColsFor(fa.position);
@@ -7424,7 +7432,7 @@ function renderFrnFANegotiations(selectedName) {
       </div>
     </div>
 
-    <div style="padding:.45rem .55rem;background:rgba(0,0,0,.2);border-left:3px solid ${isKWar?"var(--red)":selHigh?.isYou?"var(--green-lt)":beingOutbid?"var(--red)":"var(--border)"};border-radius:0 4px 4px 0;margin-bottom:.45rem">
+    <div style="padding:.45rem .55rem;background:var(--ds-shade-20);border-left:3px solid ${isKWar?"var(--red)":selHigh?.isYou?"var(--green-lt)":beingOutbid?"var(--red)":"var(--border)"};border-radius:0 4px 4px 0;margin-bottom:.45rem">
       <div style="font-size:.53rem;letter-spacing:.7px;color:var(--blgray);margin-bottom:.22rem">BID STATUS · Week ${franchise.week}</div>
       <div style="font-size:.82rem;font-weight:700">
         $${selHigh?selHigh.aav.toFixed(1):"—"}M × ${selHigh?selHigh.years:"—"}yr
@@ -7450,12 +7458,12 @@ function renderFrnFANegotiations(selectedName) {
       </div>
     </div>
 
-    <div style="padding:.38rem .5rem;background:rgba(0,0,0,.15);border:1px solid var(--border);border-radius:4px;margin-bottom:.45rem">
+    <div style="padding:.38rem .5rem;background:var(--ds-shade-15);border:1px solid var(--border);border-radius:4px;margin-bottom:.45rem">
       <div style="font-size:.53rem;letter-spacing:.7px;color:var(--blgray);margin-bottom:.18rem">ROSTER FIT</div>
       <div style="font-size:.7rem;color:${fitColor};font-weight:${fit.upgrade||fit.compete?700:400}">${fitIcon} ${fit.label}</div>
     </div>
 
-    ${(lastSzn||combineStr)?`<div style="padding:.38rem .5rem;background:rgba(0,0,0,.15);border:1px solid var(--border);border-radius:4px;margin-bottom:.45rem">
+    ${(lastSzn||combineStr)?`<div style="padding:.38rem .5rem;background:var(--ds-shade-15);border:1px solid var(--border);border-radius:4px;margin-bottom:.45rem">
       ${lastSzn?`<div style="font-size:.53rem;letter-spacing:.7px;color:var(--blgray);margin-bottom:.22rem">LAST SEASON · ${lastSzn.gp||0} GP · age ${lastSzn.age||"?"}</div>
         <div style="display:flex;gap:.65rem;flex-wrap:wrap;margin-bottom:.25rem">${statCells}</div>`:""}
       ${combineStr?`<div style="font-size:.6rem;color:var(--gray)">📐 ${combineStr}</div>`:""}
@@ -7467,11 +7475,11 @@ function renderFrnFANegotiations(selectedName) {
           ${frnBtn({ label: "↑ +$1M", variant: "gold", on: `frnFARaiseBid('${escSel}',1)` })}
           ${frnBtn({ label: "↑ +$3M", variant: "gold", on: `frnFARaiseBid('${escSel}',3)` })}
           ${beingOutbid ? frnBtn({ label: "⟺ Match +$0.5M", variant: "gold", on: `frnFAMatchHigh('${escSel}')` }) : ""}
-          ${frnBtn({ label: `${koLabel}${knockoutNeed>0?` (+$${knockoutNeed.toFixed(1)}M)`:""}`, variant: "gold", on: `frnFAKnockoutBid('${escSel}')`, attrs: { style: "background:var(--gold);color:#000;font-weight:900" } })}
+          ${frnBtn({ label: `${koLabel}${knockoutNeed>0?` (+$${knockoutNeed.toFixed(1)}M)`:""}`, variant: "gold", on: `frnFAKnockoutBid('${escSel}')`, attrs: { style: "background:var(--gold);color:var(--ds-pure-black);font-weight:900" } })}
           ${frnBtn({ label: "✗ Fold", variant: "outline", on: `frnFAFoldNeg('${escSel}')`, attrs: { style: "color:var(--red);margin-left:auto" } })}
         ` : `
           ${frnBtn({ label: "+ Enter Bid", variant: "gold", on: `frnFAEnterBid('${escSel}')` })}
-          ${frnBtn({ label: koLabel, variant: "gold", on: `frnFAKnockoutBid('${escSel}')`, attrs: { style: "background:var(--gold);color:#000;font-weight:900" } })}
+          ${frnBtn({ label: koLabel, variant: "gold", on: `frnFAKnockoutBid('${escSel}')`, attrs: { style: "background:var(--gold);color:var(--ds-pure-black);font-weight:900" } })}
         `}
       </div>
       <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
@@ -7522,7 +7530,7 @@ function renderFrnFANegotiations(selectedName) {
         <div><span class="frn-meta-label">PRICE</span><b style="color:${vCol}">${valueTag}</b></div>
         <div><span class="frn-meta-label">GRADE</span><b style="color:var(--gold)">${gradeLabel(sGrade)}</b></div>
         <div><span class="frn-meta-label">STAGE</span><b>${fa.age<=27?"Ascending":fa.age<=30?"Prime":fa.age<=32?"Late Prime":"Declining"}</b></div>
-        <div><span class="frn-meta-label">INJ RISK</span><b style="color:${recMul>1.4?"#ff9090":"var(--white)"}">${recMul>1.2?`${(recMul*100-100).toFixed(0)}% ↑`:"Normal"}</b></div>
+        <div><span class="frn-meta-label">INJ RISK</span><b style="color:${recMul>1.4?"var(--ds-grade-neg-mid)":"var(--white)"}">${recMul>1.2?`${(recMul*100-100).toFixed(0)}% ↑`:"Normal"}</b></div>
       </div>
       ${posAavs.length?`<div style="font-size:.6rem;color:var(--gray);margin-top:.3rem">
         ${fa.position} market — top5 avg <b style="color:var(--gold-lt)">$${top5Avg.toFixed(1)}M</b> · median <b style="color:var(--gold-lt)">$${mktMedian.toFixed(1)}M</b> · top <b style="color:var(--gold)">$${mktTop1.toFixed(1)}M</b>.
@@ -7572,15 +7580,15 @@ function renderFrnFANegotiations(selectedName) {
     const isStarter = !!(p.pid&&dcStarters.has(p.pid));
     const isQueued = cutNamesSet.has(p.name);
     const rowStyle = isQueued
-      ? "background:rgba(255,70,70,.1);border-left:3px solid #ff6b6b;padding:.32rem .35rem .32rem .45rem;margin-bottom:.2rem;border-radius:0 3px 3px 0;display:flex;align-items:center;gap:.3rem"
-      : "display:flex;align-items:center;gap:.3rem;padding:.22rem .05rem;border-bottom:1px solid rgba(255,255,255,.04)";
+      ? "background:rgba(255,70,70,.1);border-left:3px solid var(--ds-grade-neg-strong);padding:.32rem .35rem .32rem .45rem;margin-bottom:.2rem;border-radius:0 3px 3px 0;display:flex;align-items:center;gap:.3rem"
+      : "display:flex;align-items:center;gap:.3rem;padding:.22rem .05rem;border-bottom:1px solid var(--ds-tint-white-04)";
     const actionBtn = isQueued
       ? `<button onclick="frnNegToggleCut('${escSel}','${ep}',false)"
-          style="background:rgba(255,70,70,.18);border:1px solid var(--ds-grade-neg-strong);color:var(--ds-grade-neg-mid);font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0"
-          onmouseover="this.style.background='rgba(255,70,70,.35)'" onmouseout="this.style.background='rgba(255,70,70,.18)'">× UNDO</button>`
+          style="background:var(--ds-tint-neg-18);border:1px solid var(--ds-grade-neg-strong);color:var(--ds-grade-neg-mid);font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:var(--font-data);white-space:nowrap;flex-shrink:0"
+          onmouseover="this.style.background='rgba(255,70,70,.35)'" onmouseout="this.style.background='var(--ds-tint-neg-18)'">× UNDO</button>`
       : `<button onclick="frnNegToggleCut('${escSel}','${ep}',true)"
-          style="background:none;border:1px solid var(--border);color:var(--gray);font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0"
-          onmouseover="this.style.borderColor='#ff9090';this.style.color='#ff9090'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--gray)'">✂ CUT</button>`;
+          style="background:none;border:1px solid var(--border);color:var(--gray);font-size:.56rem;padding:.12rem .3rem;border-radius:3px;cursor:pointer;font-family:var(--font-data);white-space:nowrap;flex-shrink:0"
+          onmouseover="this.style.borderColor='var(--ds-grade-neg-mid)';this.style.color='var(--ds-grade-neg-mid)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--gray)'">✂ CUT</button>`;
     return `<div style="${rowStyle}">
       <span style="font-size:.57rem;color:var(--blgray);font-weight:700;min-width:1.5rem">${p.position}</span>
       <span style="flex:1;font-size:.66rem;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;${isQueued?"color:#ffaaaa":""}"
@@ -7609,8 +7617,8 @@ function renderFrnFANegotiations(selectedName) {
         <span style="font-size:.62rem;color:var(--green-lt);font-weight:700;flex-shrink:0">+$${aav.toFixed(1)}M</span>
       </div>
       <button onclick="frnNegToggleCut('${escSel}','${ep}',false)"
-        style="width:100%;background:rgba(255,70,70,.22);border:1px solid var(--ds-grade-neg-strong);color:#ffaaaa;font-size:.66rem;font-weight:700;padding:.28rem .4rem;border-radius:3px;cursor:pointer;font-family:inherit;letter-spacing:.4px;text-align:center"
-        onmouseover="this.style.background='rgba(255,70,70,.38)';this.style.color='#fff'"
+        style="width:100%;background:rgba(255,70,70,.22);border:1px solid var(--ds-grade-neg-strong);color:#ffaaaa;font-size:.66rem;font-weight:700;padding:.28rem .4rem;border-radius:3px;cursor:pointer;font-family:var(--font-data);letter-spacing:.4px;text-align:center"
+        onmouseover="this.style.background='rgba(255,70,70,.38)';this.style.color='var(--ds-pure-white)'"
         onmouseout="this.style.background='rgba(255,70,70,.22)';this.style.color='#ffaaaa'">
         × UNDO CUT — Keep ${p.name}
       </button>
@@ -7628,7 +7636,7 @@ function renderFrnFANegotiations(selectedName) {
   const deadSection = _cutDead.length
     ? `<div style="margin-top:.5rem">
         <button onclick="window._faCutShowDeadCap=!window._faCutShowDeadCap;renderFrnFANegotiations('${escSel}')"
-          style="background:none;border:none;color:var(--blgray);font-size:.57rem;cursor:pointer;font-family:inherit;padding:.08rem 0;display:flex;align-items:center;gap:.25rem">
+          style="background:none;border:none;color:var(--blgray);font-size:.57rem;cursor:pointer;font-family:var(--font-data);padding:.08rem 0;display:flex;align-items:center;gap:.25rem">
           <span style="color:var(--red)">⚠</span> ${_showDeadCap?"▾":"▸"} ${_cutDead.length} player${_cutDead.length!==1?"s":""} with dead cap ${_showDeadCap?"":"— show anyway"}
         </button>
         ${_showDeadCap?`<div style="margin-top:.25rem;padding:.25rem .3rem;background:rgba(255,70,70,.04);border-left:2px solid rgba(255,70,70,.4);border-radius:0 3px 3px 0">${_cutDead.map(p=>_negCutRow(p)).join("")}</div>`:""}
@@ -7708,7 +7716,8 @@ async function frnFAKnockoutBid(negKey) {
     return s + (p?.contract?.aav || 0);
   }, 0);
   if (knockoutAav - cutSavings > room) {
-    alert(`Not enough cap room: knockout needs $${knockoutAav.toFixed(1)}M, you have $${(room + cutSavings).toFixed(1)}M (after planned cuts).`);
+    const msg = `Not enough cap room: knockout needs $${knockoutAav.toFixed(1)}M, you have $${(room + cutSavings).toFixed(1)}M (after planned cuts).`;
+    if (typeof DS !== "undefined") DS.toast({ message: msg, kind: "error" }); else alert(msg);
     return;
   }
   const isWar = !!n.knockoutWar;
@@ -7724,7 +7733,8 @@ async function frnFAKnockoutBid(negKey) {
   n.lastRaiseWeek = franchise.week;
   const result = _faTryKnockout(negKey);
   if (result === "war") {
-    alert(`⚔ BIDDING WAR — another team is also over $${baseKO.toFixed(1)}M for ${name}. Keep raising next week to outlast them.`);
+    const msg = `⚔ BIDDING WAR — another team is also over $${baseKO.toFixed(1)}M for ${name}. Keep raising next week to outlast them.`;
+    if (typeof DS !== "undefined") DS.toast({ message: msg, kind: "warn" }); else alert(msg);
   }
   saveFranchise();
   renderFrnFANegotiations(n.state === "signed" ? null : negKey);
@@ -8135,12 +8145,12 @@ function _faCutVerdict(player, econ, positionDepth, restructure, tradeTag) {
     if (restructure?.eligible) {
       return { verdict: "costs",
                label: `Restructure first · save $${restructure.freed.toFixed(1)}M`,
-               color: "#5ed4d4",
+               color: "var(--ds-cyan)",
                reason: `cut loses $${Math.abs(econ.netRelief).toFixed(1)}M — convert base to bonus instead` };
     }
     return { verdict: "costs",
              label: `Cut costs $${Math.abs(econ.netRelief).toFixed(1)}M`,
-             color: "#ff8a8a",
+             color: "var(--ds-grade-neg)",
              reason: "dead money exceeds salary relief" };
   }
 
@@ -8151,7 +8161,7 @@ function _faCutVerdict(player, econ, positionDepth, restructure, tradeTag) {
   if (tradeTag === "asset" && econ.netRelief < 10 && ovr >= 75) {
     return { verdict: "judgment",
              label: `Trade > cut · positive value`,
-             color: "#5ed4d4",
+             color: "var(--ds-cyan)",
              reason: "under-market — recoups picks/players, not just cap" };
   }
 
@@ -8159,7 +8169,7 @@ function _faCutVerdict(player, econ, positionDepth, restructure, tradeTag) {
   if (positionDepth && positionDepth.delta <= 0 && ovr >= 65) {
     return { verdict: "keep",
              label: `${player.position} at floor`,
-             color: "#ff8a8a",
+             color: "var(--ds-grade-neg)",
              reason: "position would be below roster minimum" };
   }
 
@@ -8167,7 +8177,7 @@ function _faCutVerdict(player, econ, positionDepth, restructure, tradeTag) {
   if (protect && econ.netRelief < 8) {
     return { verdict: "keep",
              label: "Locker-room cost > cap relief",
-             color: "#ff8a8a",
+             color: "var(--ds-grade-neg)",
              reason: "captain or multi-AllPro — release tax steep" };
   }
 
@@ -8175,7 +8185,7 @@ function _faCutVerdict(player, econ, positionDepth, restructure, tradeTag) {
   if (age <= 25 && (tier === "S" || tier === "A")) {
     return { verdict: "keep",
              label: `${tier}-tier ceiling, age ${age}`,
-             color: "#ff8a8a",
+             color: "var(--ds-grade-neg)",
              reason: "upside not realized yet — sunk cost rebound" };
   }
 
@@ -8183,7 +8193,7 @@ function _faCutVerdict(player, econ, positionDepth, restructure, tradeTag) {
   if (age >= 30 && (tier === "C" || tier === "D") && econ.netRelief >= 3) {
     return { verdict: "easy",
              label: `Easy cut · $${econ.netRelief.toFixed(1)}M saved`,
-             color: "#86e0a3",
+             color: "var(--ds-grade-pos)",
              reason: "aging, capped ceiling, meaningful relief" };
   }
 
@@ -8191,7 +8201,7 @@ function _faCutVerdict(player, econ, positionDepth, restructure, tradeTag) {
   if (econ.netRelief >= 10) {
     return { verdict: "easy",
              label: `Big saver · $${econ.netRelief.toFixed(1)}M`,
-             color: "#86e0a3",
+             color: "var(--ds-grade-pos)",
              reason: "cap relief alone justifies it" };
   }
 
@@ -8199,7 +8209,7 @@ function _faCutVerdict(player, econ, positionDepth, restructure, tradeTag) {
   if (econ.netRelief >= 4) {
     return { verdict: "judgment",
              label: `Judgment · $${econ.netRelief.toFixed(1)}M relief`,
-             color: "#ffc850",
+             color: "var(--ds-grade-warn)",
              reason: "depends on what you replace him with" };
   }
 
@@ -8207,14 +8217,14 @@ function _faCutVerdict(player, econ, positionDepth, restructure, tradeTag) {
   if (econ.netRelief >= 1) {
     return { verdict: "judgment",
              label: `Marginal · $${econ.netRelief.toFixed(1)}M`,
-             color: "#ffc850",
+             color: "var(--ds-grade-warn)",
              reason: "small relief, weigh against position depth" };
   }
 
   // Default — weak cut
   return { verdict: "keep",
            label: "Low cap relief",
-           color: "#ffc850",
+           color: "var(--ds-grade-warn)",
            reason: "the juice isn't worth the squeeze" };
 }
 
@@ -8801,21 +8811,21 @@ function renderFrnFACuts() {
         // Legend keys per mode
         const legendByMode = {
           position: [
-            ["QB","#f5c542"],["RB","#ef8a4d"],["WR","#e85c98"],["TE","#ba68c8"],
-            ["OL","#5fb1d4"],["DL","#ff6b6b"],["LB","#ffb14c"],["DB","#86e0a3"],
-            ["K/P","#888"],
+            ["QB","var(--ds-gold-accent)"],["RB","var(--ds-orange-soft)"],["WR","#e85c98"],["TE","#ba68c8"],
+            ["OL","#5fb1d4"],["DL","var(--ds-grade-neg-strong)"],["LB","#ffb14c"],["DB","var(--ds-grade-pos)"],
+            ["K/P","var(--ds-neutral)"],
           ],
           verdict: [
             ["EASY CUT","#5e9c70"],["JUDGMENT","#c79f3a"],["KEEP","#b14b4b"],["COSTS $","#ef5350"],["PENDING","#6b6b6b"],
           ],
           ceiling: [
-            ["S","#f5c542"],["A","#5ed4d4"],["B","#86e0a3"],["C","#c08070"],["D","#7a5050"],
+            ["S","var(--ds-gold-accent)"],["A","var(--ds-cyan)"],["B","var(--ds-grade-pos)"],["C","#c08070"],["D","#7a5050"],
           ],
           age: [
-            ["≤23","#5ed4d4"],["24–26","#86e0a3"],["27–29","#f5c542"],["30–32","#ef8a4d"],["33+","#b14b4b"],
+            ["≤23","var(--ds-cyan)"],["24–26","var(--ds-grade-pos)"],["27–29","var(--ds-gold-accent)"],["30–32","var(--ds-orange-soft)"],["33+","#b14b4b"],
           ],
           agePot: [
-            ["Cornerstone","#3aa84a"],["Keeper","#86e0a3"],["Judgment","#c79f3a"],["Fading","#c87050"],["Cut bait","#7a3030"],
+            ["Cornerstone","#3aa84a"],["Keeper","var(--ds-grade-pos)"],["Judgment","#c79f3a"],["Fading","#c87050"],["Cut bait","#7a3030"],
           ],
         };
         const legend = (legendByMode[colorMode] || []).map(([k,c]) =>
@@ -8942,14 +8952,14 @@ function renderFrnFACuts() {
     const econ = _faCutEconomics(p);
     const badges = _faRiskBadges(p);
     const isPending = pending.has(p.name);
-    const reliefCol = econ.netRelief > 0 ? "#86e0a3" : econ.netRelief < -0.5 ? "#ff8a8a" : "var(--gray)";
+    const reliefCol = econ.netRelief > 0 ? "var(--ds-grade-pos)" : econ.netRelief < -0.5 ? "var(--ds-grade-neg)" : "var(--gray)";
     const yrs = p.contract?.remaining ?? p.contract?.years ?? 1;
     const ageStr = p.age != null ? `${p.age}` : "?";
     const ovrStr = p.overall || "?";
     const ovrCol = (p.overall||0) >= 82 ? "var(--green-lt)"
                  : (p.overall||0) >= 72 ? "var(--gold-lt)"
                  : (p.overall||0) >= 62 ? "var(--gray)"
-                 : "#ff8a8a";
+                 : "var(--ds-grade-neg)";
     const positionDepth = depth[p.position];
     // Alternatives — restructure preview + trade-value tag. Both feed
     // into the verdict so the recommendation prefers a less-destructive
@@ -8957,7 +8967,7 @@ function renderFrnFACuts() {
     const restructure = _faRestructurePreview(p);
     const tradeTag = (typeof _tradeValueTag === "function") ? _tradeValueTag(p, cap) : null;
     const verdict = isPending
-      ? { verdict: "pending", label: "PENDING CUT", color: "#ff8a8a", reason: "queued for release" }
+      ? { verdict: "pending", label: "PENDING CUT", color: "var(--ds-grade-neg)", reason: "queued for release" }
       : _faCutVerdict(p, econ, positionDepth, restructure, tradeTag);
     // Ceiling tier — hidden potential bucket (S/A/B/C/D). Sourced via
     // HiddenOracle so the security model holds (no raw ceiling number

@@ -100,13 +100,16 @@
     ` onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"`;
 
   // ── button ─────────────────────────────────────────────────────────────────
-  // { label, variant='outline', size, icon, on, disabled, busy, title, type,
-  //   attrs, ariaLabel }
+  // { label, labelHtml, variant='outline', size, icon, on, disabled, busy,
+  //   title, type, attrs, ariaLabel }
   // ariaLabel → emits aria-label="…" (escaped). Essential for icon-only buttons
   // (icon set, no label text) so screen readers announce a name.
   // busy → in-flight action state: spinner + disabled + aria-busy (label kept,
   // so the button doesn't change width). For toggling an already-mounted
   // button around an await, use DS.busy(el, on) instead of re-rendering.
+  // labelHtml is TRUSTED raw HTML (rich multi-line labels — the resign/holdout
+  // action buttons with a <span> sub-caption). Wins over `label` when both are
+  // set; NEVER pass unescaped user/data strings into it (use label for those).
   function button(opts) {
     const o = opts || {};
     const busy = !!o.busy;
@@ -124,7 +127,8 @@
     const aria = o.ariaLabel ? ` aria-label="${esc(o.ariaLabel)}"` : "";
     const dis = (o.disabled || busy) ? " disabled" : "";
     const busyAttr = busy ? ` aria-busy="true"` : "";
-    return `<button class="${cls}"${type}${title}${aria}${busyAttr}${dis}${_on(o.on)}${attrs(o.attrs)}>${spin}${icon}${esc(o.label)}</button>`;
+    const labelOut = o.labelHtml != null ? o.labelHtml : esc(o.label);
+    return `<button class="${cls}"${type}${title}${aria}${busyAttr}${dis}${_on(o.on)}${attrs(o.attrs)}>${spin}${icon}${labelOut}</button>`;
   }
 
   // ── card ─────────────────────────────────────────────────────────────────
@@ -189,8 +193,12 @@
   }
 
   // ── modalHtml (string form) ──────────────────────────────────────────────
-  // { title, body, danger, okLabel='OK', cancelLabel='Cancel', requireType }
+  // { title, body, danger, okLabel='OK', cancelLabel='Cancel', requireType,
+  //   cls, backdropCls }
   // body is TRUSTED (raw HTML). Returns the backdrop+modal markup string.
+  // cls / backdropCls append LEGACY/hook classes to the dialog / backdrop so a
+  // hand-rolled modal can DELEGATE here without breaking probe selectors or
+  // team-theming CSS (e.g. _frnConfirmModal keeps .frn-modal-backdrop).
   function modalHtml(opts) {
     const o = opts || {};
     const title = o.title != null ? o.title : "Confirm";
@@ -208,7 +216,7 @@
     const okCls = cx("ds-btn", danger ? "ds-btn--danger" : "ds-btn--gold", "ds-modal__confirm");
     // Self-contained: includes the .ds-modal-backdrop wrapper so callers can mount
     // it directly (and DS.modal() reuses this exact markup, mounting its root).
-    return `<div class="ds-modal-backdrop"><div class="${cx("ds-modal", danger && "ds-modal--danger")}" role="dialog" aria-modal="true">
+    return `<div class="${cx("ds-modal-backdrop", o.backdropCls)}"><div class="${cx("ds-modal", danger && "ds-modal--danger", o.cls)}" role="dialog" aria-modal="true">
         <div class="ds-modal__title">${esc(title)}</div>
         <div class="ds-modal__body">${body}</div>
         ${typeGate}
@@ -288,7 +296,14 @@
 
       if (cancelBtn) cancelBtn.addEventListener("click", () => close(false));
       if (okBtn) okBtn.addEventListener("click", () => { if (!okBtn.disabled) close(true); });
-      wrap.addEventListener("click", (e) => { if (e.target === wrap) close(false); }); // backdrop = cancel
+      // Backdrop = cancel, but IGNORE clicks in the first 250ms after mount:
+      // the second click of a double-click on the triggering button lands on
+      // the freshly-mounted backdrop and would instantly self-cancel the modal
+      // (the _frnConfirmModal lesson — see CLAUDE.md UX pass notes).
+      const mountedAt = Date.now();
+      wrap.addEventListener("click", (e) => {
+        if (e.target === wrap && Date.now() - mountedAt > 250) close(false);
+      });
 
       // Move focus into the dialog after mount: type-gate input first, else the
       // first focusable (falls back to Cancel — the historical default).
