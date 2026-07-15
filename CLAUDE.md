@@ -44,11 +44,19 @@ college numbers, weightedTierPick, …) — seeded gen therefore uses
 _setSimRng alone. Run the probe when touching gen or the draft module.
 - CROSS-MACHINE RULE: JS leaves `Math.log/cos/pow/...` precision impl-defined, so
   any libm on the OUTCOME path can fork validators. Use the portable, pure-IEEE
-  helpers for outcome-affecting transcendentals — `_olog/_ocos/_osq` (dispatchers,
-  native by default, portable under `GC_PORTABLE_MATH="on"` / `_setPortableMath`)
-  backed by `_plog/_pcos` in play-data.js. `Math.sqrt` is correctly-rounded =
-  safe. Prove with `server/determinism-hazard-probe.js [PORTABLE=1]` (portable →
-  ∞ ULP margin) + the outcome-neutral check in `server/determinism-probe.js`.
+  helpers for outcome-affecting transcendentals — `_olog/_ocos/_osq/_oexp/_opow`
+  (dispatchers, native by default, portable under `GC_PORTABLE_MATH="on"` /
+  `_setPortableMath`) backed by `_plog/_pcos/_pexp/_ppow` in play-data.js.
+  `Math.sqrt` is correctly-rounded = safe. This covers BOTH the sim path AND
+  (since the 2026-07 gen audit) the GEN path — the only gen transcendentals were
+  the potential Box-Muller (core) and the career-trajectory pow (play-player),
+  both routed; `server/gen-hazard-probe.js` is the gate (PORTABLE=1 → 0 gen-path
+  libm, in CI) and proved native≡portable gen NEUTRALITY (full roster + pids +
+  pool hashes identical), so validators run portable END-TO-END and reproduce
+  published rostersHash/resultHash bit-exactly. Sim side: prove with
+  `server/determinism-hazard-probe.js [PORTABLE=1]` (portable → ∞ ULP margin) +
+  the outcome-neutral check in `server/determinism-probe.js`. Any NEW gen-time
+  transcendental must go through the dispatchers.
 - BUNDLE-PARITY RULE (found by M4, 2026-07-07): engine-host.js and
   draft-host.js MUST load the IDENTICAL file list. The engine typeof-branches
   on franchise-layer symbols (`combineMeasurables` → player weight → break-
@@ -760,14 +768,16 @@ commissioner advance, create-form 🎮 checkbox. Probes: league-probe 112
 match → verified ingest, restart with open week + proposal), client probe 49
 (two browsers: host card → challenge SSE → join → coach-mode autoplay to
 FINAL → verified ledger entry).
-NEXT SLICES still queued: cross-season player development for league
-rollovers, per-pick GM signatures in the draft artifact (fabricated-pick
-surface, natspec'd in DraftSettlement.sol) — same surface as M4's
-fabricated-tape limit, one signature scheme should close both, the
-CROSS-MACHINE gen-determinism audit (gen path needs the same libm audit the
-sim got; probe cross-engine), LeagueSettlement (weekly resultHashes on
-chain — the artifacts are already published + re-simmable), and playoff
-fixtures over H2H (M4 is regular-season only).
+GEN DETERMINISM AUDIT DONE (2026-07, see CROSS-MACHINE RULE above): gen path
+routed through portable dispatchers, gen-hazard-probe gates it in CI,
+native≡portable neutrality proven — the (seed)→rosters derivation is now
+validator-fork-safe end-to-end.
+NEXT SLICES still queued: per-call GM signatures (h2h calls + draft picks;
+closes M4's fabricated-tape limit and DraftSettlement's natspec'd
+fabricated-pick surface with one scheme), cross-season player development
+for league rollovers, LeagueSettlement (weekly resultHashes on chain — the
+artifacts are already published + re-simmable), and playoff fixtures over
+H2H (M4 is regular-season only).
 SESSION-ENV NOTE: this environment's container resets can silently restore a
 stale checkpoint — PUSH (branch + main) immediately after EVERY commit, and
 verify expected files exist before editing.

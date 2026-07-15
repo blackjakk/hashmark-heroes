@@ -1854,7 +1854,10 @@ function generateCareer(player) {
       // Elite players get a flatter (more linear) early career since they were
       // good right away. Less-elite players have a steeper approach.
       const power = 0.55 + ovrT * 0.35;  // 0.55 for avg, 0.90 for elite
-      baseFactor = 0.68 + 0.32 * Math.pow(t, power);
+      // _opow, not Math.pow: career-history gen is on the seeded GEN path
+      // (~5.3k calls/league) and pow is impl-defined precision — a cross-
+      // machine bit flip here forks the roster derivation (gen audit 2026-07).
+      baseFactor = 0.68 + 0.32 * _opow(t, power);
     } else {
       // Post-peak: linear decline, slope tuned per trajectory and OVR
       const yearsPast = seasonAge - peakAge;

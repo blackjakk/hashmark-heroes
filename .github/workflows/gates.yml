@@ -66,6 +66,8 @@ jobs:
       # local-only until the 2026-07 feature audit flagged the gap.
       - name: Determinism probe (stable re-sim / seed-sensitive / tamper-evident)
         run: node server/determinism-probe.js
+      - name: Gen hazard probe, portable gate (0 gen-path libm, native≡portable)
+        run: PORTABLE=1 node server/gen-hazard-probe.js
       - name: H2H probe (full match over the wire + independent artifact re-sim)
         run: node server/h2h-probe.js
       - name: H2H recovery probe (SIGKILL mid-match → exact state restore)

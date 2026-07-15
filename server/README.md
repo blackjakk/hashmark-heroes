@@ -199,6 +199,19 @@ validators run **portable**, where:
 The dispute `resolver` can therefore move toward an on-chain re-sim verifier
 (every validator agrees bit-for-bit) instead of a trusted multisig.
 
+**The GEN path is covered too (2026-07 audit).** Roster/pool generation from a
+seed had its own libm exposure — the potential Box-Muller (`Math.log`/`cos`)
+and the career-trajectory power curve (`Math.pow`, ~10k calls/league) — now
+routed through the same dispatchers (`_opow`/`_oexp` join `_olog`/`_ocos`,
+backed by pure-IEEE `_ppow`/`_pexp`). `node server/gen-hazard-probe.js` is the
+measured proof (census / per-fn sensitivity / ULP ladder), `PORTABLE=1` is the
+CI gate (0 gen-path libm calls, immune to the full ladder), and the probe's
+NEUTRALITY check shows native gen ≡ portable gen (full-roster, pid, and pool
+hashes identical per seed) — so a portable validator reproduces a native
+server's published `rostersHash` bit-for-bit, and the whole
+(seed)→rosters→(game seeds)→results pipeline is validator-fork-safe
+end-to-end.
+
 **The h2h server runs portable by default** — it's the authority/validator, so it
 calls `_setPortableMath(true)` at startup and every re-sim + settled `resultHash`
 is bit-exact. The artifact (v2) carries a `math: "portable"` field so an

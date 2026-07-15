@@ -2092,9 +2092,12 @@ function _rollPotential(p, hintRound, hintBoost = 0) {
   const stdByRound  = { 1: 5,  2: 6,  3: 7,  4: 7,  5: 7,  6: 7,  7: 7,  0: 8 };
   const mean = (meanByRound[r] ?? 65) + hintBoost;
   const std = stdByRound[r] ?? 7;
-  // Box-Muller-ish noise
+  // Box-Muller-ish noise. _olog/_ocos, not Math.log/cos: `potential` is a
+  // persisted roster field on the GEN path — seed-reproducible generation must
+  // be bit-exact cross-machine (CROSS-MACHINE RULE; gen audit 2026-07). sqrt
+  // is correctly-rounded per spec, so it stays native.
   let u = Math.random() || 1e-9, v = Math.random();
-  const z = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  const z = Math.sqrt(-2 * _olog(u)) * _ocos(2 * Math.PI * v);
   let potential = Math.round(mean + std * z);
   // Floor at current OVR-2 (so an 80 OVR rookie isn't capped at 70)
   potential = Math.max(ovr - 2, Math.min(99, potential));

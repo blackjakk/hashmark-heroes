@@ -118,12 +118,66 @@ function _plog(x) {
   return e * _LN2 + series;
 }
 
+// Portable exp(x): range-reduce x = k·ln2 + r with r ∈ [-ln2/2, ln2/2], Taylor
+// for e^r (degree 13 → error < 1e-15 on the range), then scale by 2^k via the
+// IEEE bit pattern (exact — exponent arithmetic, no rounding). ln2 is split
+// into a hi/lo pair so k·ln2 subtraction loses no bits that the series would
+// amplify. Uses only round/+/-/*//, bit ops → deterministic cross-machine.
+const _LN2_HI = 0.6931471803691238;        // high 32 bits of ln 2
+const _LN2_LO = 1.9082149292705877e-10;    // ln 2 − _LN2_HI
+function _pexp(x) {
+  if (!isFinite(x)) return x === -Infinity ? 0 : x;   // ±Inf/NaN native semantics
+  if (x > 709.782712893384) return Infinity;           // overflow like native
+  if (x < -745.133219101941) return 0;                 // underflow like native
+  const k = Math.round(x / _LN2);
+  const r = (x - k * _LN2_HI) - k * _LN2_LO;           // r ∈ [-ln2/2, ln2/2]
+  // e^r: 1 + r + r²/2! + … + r¹³/13!
+  const er = 1 + r * (1 + r * (1 / 2 + r * (1 / 6 + r * (1 / 24 + r * (1 / 120 + r * (1 / 720 +
+    r * (1 / 5040 + r * (1 / 40320 + r * (1 / 362880 + r * (1 / 3628800 +
+    r * (1 / 39916800 + r * (1 / 479001600 + r * (1 / 6227020800)))))))))))));
+  // scale by 2^k exactly: split k into two halves so each 2^half is a NORMAL
+  // double built through the exponent field (k ∈ [-1075, 1025] → halves within
+  // ±538, biased exponent ∈ [485, 1561] — never subnormal, never overflow).
+  // Two exact multiplies; only the final product may round/underflow, exactly
+  // as IEEE prescribes → deterministic.
+  if (k === 0) return er;
+  const _p2 = (n) => {
+    _pmDV.setUint32(0, 0, true);
+    _pmDV.setUint32(4, ((n + 1023) << 20) >>> 0, true);
+    return _pmDV.getFloat64(0, true);
+  };
+  const h1 = Math.round(k / 2);
+  return er * _p2(h1) * _p2(k - h1);
+}
+// Portable pow(x,y) for the gen path: exact fast paths (y = 0 / 1 / 2 / 0.5 —
+// sqrt IS correctly-rounded per spec, so it is portable), general positive
+// base via e^(y·ln x) (error ~1e-13 — statistically identical curves, bit-
+// exact across machines), negative base only for integer y (sign unfold).
+// Non-finite/edge semantics follow native for the inputs the gen path uses.
+function _ppow(x, y) {
+  if (y === 0) return 1;
+  if (y === 1) return x;
+  if (y === 2) return x * x;
+  if (y === 0.5) return Math.sqrt(x);
+  if (x === 0) return y > 0 ? 0 : Infinity;
+  if (x < 0) {
+    if (!Number.isInteger(y)) return NaN;
+    const m = _pexp(y * _plog(-x));
+    return (y % 2 === 0) ? m : -m;
+  }
+  return _pexp(y * _plog(x));
+}
+
 // Engine outcome-path dispatchers: native by default, portable when enabled.
 // `_osq` is the player-weight square (integer base → x*x is exact and equals
 // Math.pow(x,2) bit-for-bit for those inputs; routed for symmetry + safety).
+// `_opow`/`_oexp` joined for the GEN path (career-trajectory power curve,
+// potential Box-Muller) — the cross-machine gen audit, 2026-07.
 function _olog(x) { return _portableMath ? _plog(x) : Math.log(x); }
 function _ocos(x) { return _portableMath ? _pcos(x) : Math.cos(x); }
 function _osq(x)  { return _portableMath ? x * x   : Math.pow(x, 2); }
+function _oexp(x) { return _portableMath ? _pexp(x) : Math.exp(x); }
+function _opow(x, y) { return _portableMath ? _ppow(x, y) : Math.pow(x, y); }
 
 // ─── 32 fictional teams ────────────────────────────────────────────────────
 const TEAMS = [
