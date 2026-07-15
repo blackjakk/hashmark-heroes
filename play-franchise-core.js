@@ -530,6 +530,21 @@ function frnRosterCountBadge(teamId, opts = {}) {
             : `${open} open spot${open === 1 ? "" : "s"}`;
   return `<span class="frn-roster-badge" title="${tip}" style="display:inline-flex;align-items:center;gap:.3rem;padding:.12rem .5rem;border-radius:999px;background:${bg};color:${col};font-size:.62rem;font-weight:800;letter-spacing:.3px;white-space:nowrap;border:1px solid ${ring}">${lead}${n}/${lim}</span>`;
 }
+// Alpha-tint a color for inline styles. The franchise UI's historical idiom
+// was hex-append (`${col}55` → 8-digit hex), which SILENTLY DROPS the whole
+// declaration when the value is a var()/rgb-functional/named color instead of
+// a plain hex (invalid CSS — found live on the trade-verdict chips, whose color fns
+// mix var(--green-lt) branches with raw hexes). This helper is the one safe
+// form for EVERY color shape: plain #rgb/#rrggbb appends the alpha byte
+// (byte-identical output to the old idiom); anything else goes through
+// color-mix with the equivalent percentage (same rgb + alpha; color-mix is
+// already relied on by play.css's team-theming). Use THIS, never `${c}55`.
+function _alphaCol(c, hex2) {
+  const s = String(c).trim();
+  if (s[0] === "#" && (s.length === 4 || s.length === 7)) return s + hex2;
+  const pct = Math.round((parseInt(hex2, 16) / 255) * 100);
+  return `color-mix(in srgb, ${s} ${pct}%, transparent)`;
+}
 // Keep-value: higher = more worth keeping. Mirrors the AI's _trimAiRostersToCap
 // cutValue (overall + perceived-potential ceiling × youth) so the user and the
 // AI evaluate cuts the SAME way. Used to rank expendability on the Make Room

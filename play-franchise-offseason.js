@@ -9020,7 +9020,7 @@ function _renderHoldoutCenterRow(d) {
   // Risk badges
   const risks = _resignRiskBadges(live, { overall: ovr }, curve, trend);
   const riskHtml = risks.map(b =>
-    `<span class="frn-resign-risk" style="color:${b.color};border-color:${b.color}55">${b.label}</span>`
+    `<span class="frn-resign-risk" style="color:${b.color};border-color:${_alphaCol(b.color,"55")}">${b.label}</span>`
   ).join("");
 
   // Demand + accept odds
@@ -10211,7 +10211,7 @@ function _renderResignUI(cap, capCommitted) {
     // ── Risk badges (loud chips) ───────────────────────────────────
     const risks = _resignRiskBadges(livePlayer, r, curve, trend);
     const riskHtml = risks.map(b =>
-      `<span class="frn-resign-risk" style="color:${b.color};border-color:${b.color}55">${b.label}</span>`
+      `<span class="frn-resign-risk" style="color:${b.color};border-color:${_alphaCol(b.color,"55")}">${b.label}</span>`
     ).join("");
 
     // ── Player demand vs your offer ────────────────────────────────
@@ -11181,7 +11181,7 @@ function renderFrnAwards() {
     return `<button class="frn-awards-hl-card ${size || ""}"
         style="--accent:${color}" onclick="frnReplayHighlight(${i})">
       <div class="frn-awards-hl-meta">
-        <span class="frn-awards-hl-badge" style="color:${color};border-color:${color}55">${badge}</span>
+        <span class="frn-awards-hl-badge" style="color:${color};border-color:${_alphaCol(color,"55")}">${badge}</span>
         <span class="frn-awards-hl-when">${h.week}${h.isPlayoff?" · PLAYOFF":""}</span>
       </div>
       <div class="frn-awards-hl-headline">${h.label}</div>
@@ -14225,7 +14225,7 @@ function _renderOffReasonChips(reasons) {
   return reasons.map(r => {
     const m = _OFF_REASON_META[r];
     if (!m) return "";
-    return `<span style="display:inline-block;font-size:.55rem;padding:.08rem .35rem;border-radius:2px;background:rgba(255,255,255,.06);color:${m.color};border:1px solid ${m.color}40;margin-right:.25rem;letter-spacing:.3px">${m.icon} ${m.label}</span>`;
+    return `<span style="display:inline-block;font-size:.55rem;padding:.08rem .35rem;border-radius:2px;background:rgba(255,255,255,.06);color:${m.color};border:1px solid ${_alphaCol(m.color,"40")};margin-right:.25rem;letter-spacing:.3px">${m.icon} ${m.label}</span>`;
   }).join("");
 }
 // Module-level filter state — survives re-renders triggered by the chip
@@ -16682,7 +16682,7 @@ function _renderHoldoutsBlock() {
     // ── Risk badges ────────────────────────────────────────────────
     const risks = _resignRiskBadges(live, { overall: ovr }, curve, trend);
     const riskHtml = risks.map(b =>
-      `<span class="frn-resign-risk" style="color:${b.color};border-color:${b.color}55">${b.label}</span>`
+      `<span class="frn-resign-risk" style="color:${b.color};border-color:${_alphaCol(b.color,"55")}">${b.label}</span>`
     ).join("");
 
     // ── Demand line + accept odds (with raise/premium math) ────────
@@ -19214,7 +19214,7 @@ function _renderTradePartnerPicker(myId, myCap, myCapUsed) {
         <span class="frn-tp-rec">${c.stand.w}-${c.stand.l}${c.stand.t?`-${c.stand.t}`:""}</span>
       </div>
       <div class="frn-tp-mode-row">
-        <span class="frn-tp-mode" title="${c.mode === "win_now" ? "Contender — pays premium for vets, discounts incoming picks" : c.mode === "rebuild" ? "Rebuilder — pays premium for picks / young talent, dumps vets cheap" : "Balanced — standard valuation across the board"}" style="color:${mm.col};border-color:${mm.col}55">${mm.icon} ${mm.label}</span>
+        <span class="frn-tp-mode" title="${c.mode === "win_now" ? "Contender — pays premium for vets, discounts incoming picks" : c.mode === "rebuild" ? "Rebuilder — pays premium for picks / young talent, dumps vets cheap" : "Balanced — standard valuation across the board"}" style="color:${mm.col};border-color:${_alphaCol(mm.col,"55")}">${mm.icon} ${mm.label}</span>
         ${c.crossMode ? `<span class="frn-tp-cross" title="Cross-mode pair — you have what they want and vice versa">↔ NATURAL FIT</span>` : ""}
       </div>
       <div class="frn-tp-cap">
@@ -19227,7 +19227,7 @@ function _renderTradePartnerPicker(myId, myCap, myCapUsed) {
       </div>
       <div class="frn-tp-foot">
         ${c.matched ? `<span class="frn-tp-match" title="${c.matched} of their weak units overlap with your strengths">★ ${c.matched} fit</span>` : `<span class="frn-tp-match dim">no obvious fit</span>`}
-        <span class="frn-tp-willing" style="color:${verdictCol(c.willingness)};border-color:${verdictCol(c.willingness)}55">${verdictLbl(c.willingness)} · ${c.willingness}%</span>
+        <span class="frn-tp-willing" style="color:${verdictCol(c.willingness)};border-color:${_alphaCol(verdictCol(c.willingness),"55")}">${verdictLbl(c.willingness)} · ${c.willingness}%</span>
       </div>
     </button>`;
   }).join("");
@@ -19275,7 +19275,7 @@ function _renderTradeBalanceBar(b) {
   return `<div class="frn-trade-balance">
     <div class="frn-trade-balance-head">
       <span class="frn-trade-balance-title">DEAL VALUE</span>
-      <span class="frn-trade-balance-verdict" style="color:${verdictCol};border-color:${verdictCol}55">${verdictLbl}</span>
+      <span class="frn-trade-balance-verdict" style="color:${verdictCol};border-color:${_alphaCol(verdictCol,"55")}">${verdictLbl}</span>
       <span style="margin-left:auto;color:var(--gray);font-size:.62rem">accept threshold: 97%</span>
     </div>
     <div class="frn-trade-balance-bar">
@@ -24544,7 +24544,7 @@ function renderFrnDraft() {
   const chips = d.classThemes?.chips || [];
   const chipsHtml = chips.length
     ? `<div class="frn-draft-class-chips">${chips.map(c =>
-        `<span style="color:${c.color};border-color:${c.color}55">${c.text}</span>`
+        `<span style="color:${c.color};border-color:${_alphaCol(c.color,"55")}">${c.text}</span>`
       ).join("")}</div>`
     : "";
 
@@ -24583,7 +24583,7 @@ function renderFrnDraft() {
       return `<button class="frn-dp-cat-btn${has?" active":""}" data-cat="${c}"
         ${clickable ? `onclick="frnDraftScoutCategory('${esc}','${c}')"` : 'disabled'}
         title="${tip}"
-        style="${has?`color:${meta.color};border-color:${meta.color}aa;background:${meta.color}15`
+        style="${has?`color:${meta.color};border-color:${_alphaCol(meta.color,"aa")};background:${_alphaCol(meta.color,"15")}`
                   :!canAdd?"opacity:.3;cursor:not-allowed":""}">${meta.icon}</button>`;
     }).join("");
 
@@ -25258,7 +25258,7 @@ function renderFrnPreDraftScout() {
       const has    = scoutedCats.includes(c);
       const canAdd = !has && left > 0;
       const tip    = has ? `✓ ${meta.label} scouted` : canAdd ? `${meta.label} · ${meta.desc} · ${left} left · NO UNDO` : `No pre-draft reports left`;
-      return `<button class="frn-prescout-cat${has?" active":""}" ${canAdd?`onclick="frnPreScout('${esc}','${c}')"`:"disabled"} title="${tip}" style="${has?`color:${meta.color};border-color:${meta.color}aa;background:${meta.color}15`:!canAdd?"opacity:.3;cursor:not-allowed":""}">${meta.icon}</button>`;
+      return `<button class="frn-prescout-cat${has?" active":""}" ${canAdd?`onclick="frnPreScout('${esc}','${c}')"`:"disabled"} title="${tip}" style="${has?`color:${meta.color};border-color:${_alphaCol(meta.color,"aa")};background:${_alphaCol(meta.color,"15")}`:!canAdd?"opacity:.3;cursor:not-allowed":""}">${meta.icon}</button>`;
     }).join("");
     return `<div class="frn-prescout-row">
       <span class="frn-prescout-rank">${i+1}</span>
@@ -25267,7 +25267,7 @@ function renderFrnPreDraftScout() {
       <span class="frn-prescout-proj">${projLabel}</span>
       ${needBadge}
       <span class="frn-prescout-grade" style="color:${sgColor}">${gradeLabel(sg)}</span>
-      <span class="frn-prescout-conf" style="color:${conf.color};border-color:${conf.color}55" title="±${conf.band} grade band — scout to tighten">${conf.label}</span>
+      <span class="frn-prescout-conf" style="color:${conf.color};border-color:${_alphaCol(conf.color,"55")}" title="±${conf.band} grade band — scout to tighten">${conf.label}</span>
       <div class="frn-prescout-cats">${catButtons}</div>
     </div>`;
   }).join("");

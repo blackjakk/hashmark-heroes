@@ -4385,7 +4385,7 @@ async function renderFrnDepthChart() {
       <div class="frn-dc-group-hdr" style="border-left:3px solid ${strCol}">
         <span class="frn-dc-group-pos">${group.pos}</span>
         <span class="frn-dc-group-label">${group.label}</span>
-        <span class="frn-dc-group-str" style="color:${strCol};border-color:${strCol}44">${groupOvr > 0 ? groupOvr+" " : ""}${strLabel}</span>
+        <span class="frn-dc-group-str" style="color:${strCol};border-color:${_alphaCol(strCol,"44")}">${groupOvr > 0 ? groupOvr+" " : ""}${strLabel}</span>
       </div>
       ${rows}
       ${benchHtml}
@@ -4604,7 +4604,7 @@ async function renderFrnDepthChart() {
       <div class="frn-dc-pkg-header">
         <span class="frn-dc-pkg-header-name">${active.pkg.name}</span>
         <span class="frn-dc-pkg-header-desc">${active.pkg.desc}</span>
-        <span class="frn-dc-pkg-header-ovr" style="color:${active.strength.col};border-color:${active.strength.col}44">AVG OVR ${active.avgOvr || "—"} · ${active.strength.label}</span>
+        <span class="frn-dc-pkg-header-ovr" style="color:${active.strength.col};border-color:${_alphaCol(active.strength.col,"44")}">AVG OVR ${active.avgOvr || "—"} · ${active.strength.label}</span>
       </div>
       <div class="frn-dc-pkg-lineup">
         ${renderPkgRow("FRONT", dlSlots)}
@@ -4672,7 +4672,7 @@ async function renderFrnDepthChart() {
       const { label, col } = _strength(ovr);
       return `<div class="frn-dc-strip-unit">
         <span class="frn-dc-strip-pos">${u.label}</span>
-        <span class="frn-dc-strip-val" style="color:${col};border-color:${col}33">${ovr > 0 ? ovr : "—"}</span>
+        <span class="frn-dc-strip-val" style="color:${col};border-color:${_alphaCol(col,"33")}">${ovr > 0 ? ovr : "—"}</span>
         <span class="frn-dc-strip-tier" style="color:${col}">${label}</span>
       </div>`;
     }).join("")}
@@ -5819,7 +5819,7 @@ function renderFrnSnapShares() {
         <span class="frn-snap-name" role="button" tabindex="0" onkeydown="_frnRowKey(event)" onclick="frnOpenPlayerCard('${escName}','${escPid}')">${_escHtml(p.name)}</span>
         <span class="frn-snap-meta">${p.position} · ${p.overall||"—"} OVR · age ${p.age||"?"}</span>
         <div class="frn-snap-stam-row">
-          <span class="frn-snap-stam" title="Stamina ${pStam}" style="color:${staminaCol(pStam)};border-color:${staminaCol(pStam)}55">STAM ${pStam}</span>
+          <span class="frn-snap-stam" title="Stamina ${pStam}" style="color:${staminaCol(pStam)};border-color:${_alphaCol(staminaCol(pStam),"55")}">STAM ${pStam}</span>
           <span class="frn-snap-snaps">≈ ${snaps} snaps/G</span>
         </div>
         ${kind==="backup" && !rotates ? `<span class="frn-snap-injtag" title="Cascade — slides up only on starter injury, not per-snap rotation">↑ INJ SUB</span>` : ""}
@@ -5880,7 +5880,7 @@ function renderFrnSnapShares() {
     ${ironRows.map(({ p, snaps }) => {
       const pStam = p._stamina ?? 75;
       const col = snaps >= SNAPS_PER_GAME ? "#ff6b6b" : "var(--gold-lt)";
-      return `<span class="frn-snap-iron-tag" style="border-color:${col}55;color:${col}">${_escHtml(p.name)} · ${snaps}/${SNAPS_PER_GAME} snaps · STAM ${pStam}</span>`;
+      return `<span class="frn-snap-iron-tag" style="border-color:${_alphaCol(col,"55")};color:${col}">${_escHtml(p.name)} · ${snaps}/${SNAPS_PER_GAME} snaps · STAM ${pStam}</span>`;
     }).join("")}
   </div>` : "";
 
@@ -6407,7 +6407,7 @@ function renderHighlightReplay(idx) {
          q: h.quarter, t: h.time, hi: true }];
 
   const playsHtml = plays.map((cp, i) => `
-    <div class="frn-replay-play${cp.hi ? " frn-replay-hl" : ""}" style="animation-delay:${i * 0.52}s;border-color:${cp.hi ? typeColor + "44" : "transparent"};background:${cp.hi ? typeColor + "0d" : "transparent"}">
+    <div class="frn-replay-play${cp.hi ? " frn-replay-hl" : ""}" style="animation-delay:${i * 0.52}s;border-color:${cp.hi ? _alphaCol(typeColor, "44") : "transparent"};background:${cp.hi ? _alphaCol(typeColor, "0d") : "transparent"}">
       ${cp.sit ? `<div class="frn-replay-sit">${cp.sit}</div>` : ""}
       <div class="frn-replay-desc ${cp.hi ? "" : "frn-replay-ctx"}">${cp.desc || (cp.hi ? label : "—")}</div>
       ${cp.hi && isClutch ? `<div class="frn-replay-clutch">⚡ CLUTCH MOMENT</div>` : ""}
@@ -6426,7 +6426,7 @@ function renderHighlightReplay(idx) {
         <div style="display:flex;align-items:center;gap:.65rem">
           <span class="bspnlive-logo" style="font-size:.85rem;padding:.1rem .35rem">BSPN</span>
           <span style="color:var(--blgray);font-size:.68rem;letter-spacing:.8px">${week}${isPlayoff ? " · PLAYOFF" : ""}</span>
-          <span class="frn-hl-badge" style="color:${typeColor};border-color:${typeColor}55">${typeBadge}</span>
+          <span class="frn-hl-badge" style="color:${typeColor};border-color:${_alphaCol(typeColor,"55")}">${typeBadge}</span>
         </div>
         <button class="frn-replay-close" onclick="_closeHighlightReplay()" title="Close" aria-label="Close">✕</button>
       </div>
@@ -6513,9 +6513,9 @@ function _buildHighlightsSidebar(teamId, seasonHighlights) {
   const { h: feat, i: featIdx } = latestSorted[0];
   const { badge: fBadge, color: fColor } = typeCfg(feat);
   const featHtml = `
-    <div class="frn-hl-feat" style="border-color:${fColor}33;background:${fColor}0d">
+    <div class="frn-hl-feat" style="border-color:${_alphaCol(fColor,"33")};background:${_alphaCol(fColor,"0d")}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.28rem">
-        <span class="frn-hl-badge" style="color:${fColor};border-color:${fColor}55">${fBadge}</span>
+        <span class="frn-hl-badge" style="color:${fColor};border-color:${_alphaCol(fColor,"55")}">${fBadge}</span>
         <span style="font-size:.57rem;color:var(--gray);letter-spacing:.3px">${feat.week}${feat.isPlayoff ? " · PLAYOFF" : ""}</span>
       </div>
       <div style="font-size:.6rem;color:var(--gray);margin-bottom:.3rem">${hlCtx(feat)}</div>
@@ -9247,7 +9247,7 @@ function renderFrnRegular() {
         <span class="frn-gauntlet-rval" style="color:${toughCol}">${combined}</span>
         <span class="frn-gauntlet-rsub">OFF ${rtg.off||"—"} · DEF ${rtg.def||"—"}</span>
       </div>
-      <div class="frn-gauntlet-tag" style="background:${toughCol}22;color:${toughCol};border-color:${toughCol}55">${tough.toUpperCase()}</div>
+      <div class="frn-gauntlet-tag" style="background:${_alphaCol(toughCol,"22")};color:${toughCol};border-color:${_alphaCol(toughCol,"55")}">${tough.toUpperCase()}</div>
     </div>`;
   };
   // BYE card — surface the rest week inside the gauntlet when it falls
@@ -12160,7 +12160,7 @@ function _schemeBadge(scheme, small) {
   };
   const c = colors[scheme] || "rgba(255,255,255,.4)";
   const sz = small ? ".57rem" : ".62rem";
-  return `<span style="font-size:${sz};font-weight:700;padding:.1rem .4rem;border-radius:3px;background:${c}22;color:${c};border:1px solid ${c}55;white-space:nowrap">${scheme}</span>`;
+  return `<span style="font-size:${sz};font-weight:700;padding:.1rem .4rem;border-radius:3px;background:${_alphaCol(c,"22")};color:${c};border:1px solid ${_alphaCol(c,"55")};white-space:nowrap">${scheme}</span>`;
 }
 
 // ── Coaching Staff Panel ─────────────────────────────────────────────────────
@@ -12421,7 +12421,7 @@ function renderFrnCoachingStaff() {
         ${recent.map(r => {
           const col = r.result === "W" ? "var(--green-lt)" : r.result === "L" ? "#ff8a8a" : "var(--gray)";
           const opp = getTeam(r.oppId);
-          return `<span class="frn-hc-recent-game" style="border-color:${col}66;color:${col}" title="W${r.week} vs ${opp?.name||"?"} ${r.my}-${r.them}">
+          return `<span class="frn-hc-recent-game" style="border-color:${_alphaCol(col,"66")};color:${col}" title="W${r.week} vs ${opp?.name||"?"} ${r.my}-${r.them}">
             <b>${r.result}</b> ${r.my}–${r.them}
           </span>`;
         }).join("")}
@@ -12482,7 +12482,7 @@ function renderFrnCoachingStaff() {
                   : rank <= Math.ceil(total * 0.75) ? { col: "#e8a000",         label: "BELOW AVG" }
                   :                                    { col: "#ff8a8a",        label: "BOTTOM-10" };
       const metric = slot === "dc" ? "PPG allowed" : "PPG scored";
-      return `<span class="frn-coord-unit-pill" style="color:${tier.col};border-color:${tier.col}66" title="${metric} · ${ppg.toFixed(1)}">
+      return `<span class="frn-coord-unit-pill" style="color:${tier.col};border-color:${_alphaCol(tier.col,"66")}" title="${metric} · ${ppg.toFixed(1)}">
         #${rank} ${slot.toUpperCase()} · ${tier.label}
       </span>`;
     })() : "";

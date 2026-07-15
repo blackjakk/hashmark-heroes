@@ -1639,7 +1639,7 @@ function _scoutNeedsBar(myId) {
     if (lvl === 0) return null;
     const col = lvl === 2 ? "#ff9090" : "#e8a000";
     const label = lvl === 2 ? "NEED" : "THIN";
-    return `<span style="font-size:.52rem;font-weight:700;color:${col};background:rgba(0,0,0,.25);border:1px solid ${col}55;padding:.06rem .3rem;border-radius:3px;white-space:nowrap">${pos} <span style="opacity:.75">${label}</span></span>`;
+    return `<span style="font-size:.52rem;font-weight:700;color:${col};background:rgba(0,0,0,.25);border:1px solid ${_alphaCol(col,"55")};padding:.06rem .3rem;border-radius:3px;white-space:nowrap">${pos} <span style="opacity:.75">${label}</span></span>`;
   }).filter(Boolean);
   if (!pills.length) return "";
   return `<div style="display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;margin-bottom:.55rem;padding:.3rem .4rem;background:var(--ds-shade-20);border-radius:4px;border:1px solid var(--border)">
@@ -8973,7 +8973,7 @@ function renderFrnFACuts() {
     // HiddenOracle so the security model holds (no raw ceiling number
     // ever surfaces). Falls back to "?" if oracle isn't available.
     const tier = _hasOracle ? HiddenOracle.read.ceilingTier(p) : { grade: "?", color: "var(--gray)" };
-    const tierBadge = `<span class="frn-cuts-tier tier-${tier.grade}" style="color:${tier.color};border-color:${tier.color}55" title="Hidden ceiling tier · S best, D worst — your scouts can be wrong">${tier.grade}</span>`;
+    const tierBadge = `<span class="frn-cuts-tier tier-${tier.grade}" style="color:${tier.color};border-color:${_alphaCol(tier.color,"55")}" title="Hidden ceiling tier · S best, D worst — your scouts can be wrong">${tier.grade}</span>`;
     // Inline trade-value chip — surfaces "ASSET" (positive value vs
     // contract) or "BLOCKER" (negative value, anchor on cap).
     const tradeChip = tradeTag === "asset"
@@ -8986,7 +8986,7 @@ function renderFrnFACuts() {
       <td class="frn-cuts-td-pos">${p.position}</td>
       <td class="frn-cuts-td-name">
         <span class="frn-cuts-name-link" role="button" tabindex="0" onclick="frnOpenPlayerCard('${cleanName(p.name)}')" onkeydown="_frnRowKey(event)" aria-label="Open ${_escHtml(p.name)}'s player card" title="${_escHtml(p.name)} — click for full card · ceiling, contract, career history">${_escHtml(p.name)}</span>
-        ${badges.length ? `<span class="frn-cuts-badges">${badges.map(b => `<span class="frn-cuts-badge" style="color:${b.col};border-color:${b.col}55">${b.tag}</span>`).join("")}</span>` : ""}
+        ${badges.length ? `<span class="frn-cuts-badges">${badges.map(b => `<span class="frn-cuts-badge" style="color:${b.col};border-color:${_alphaCol(b.col,"55")}">${b.tag}</span>`).join("")}</span>` : ""}
       </td>
       <td class="frn-cuts-td-ovr" style="color:${ovrCol}">${ovrStr}</td>
       <td class="frn-cuts-td-ceil">${tierBadge}</td>
