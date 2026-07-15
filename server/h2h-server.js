@@ -40,10 +40,48 @@ const fs = require("fs");
 const path = require("path");
 const { loadEngine } = require("./engine-host.js");
 const { resultHash } = require("./result-hash.js");
-const { artifactInputs, artifactInputsHash } = require("./artifact.js");
+const { artifactInputs, artifactInputsHash, sigMessage, verifyCallSig } = require("./artifact.js");
 
 const PORT = Number(process.argv[2] || process.env.H2H_PORT || 8787);
 const DATA_DIR = process.env.H2H_DATA || path.join(__dirname, "data");
+
+// ── per-call SIGNATURES (anti-fabrication attestation) ─────────────────────
+// A verified artifact proves the result FOLLOWS from the inputs; it cannot by
+// itself prove the OPPONENT authorized the tape (inputs are public — one party
+// could fabricate a match solo). Close: each seat may register an ECDSA P-256
+// public key at create/join; every call it submits must then carry a signature
+// over the canonical call bytes, verified BEFORE the tape commits and served
+// with the artifact (parallel `sigs` array — the hashed inputs shape is
+// UNCHANGED, attestation layers on top). Clock-timeout / defense-off entries
+// are signed by the SERVER key (attesting "the authority generated this"), so
+// a fully-covered artifact proves every entry's origin. Seats without a key
+// stay legacy-unsigned (coverage gap is visible to verifiers, not fatal).
+const SIG_CURVE = "P-256";
+function validJwk(k) {
+  return !!k && typeof k === "object" && k.kty === "EC" && k.crv === SIG_CURVE
+    && typeof k.x === "string" && typeof k.y === "string";
+}
+function cleanJwk(k) { return { kty: "EC", crv: SIG_CURVE, x: k.x, y: k.y }; }
+let _serverKey = null;   // persisted in DATA_DIR so restarts keep the same identity
+function serverKey() {
+  if (_serverKey) return _serverKey;
+  const kf = path.join(DATA_DIR, "server-key.json");
+  try {
+    const j = JSON.parse(fs.readFileSync(kf, "utf8"));
+    _serverKey = { privateKey: crypto.createPrivateKey({ key: j.priv, format: "jwk" }), pubJwk: j.pub };
+  } catch (_) {
+    const { publicKey, privateKey } = crypto.generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+    const pub = publicKey.export({ format: "jwk" });
+    const priv = privateKey.export({ format: "jwk" });
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(kf, JSON.stringify({ pub, priv }));
+    _serverKey = { privateKey: crypto.createPrivateKey({ key: priv, format: "jwk" }), pubJwk: pub };
+  }
+  return _serverKey;
+}
+function serverSign(msg) {
+  return crypto.sign("sha256", msg, { key: serverKey().privateKey, dsaEncoding: "ieee-p1363" }).toString("base64");
+}
 
 // Non-internal IPv4 addresses of this machine — reported by /api/health so
 // the client can turn a localhost share link into one that works across the
@@ -103,7 +141,7 @@ function persistHeader(m) {
     t: "header", v: 1, id: m.id, seed: m.seed,
     homeTeamId: m.homeTeamId, awayTeamId: m.awayTeamId,
     settings: m.settings, tokens: m.tokens, joinCode: m.joinCode,
-    joined: m.joined, rosters: m.rosters, created: Date.now(),
+    joined: m.joined, rosters: m.rosters, keys: m.keys, created: Date.now(),
   }) + "\n");
 }
 function persistCall(m, entry) {
@@ -127,7 +165,7 @@ function loadPersisted() {
       if (!h) continue;
       const m = newMatchShell(h);
       for (const l of lines) {
-        if (l.t === "call") m.tape.push(l.call);
+        if (l.t === "call") { m.tape.push(l.call); m.sigs[l.i != null ? l.i : m.tape.length - 1] = l.sig ? { by: l.by, sig: l.sig } : null; }
         if (l.t === "join") m.joined = true;
         if (l.t === "final") { m.status = "final"; m.result = l.result; m.resultHash = l.resultHash || null; }
       }
@@ -144,7 +182,9 @@ function newMatchShell(h) {
     homeTeamId: h.homeTeamId, awayTeamId: h.awayTeamId,
     settings: h.settings, tokens: h.tokens, joinCode: h.joinCode,
     joined: !!h.joined, rosters: h.rosters,
-    tape: [], status: "lobby",       // lobby | pending | final
+    keys: h.keys || { home: null, away: null },   // registered seat pubkeys (JWK)
+    tape: [], sigs: [],              // sigs[i] = {by:"home"|"away"|"server", sig} | null
+    status: "lobby",                 // lobby | pending | final
     outstanding: [],                 // [{seq, side, kind, ctx, deadline, call?}]
     plays: [], score: { home: 0, away: 0 }, result: null,
     events: [], nextEventId: 1,      // replayable SSE log
@@ -162,7 +202,7 @@ function validRoster(r) {
         && typeof p.name === "string" && typeof p.position === "string");
 }
 
-function createMatch({ homeTeamId, awayTeamId, clockMs, defense, homeRoster, seed }) {
+function createMatch({ homeTeamId, awayTeamId, clockMs, defense, homeRoster, seed, pubKey }) {
   const home = eng.getTeam(homeTeamId);
   if (!home) throw new Error("bad home team id");
   if (awayTeamId != null && (!eng.getTeam(awayTeamId) || awayTeamId === homeTeamId)) {
@@ -192,6 +232,7 @@ function createMatch({ homeTeamId, awayTeamId, clockMs, defense, homeRoster, see
   // The away roster is finalized at join (joiner's franchise roster, or
   // generated for whichever team they pick).
   m.rosters = { home: homeRoster || eng.buildRoster(home), away: null };
+  if (validJwk(pubKey)) m.keys.home = cleanJwk(pubKey);   // per-call signature seat key
   matches.set(m.id, m);
   persistHeader(m);
   return m;
@@ -200,7 +241,7 @@ function createMatch({ homeTeamId, awayTeamId, clockMs, defense, homeRoster, see
 // Finalize the away seat (team + roster) and start the match. Pre-join the
 // tape is empty, so rewriting the header is safe and keeps the artifact
 // self-contained.
-function finalizeJoin(m, { awayTeamId, awayRoster }) {
+function finalizeJoin(m, { awayTeamId, awayRoster, pubKey }) {
   if (m.joined) return;
   if (awayRoster != null && !validRoster(awayRoster)) throw new Error("bad away roster");
   let awayId = awayTeamId ?? m.awayTeamId;
@@ -209,6 +250,7 @@ function finalizeJoin(m, { awayTeamId, awayRoster }) {
   }
   m.awayTeamId = awayId;
   m.rosters.away = awayRoster || eng.buildRoster(eng.getTeam(awayId));
+  if (validJwk(pubKey)) m.keys.away = cleanJwk(pubKey);
   m.joined = true;
   persistHeader(m);
   persistJoin(m);
@@ -250,7 +292,10 @@ function step(m) {
   // append the defer and re-step. Bounded by the tape length of one game.
   if (!finished && pendingCtx && pendingCtx.kind === "defense" && !m.settings.defense) {
     m.tape.push(null);
-    persistCall(m, { i: m.tape.length - 1, side: pendingCtx.side, kind: pendingCtx.kind, call: null, auto: "off" });
+    const _offSig = { by: "server", sig: serverSign(sigMessage(m.id, m.tape.length - 1, "server", null)) };
+    m.sigs[m.tape.length - 1] = _offSig;
+    persistCall(m, { i: m.tape.length - 1, side: pendingCtx.side, kind: pendingCtx.kind, call: null, auto: "off",
+      by: _offSig.by, sig: _offSig.sig });
     return step(m);
   }
 
@@ -343,17 +388,34 @@ function resolveWindow(m) {
   m.outstanding = [];
   for (const o of batch) {
     m.tape.push(o.call);
-    persistCall(m, { i: o.seq, side: o.side, kind: o.kind, call: o.call, ...(o.auto ? { auto: o.auto } : {}) });
+    // attestation record: player-signed, server-signed (auto entries — the
+    // authority attests the clock/settings generated this), or null (legacy
+    // unsigned seat — the coverage gap stays visible to verifiers).
+    let sigRec = null;
+    if (o.sig) sigRec = { by: o.side, sig: o.sig };
+    else if (o.auto) sigRec = { by: "server", sig: serverSign(sigMessage(m.id, o.seq, "server", o.call)) };
+    m.sigs[o.seq] = sigRec;
+    persistCall(m, { i: o.seq, side: o.side, kind: o.kind, call: o.call,
+      ...(o.auto ? { auto: o.auto } : {}), ...(sigRec ? { by: sigRec.by, sig: sigRec.sig } : {}) });
   }
   step(m);
 }
 
-function submitCall(m, side, seq, call, auto) {
+function submitCall(m, side, seq, call, auto, sig) {
   if (m.status !== "pending" || !m.outstanding.length) return { error: "no pending decision" };
   const o = m.outstanding.find(x => x.side === side);
   if (!o) return { error: "not your decision" };
   if (o.seq !== seq) return { error: "stale seq" };
   if (o.call !== undefined) return { error: "already answered" };
+  // A key-registered seat MUST sign every call — the attestation that makes
+  // the artifact self-proving. Reject bad/missing sigs BEFORE the tape sees
+  // the call (the clock keeps running; a broken client degrades to timeout).
+  if (m.keys[side]) {
+    if (!sig || !verifyCallSig(m.keys[side], sigMessage(m.id, seq, side, call), sig)) {
+      return { error: "bad or missing call signature for a key-registered seat" };
+    }
+    o.sig = String(sig);
+  }
   o.call = (call === "auto" || call == null) ? null : call;
   if (auto) o.auto = auto;
   if (m.outstanding.every(x => x.call !== undefined)) {
@@ -460,19 +522,19 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/join") {
-      const { matchId, joinCode, awayTeamId, awayRoster } = await readBody(req);
+      const { matchId, joinCode, awayTeamId, awayRoster, pubKey } = await readBody(req);
       const m = matches.get(matchId);
       if (!m) return json(res, 404, { error: "no such match" });
       if (m.joinCode !== joinCode) return json(res, 403, { error: "bad join code" });
-      if (!m.joined) finalizeJoin(m, { awayTeamId, awayRoster });
+      if (!m.joined) finalizeJoin(m, { awayTeamId, awayRoster, pubKey });
       return json(res, 200, { matchId: m.id, side: "away", token: m.tokens.away, settings: m.settings });
     }
 
     if (req.method === "POST" && url.pathname === "/api/call") {
-      const { matchId, token, seq, call } = await readBody(req);
+      const { matchId, token, seq, call, sig } = await readBody(req);
       const a = authedMatch(matchId, token);
       if (a.error) return json(res, 403, a);
-      const r = submitCall(a.m, a.side, seq, call);
+      const r = submitCall(a.m, a.side, seq, call, undefined, sig);
       return json(res, r.error ? 409 : 200, r);
     }
 
@@ -541,7 +603,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && arMatch) {
       const a = authedMatch(arMatch[1], url.searchParams.get("token"));
       if (a.error) return json(res, 403, a);
-      return json(res, 200, { ...artifactOf(a.m), result: a.m.result, hash: artifactHash(a.m), resultHash: a.m.resultHash || null });
+      // keys/sigs are ATTESTATION on the inputs, served outside the hashed
+      // artifactInputs shape — `hash` (v2) is unchanged for old artifacts.
+      const sigsOut = a.m.tape.map((_, i) => a.m.sigs[i] || null);
+      return json(res, 200, { ...artifactOf(a.m), id: a.m.id, result: a.m.result, hash: artifactHash(a.m), resultHash: a.m.resultHash || null,
+        keys: { home: a.m.keys.home, away: a.m.keys.away, server: serverKey().pubJwk }, sigs: sigsOut });
     }
 
     if (req.method === "GET" && url.pathname === "/api/health") {

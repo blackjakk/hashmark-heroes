@@ -123,15 +123,30 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   check(after && after.members.length === before.members.length, "members survive a restart");
   check(after && after.phase === "active" && after.season === before.season, "phase/season survive a restart");
 
+  // ── member signature keypairs (ECDSA P-256; the per-pick / per-call
+  // attestation layer). One helper set shared by the draft + M4 scenes. ──
+  const mkKp = () => {
+    const kp = crypto.generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+    const pub = kp.publicKey.export({ format: "jwk" });
+    return { kp, pub: { kty: pub.kty, crv: pub.crv, x: pub.x, y: pub.y } };
+  };
+  const signWith = (k, msg) => crypto.sign("sha256", msg, { key: k.kp.privateKey, dsaEncoding: "ieee-p1363" }).toString("base64");
+  const pickMsg = (leagueId, i, teamId, pid) => Buffer.from(`hh-pick|${leagueId}|${i}|${teamId}|${pid}`);
+  const callMsg = (matchId, seq, by, call) => {
+    const n = (call === "auto" || call == null) ? null : call;
+    return Buffer.from(`hh-call|${matchId}|${seq}|${by}|${JSON.stringify(n)}`);
+  };
+
   // ── FANTASY DRAFT (FANTASY_DRAFT_DESIGN.md S2) ─────────────────────────────
   console.log("\n[fantasy draft — commissioner start → drafting phase]");
+  const fdKeys = { 5: mkKp(), 9: mkKp() };   // both members key-registered
   const fdc = await req("POST", "/api/league", {
-    name: "Draft Dynasty", adminTeamId: 5, adminName: "Commish",
+    name: "Draft Dynasty", adminTeamId: 5, adminName: "Commish", pubKey: fdKeys[5].pub,
     settings: { teamCount: 4, rosterMode: "fantasy_draft", draftRounds: 12, pickClockMs: 0 },
   });
   check(fdc.status === 200, "fantasy-draft league created");
   const fdId = fdc.body.leagueId, fdAdmin = fdc.body.adminToken, fdCommishTok = fdc.body.memberToken;
-  const fdJoin = await req("POST", "/api/league/join", { leagueId: fdId, token: fdc.body.joinCode, teamId: 9, displayName: "GM Bo" });
+  const fdJoin = await req("POST", "/api/league/join", { leagueId: fdId, token: fdc.body.joinCode, teamId: 9, displayName: "GM Bo", pubKey: fdKeys[9].pub });
   const fdBoTok = fdJoin.body.memberToken;
   const evDraft = sse(`/api/league/events/${fdId}?token=${fdAdmin}`, 2500);
   await sleep(150);
@@ -168,8 +183,14 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   check(bogus.status === 400, "bogus pid rejected");
   const badTok = await req("POST", "/api/league/draft/pick", { leagueId: fdId, token: "WRONG", pid: legalPick.pid });
   check(badTok.status === 403, "bad token rejected");
-  const good = await req("POST", "/api/league/draft/pick", { leagueId: fdId, token: humanTok, pid: legalPick.pid });
-  check(good.status === 200 && good.body.pid === legalPick.pid, `on-clock human pick accepted (${legalPick.position} ${legalPick.name})`);
+  // per-pick SIGNATURES: a key-registered member's pick must be signed
+  const noSig = await req("POST", "/api/league/draft/pick", { leagueId: fdId, token: humanTok, pid: legalPick.pid });
+  check(noSig.status === 400 && /pick signature/.test(noSig.body.error || ""), "unsigned pick from a key-registered member rejected");
+  const forgedPick = await req("POST", "/api/league/draft/pick", { leagueId: fdId, token: humanTok, pid: legalPick.pid, sig: "AAAA" + "B".repeat(80) });
+  check(forgedPick.status === 400 && /pick signature/.test(forgedPick.body.error || ""), "forged pick signature rejected");
+  const pickSig = signWith(fdKeys[onClock], pickMsg(fdId, st.pickIdx, onClock, legalPick.pid));
+  const good = await req("POST", "/api/league/draft/pick", { leagueId: fdId, token: humanTok, pid: legalPick.pid, sig: pickSig });
+  check(good.status === 200 && good.body.pid === legalPick.pid, `on-clock human pick accepted, SIGNED (${legalPick.position} ${legalPick.name})`);
 
   console.log("\n[mid-draft restart — the tape IS the recovery]");
   const preTape = (await req("GET", `/api/league/draft/${fdId}?token=${fdAdmin}`)).body.tape.length;
@@ -210,6 +231,25 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   console.log("\n[anti-cheat: independent verification of the artifact]");
   const final = (await req("GET", `/api/league/draft/${fdId}?token=${fdBoTok}`)).body;
   check(final.tape.length === 32 * kit.FD_PICKS_PER_TEAM, `full tape (${final.tape.length} = 32×${kit.FD_PICKS_PER_TEAM})`);
+  // per-pick attestation lane: member-signed human picks + league-server-
+  // signed auto-picks = FULL coverage (both members registered keys), and
+  // every signature independently re-verifies against the served keys.
+  check(Array.isArray(final.sigTape) && final.sigTape.length === final.tape.length
+    && final.sigTape.every(x => x && x.sig), "sigTape covers every pick (member + server signed)");
+  check(!!final.keys && !!final.keys.server && !!final.keys.members["5"] && !!final.keys.members["9"],
+    "draft endpoint serves the league server key + member keys");
+  const _pickVerify = (i) => {
+    const rec = final.sigTape[i], e = final.tape[i];
+    const pub = rec.by === "server" ? final.keys.server : final.keys.members[String(rec.by)];
+    if (!pub) return false;
+    try {
+      const key = crypto.createPublicKey({ key: pub, format: "jwk" });
+      return crypto.verify("sha256", pickMsg(fdId, i, e.teamId, e.pid), { key, dsaEncoding: "ieee-p1363" }, Buffer.from(rec.sig, "base64"));
+    } catch (_) { return false; }
+  };
+  check(final.sigTape.every((_, i) => _pickVerify(i)), "every pick signature re-verifies (referee recipe)");
+  check(final.sigTape.some(x => x.by === "server") && final.sigTape.some(x => x.by !== "server"),
+    "attestation mixes member-signed human picks + server-signed auto-picks");
   st = kit._fdApplyTape(built, final.tape);
   const myResultHash = crypto.createHash("sha256")
     .update(JSON.stringify(final.order.map(t => [t, st.rosters[t].map(p => p.pid)])))
@@ -458,19 +498,27 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   let m4Best = null;
   for (let a = 1; a <= 32; a++) for (let b = a + 1; b <= 32; b++) for (let c = b + 1; c <= 32; c++) {
     const ms = [m4Mtg(a, b), m4Mtg(a, c), m4Mtg(b, c)].filter(Boolean).sort((x, y) => x.week - y.week);
-    if (ms.length < 2 || ms[0].week === ms[1].week) continue;
-    if (ms[2] && ms[2].week <= ms[1].week) continue;   // weeks between the two fixtures must sim clean
-    if (!m4Best || ms[1].week < m4Best.ms[1].week || (ms[1].week === m4Best.ms[1].week && ms[0].week < m4Best.ms[0].week)) m4Best = { teams: [a, b, c], ms };
+    // Need ALL THREE pairwise meetings (the schedule is NOT a full round-robin
+    // — 272 of 496 pairs meet) at strictly increasing weeks: fixture 1 = the
+    // dispute/force-sim scene, fixture 2 = propose/confirm, fixture 3 = the
+    // signature solo-accept scene; the weeks between must sim clean.
+    if (ms.length < 3 || ms[0].week === ms[1].week || ms[1].week === ms[2].week) continue;
+    const key3 = ms[1].week * 10000 + ms[2].week * 100 + ms[0].week;
+    if (!m4Best || key3 < m4Best.key3) m4Best = { teams: [a, b, c], ms, key3 };
   }
   const [m4G1, m4G2] = m4Best.ms;
+  const m4Kp = Object.fromEntries(m4Best.teams.map(t => [t, mkKp()]));   // league-registered member keys
   const m4c = await req("POST", "/api/league", { name: "M4 Live League", adminTeamId: m4Best.teams[0], adminName: "GM One",
+    pubKey: m4Kp[m4Best.teams[0]].pub,
     settings: { advanceMode: "manual", humanGamesH2H: true } });
   const m4Id = m4c.body.leagueId, m4Admin = m4c.body.adminToken;
   const m4Tok = { [m4Best.teams[0]]: m4c.body.memberToken };
   for (let i = 1; i < 3; i++) {
-    const j = await req("POST", "/api/league/join", { leagueId: m4Id, token: m4c.body.joinCode, teamId: m4Best.teams[i], displayName: "GM " + (i + 1) });
+    const j = await req("POST", "/api/league/join", { leagueId: m4Id, token: m4c.body.joinCode, teamId: m4Best.teams[i], displayName: "GM " + (i + 1), pubKey: m4Kp[m4Best.teams[i]].pub });
     m4Tok[m4Best.teams[i]] = j.body.memberToken;
   }
+  const m4Pub = (await req("GET", `/api/league/${m4Id}?token=${m4Admin}`)).body.league;
+  check(m4Pub.members.every(m => m.pubKey && m.pubKey.crv === "P-256"), "member pubkeys registered + published in the snapshot");
   await req("POST", "/api/league/start", { leagueId: m4Id, adminToken: m4Admin });
   const m4S0 = (await req("GET", `/api/league/season/${m4Id}?token=${m4Admin}`)).body;
   const m4Rosters = kit._fdBuildDefaultLeague(m4S0.leagueSeed, m4S0.year).rosters;
@@ -609,6 +657,67 @@ async function waitUp() { for (let i = 0; i < 40; i++) { try { const h = await r
   const m4Games = Object.values(m4S4.standings).reduce((n, t) => n + t.w + t.l + t.t, 0) / 2;
   check(m4S4.week === m4G2.week + 1 && !m4S4.pendingWeek && m4Games === 16 * m4G2.week,
     `standings fold exactly once per game (${m4Games} = 16×${m4G2.week}); season moved on`);
+  console.log("\n[M4 — signature solo-accept: a fully-attested artifact needs no confirmation]");
+  const m4G3 = m4Best.ms[2];
+  for (let w = m4G2.week + 1; w < m4G3.week; w++) await req("POST", "/api/league/advance", { leagueId: m4Id, adminToken: m4Admin });
+  const m4Adv3 = await req("POST", "/api/league/advance", { leagueId: m4Id, adminToken: m4Admin });
+  check(m4Adv3.status === 200 && (m4Adv3.body.pendingH2H || []).length === 1, `third fixture held open (week ${m4G3.week})`);
+  const m4T3H = m4Tok[m4G3.homeId];
+  // Named surface: MATCH-LOCAL keys are self-registrable — a fabricator signs
+  // a solo match with keys it made up. Fully self-consistent signatures, but
+  // the keys don't equal the LEAGUE-REGISTERED member keys → NOT solo-accepted
+  // (falls back to two-party attestation, where it stalls without the victim).
+  const fabNull = m4Fab(m4S0.leagueSeed, m4S0.season, m4G3.week, m4G3.homeId, m4G3.awayId, m4Rosters, null);
+  const fabHome = mkKp(), fabAway = mkKp();
+  const fabArt = { ...fabNull, id: "fabricated",
+    keys: { home: fabHome.pub, away: fabAway.pub, server: mkKp().pub },
+    sigs: fabNull.tape.map((c, i) => ({ by: "home", sig: signWith(fabHome, callMsg("fabricated", i, "home", c)) })) };
+  let m4r3 = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4T3H, artifact: fabArt });
+  check(m4r3.status === 200 && m4r3.body.proposed === true && !m4r3.body.attested,
+    "self-keyed fabrication verifies but is NOT solo-accepted (league keys don't match) — stalls at propose");
+  // The real flow: seats registered with the members' LEAGUE keys, every call
+  // signed → the artifact is self-proving; ONE submission enters the ledger.
+  const m4Fx3Seed = m4Seed(m4S0.leagueSeed, m4S0.season, m4G3.week, m4G3.homeId, m4G3.awayId);
+  const m4cm3 = await h2hReq("POST", "/api/match", { homeTeamId: m4G3.homeId, awayTeamId: m4G3.awayId,
+    clockMs: 60000, homeRoster: m4Rosters[m4G3.homeId], seed: m4Fx3Seed, pubKey: m4Kp[m4G3.homeId].pub });
+  const m4jm3 = await h2hReq("POST", "/api/join", { matchId: m4cm3.body.matchId, joinCode: m4cm3.body.joinCode,
+    awayTeamId: m4G3.awayId, awayRoster: m4Rosters[m4G3.awayId], pubKey: m4Kp[m4G3.awayId].pub });
+  const m4Mid3 = m4cm3.body.matchId, m4Tks3 = { home: m4cm3.body.token, away: m4jm3.body.token };
+  const m4SideKp = { home: m4Kp[m4G3.homeId], away: m4Kp[m4G3.awayId] };
+  let m4Final3 = null;
+  const m4Done3P = {}; const m4Done3 = new Promise(res => { m4Done3P.res = res; });
+  const m4Client3 = (side) => {
+    const es = sseOpen(H2H_PORT, `/api/events/${m4Mid3}?token=${m4Tks3[side]}`);
+    let seen = 0;
+    const pump = setInterval(async () => {
+      while (seen < es.events.length) {
+        const ev = es.events[seen++];
+        if (ev.type === "final" && !m4Final3) { m4Final3 = ev.data; m4Done3P.res(); }
+        if (ev.type !== "decision") continue;
+        const call = m4Policy(side, ev.data.kind, ev.data.ctx);
+        const sig = signWith(m4SideKp[side], callMsg(m4Mid3, ev.data.seq, side, call));
+        await h2hReq("POST", "/api/call", { matchId: m4Mid3, token: m4Tks3[side], seq: ev.data.seq, call, sig });
+      }
+    }, 30);
+    return () => { clearInterval(pump); es.close(); };
+  };
+  const m4c3H = m4Client3("home"), m4c3A = m4Client3("away");
+  await Promise.race([m4Done3, sleep(240000)]);
+  await sleep(500);
+  m4c3H(); m4c3A();
+  check(!!m4Final3, "signed live match reached FINAL");
+  const m4Art3 = (await h2hReq("GET", `/api/artifact/${m4Mid3}?token=${m4Tks3.home}`)).body;
+  check(Array.isArray(m4Art3.sigs) && m4Art3.sigs.every(x => x && x.sig), "artifact FULLY attested (every entry signed)");
+  m4r3 = await req("POST", "/api/league/h2h-result", { leagueId: m4Id, token: m4T3H, artifact: m4Art3 });
+  check(m4r3.status === 200 && m4r3.body.attested === true && m4r3.body.confirmed === true && m4r3.body.weekClosed === true,
+    "SOLO-ACCEPT: one submission of the fully-attested artifact closes the week (no confirmation round)");
+  const m4S5 = (await req("GET", `/api/league/season/${m4Id}?token=${m4Admin}`)).body;
+  const m4Ent3 = (m4S5.results[m4G3.week] || []).find(x => x.homeId === m4G3.homeId && x.awayId === m4G3.awayId);
+  check(!!m4Ent3 && m4Ent3.attested === true && m4Ent3.h2h === true
+    && m4Ent3.homeScore === m4Final3.result.homeScore && Array.isArray(m4Ent3.by) && m4Ent3.by.length === 2,
+    "ledger entry marked ATTESTED with the real score + both members");
+  check(!m4S5.pendingWeek && m4S5.week === m4G3.week + 1, "fabricated proposal superseded; season moved on");
+
   m4LgSse.close();
   try { fs.rmSync(process.env.H2H_DATA, { recursive: true, force: true }); } catch (_) {}
 

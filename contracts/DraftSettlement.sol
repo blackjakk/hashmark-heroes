@@ -38,10 +38,14 @@ import "@chainlink/contracts/src/v0.8/vrf/interfaces/VRFCoordinatorV2Interface.s
 ///
 /// LIMITATION (documented, not hidden): the artifact commits to the tape the
 /// server published. A server that FABRICATES a GM's pick produces a valid,
-/// re-derivable artifact — hash adjudication can't catch it. Closing that
-/// surface needs per-pick signatures from GM keys inside the artifact (a future
-/// tier); today a wronged GM's recourse is the challenge window + walking away
-/// before ingestion.
+/// re-derivable artifact — hash adjudication ALONE can't catch it. CLOSED at
+/// the off-chain artifact layer (2026-07): key-registered GMs sign every pick
+/// (ECDSA P-256 over hh-pick|leagueId|i|teamId|pid; auto-picks league-server-
+/// signed; full sigTape + keys served with the draft state and re-verified by
+/// league-probe's referee recipe). On-chain signature adjudication inside this
+/// contract remains a future tier; today a challenger presents the signed
+/// artifact off-chain and the wronged GM's on-chain recourse is still the
+/// challenge window before ingestion.
 contract DraftSettlement is VRFConsumerBaseV2, Ownable {
     VRFCoordinatorV2Interface public immutable COORDINATOR;
     uint256 public immutable bondAmount;       // wei required to propose or challenge

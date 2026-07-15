@@ -772,12 +772,33 @@ GEN DETERMINISM AUDIT DONE (2026-07, see CROSS-MACHINE RULE above): gen path
 routed through portable dispatchers, gen-hazard-probe gates it in CI,
 native≡portable neutrality proven — the (seed)→rosters derivation is now
 validator-fork-safe end-to-end.
-NEXT SLICES still queued: per-call GM signatures (h2h calls + draft picks;
-closes M4's fabricated-tape limit and DraftSettlement's natspec'd
-fabricated-pick surface with one scheme), cross-season player development
-for league rollovers, LeagueSettlement (weekly resultHashes on chain — the
-artifacts are already published + re-simmable), and playoff fixtures over
-H2H (M4 is regular-season only).
+PER-CALL GM SIGNATURES SHIPPED (2026-07): the fabricated-tape (M4) and
+fabricated-pick (DraftSettlement natspec) surfaces are CLOSED at the
+artifact layer with one ECDSA P-256 scheme. Canon lives in
+`server/artifact.js` (sigMessage `hh-call|matchId|seq|by|JSON(call)`,
+verifyCallSig, verifySignatures) — producer and every verifier share it.
+H2H: seats register a pubkey at create/join (browser keypair persisted in
+localStorage `h2h_seat_key_v1`, secure-context only); every call from a
+keyed seat MUST be signed or it's rejected pre-tape; clock/defense-off auto
+entries are SERVER-signed; sigs ride a PARALLEL lane (`sigs[i]` attests
+`tape[i]`) so artifactInputsHash v2 and every replay path are UNCHANGED
+(unsigned legacy seats = visible coverage gap, not an error).
+verify-artifact.js has a signature pass (invalid sig = MISMATCH exit 1).
+LEAGUE: members register pubkeys at create/join (published in the
+snapshot); draft picks from keyed members are signed
+(`hh-pick|leagueId|i|teamId|pid`, auto-picks league-server-signed, full
+sigTape + keys served on GET draft); M4 ingest SOLO-ACCEPTS a fully-
+attested artifact whose seat keys equal the fixture members'
+LEAGUE-REGISTERED keys (match-local keys are self-registrable — the
+binding is the point) — one submission, no confirmation round; anything
+less falls back to two-party attestation. league-probe 126 checks / the
+h2h probe's forged/unsigned/tamper battery are the gates.
+NEXT SLICES still queued: draft-verify.js signature report (the referee
+recipe is proven in league-probe; the standalone tool prints hashes only),
+cross-season player development for league rollovers, LeagueSettlement
+(weekly resultHashes on chain — the artifacts are already published +
+re-simmable + attested), and playoff fixtures over H2H (M4 is
+regular-season only).
 SESSION-ENV NOTE: this environment's container resets can silently restore a
 stale checkpoint — PUSH (branch + main) immediately after EVERY commit, and
 verify expected files exist before editing.

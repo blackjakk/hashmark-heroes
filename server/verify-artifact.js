@@ -18,7 +18,7 @@
 "use strict";
 const { loadEngine } = require("./engine-host.js");
 const { resultHash } = require("./result-hash.js");
-const { artifactInputsHash } = require("./artifact.js");
+const { artifactInputsHash, verifySignatures } = require("./artifact.js");
 
 // Core: returns a structured report; does not print or exit (so it's testable).
 function verifyArtifact(art, opts = {}) {
@@ -27,7 +27,7 @@ function verifyArtifact(art, opts = {}) {
     math: art.math || "native",
     expectedInputs: art.hash || null, recomputedInputs: null,
     expectedOutcome: art.resultHash || null, recomputedOutcome: null,
-    replay: null, error: null,
+    replay: null, error: null, signatures: null,
   };
   try {
     if (!art || !Array.isArray(art.tape) || !art.rosters) throw new Error("not an artifact (missing tape/rosters)");
@@ -59,6 +59,9 @@ function verifyArtifact(art, opts = {}) {
     // 3. OUTCOME hash — recompute the canonical result hash from the re-sim.
     out.recomputedOutcome = resultHash(replay);
     out.outcomeOk = !!art.resultHash && out.recomputedOutcome === art.resultHash;
+
+    // 4. SIGNATURES — per-call attestation (when the artifact carries them).
+    out.signatures = verifySignatures(art);
   } catch (e) {
     out.error = e && e.message ? e.message : String(e);
   }
@@ -90,8 +93,15 @@ function report(art, v) {
   console.log(`  OUTCOME hash (resultHash)  :  ${v.expectedOutcome ? mk(v.outcomeOk) : "— (none posted)"}`);
   console.log(`     expected   ${v.expectedOutcome || "—"}`);
   console.log(`     recomputed ${v.recomputedOutcome}`);
+  if (v.signatures && v.signatures.present) {
+    const sg = v.signatures;
+    console.log(`  SIGNATURES (per-call)      :  ${sg.invalid ? "✗ " + sg.invalid + " INVALID at [" + sg.invalidAt.slice(0, 8).join(",") + "]" : "✓ " + sg.valid + " valid"}`);
+    console.log(`     coverage   home ${sg.byHome} · away ${sg.byAway} · server ${sg.byServer} · unsigned ${sg.unsigned}`);
+  } else {
+    console.log(`  SIGNATURES (per-call)      :  — (none carried — pre-attestation artifact)`);
+  }
   console.log(line);
-  const proven = v.inputsOk && v.outcomeOk;
+  const proven = v.inputsOk && v.outcomeOk && !(v.signatures && v.signatures.invalid);
   console.log(`  VERDICT: ${proven ? "✓ PROVEN — re-sim reproduces both hashes" : "✗ MISMATCH — claimed result is NOT what the inputs re-sim to"}`);
 }
 
@@ -107,8 +117,8 @@ if (require.main === module) {
     catch (e) { console.error("✗ could not load artifact:", e.message); process.exit(2); }
     const v = verifyArtifact(art);
     report(art, v);
-    process.exit(v.error ? 2 : (v.inputsOk && v.outcomeOk ? 0 : 1));
+    process.exit(v.error ? 2 : (v.inputsOk && v.outcomeOk && !(v.signatures && v.signatures.invalid) ? 0 : 1));
   })();
 }
 
-module.exports = { verifyArtifact, loadArtifact };
+module.exports = { verifyArtifact, verifySignatures, loadArtifact };

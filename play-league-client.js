@@ -369,8 +369,10 @@ async function frnLeagueCreateSubmit(btn, opts) {
   if (btn && typeof DS !== "undefined") DS.busy(btn, true);
   try {
     _lg = { base };
+    const sigKeys = (typeof _h2hGetKeys === "function") ? await _h2hGetKeys() : null;
     const r = await _lgApi("/api/league", {
       name, adminTeamId: teamId, adminName: gm,
+      pubKey: sigKeys ? sigKeys.pubJwk : undefined,
       settings: _lgCreateFantasy
         ? { rosterMode: "fantasy_draft", draftRounds: _lgCreateRounds, pickClockMs: clock, humanGamesH2H }
         : { rosterMode: "default", humanGamesH2H },
@@ -459,7 +461,7 @@ async function frnLeagueJoinSubmit(leagueId, inviteToken, teamId, btn) {
   try { localStorage.setItem(_LG_LAST_GM_KEY, gm); } catch (_) {}
   if (btn && typeof DS !== "undefined") DS.busy(btn, true);
   try {
-    const r = await _lgApi("/api/league/join", { leagueId, token: inviteToken, teamId, displayName: gm });
+    const r = await _lgApi("/api/league/join", { leagueId, token: inviteToken, teamId, pubKey: (typeof _h2hGetKeys === "function" && (await _h2hGetKeys())?.pubJwk) || undefined, displayName: gm });
     _lg = { base: _lg.base, leagueId, token: r.memberToken, teamId: r.teamId,
             displayName: gm, leagueName: r.league?.name || "League", joinCode: null };
     _lgSaveSession();
@@ -950,6 +952,18 @@ async function _lgCanonicalRosters() {
   }
   return _lgSeasonBuilt.rosters;
 }
+// Per-pick signature: hh-pick|leagueId|pickIdx|teamId|pid, signed with the
+// same seat key registered at league join (shared store with the h2h client).
+// Null when the browser has no crypto.subtle (legacy unsigned member).
+async function _lgPickSig(pid) {
+  try {
+    if (typeof _h2hGetKeys !== "function") return undefined;
+    const keys = await _h2hGetKeys();
+    if (!keys) return undefined;
+    const i = _lgSt ? _lgSt.pickIdx : 0;
+    return await keys.sign(new TextEncoder().encode(`hh-pick|${_lg.leagueId}|${i}|${_lg.teamId}|${pid}`));
+  } catch (_) { return undefined; }
+}
 // HOME member hosts: create the match seed-bound to the league fixture, relay
 // the invite to the opponent over league SSE, enter the match as home.
 async function frnLgHostFixture(homeId, awayId, btn) {
@@ -961,15 +975,18 @@ async function frnLgHostFixture(homeId, awayId, btn) {
     const found = await _h2hFindServer();
     if (!found) throw new Error("no H2H match server reachable — run one (node server/h2h-server.js) or host a friendly once to teach me the address");
     const base = found.base;
+    const sigKeys = (typeof _h2hGetKeys === "function") ? await _h2hGetKeys() : null;
     const r = await _h2hPost(base, "/api/match", {
       homeTeamId: homeId, awayTeamId: awayId,
-      homeRoster: JSON.parse(JSON.stringify(rosters[homeId])), seed });
+      homeRoster: JSON.parse(JSON.stringify(rosters[homeId])), seed,
+      pubKey: sigKeys ? sigKeys.pubJwk : undefined });
     if (r.error) throw new Error(r.error);
     const link = location.origin + location.pathname + `#h2h=${r.matchId}.${r.joinCode}.${encodeURIComponent(base)}`;
     await _lgApi("/api/league/h2h-challenge", { leagueId: _lg.leagueId, token: _lg.token, link });
     _lgFixtureCtx = { leagueId: _lg.leagueId, week: _lgNum(S.week), homeId, awayId, matchId: r.matchId, base, token: r.token };
     _lgLeaveScreens();
     await _h2hEnter(base, r.matchId, r.token, "home");
+    _h2h.sigKeys = sigKeys;   // per-call signing — the league solo-accepts fully-attested artifacts
     _h2h.shareLink = link;
     _h2hShowWaiting();
   } catch (e) {
@@ -991,13 +1008,16 @@ async function frnLgJoinFixture(btn) {
     if (!/^https?:\/\//.test(base)) throw new Error("the invite link's server address is not http(s)");
     const rosters = await _lgCanonicalRosters();
     const awayId = _lgNum(d.awayId);
+    const sigKeys = (typeof _h2hGetKeys === "function") ? await _h2hGetKeys() : null;
     const r = await _h2hPost(base, "/api/join", {
       matchId: m[1], joinCode: m[2],
-      awayTeamId: awayId, awayRoster: JSON.parse(JSON.stringify(rosters[awayId])) });
+      awayTeamId: awayId, awayRoster: JSON.parse(JSON.stringify(rosters[awayId])),
+      pubKey: sigKeys ? sigKeys.pubJwk : undefined });
     if (r.error) throw new Error(r.error);
     _lgFixtureCtx = { leagueId: _lg.leagueId, week: _lgNum(d.week), homeId: _lgNum(d.homeId), awayId, matchId: m[1], base, token: r.token };
     _lgLeaveScreens();
     await _h2hEnter(base, m[1], r.token, r.side);
+    _h2h.sigKeys = sigKeys;
   } catch (e) {
     if (typeof DS !== "undefined") DS.toast({ message: "Couldn't join the fixture — " + e.message, kind: "error" });
     if (btn && typeof DS !== "undefined") DS.busy(btn, false);
@@ -1030,7 +1050,14 @@ async function _lgSubmitFixtureArtifact(homeId, awayId, btn) {
     }
     if (_lgScreen === "season") { await _lgRefreshSeason(); renderLeagueSeason(); }
   } catch (e) {
-    if (typeof DS !== "undefined") DS.toast({ message: "League rejected the submission — " + e.message, kind: "error", duration: 6000 });
+    // Fully-attested artifacts SOLO-ACCEPT on the first submission — the
+    // opponent's auto-submit then finds the fixture already settled. That is
+    // success, not an error.
+    if (/no fixtures are waiting|not a pending fixture/.test(e.message || "") && typeof DS !== "undefined") {
+      DS.toast({ message: "✓ Result already settled — your opponent's attested submission closed it", kind: "success", duration: 4200 });
+    } else if (typeof DS !== "undefined") {
+      DS.toast({ message: "League rejected the submission — " + e.message, kind: "error", duration: 6000 });
+    }
   } finally {
     if (btn && typeof DS !== "undefined") DS.busy(btn, false);
   }
@@ -1304,7 +1331,7 @@ function renderLeagueDraftRoom() {
 async function frnLeaguePick(pid, btn) {
   if (btn && typeof DS !== "undefined") DS.busy(btn, true);
   try {
-    const r = await _lgApi("/api/league/draft/pick", { leagueId: _lg.leagueId, token: _lg.token, pid });
+    const r = await _lgApi("/api/league/draft/pick", { leagueId: _lg.leagueId, token: _lg.token, pid, sig: await _lgPickSig(pid) });
     // Apply own pick immediately at its index (SSE will no-op on the dupe).
     _lgApplyWirePicks(r.i, [[_lg.teamId, r.pid]]);
     const p = _lgSt.byPid.get(pid);

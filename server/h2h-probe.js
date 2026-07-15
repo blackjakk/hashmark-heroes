@@ -78,8 +78,19 @@ function policy(side, kind, ctx) {
 (async () => {
   await start(PORT);
 
+  // ── per-call signature seat key (home signs; away stays legacy-unsigned to
+  // prove the coverage-gap path) ──
+  const seatKp = crypto.generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+  const seatPub = seatKp.publicKey.export({ format: "jwk" });
+  const sigMsg = (id, seq, side, call) => {
+    const n = (call === "auto" || call == null) ? null : call;
+    return Buffer.from(`hh-call|${id}|${seq}|${side}|${JSON.stringify(n)}`);
+  };
+  const seatSign = (msg) => crypto.sign("sha256", msg, { key: seatKp.privateKey, dsaEncoding: "ieee-p1363" }).toString("base64");
+
   // ── create + join ──
-  const created = await post("/api/match", { homeTeamId: 1, awayTeamId: 2, clockMs: CLOCK_MS });
+  const created = await post("/api/match", { homeTeamId: 1, awayTeamId: 2, clockMs: CLOCK_MS,
+    pubKey: { kty: seatPub.kty, crv: seatPub.crv, x: seatPub.x, y: seatPub.y } });
   check("create match", !!created.matchId && created.side === "home" && !!created.token);
   const badJoin = await post("/api/join", { matchId: created.matchId, joinCode: "nope" });
   check("bad join code rejected", badJoin.error === "bad join code");
@@ -105,7 +116,17 @@ function policy(side, kind, ctx) {
     // to expire and the AICoordinator fallback to answer.
     if (side === "away" && data.seq >= SILENT_FROM && data.seq < SILENT_TO) { timeoutsObserved++; return; }
     const call = policy(side, data.kind, data.ctx);
-    const r = await post("/api/call", { matchId: id, token: tokens[side], seq: data.seq, call });
+    // one-time rejection battery on the first HOME decision: a key-registered
+    // seat must not get an unsigned or forged call onto the tape.
+    if (side === "home" && !seen.home._sigChecked) {
+      seen.home._sigChecked = true;
+      const noSig = await post("/api/call", { matchId: id, token: tokens.home, seq: data.seq, call });
+      check("unsigned call on a key-registered seat rejected", /signature/.test(noSig.error || ""));
+      const forged = await post("/api/call", { matchId: id, token: tokens.home, seq: data.seq, call, sig: "AAAA" + "B".repeat(80) });
+      check("forged call signature rejected", /signature/.test(forged.error || ""));
+    }
+    const sig = side === "home" ? seatSign(sigMsg(id, data.seq, "home", call)) : undefined;
+    const r = await post("/api/call", { matchId: id, token: tokens[side], seq: data.seq, call, sig });
     if (r.error && r.error !== "stale seq") console.error("call rejected:", side, data.seq, r.error);
   };
 
@@ -183,6 +204,22 @@ function policy(side, kind, ctx) {
   const vTamperInputs = verifyArtifact({ ...art, hash: "0".repeat(64) });
   check("verify-artifact: MISMATCH on a tampered inputs hash",
     !vTamperInputs.inputsOk && vTamperInputs.outcomeOk);
+
+  // ── per-call SIGNATURES: the attestation layer ──
+  check("artifact carries seat + server keys and a sig lane per tape entry",
+    !!art.keys && !!art.keys.home && art.keys.away == null && !!art.keys.server
+    && Array.isArray(art.sigs) && art.sigs.length === art.tape.length);
+  const sg = vProven.signatures;
+  check("signature pass: every carried sig VALID, none forged",
+    !!sg && sg.present && sg.invalid === 0 && sg.valid > 0, sg && `valid=${sg.valid} invalid=${sg.invalid}`);
+  check("home's calls are home-signed; away's are the visible unsigned gap",
+    sg.byHome > 20 && sg.unsigned > 20, `home=${sg.byHome} unsigned=${sg.unsigned}`);
+  check("clock-timeout auto-calls are SERVER-signed (the silent window)",
+    sg.byServer >= 1, `server=${sg.byServer}`);
+  const tamperedSigs = art.sigs.map(x => x && { ...x, sig: x.sig.slice(0, -4) + "AAAA" });
+  const vTamperSig = verifyArtifact({ ...art, sigs: tamperedSigs });
+  check("verify-artifact: tampered signatures flagged INVALID (hashes still fine)",
+    vTamperSig.inputsOk && vTamperSig.outcomeOk && vTamperSig.signatures.invalid > 0);
 
   closeH(); closeA();
 

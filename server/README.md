@@ -136,6 +136,33 @@ the season itself is server-authoritative:
   the coordinator-defer property). `POST /api/league/h2h-challenge` relays
   the match invite to the opponent over league SSE.
 
+## Per-call signatures — proving WHO authorized the inputs
+
+Hashes prove a result FOLLOWS from `{seed, rosters, tape}`; they cannot prove
+the opponent authorized the tape (the inputs are public — one party can
+fabricate a match solo). The attestation layer closes that:
+
+- Seats may register an **ECDSA P-256 pubkey** at create/join; every call from
+  a key-registered seat must arrive **signed**
+  (`hh-call|matchId|seq|side|JSON(call)`, canon in `artifact.js`) or it is
+  rejected before the tape sees it. Clock-timeout / defense-off entries are
+  signed by the **server key** (persisted in the data dir). Signatures ride a
+  **parallel `sigs` lane** — `artifactInputsHash` (v2) and every replay path
+  are unchanged; unsigned legacy seats show up as a visible coverage gap.
+- `verify-artifact.js` verifies every carried signature (an invalid one =
+  MISMATCH, exit 1) and reports coverage per lane (home/away/server/unsigned).
+- **League fixtures**: members register pubkeys with the LEAGUE at join
+  (published in the snapshot). An M4 artifact that is fully attested AND whose
+  seat keys equal the fixture members' league-registered keys is
+  **self-proving → solo-accepted** (one submission, no confirmation round).
+  Match-local keys are self-registrable by a fabricator; the league-key
+  binding is exactly what they can't forge. Anything less falls back to
+  two-party attestation.
+- **Draft picks**: key-registered members sign each pick
+  (`hh-pick|leagueId|i|teamId|pid`); clock auto-picks are league-server-signed;
+  the full `sigTape` + keys are served with the draft state, so a referee
+  re-verifies every pick (league-probe does, 126 checks).
+
 ## Verifying a settled match (challenger / auditor tool)
 
 `verify-artifact.js` is the standalone, trustless verifier — what an optimistic

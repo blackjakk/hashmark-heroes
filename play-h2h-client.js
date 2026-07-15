@@ -17,7 +17,47 @@
 // matches with server-generated rosters; no accounts (identity = token);
 // wire plays still carry statsSnap (slimming is a listed follow-up).
 
-let _h2h = null; // { base, matchId, token, side, es, settings, clockTimer }
+let _h2h = null; // { base, matchId, token, side, es, settings, clockTimer, sigKeys }
+
+// ── per-call signature keys (anti-fabrication attestation) ─────────────────
+// Each seat registers an ECDSA P-256 public key at create/join and signs every
+// call it submits; the server verifies before the tape commits and the
+// artifact carries the attestations. The keypair persists in localStorage so
+// a reload keeps the seat's signing identity. No crypto.subtle (insecure
+// context) → legacy unsigned mode: everything still works, verifiers just see
+// the coverage gap.
+const _H2H_KEY_STORE = "h2h_seat_key_v1";
+async function _h2hGetKeys() {
+  try {
+    if (typeof crypto === "undefined" || !crypto.subtle) return null;
+    let jwks = null;
+    try { jwks = JSON.parse(localStorage.getItem(_H2H_KEY_STORE) || "null"); } catch (_) {}
+    if (!jwks || !jwks.pub || !jwks.priv) {
+      const kp = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+      jwks = {
+        pub: await crypto.subtle.exportKey("jwk", kp.publicKey),
+        priv: await crypto.subtle.exportKey("jwk", kp.privateKey),
+      };
+      try { localStorage.setItem(_H2H_KEY_STORE, JSON.stringify(jwks)); } catch (_) {}
+    }
+    const priv = await crypto.subtle.importKey("jwk", jwks.priv, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+    return {
+      pubJwk: { kty: jwks.pub.kty, crv: jwks.pub.crv, x: jwks.pub.x, y: jwks.pub.y },
+      sign: async (bytes) => {
+        const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, priv, bytes);
+        let b = ""; const u = new Uint8Array(sig);
+        for (let i = 0; i < u.length; i++) b += String.fromCharCode(u[i]);
+        return btoa(b);
+      },
+    };
+  } catch (_) { return null; }
+}
+// Canonical call bytes — MUST mirror the server's sigMessage (same
+// normalization: "auto"/null → null) or the signature never verifies.
+function _h2hSigBytes(matchId, seq, side, call) {
+  const norm = (call === "auto" || call == null) ? null : call;
+  return new TextEncoder().encode(`hh-call|${matchId}|${seq}|${side}|${JSON.stringify(norm)}`);
+}
 
 // ── entry points ────────────────────────────────────────────────────────────
 // opts: { base?, homeTeamId?, awayTeamId?, useFranchiseRoster? }. The dev-
@@ -40,7 +80,9 @@ async function h2hCreateMatch(opts) {
   // firing two match creations.
   const _busyBtn = (typeof DS !== "undefined" && DS.busy) ? DS.busy("#h2hCreateBtn", true) : null;
   try {
-    const r = await _h2hPost(base, "/api/match", { homeTeamId, awayTeamId, homeRoster });
+    const sigKeys = await _h2hGetKeys();
+    const r = await _h2hPost(base, "/api/match", { homeTeamId, awayTeamId, homeRoster,
+      pubKey: sigKeys ? sigKeys.pubJwk : undefined });
     if (r.error) throw new Error(r.error);
     let link = location.origin + location.pathname
       + `#h2h=${r.matchId}.${r.joinCode}.${encodeURIComponent(base)}`;
@@ -57,6 +99,7 @@ async function h2hCreateMatch(opts) {
       }
     }
     await _h2hEnter(base, r.matchId, r.token, "home");
+    _h2h.sigKeys = sigKeys;
     // The home panels are hidden now — the share link lives in the
     // waiting banner until the opponent joins.
     _h2h.shareLink = link;
@@ -84,7 +127,8 @@ async function h2hJoinFromHash() {
     // Joining from inside a franchise save: offer to bring your team.
     // DS.modal reads far friendlier than a native confirm() for the invited
     // player (often their very first moment in the game).
-    const body = { matchId, joinCode };
+    const sigKeys = await _h2hGetKeys();
+    const body = { matchId, joinCode, pubKey: sigKeys ? sigKeys.pubJwk : undefined };
     const fr = _h2hFranchiseRoster();
     if (fr) {
       const useFr = (typeof DS !== "undefined" && DS.modal)
@@ -103,6 +147,7 @@ async function h2hJoinFromHash() {
     const r = await _h2hPost(base, "/api/join", body);
     if (r.error) throw new Error(r.error);
     await _h2hEnter(base, matchId, r.token, r.side);
+    _h2h.sigKeys = sigKeys;
     return true;
   } catch (e) {
     _h2hStatus("");
@@ -294,8 +339,12 @@ async function _h2hSubmitCall(call) {
   _ipcHidePanel();
   _h2hShowWaiting();
   try {
+    let sig;
+    if (_h2h.sigKeys && seq != null) {
+      try { sig = await _h2h.sigKeys.sign(_h2hSigBytes(_h2h.matchId, seq, _h2h.side, call)); } catch (_) {}
+    }
     const r = await _h2hPost(_h2h.base, "/api/call", {
-      matchId: _h2h.matchId, token: _h2h.token, seq, call,
+      matchId: _h2h.matchId, token: _h2h.token, seq, call, sig,
     });
     if (r.error && r.error !== "stale seq") console.warn("[h2h] call rejected:", r.error);
   } catch (e) {

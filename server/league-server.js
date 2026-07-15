@@ -89,6 +89,44 @@ const { resultHash } = require("./result-hash.js");
 
 const PORT = Number(process.argv[2] || process.env.HH_LEAGUE_PORT || 8788);
 const DATA_DIR = process.env.HH_LEAGUE_DATA || path.join(__dirname, "data-leagues");
+
+// ── per-call/per-pick SIGNATURES (shared canon: server/artifact.js) ────────
+// Members may register an ECDSA P-256 pubkey at create/join. Draft picks from
+// a key-registered member must be signed (message: hh-pick|leagueId|i|teamId|
+// pid); clock auto-picks are signed by the LEAGUE server key. H2H fixture
+// artifacts fully signed by both fixture members' LEAGUE-REGISTERED keys are
+// SELF-PROVING and accepted solo (no opponent confirmation) — the key-to-
+// member binding is what a match-local key registration can't give you.
+const { verifySignatures, verifyCallSig } = require("./artifact.js");
+function pickMessage(leagueId, i, teamId, pid) {
+  return Buffer.from(`hh-pick|${leagueId}|${i}|${teamId}|${pid}`);
+}
+function validJwk(k) {
+  return !!k && typeof k === "object" && k.kty === "EC" && k.crv === "P-256"
+    && typeof k.x === "string" && typeof k.y === "string";
+}
+function cleanJwk(k) { return { kty: "EC", crv: "P-256", x: k.x, y: k.y }; }
+function jwkEq(a, b) { return !!a && !!b && a.x === b.x && a.y === b.y; }
+let _lgServerKey = null;
+function leagueServerKey() {
+  if (_lgServerKey) return _lgServerKey;
+  const kf = path.join(DATA_DIR, "server-key.json");
+  try {
+    const j = JSON.parse(fs.readFileSync(kf, "utf8"));
+    _lgServerKey = { privateKey: crypto.createPrivateKey({ key: j.priv, format: "jwk" }), pubJwk: j.pub };
+  } catch (_) {
+    const { publicKey, privateKey } = crypto.generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+    const pub = publicKey.export({ format: "jwk" });
+    const priv = privateKey.export({ format: "jwk" });
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(kf, JSON.stringify({ pub, priv }));
+    _lgServerKey = { privateKey: crypto.createPrivateKey({ key: priv, format: "jwk" }), pubJwk: pub };
+  }
+  return _lgServerKey;
+}
+function leagueServerSign(msg) {
+  return crypto.sign("sha256", msg, { key: leagueServerKey().privateKey, dsaEncoding: "ieee-p1363" }).toString("base64");
+}
 const STATIC = process.env.HH_STATIC === "1" || process.argv.includes("--static");
 const MAX_TEAMS = 32;
 
@@ -120,7 +158,7 @@ function publicLeague(L) {
   return {
     id: L.id, name: L.name, phase: L.phase, season: L.season, week: L.week,
     settings: L.settings, joinCode: L.joinCode,
-    members: L.members.map(m => ({ teamId: m.teamId, displayName: m.displayName, isAdmin: m.isAdmin, joinedAt: m.joinedAt })),
+    members: L.members.map(m => ({ teamId: m.teamId, displayName: m.displayName, isAdmin: m.isAdmin, joinedAt: m.joinedAt, pubKey: m.pubKey || null })),
     pendingInvites: L.invites.filter(iv => !iv.used).map(iv => ({ email: iv.email || null })),
     takenTeams: L.members.map(m => m.teamId),
     seq: L.seq,
@@ -172,13 +210,14 @@ function newLeagueShell(h) {
   };
 }
 
-function createLeague({ name, adminTeamId, adminName, settings }) {
+function createLeague({ name, adminTeamId, adminName, settings, pubKey }) {
   const L = newLeagueShell({
     id: rid(8), name: String(name || "New Dynasty").slice(0, 60), createdAt: now(),
     adminToken: rid(), joinCode: code6(),
     settings: sanitizeSettings(settings),
   });
-  L.members.push({ token: rid(), teamId: Number(adminTeamId), displayName: String(adminName || "Commissioner").slice(0, 40), isAdmin: true, joinedAt: now() });
+  L.members.push({ token: rid(), teamId: Number(adminTeamId), displayName: String(adminName || "Commissioner").slice(0, 40), isAdmin: true, joinedAt: now(),
+    ...(validJwk(pubKey) ? { pubKey: cleanJwk(pubKey) } : {}) });
   leagues.set(L.id, L);
   persistHeader(L);
   return L;
@@ -232,7 +271,7 @@ function trySendMail(to, token, L) {
   try { execFile(parts[0], parts.slice(1), () => {}); } catch (_) {}
 }
 
-function joinLeague(L, { token, teamId, displayName }) {
+function joinLeague(L, { token, teamId, displayName, pubKey }) {
   if (L.phase !== "lobby") return { error: "dynasty already started" };
   teamId = Number(teamId);
   if (L.members.some(m => m.teamId === teamId)) return { error: "team already taken" };
@@ -243,7 +282,8 @@ function joinLeague(L, { token, teamId, displayName }) {
     invite = L.invites.find(iv => iv.token === token && !iv.used);
     if (!invite) return { error: "invalid or used invite" };
   }
-  const m = { token: rid(), teamId, displayName: String(displayName || "GM").slice(0, 40), isAdmin: false, joinedAt: now(), email: invite ? invite.email : null };
+  const m = { token: rid(), teamId, displayName: String(displayName || "GM").slice(0, 40), isAdmin: false, joinedAt: now(), email: invite ? invite.email : null,
+    ...(validJwk(pubKey) ? { pubKey: cleanJwk(pubKey) } : {}) };
   L.members.push(m);
   if (invite) { invite.used = true; }
   persistAppend(L, { t: "member", ...m });
@@ -494,9 +534,18 @@ function liveDraftState(L) {
   }
   return L._dst;
 }
-function appendDraftPick(L, teamId, pid, auto) {
+function appendDraftPick(L, teamId, pid, auto, sig) {
+  const i = L.draft.tape.length;
   L.draft.tape.push({ teamId, pid, auto: !!auto });
-  persistAppend(L, { t: "draft-pick", teamId, pid, auto: !!auto });
+  // attestation lane, parallel to the tape (artifactHash covers the tape
+  // shape and stays unchanged): member-signed pick, or league-server-signed
+  // auto-pick (clock/bench-fill), or null for an unsigned legacy member.
+  L.draft.sigTape = L.draft.sigTape || [];
+  let sigRec = null;
+  if (sig) sigRec = { by: teamId, sig: String(sig) };
+  else if (auto) sigRec = { by: "server", sig: leagueServerSign(pickMessage(L.id, i, teamId, pid)) };
+  L.draft.sigTape[i] = sigRec;
+  persistAppend(L, { t: "draft-pick", teamId, pid, auto: !!auto, ...(sigRec ? { by: sigRec.by, sig: sigRec.sig } : {}) });
 }
 function beginDraft(L) {
   const kit = draftKit();
@@ -595,7 +644,7 @@ function queuedBest(kit, st, teamId, pids) {
   }
   return null;
 }
-function submitDraftPick(L, m, pid) {
+function submitDraftPick(L, m, pid, sig) {
   if (L.phase !== "drafting") return { error: "no draft in progress" };
   if (m.teamId == null) return { error: "commissioner token has no team seat — use your member token" };
   const kit = draftKit();
@@ -608,9 +657,17 @@ function submitDraftPick(L, m, pid) {
   if (!p) return { error: "no such player" };
   if (st.taken.has(p.pid)) return { error: "player already drafted" };
   if (!kit._fdLegal(st, m.teamId, p.position)) return { error: "pick blocked by position rules" };
+  // key-registered member → the pick intent must be signed (per-pick
+  // attestation; closes the fabricated-pick surface natspec'd in
+  // DraftSettlement.sol at the artifact layer).
+  if (m.pubKey) {
+    if (!sig || !verifyCallSig(m.pubKey, pickMessage(L.id, st.pickIdx, m.teamId, p.pid), sig)) {
+      return { error: "bad or missing pick signature for a key-registered member" };
+    }
+  }
   if (L.draftTimer) { clearTimeout(L.draftTimer); L.draftTimer = null; }
   const i = st.pickIdx;
-  appendDraftPick(L, m.teamId, p.pid, false);
+  appendDraftPick(L, m.teamId, p.pid, false, m.pubKey ? sig : undefined);
   kit._fdApplyPick(st, { teamId: m.teamId, pid: p.pid });
   st.pickIdx = L.draft.tape.length;
   pushEvent(L, "pick", { i, teamId: m.teamId, pid: p.pid, auto: false, by: m.displayName });
@@ -849,6 +906,36 @@ function submitH2HResult(L, member, art) {
   if (art.resultHash && art.resultHash !== hash) {
     return { error: "artifact resultHash does not match the re-sim — result rejected" };
   }
+  // SIGNATURE solo-accept: an artifact where EVERY entry is player-signed or
+  // server-signed, zero invalid, zero unsigned, AND whose seat keys equal the
+  // fixture members' LEAGUE-REGISTERED pubkeys is SELF-PROVING — the opponent
+  // authorized every call with their own key, so no confirmation round is
+  // needed. (Key binding matters: match-local keys can be self-registered by
+  // a fabricator; league-registered keys cannot.)
+  const homeMemberKey = (L.members.find(x => x.teamId === homeId) || {}).pubKey || null;
+  const awayMemberKey = (L.members.find(x => x.teamId === awayId) || {}).pubKey || null;
+  const sigPass = verifySignatures(art);
+  if (sigPass.present && sigPass.invalid === 0 && sigPass.unsigned === 0
+      && jwkEq(art.keys && art.keys.home, homeMemberKey)
+      && jwkEq(art.keys && art.keys.away, awayMemberKey)) {
+    const entry = { week: pw.week, homeId, awayId,
+      homeScore: replay.homeScore, awayScore: replay.awayScore,
+      resultHash: hash, h2h: true, attested: true,
+      by: [(L.members.find(x => x.teamId === homeId) || {}).displayName || null,
+           (L.members.find(x => x.teamId === awayId) || {}).displayName || null] };
+    const pwSolo = JSON.parse(JSON.stringify(pw));
+    pwSolo.results.push(entry);
+    pwSolo.pending = pwSolo.pending.filter(g => !(g.homeId === homeId && g.awayId === awayId));
+    if (pwSolo.proposed) delete pwSolo.proposed[homeId + "v" + awayId];
+    persistAppend(L, { t: "week-partial", ...pwSolo });
+    L.pendingWeek = pwSolo;
+    pushEvent(L, "h2h_result", { season: pwSolo.season, week: pwSolo.week, result: entry, pendingLeft: pwSolo.pending.length });
+    if (!pwSolo.pending.length) {
+      _commitWeek(L, draftKit(), pwSolo.season, pwSolo.week, pwSolo.results, "h2h-complete");
+    }
+    return { ok: true, verified: true, attested: true, confirmed: true, result: entry, weekClosed: !L.pendingWeek };
+  }
+
   // Two-party attestation: first verified submission = proposal; the OTHER
   // member's matching submission = confirmation → the result enters the week.
   const key = homeId + "v" + awayId;
@@ -1008,7 +1095,7 @@ function loadPersisted() {
         else if (l.t === "settings") L.settings = sanitizeSettings(l.settings);
         else if (l.t === "phase" || l.t === "advance") { L.phase = l.phase || L.phase; if (l.season) L.season = l.season; if (l.week) L.week = l.week; }
         else if (l.t === "draft-start") L.draft = { poolSeed: l.poolSeed, year: l.year, order: l.order, tape: [], done: false, artifactHash: null, resultHash: null };
-        else if (l.t === "draft-pick") { if (L.draft) L.draft.tape.push({ teamId: l.teamId, pid: l.pid, auto: !!l.auto }); }
+        else if (l.t === "draft-pick") { if (L.draft) { L.draft.sigTape = L.draft.sigTape || []; L.draft.sigTape[L.draft.tape.length] = l.sig ? { by: l.by, sig: l.sig } : null; L.draft.tape.push({ teamId: l.teamId, pid: l.pid, auto: !!l.auto }); } }
         else if (l.t === "draft-complete") { if (L.draft) { L.draft.done = true; L.draft.artifactHash = l.artifactHash; L.draft.resultHash = l.resultHash; } }
         else if (l.t === "draft-queue") L.queues[l.token] = l.pids || [];
         else if (l.t === "season-genesis") { L.leagueSeed = l.leagueSeed; L.year = l.year; }
@@ -1146,7 +1233,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/league/draft/pick") {
       const b = await readBody(req);
       const auth = memberAuth(b.leagueId, b.token); if (auth.error) return json(res, 403, auth);
-      const r = submitDraftPick(auth.L, auth.m, b.pid); if (r.error) return json(res, 400, r);
+      const r = submitDraftPick(auth.L, auth.m, b.pid, b.sig); if (r.error) return json(res, 400, r);
       return json(res, 200, r);
     }
     // Full draft state for (re)sync: the seed + settings + tape a client needs
@@ -1164,6 +1251,9 @@ const server = http.createServer(async (req, res) => {
         poolSeed: L.draft.poolSeed, year: L.draft.year, order: L.draft.order,
         rounds: L.settings.draftRounds, pickClockMs: L.settings.pickClockMs,
         tape: L.draft.tape, done: L.draft.done,
+        sigTape: (L.draft.sigTape || []).map(x => x || null),
+        keys: { server: leagueServerKey().pubJwk,
+          members: Object.fromEntries(L.members.filter(m => m.pubKey).map(m => [m.teamId, m.pubKey])) },
         artifactHash: L.draft.artifactHash, resultHash: L.draft.resultHash,
         pickIdx: st.pickIdx,
         onClockTeamId: st.pickIdx < n * kit.FD_PICKS_PER_TEAM ? kit._fdOnClock(st, st.pickIdx) : null,
