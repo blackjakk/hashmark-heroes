@@ -1089,7 +1089,7 @@ function loadPersisted() {
       const h = lines.find(l => l.t === "header"); if (!h) continue;
       const L = newLeagueShell(h);
       for (const l of lines) {
-        if (l.t === "member") { if (!L.members.some(m => m.token === l.token)) L.members.push({ token: l.token, teamId: l.teamId, displayName: l.displayName, isAdmin: l.isAdmin, joinedAt: l.joinedAt, email: l.email || null }); }
+        if (l.t === "member") { if (!L.members.some(m => m.token === l.token)) L.members.push({ token: l.token, teamId: l.teamId, displayName: l.displayName, isAdmin: l.isAdmin, joinedAt: l.joinedAt, email: l.email || null, ...(l.pubKey ? { pubKey: l.pubKey } : {}) }); }
         else if (l.t === "invite") { if (!L.invites.some(iv => iv.token === l.token)) L.invites.push({ token: l.token, email: l.email || null, used: !!l.used, createdAt: l.createdAt }); }
         else if (l.t === "invite-used") { const iv = L.invites.find(x => x.token === l.token); if (iv) iv.used = true; }
         else if (l.t === "settings") L.settings = sanitizeSettings(l.settings);
