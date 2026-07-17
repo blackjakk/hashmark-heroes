@@ -15,6 +15,27 @@ The game client (served separately, e.g. `npx http-server -p 5173`) points
 at the server via the "match server" field (dev panel or the 🌐 footer
 modal). The share link carries the server address to the joiner.
 
+## Party mode — ONE command for a test night with friends
+
+```bash
+npm run party            # everything on http://localhost:8790/play.html
+```
+
+Boots the h2h match server AND the league dynasty server behind a single
+origin: game files, both APIs, and a MERGED `/api/health` so both clients
+auto-discover the same origin (nobody ever types a server address). Prints
+localhost + same-Wi-Fi LAN links on boot; league invites and match links all
+carry this one origin. Data persists in `server/data-party/` — Ctrl-C and
+relaunch freely.
+
+**Remote friends:** if [`cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
+is installed, party mode automatically opens a free HTTPS quick tunnel (no
+account) and prints the shareable `https://….trycloudflare.com/play.html`
+link. HTTPS matters beyond reachability: `crypto.subtle` (the per-call
+signature layer) only exists in secure contexts, so a tunnel keeps remote
+seats SIGNING instead of degrading to legacy-unsigned. `PARTY_NO_TUNNEL=1`
+opts out. Regression: `node server/party-probe.js` (in CI).
+
 ## Single-process deployment (recommended)
 
 ```bash

@@ -74,6 +74,8 @@ jobs:
         run: node server/h2h-recovery-probe.js
       - name: H2H client probe (two real browsers through the UI to FINAL)
         run: node server/h2h-client-probe.js
+      - name: Party launcher probe (single-origin proxy, merged discovery, SSE)
+        run: node server/party-probe.js
 
   contracts:
     runs-on: ubuntu-latest

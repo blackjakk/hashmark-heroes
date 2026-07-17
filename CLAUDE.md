@@ -799,6 +799,13 @@ cross-season player development for league rollovers, LeagueSettlement
 (weekly resultHashes on chain — the artifacts are already published +
 re-simmable + attested), and playoff fixtures over H2H (M4 is
 regular-season only).
+PARTY MODE (one-command friend testing): `npm run party` = server/party.js —
+h2h + league servers behind ONE origin (path-routed proxy; merged /api/health
+serves BOTH discovery contracts with front port + LAN hosts, so every client
+auto-finds the same origin), static game files, persistent server/data-party/,
+and an automatic cloudflared HTTPS quick tunnel when the binary exists
+(secure context keeps remote seats SIGNING — crypto.subtle needs it).
+`server/party-probe.js` gates the proxy contract in CI.
 SESSION-ENV NOTE: this environment's container resets can silently restore a
 stale checkpoint — PUSH (branch + main) immediately after EVERY commit, and
 verify expected files exist before editing.
