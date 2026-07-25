@@ -42,3 +42,6 @@ coverage.json
 
 # H2H match server runtime data (seed/tape JSONL per match)
 server/data/
+
+# Skin market tracker runtime data (price snapshots, caches, portfolio)
+server/data-skins/

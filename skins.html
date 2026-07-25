@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skin Market Lab — CS skin investment research</title>
+<link rel="stylesheet" href="skins.css">
+</head>
+<body>
+<header class="hdr">
+  <h1>SKIN <span class="gold">MARKET</span> LAB</h1>
+  <div class="tag">Counter-Strike skin market research — history accrues while the tracker runs</div>
+  <div class="net" id="netStatus">connecting…</div>
+</header>
+<div class="disclaimer">
+  Transparent heuristics over recorded market data — <b>not financial advice</b>. Skin prices are
+  volatile and thinly traded; Steam sale proceeds are wallet-locked (never cash), third-party
+  cash-outs carry fees and counterparty risk. Every signal itemizes its inputs so you can judge them.
+</div>
+
+<main class="grid">
+  <aside>
+    <div class="panel">
+      <h2>WATCHLIST</h2>
+      <div class="searchWrap">
+        <input id="searchBox" placeholder="Search skins, cases, knives…" autocomplete="off"
+               aria-label="Search items to track">
+        <div id="searchResults" role="listbox"></div>
+      </div>
+      <div id="watchRows" style="margin-top:10px"></div>
+      <div class="btnrow">
+        <button class="btn" id="refreshAllBtn" title="Record a price snapshot for every watched item">⟳ Snapshot all</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>PORTFOLIO</h2>
+      <div id="pfTotals" class="pfTotals"></div>
+      <div style="overflow-x:auto"><table class="pf" id="pfTable"></table></div>
+      <form class="lotForm" id="lotForm">
+        <input id="lotQty" type="number" min="1" step="1" placeholder="Qty" aria-label="Quantity">
+        <input id="lotCost" type="number" min="0" step="0.01" placeholder="Cost each $" aria-label="Unit cost in dollars">
+        <div class="lotHint" id="lotHint">Adds a lot of the selected item at your buy price.</div>
+        <button class="btn primary" type="submit">＋ Add lot of selected item</button>
+      </form>
+    </div>
+  </aside>
+
+  <section id="itemView"><div class="panel"><div class="emptyChart">Search for an item and add it to the watchlist to begin.</div></div></section>
+</main>
+
+<div id="tooltip" aria-hidden="true"></div>
+<div id="toast" role="status"></div>
+
+<div class="modalBack" id="importModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+    <h3 id="importTitle">Import full Steam price history</h3>
+    <div class="steps">
+      <p>Steam only serves an item's multi-year history to a logged-in browser. To pull it in:</p>
+      <ol>
+        <li>Open any page on <b>steamcommunity.com</b> where you're logged in, and open the devtools console.</li>
+        <li>Paste and run (replace nothing — the item name is prefilled):<br>
+          <code id="importSnippet"></code></li>
+        <li>The result is copied to your clipboard — paste it below.</li>
+      </ol>
+      <p class="hint">Alternatively set <code>STEAM_COOKIE</code> on the server and use ⚡ Bootstrap instead.</p>
+    </div>
+    <textarea id="importText" placeholder='[["Dec 06 2013 01: +0", 4.297, "117"], …]'></textarea>
+    <div class="modalErr" id="importErr"></div>
+    <div class="btnrow">
+      <button class="btn primary" id="importGo">Import</button>
+      <button class="btn" id="importCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="skin-analytics.js"></script>
+<script src="skins.js"></script>
+</body>
+</html>

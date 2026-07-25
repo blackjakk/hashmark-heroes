@@ -819,6 +819,27 @@ them and the fixed 1.5s settle expired before the v2 manifest reload landed;
 the audit now waits for networkidle + SpriteAtlas.stats().loading===0 and
 polls http-server readiness instead of sleeping. Gate strictness unchanged.
 
+## Skin Market Lab (side tool, 2026-07-25) — CS skin market analysis
+
+Standalone CS-skin investment research tracker, fully determinism-neutral
+(shares NOTHING with the sim; not franchise UI, so outside the DS guard).
+`npm run skins` → server/skin-server.js (zero-dep Node, port 8790) serves
+skins.html + API. Snapshot-accrual model: watchlist prices append to
+`server/data-skins/history/*.jsonl` (gitignored) over time; full multi-year
+Steam history backfills via paste-import or STEAM_COOKIE bootstrap. Shared
+math in server/skin-analytics.js (UMD — server + browser run the SAME
+module); fetchers in server/skin-market.js with INJECTABLE transport
+(setTransport) so both gates are hermetic: `node server/skin-probe.js` (55
+checks) + `node tools/_skin_client_probe.js` (14, real Chromium, chart-
+pixels-painted assert), both in CI. Docs: SKIN_MARKET.md. TRAPS learned:
+Steam volume "31,263" is en-US thousands — parseMoney treats a trailing
+3-digit comma group as thousands, counts go through parseCount; Skinport API
+is brotli-ONLY (Accept-Encoding: br + zlib.brotliDecompressSync) and hard
+rate-limited (cache 30min–12h, politeness gaps in skin-market.js); Steam
+pricehistory needs a login cookie (priceoverview doesn't); chart palette is
+dataviz-validated for the dark surface (blue/aqua/orange/violet — don't
+substitute hues casually).
+
 ## UX pass (2026-07 session) — audit → fixes, all SOLVED + shipped
 
 - Full senior-UX audit of the core flows (severity-rated C/H/M/L, grounded in
