@@ -823,15 +823,20 @@ polls http-server readiness instead of sleeping. Gate strictness unchanged.
 
 Standalone CS-skin investment research tracker, fully determinism-neutral
 (shares NOTHING with the sim; not franchise UI, so outside the DS guard).
-`npm run skins` → server/skin-server.js (zero-dep Node, port 8790) serves
-skins.html + API. Snapshot-accrual model: watchlist prices append to
-`server/data-skins/history/*.jsonl` (gitignored) over time; full multi-year
-Steam history backfills via paste-import or STEAM_COOKIE bootstrap. Shared
-math in server/skin-analytics.js (UMD — server + browser run the SAME
-module); fetchers in server/skin-market.js with INJECTABLE transport
-(setTransport) so both gates are hermetic: `node server/skin-probe.js` (55
-checks) + `node tools/_skin_client_probe.js` (14, real Chromium, chart-
-pixels-painted assert), both in CI. Docs: SKIN_MARKET.md. TRAPS learned:
+EVERYTHING lives in `skins/` — self-contained by design, keep it that way.
+`npm run skins` → skins/server.js (zero-dep Node, port 8790) serves
+skins/index.html + API. The dashboard ALSO deploys on Pages
+(https://blackjakk.github.io/hashmark-heroes/skins/) as a static page that
+DISCOVERS the tracker (same-origin → saved address → localhost:8790,
+`resolveApiBase` in skins/skins.js; API sends CORS for this) and renders a
+connect-your-tracker setup panel when none answers. Snapshot-accrual model:
+watchlist prices append to `skins/data/history/*.jsonl` (gitignored) over
+time; full multi-year Steam history backfills via paste-import or
+STEAM_COOKIE bootstrap. Shared math in skins/analytics.js (UMD — server +
+browser run the SAME module); fetchers in skins/market.js with INJECTABLE
+transport (setTransport) so both gates are hermetic: `node skins/probe.js`
+(55 checks) + `node skins/client-probe.js` (17, real Chromium — chart-
+pixels-painted assert + the static-host/discovery scenarios), both in CI. Docs: skins/README.md. TRAPS learned:
 Steam volume "31,263" is en-US thousands — parseMoney treats a trailing
 3-digit comma group as thousands, counts go through parseCount; Skinport API
 is brotli-ONLY (Accept-Encoding: br + zlib.brotliDecompressSync) and hard

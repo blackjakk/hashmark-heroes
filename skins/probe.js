@@ -1,21 +1,21 @@
 #!/usr/bin/env node
-// skin-probe.js — hermetic gate for the CS skin market tracker.
+// skins/probe.js — hermetic gate for the CS skin market tracker.
 //
-// NO network: skin-market's transport is replaced with a fixture, the server
+// NO network: market.js's transport is replaced with a fixture, the server
 // runs in-process on an ephemeral port with a tmp data dir, timers off.
 // Battery: analytics math pinned to hand-computed values, then the full HTTP
 // flow (search → watch → snapshot/dedupe → paste-import → cookie-bootstrap →
 // analytics report → cross-market compare → portfolio P/L → restart
 // persistence). Exit 0 = all pass.
 //
-//   node server/skin-probe.js
+//   node skins/probe.js
 "use strict";
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
-const A = require("./skin-analytics.js");
-const M = require("./skin-market.js");
-const { startServer, slug } = require("./skin-server.js");
+const A = require("./analytics.js");
+const M = require("./market.js");
+const { startServer, slug } = require("./server.js");
 
 let pass = 0, fail = 0;
 const ok = (c, label) => { if (c) { pass++; console.log("  ✓ " + label); } else { fail++; console.log("  ✗ FAIL " + label); } };

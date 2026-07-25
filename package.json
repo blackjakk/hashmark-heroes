@@ -10,7 +10,7 @@
     "node": "hardhat node",
     "seed": "hardhat run scripts/seed.js --network megaeth",
     "party": "node server/party.js",
-    "skins": "node server/skin-server.js"
+    "skins": "node skins/server.js"
   },
   "dependencies": {
     "@chainlink/contracts": "1.3.0",

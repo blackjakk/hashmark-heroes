@@ -44,4 +44,4 @@ coverage.json
 server/data/
 
 # Skin market tracker runtime data (price snapshots, caches, portfolio)
-server/data-skins/
+skins/data/

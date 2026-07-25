@@ -1,4 +1,4 @@
-// ─── skin-market.js — CS skin marketplace data sources (Node only) ─────────
+// ─── skins/market.js — CS skin marketplace data sources (Node only) ────────
 // Zero-dependency fetch layer for the skin tracker. Every network call goes
 // through `transport(url, headers)` which the probe REPLACES with a fixture
 // (setTransport) — so tests never touch the internet and CI stays hermetic.

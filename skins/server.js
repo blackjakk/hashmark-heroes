@@ -1,17 +1,17 @@
-// ─── skin-server.js — CS skin market tracker (server + dashboard host) ─────
+// ─── skins/server.js — CS skin market tracker (server + dashboard host) ────
 // Plain Node, zero dependencies — same discipline as h2h-server.js.
 //
 // What it is: a personal market-research tracker for Counter-Strike skins.
 // It records price snapshots for a watchlist over time (JSONL on disk, so
 // history ACCRUES the longer it runs), optionally bootstraps full multi-year
 // history from Steam (login cookie) or a pasted pricehistory blob, and serves
-// a dashboard (skins.html) with charts, indicators, and portfolio P/L.
+// a dashboard (index.html) with charts, indicators, and portfolio P/L.
 //
-// Run:    node server/skin-server.js [port]          (default 8790)
+// Run:    node skins/server.js [port]   (or: npm run skins — default port 8790)
 //         STEAM_COOKIE="steamLoginSecure=..."        unlocks full-history bootstrap
-//         SKIN_DATA=/path                            data dir (default server/data-skins)
+//         SKIN_DATA=/path                            data dir (default skins/data)
 //         SKIN_SNAP_HOURS=6                          auto-snapshot cadence (0 = off)
-// Test:   node server/skin-probe.js                  (hermetic — fixture transport)
+// Test:   node skins/probe.js                       (hermetic — fixture transport)
 //
 // API (all JSON, USD):
 //   GET  /api/skins/health
@@ -29,10 +29,10 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const A = require("./skin-analytics.js");
-const M = require("./skin-market.js");
+const A = require("./analytics.js");
+const M = require("./market.js");
 
-const ROOT = path.join(__dirname, "..");
+const ROOT = __dirname; // static root = the skins/ dir itself — fully self-contained
 const SNAP_DEDUPE_MS = 30 * 60 * 1000;      // skip snapshots <30min apart per source
 const SALES_TTL_MS = 6 * 3600 * 1000;       // skinport per-item aggregates cache
 const DUMP_TTL_MS = 12 * 3600 * 1000;       // skinport full-dump cache
@@ -47,7 +47,7 @@ function writeJson(f, v) { fs.mkdirSync(path.dirname(f), { recursive: true }); f
 function startServer(opts) {
   opts = opts || {};
   const PORT = opts.port != null ? opts.port : Number(process.argv[2] || process.env.SKIN_PORT || 8790);
-  const DATA = opts.dataDir || process.env.SKIN_DATA || path.join(__dirname, "data-skins");
+  const DATA = opts.dataDir || process.env.SKIN_DATA || path.join(__dirname, "data");
   const COOKIE = opts.steamCookie != null ? opts.steamCookie : (process.env.STEAM_COOKIE || "");
   const SNAP_HOURS = opts.snapHours != null ? opts.snapHours
     : (process.env.SKIN_SNAP_HOURS != null ? Number(process.env.SKIN_SNAP_HOURS) : 6);
@@ -62,7 +62,7 @@ function startServer(opts) {
   let portfolio = readJson(pfFile, null) || [];
   const histCache = new Map(); // slug → parsed snapshot lines
 
-  const seed = readJson(path.join(__dirname, "skin-seed.json"), { items: [] }).items;
+  const seed = readJson(path.join(__dirname, "seed.json"), { items: [] }).items;
 
   function histFile(name) { return path.join(DATA, "history", slug(name) + ".jsonl"); }
   function importFile(name) { return path.join(DATA, "import", slug(name) + ".json"); }
@@ -282,8 +282,8 @@ function startServer(opts) {
   }
   const MIME = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript", ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".webp": "image/webp", ".woff2": "font/woff2" };
   function serveStatic(req, res, pathname) {
-    if (pathname === "/") pathname = "/skins.html";
-    if (pathname === "/skin-analytics.js") pathname = "/server/skin-analytics.js";
+    if (pathname === "/") pathname = "/index.html";
+    if (pathname.startsWith("/data/")) { res.writeHead(403); res.end(); return; } // never serve the data dir
     const fp = path.join(ROOT, path.normalize(pathname).replace(/^([.][.][/\\])+/, ""));
     if (!fp.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
     fs.readFile(fp, (err, buf) => {

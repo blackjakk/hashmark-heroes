@@ -1,5 +1,5 @@
-// ─── skin-analytics.js — CS skin market analytics (pure functions) ─────────
-// Shared by server/skin-server.js (Node require) and skins.html (browser
+// ─── skins/analytics.js — CS skin market analytics (pure functions) ────────
+// Shared by skins/server.js (Node require) and skins/index.html (browser
 // global `SkinAnalytics`). NO side effects, NO network, NO Math.random —
 // every function is deterministic on its inputs, so the probe can pin exact
 // values. All prices are USD numbers; all timestamps are ms epoch (UTC).

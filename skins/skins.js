@@ -1,6 +1,6 @@
 // skins.js — Skin Market Lab client (vanilla JS, no build).
-// Talks to server/skin-server.js; analytics math is shared via
-// skin-analytics.js (window.SkinAnalytics — the exact module the server runs).
+// Talks to skins/server.js; analytics math is shared via analytics.js
+// (window.SkinAnalytics — the exact module the server runs).
 "use strict";
 (function () {
   const A = window.SkinAnalytics;
@@ -22,8 +22,37 @@
   const RANGES = { "1M": 31, "3M": 92, "1Y": 366, "ALL": Infinity };
 
   // ── api ──────────────────────────────────────────────────────────────────
+  // The dashboard also ships on a static host (GitHub Pages) where there is
+  // no same-origin API — so the tracker address is DISCOVERED: same origin
+  // first, then the last tracker that worked, then localhost. Browsers treat
+  // http://localhost as a trustworthy origin, so the HTTPS Pages build may
+  // call a local tracker directly (the API sends CORS headers for this).
+  let API = "";
+  function fetchTimeout(url, ms, opts) {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), ms);
+    return fetch(url, Object.assign({ signal: ctl.signal }, opts || {})).finally(() => clearTimeout(t));
+  }
+  async function resolveApiBase() {
+    const cands = [];
+    if (location.protocol !== "file:") cands.push("");
+    const saved = localStorage.getItem("skinlab_api");
+    if (saved) cands.push(saved);
+    cands.push("http://localhost:8790", "http://127.0.0.1:8790");
+    for (const base of cands) {
+      try {
+        const r = await fetchTimeout(base + "/api/skins/health", 1600);
+        if (r.ok && (await r.json()).ok === 1) {
+          API = base;
+          if (base) localStorage.setItem("skinlab_api", base);
+          return true;
+        }
+      } catch (e) { /* next candidate */ }
+    }
+    return false;
+  }
   async function api(p, body) {
-    const r = await fetch(p, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined);
+    const r = await fetch(API + p, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined);
     const j = await r.json().catch(() => null);
     if (!r.ok) throw new Error((j && j.error) || ("HTTP " + r.status));
     return j;
@@ -476,19 +505,46 @@
   });
 
   // ── boot ─────────────────────────────────────────────────────────────────
-  (async () => {
+  function renderSetup() {
+    $("netStatus").textContent = "tracker offline";
+    $("itemView").innerHTML =
+      '<div class="panel"><h2>CONNECT YOUR TRACKER</h2>' +
+      '<div class="steps" style="color:var(--text-secondary);font-size:13px">' +
+      "<p>This dashboard is a static page — prices are recorded by a tiny local tracker that keeps" +
+      " your history and portfolio on <b>your</b> machine (Steam/Skinport block direct browser calls).</p>" +
+      "<ol>" +
+      "<li>Get the repo (once): <code>git clone https://github.com/blackjakk/hashmark-heroes</code></li>" +
+      "<li>Start the tracker: <code>cd hashmark-heroes &amp;&amp; npm run skins</code></li>" +
+      "<li>Leave it running and hit retry — this page finds it on <code>localhost:8790</code> automatically." +
+      " (History accrues while it runs; it also serves this same dashboard at" +
+      ' <code>http://localhost:8790</code> if your browser blocks the cross-origin hop.)</li>' +
+      "</ol></div>" +
+      '<div class="btnrow"><button class="btn primary" id="retryBtn">⟳ Retry connection</button>' +
+      '<input id="apiAddr" placeholder="Custom tracker address (e.g. http://192.168.1.20:8790)" ' +
+      'aria-label="Custom tracker address" style="flex:1;min-width:240px;padding:7px 10px;border-radius:8px;' +
+      'border:1px solid var(--line);background:var(--surface-2);color:var(--text-primary)"></div></div>';
+    $("retryBtn").addEventListener("click", () => {
+      const v = $("apiAddr").value.trim().replace(/\/+$/, "");
+      if (v) localStorage.setItem("skinlab_api", v);
+      boot();
+    });
+  }
+  async function boot() {
+    $("netStatus").textContent = "connecting…";
+    if (!(await resolveApiBase())) return renderSetup();
     try {
       state.health = await api("/api/skins/health");
-      $("netStatus").textContent = "ready · " + (state.health.steamCookie ? "steam cookie set" : "no steam cookie") +
+      $("netStatus").textContent = "ready · " + (API ? API.replace(/^https?:\/\//, "") : "local") +
+        (state.health.steamCookie ? " · steam cookie set" : "") +
         (state.health.snapHours ? " · auto-snap " + state.health.snapHours + "h" : "");
       await loadWatch();
       await loadPortfolio();
       if (state.watch.length) await selectItem(state.watch[0].name);
-      const hint = $("lotHint");
-      if (hint && state.selected) hint.textContent = "Adds a lot of the selected item at your buy price.";
+      else $("itemView").innerHTML = '<div class="panel"><div class="emptyChart">Search for an item and add it to the watchlist to begin.</div></div>';
     } catch (e) {
-      $("netStatus").textContent = "server unreachable";
-      toast("Can't reach the tracker server — run: node server/skin-server.js", true);
+      renderSetup();
+      toast("Tracker connection lost: " + e.message, true);
     }
-  })();
+  }
+  boot();
 })();

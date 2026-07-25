@@ -1,20 +1,20 @@
 #!/usr/bin/env node
-// _skin_client_probe.js — Skin Market Lab dashboard, end-to-end in a real
+// skins/client-probe.js — Skin Market Lab dashboard, end-to-end in a real
 // browser. Hermetic: the tracker server runs IN-PROCESS with a fixture
 // transport (no internet), pre-seeded with 120 days of history; Chromium
 // then drives the actual UI: watchlist → item view → stat tiles → canvas
 // chart actually painted → crosshair tooltip → portfolio lot add → P/L.
 // Screenshot written to /tmp/skin_lab.png for visual QA.
 //
-//   node tools/_skin_client_probe.js
+//   node skins/client-probe.js
 "use strict";
 const PW_LIB = process.env.PLAYWRIGHT_LIB || "/opt/node22/lib/node_modules/playwright";
 const { chromium } = require(PW_LIB);
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
-const M = require(path.join(__dirname, "..", "server", "skin-market.js"));
-const { startServer } = require(path.join(__dirname, "..", "server", "skin-server.js"));
+const M = require(path.join(__dirname, "market.js"));
+const { startServer } = require(path.join(__dirname, "server.js"));
 
 let pass = 0, fail = 0;
 const ok = (c, label) => { if (c) { pass++; console.log("  ✓ " + label); } else { fail++; console.log("  ✗ FAIL " + label); } };
@@ -109,6 +109,48 @@ M.setTransport(async (url) => {
 
   await page.screenshot({ path: "/tmp/skin_lab.png", fullPage: true });
   console.log("  📸 /tmp/skin_lab.png");
+
+  // ── static-host mode (the GitHub Pages scenario) ─────────────────────────
+  // The dashboard is served by a bare file server with NO api; it must
+  // DISCOVER the tracker cross-origin (saved address → CORS) and, with no
+  // tracker anywhere, render the setup panel instead of a broken page.
+  const http = require("http");
+  const MIME2 = { ".html": "text/html", ".css": "text/css", ".js": "text/javascript" };
+  const stat = http.createServer((req, res) => {
+    const f = path.join(__dirname, req.url === "/" ? "index.html" : path.normalize(req.url).replace(/^([.][.][/\\])+/, ""));
+    fs.readFile(f, (err, buf) => {
+      if (err) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { "Content-Type": MIME2[path.extname(f)] || "application/octet-stream" });
+      res.end(buf);
+    });
+  }).listen(5393);
+  const ctxB = await browser.newContext({ viewport: { width: 1360, height: 900 } });
+  await ctxB.addInitScript(() => localStorage.setItem("skinlab_api", "http://localhost:" + 5392));
+  const pageB = await ctxB.newPage();
+  await pageB.goto("http://localhost:5393/", { waitUntil: "networkidle" });
+  await pageB.waitForSelector(".wrow", { timeout: 8000 });
+  ok(true, "static-host page discovers the tracker cross-origin (saved address + CORS)");
+  ok((await pageB.textContent("#netStatus")).includes("5392"), "netStatus names the discovered tracker");
+  await ctxB.close();
+
+  // no tracker anywhere → setup panel (needs 8790 free to be deterministic:
+  // occupy it with a dummy that fails health, skip if a real tracker owns it)
+  let dummy = null;
+  const free8790 = await new Promise((r) => {
+    dummy = http.createServer((q, s) => { s.writeHead(404); s.end(); });
+    dummy.once("error", () => r(false));
+    dummy.listen(8790, () => r(true));
+  });
+  if (free8790) {
+    const ctxC = await browser.newContext();
+    const pageC = await ctxC.newPage();
+    await pageC.goto("http://localhost:5393/", { waitUntil: "networkidle" });
+    await pageC.waitForSelector("#retryBtn", { timeout: 10000 });
+    ok((await pageC.textContent("#itemView")).includes("npm run skins"), "no tracker → setup panel with run instructions");
+    await ctxC.close();
+    dummy.close();
+  } else { console.log("  ~ setup-panel check skipped (a real tracker owns :8790)"); }
+  stat.close();
 
   await browser.close();
   await inst.close();
