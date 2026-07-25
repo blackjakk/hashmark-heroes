@@ -819,31 +819,15 @@ them and the fixed 1.5s settle expired before the v2 manifest reload landed;
 the audit now waits for networkidle + SpriteAtlas.stats().loading===0 and
 polls http-server readiness instead of sleeping. Gate strictness unchanged.
 
-## Skin Market Lab (side tool, 2026-07-25) — CS skin market analysis
+## Skin Market Lab — MOVED to its own repo (2026-07-25)
 
-Standalone CS-skin investment research tracker, fully determinism-neutral
-(shares NOTHING with the sim; not franchise UI, so outside the DS guard).
-EVERYTHING lives in `skins/` — self-contained by design, keep it that way.
-`npm run skins` → skins/server.js (zero-dep Node, port 8790) serves
-skins/index.html + API. The dashboard ALSO deploys on Pages
-(https://blackjakk.github.io/hashmark-heroes/skins/) as a static page that
-DISCOVERS the tracker (same-origin → saved address → localhost:8790,
-`resolveApiBase` in skins/skins.js; API sends CORS for this) and renders a
-connect-your-tracker setup panel when none answers. Snapshot-accrual model:
-watchlist prices append to `skins/data/history/*.jsonl` (gitignored) over
-time; full multi-year Steam history backfills via paste-import or
-STEAM_COOKIE bootstrap. Shared math in skins/analytics.js (UMD — server +
-browser run the SAME module); fetchers in skins/market.js with INJECTABLE
-transport (setTransport) so both gates are hermetic: `node skins/probe.js`
-(55 checks) + `node skins/client-probe.js` (17, real Chromium — chart-
-pixels-painted assert + the static-host/discovery scenarios), both in CI. Docs: skins/README.md. TRAPS learned:
-Steam volume "31,263" is en-US thousands — parseMoney treats a trailing
-3-digit comma group as thousands, counts go through parseCount; Skinport API
-is brotli-ONLY (Accept-Encoding: br + zlib.brotliDecompressSync) and hard
-rate-limited (cache 30min–12h, politeness gaps in skin-market.js); Steam
-pricehistory needs a login cookie (priceoverview doesn't); chart palette is
-dataviz-validated for the dark surface (blue/aqua/orange/violet — don't
-substitute hues casually).
+The CS-skin investment research tracker now lives in
+`blackjakk/skin-market-lab` (split out with history; dashboard on Pages at
+https://blackjakk.github.io/skin-market-lab/, tracker = `npm start` there).
+Nothing skin-related remains in THIS repo — no gates, no npm script. Its
+agent notes (incl. the parseMoney thousands-comma trap, brotli-only
+Skinport, injectable-transport probe discipline) travel with it in that
+repo's CLAUDE.md.
 
 ## UX pass (2026-07 session) — audit → fixes, all SOLVED + shipped
 

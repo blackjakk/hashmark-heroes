@@ -76,10 +76,6 @@ jobs:
         run: node server/h2h-client-probe.js
       - name: Party launcher probe (single-origin proxy, merged discovery, SSE)
         run: node server/party-probe.js
-      - name: Skin market probe (analytics math + tracker API, hermetic)
-        run: node skins/probe.js
-      - name: Skin market client probe (dashboard in a real browser)
-        run: node skins/client-probe.js
 
   contracts:
     runs-on: ubuntu-latest
