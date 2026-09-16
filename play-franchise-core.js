@@ -5512,6 +5512,9 @@ function startFranchise(teamId) {
   if (typeof _seedCollegePipeline === "function") _seedCollegePipeline();
   saveFranchise();
   showFranchiseDashboard();
+  if (typeof window !== "undefined" && window.HHAnalytics) {
+    window.HHAnalytics.capture("franchise_started", { teamId: teamId, season: franchise.season });
+  }
   return true;
   } catch (err) {
     console.error("[startFranchise] creation failed:", err);

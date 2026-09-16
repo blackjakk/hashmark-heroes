@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-surface="game">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -187,5 +187,8 @@
 <script src="play-franchise-fantasydraft.js?v=20260715145149"></script>
 <script src="play-league-client.js?v=20260715145149"></script>
 <script src="play-h2h-client.js?v=20260715145149"></script>
+<!-- LaunchFury Analytics: client-only init + event API (window.HHAnalytics).
+     Loads after the game so early capture calls queue until the SDK is live. -->
+<script src="analytics-init.js"></script>
 </body>
 </html>
