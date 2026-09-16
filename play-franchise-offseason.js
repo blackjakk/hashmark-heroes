@@ -3696,6 +3696,9 @@ function frnSimGame(homeId, awayId) {
   _checkWeekComplete();
   _flushSaveFranchise();
   showFranchiseDashboard();
+  if (typeof window !== "undefined" && window.HHAnalytics) {
+    window.HHAnalytics.capture("game_simmed", { week: franchise.week, season: franchise.season });
+  }
 }
 
 // ── Player of the Week ────────────────────────────────────────────────────────
@@ -4715,6 +4718,9 @@ function frnPlayGame(homeId, awayId, isPlayoff) {
   const sim = _frnBuildLiveSim(homeId, awayId, isPlayoff, _frnChaosRolls(homeId, awayId));
   gameResult = sim.simulate();
   _frnStartLivePlayback();
+  if (typeof window !== "undefined" && window.HHAnalytics) {
+    window.HHAnalytics.capture("game_started", { week: franchise.week, season: franchise.season, playoff: !!isPlayoff });
+  }
 }
 
 // ── Interactive playcalling (Workstream C.2 — single-player) ────────────────
@@ -4749,6 +4755,9 @@ function frnPlayGameInteractive(homeId, awayId, isPlayoff) {
   };
   _ipcRun();
   _frnStartLivePlayback();
+  if (typeof window !== "undefined" && window.HHAnalytics) {
+    window.HHAnalytics.capture("game_started", { week: franchise.week, season: franchise.season, playoff: !!isPlayoff });
+  }
 }
 
 // One deterministic step: fresh seeded sim, tape replayed, paused at the next

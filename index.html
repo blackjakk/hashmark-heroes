@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-surface="landing">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -410,6 +410,14 @@
       if (fin) fin.textContent = label;
     }
   } catch (e) { /* fresh visitor */ }
+
+  // LaunchFury Analytics: the landing → game CTA is the top-of-funnel action.
+  document.addEventListener("click", function (e) {
+    var a = e.target && e.target.closest ? e.target.closest("a.cta") : null;
+    if (!a || !window.HHAnalytics) return;
+    window.HHAnalytics.capture("cta_click", { cta: a.id || "cta", surface: "landing" });
+  });
 </script>
+<script src="analytics-init.js"></script>
 </body>
 </html>
